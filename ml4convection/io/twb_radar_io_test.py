@@ -4,8 +4,6 @@ import unittest
 from gewittergefahr.gg_utils import time_conversion
 from ml4convection.io import twb_radar_io
 
-TOLERANCE = 1e-6
-
 # The following constants are used to test find_file and file_name_to_time.
 TOP_DIRECTORY_NAME = 'stuff'
 VALID_TIME_UNIX_SEC = time_conversion.string_to_unix_sec(
@@ -22,32 +20,32 @@ FIRST_TIME_UNIX_SEC = time_conversion.string_to_unix_sec(
     '2020-08-20-235959', '%Y-%m-%d-%H%M%S'
 )
 LAST_TIME_UNIX_SEC = time_conversion.string_to_unix_sec(
-    '2020-08-21-000712', '%Y-%m-%d-%H%M%S'
+    '2020-08-21-001712', '%Y-%m-%d-%H%M%S'
 )
 
 FILE_NAMES_ZIPPED_3D = [
-    'stuff/20200820/MREF3D21L.20200820.2355.gz',
+    'stuff/20200820/MREF3D21L.20200820.2350.gz',
     'stuff/20200821/MREF3D21L.20200821.0000.gz',
-    'stuff/20200821/MREF3D21L.20200821.0005.gz',
-    'stuff/20200821/MREF3D21L.20200821.0010.gz'
+    'stuff/20200821/MREF3D21L.20200821.0010.gz',
+    'stuff/20200821/MREF3D21L.20200821.0020.gz'
 ]
 FILE_NAMES_UNZIPPED_3D = [
-    'stuff/20200820/MREF3D21L.20200820.2355',
+    'stuff/20200820/MREF3D21L.20200820.2350',
     'stuff/20200821/MREF3D21L.20200821.0000',
-    'stuff/20200821/MREF3D21L.20200821.0005',
-    'stuff/20200821/MREF3D21L.20200821.0010'
+    'stuff/20200821/MREF3D21L.20200821.0010',
+    'stuff/20200821/MREF3D21L.20200821.0020'
 ]
 FILE_NAMES_ZIPPED_2D = [
-    'stuff/20200820/compref_mosaic/COMPREF.20200820.2355.gz',
+    'stuff/20200820/compref_mosaic/COMPREF.20200820.2350.gz',
     'stuff/20200821/compref_mosaic/COMPREF.20200821.0000.gz',
-    'stuff/20200821/compref_mosaic/COMPREF.20200821.0005.gz',
-    'stuff/20200821/compref_mosaic/COMPREF.20200821.0010.gz'
+    'stuff/20200821/compref_mosaic/COMPREF.20200821.0010.gz',
+    'stuff/20200821/compref_mosaic/COMPREF.20200821.0020.gz'
 ]
 FILE_NAMES_UNZIPPED_2D = [
-    'stuff/20200820/compref_mosaic/COMPREF.20200820.2355',
+    'stuff/20200820/compref_mosaic/COMPREF.20200820.2350',
     'stuff/20200821/compref_mosaic/COMPREF.20200821.0000',
-    'stuff/20200821/compref_mosaic/COMPREF.20200821.0005',
-    'stuff/20200821/compref_mosaic/COMPREF.20200821.0010'
+    'stuff/20200821/compref_mosaic/COMPREF.20200821.0010',
+    'stuff/20200821/compref_mosaic/COMPREF.20200821.0020'
 ]
 
 

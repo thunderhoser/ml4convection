@@ -1,6 +1,9 @@
 """IO methods for radar files from Taiwanese Weather Bureau (TWB)."""
 
 import os
+import gzip
+import copy
+import shutil
 import tempfile
 import numpy
 from gewittergefahr.gg_utils import number_rounding
@@ -9,7 +12,7 @@ from gewittergefahr.gg_utils import time_periods
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
 
-TIME_INTERVAL_SEC = 300
+TIME_INTERVAL_SEC = 600
 MIN_REFLECTIVITY_DBZ = -5.
 
 ERROR_STRING = (
@@ -101,7 +104,8 @@ def find_file(
 def file_name_to_time(radar_file_name):
     """Parses valid time from file name.
 
-    :param radar_file_name: Path to radar file (readable by `read_file`).
+    :param radar_file_name: Path to radar file (see `find_file` for naming
+        convention).
     :return: valid_time_unix_sec: Valid time.
     """
 
@@ -109,7 +113,7 @@ def file_name_to_time(radar_file_name):
     pathless_file_name = os.path.split(radar_file_name)[-1]
 
     extensionless_file_name = (
-        pathless_file_name[:-3] if pathless_file_name[-3:] == '.gz'
+        pathless_file_name[:-3] if pathless_file_name.endswith('.gz')
         else pathless_file_name
     )
 
@@ -186,10 +190,10 @@ def find_many_files(
     return radar_file_names
 
 
-def read_file(
+def read_2d_file(
         binary_file_name, gfortran_compiler_name=DEFAULT_GFORTRAN_COMPILER_NAME,
         temporary_dir_name=None):
-    """Reads radar data from binary file.
+    """Reads 2-D radar data (composite reflectivity) from binary file.
 
     M = number of rows in grid
     N = number of columns in grid
@@ -208,15 +212,6 @@ def read_file(
     error_checking.assert_file_exists(binary_file_name)
     # error_checking.assert_file_exists(gfortran_compiler_name)
 
-    if temporary_dir_name is not None:
-        file_system_utils.mkdir_recursive_if_necessary(
-            directory_name=temporary_dir_name
-        )
-
-    temporary_file_name = tempfile.NamedTemporaryFile(
-        dir=temporary_dir_name, delete=False
-    ).name
-
     if not os.path.isfile(FORTRAN_EXE_NAME):
         command_string = '"{0:s}" "{1:s}" -o "{2:s}"'.format(
             gfortran_compiler_name, FORTRAN_SCRIPT_NAME, FORTRAN_EXE_NAME
@@ -226,23 +221,49 @@ def read_file(
         if exit_code != 0:
             raise ValueError(ERROR_STRING)
 
+    if temporary_dir_name is not None:
+        file_system_utils.mkdir_recursive_if_necessary(
+            directory_name=temporary_dir_name
+        )
+
+    is_file_zipped = binary_file_name.endswith('.gz')
+    input_file_name = copy.deepcopy(binary_file_name)
+
+    if is_file_zipped:
+        gzip_file_object = gzip.open(binary_file_name, 'rb')
+        binary_file_object = tempfile.NamedTemporaryFile(
+            dir=temporary_dir_name, delete=False
+        )
+        binary_file_name = binary_file_object.name
+
+        shutil.copyfileobj(gzip_file_object, binary_file_object)
+        gzip_file_object.close()
+        binary_file_object.close()
+
+    temporary_text_file_name = tempfile.NamedTemporaryFile(
+        dir=temporary_dir_name, delete=False
+    ).name
+
+    print('Reading data from binary file: "{0:s}"...'.format(input_file_name))
     fortran_exe_dir_name, fortran_exe_pathless_name = (
         os.path.split(FORTRAN_EXE_NAME)
     )
     command_string = 'cd "{0:s}"; ./{1:s} "{2:s}" > "{3:s}"'.format(
         fortran_exe_dir_name, fortran_exe_pathless_name, binary_file_name,
-        temporary_file_name
+        temporary_text_file_name
     )
 
     exit_code = os.system(command_string)
+    if is_file_zipped:
+        os.remove(binary_file_name)
     if exit_code != 0:
         raise ValueError(ERROR_STRING)
 
-    print('Reading data from temporary file: "{0:s}"...'.format(
-        temporary_file_name
+    print('Reading data from temporary text file: "{0:s}"...'.format(
+        temporary_text_file_name
     ))
-    data_matrix = numpy.loadtxt(temporary_file_name)
-    os.remove(temporary_file_name)
+    data_matrix = numpy.loadtxt(temporary_text_file_name)
+    os.remove(temporary_text_file_name)
 
     all_latitudes_deg_n = number_rounding.round_to_nearest(
         data_matrix[:, LATITUDE_COLUMN_INDEX], LATLNG_PRECISION_DEG
