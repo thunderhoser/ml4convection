@@ -14,4 +14,5 @@ dist/
 
 # Code that I don't intend to commit.
 ml4convection/*.py
+ml4convection/get_grid_info.exe
 ml4convection/dead_scratch_code/
