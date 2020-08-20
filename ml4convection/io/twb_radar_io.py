@@ -3,12 +3,14 @@
 import os
 import tempfile
 import numpy
+from gewittergefahr.gg_utils import number_rounding
 from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import time_periods
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
 
 TIME_INTERVAL_SEC = 300
+MIN_REFLECTIVITY_DBZ = -5.
 
 ERROR_STRING = (
     '\nUnix command failed (log messages shown above should explain why).'
@@ -21,6 +23,11 @@ FORTRAN_EXE_NAME = '{0:s}/get_grid_info.exe'.format(os.getcwd())
 TIME_FORMAT_IN_MESSAGES = '%Y-%m-%d-%H%M%S'
 TIME_FORMAT_IN_DIR_NAMES = '%Y%m%d'
 TIME_FORMAT_IN_FILE_NAMES = '%Y%m%d.%H%M'
+
+LATITUDE_COLUMN_INDEX = 0
+LONGITUDE_COLUMN_INDEX = 1
+REFLECTIVITY_COLUMN_INDEX = 2
+LATLNG_PRECISION_DEG = 1e-6
 
 
 def find_file(
@@ -91,7 +98,7 @@ def find_file(
     raise ValueError(error_string)
 
 
-def file_name_to_year(radar_file_name):
+def file_name_to_time(radar_file_name):
     """Parses valid time from file name.
 
     :param radar_file_name: Path to radar file (readable by `read_file`).
@@ -192,10 +199,10 @@ def read_file(
     :param temporary_dir_name: Name of temporary directory for text file, which
         will be deleted as soon as it is read.  If None, temporary directory
         will be set to default.
-    :return: latitudes_deg_n: length-M numpy array of latitudes (deg N).
-    :return: longitudes_deg_e: length-N numpy array of longitudes (deg E).
     :return: composite_refl_matrix_dbz: M-by-N numpy array of composite
         (column-maximum) reflectivities.
+    :return: latitudes_deg_n: length-M numpy array of latitudes (deg N).
+    :return: longitudes_deg_e: length-N numpy array of longitudes (deg E).
     """
 
     error_checking.assert_file_exists(binary_file_name)
@@ -237,6 +244,29 @@ def read_file(
     data_matrix = numpy.loadtxt(temporary_file_name)
     os.remove(temporary_file_name)
 
-    # TODO(thunderhoser): Deal with NaN and reshaping.
+    all_latitudes_deg_n = number_rounding.round_to_nearest(
+        data_matrix[:, LATITUDE_COLUMN_INDEX], LATLNG_PRECISION_DEG
+    )
+    all_longitudes_deg_e = number_rounding.round_to_nearest(
+        data_matrix[:, LONGITUDE_COLUMN_INDEX], LATLNG_PRECISION_DEG
+    )
+    num_grid_rows = numpy.sum(all_longitudes_deg_e == all_longitudes_deg_e[0])
+    num_grid_columns = numpy.sum(all_latitudes_deg_n == all_latitudes_deg_n[0])
 
-    return data_matrix
+    composite_refl_matrix_dbz = numpy.reshape(
+        data_matrix[:, REFLECTIVITY_COLUMN_INDEX],
+        (num_grid_rows, num_grid_columns)
+    )
+    composite_refl_matrix_dbz[
+        composite_refl_matrix_dbz < MIN_REFLECTIVITY_DBZ
+    ] = numpy.nan
+
+    latitudes_deg_n = numpy.reshape(
+        all_latitudes_deg_n, (num_grid_rows, num_grid_columns)
+    )[:, 0]
+
+    longitudes_deg_e = numpy.reshape(
+        all_longitudes_deg_e, (num_grid_rows, num_grid_columns)
+    )[0, :]
+
+    return composite_refl_matrix_dbz, latitudes_deg_n, longitudes_deg_e
