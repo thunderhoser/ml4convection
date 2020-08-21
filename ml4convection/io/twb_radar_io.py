@@ -12,6 +12,10 @@ from gewittergefahr.gg_utils import time_periods
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
 
+THIS_DIRECTORY_NAME = os.path.dirname(os.path.realpath(
+    os.path.join(os.getcwd(), os.path.expanduser(__file__))
+))
+
 TIME_INTERVAL_SEC = 600
 MIN_REFLECTIVITY_DBZ = -5.
 
@@ -20,8 +24,12 @@ ERROR_STRING = (
 )
 
 DEFAULT_GFORTRAN_COMPILER_NAME = 'gfortran'
-FORTRAN_SCRIPT_NAME = '{0:s}/get_grid_info.f90'.format(os.getcwd())
-FORTRAN_EXE_NAME = '{0:s}/get_grid_info.exe'.format(os.getcwd())
+FORTRAN_SCRIPT_NAME = (
+    '{0:s}/read_twb_satellite_file.f90'.format(THIS_DIRECTORY_NAME)
+)
+FORTRAN_EXE_NAME = (
+    '{0:s}/read_twb_satellite_file.exe'.format(THIS_DIRECTORY_NAME)
+)
 
 TIME_FORMAT_IN_MESSAGES = '%Y-%m-%d-%H%M%S'
 TIME_FORMAT_IN_DIR_NAMES = '%Y%m%d'
