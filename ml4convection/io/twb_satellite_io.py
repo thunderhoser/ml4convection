@@ -307,10 +307,14 @@ def read_file(
     brightness_temp_matrix_kelvins = numpy.reshape(
         brightness_temps_kelvins, (num_grid_rows, num_grid_columns)
     )
+    brightness_temp_matrix_kelvins = (
+        numpy.flipud(brightness_temp_matrix_kelvins)
+    )
 
     latitudes_deg_n = numpy.reshape(
         all_latitudes_deg_n, (num_grid_rows, num_grid_columns)
     )[:, 0]
+    latitudes_deg_n = latitudes_deg_n[::-1]
 
     longitudes_deg_e = numpy.reshape(
         all_longitudes_deg_e, (num_grid_rows, num_grid_columns)
