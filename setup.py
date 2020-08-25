@@ -2,10 +2,7 @@
 
 from setuptools import setup
 
-PACKAGE_NAMES = [
-    'ml4convection', 'ml4convection.io', 'ml4convection.plotting',
-    'ml4convection.scripts'
-]
+PACKAGE_NAMES = ['ml4convection']
 KEYWORDS = [
     'machine learning', 'deep learning', 'artificial intelligence',
     'data science', 'weather', 'meteorology', 'thunderstorm', 'convection',

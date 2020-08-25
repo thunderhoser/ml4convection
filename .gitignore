@@ -16,3 +16,7 @@ dist/
 ml4convection/*.py
 ml4convection/io/*.exe
 ml4convection/dead_scratch_code/
+
+# Slurm output.
+*.out
+core.*
