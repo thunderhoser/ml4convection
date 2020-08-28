@@ -34,6 +34,16 @@ TIME_FORMAT_IN_MESSAGES = '%Y-%m-%d-%H%M%S'
 TIME_FORMAT_IN_DIR_NAMES = '%Y-%m'
 TIME_FORMAT_IN_FILE_NAMES = '%Y-%m-%d_%H%M'
 
+BAND_NUMBER_TO_FILE_NAME_PART = {
+    8: 'GSD',
+    9: 'GDS',
+    10: 'GDS',
+    11: 'GDS',
+    13: 'GSD',
+    14: 'GDS',
+    16: 'GSD'
+}
+
 LATITUDE_COLUMN_INDEX = 0
 LONGITUDE_COLUMN_INDEX = 1
 BRIGHTNESS_COUNT_INDEX = 2
@@ -110,7 +120,7 @@ def find_file(
     error_checking.assert_is_greater(band_number, 0)
     error_checking.assert_is_boolean(raise_error_if_missing)
 
-    satellite_file_name = '{0:s}/{1:s}/{2:s}.B{3:02d}.GSD.Cnt'.format(
+    satellite_file_name = '{0:s}/{1:s}/{2:s}.B{3:02d}.{4:s}.Cnt'.format(
         top_directory_name,
         time_conversion.unix_sec_to_string(
             valid_time_unix_sec, TIME_FORMAT_IN_DIR_NAMES
@@ -118,7 +128,8 @@ def find_file(
         time_conversion.unix_sec_to_string(
             valid_time_unix_sec, TIME_FORMAT_IN_FILE_NAMES
         ),
-        band_number
+        band_number,
+        BAND_NUMBER_TO_FILE_NAME_PART[band_number]
     )
 
     if os.path.isfile(satellite_file_name) or not raise_error_if_missing:
