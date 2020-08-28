@@ -225,7 +225,8 @@ def find_many_files(
 
 
 def read_file(
-        binary_file_name, gfortran_compiler_name=DEFAULT_GFORTRAN_COMPILER_NAME,
+        binary_file_name, return_brightness_temps=True,
+        gfortran_compiler_name=DEFAULT_GFORTRAN_COMPILER_NAME,
         temporary_dir_name=None):
     """Reads satellite data (brightness temperatures) from binary file.
 
@@ -233,17 +234,21 @@ def read_file(
     N = number of columns in grid
 
     :param binary_file_name: Path to input file.
+    :param return_brightness_temps: Boolean flag.  If True (False), will return
+        brightness temperatures (raw counts).
     :param gfortran_compiler_name: Path to gfortran compiler.
     :param temporary_dir_name: Name of temporary directory for text file, which
         will be deleted as soon as it is read.  If None, temporary directory
         will be set to default.
-    :return: brightness_temp_matrix_kelvins: M-by-N numpy array of brightness
-        temperatures.
+    :return: data_matrix: M-by-N matrix of data values.  If
+        `return_brightness_temps == True`, these are brightness temperatures in
+        Kelvins.  Otherwise, these are raw counts.
     :return: latitudes_deg_n: length-M numpy array of latitudes (deg N).
     :return: longitudes_deg_e: length-N numpy array of longitudes (deg E).
     """
 
     error_checking.assert_file_exists(binary_file_name)
+    error_checking.assert_is_boolean(return_brightness_temps)
     # error_checking.assert_file_exists(gfortran_compiler_name)
 
     if not os.path.isfile(FORTRAN_EXE_NAME):
@@ -292,24 +297,31 @@ def read_file(
     num_grid_rows = numpy.sum(all_longitudes_deg_e == all_longitudes_deg_e[0])
     num_grid_columns = numpy.sum(all_latitudes_deg_n == all_latitudes_deg_n[0])
 
-    brightness_counts = (
-        numpy.round(data_matrix[:, BRIGHTNESS_COUNT_INDEX]).astype(int)
-    )
-    brightness_counts[brightness_counts < MIN_BRIGHTNESS_COUNT] = MISSING_COUNT
-    brightness_counts[brightness_counts > MAX_BRIGHTNESS_COUNT] = MISSING_COUNT
+    if return_brightness_temps:
+        brightness_counts = (
+            numpy.round(data_matrix[:, BRIGHTNESS_COUNT_INDEX]).astype(int)
+        )
+        brightness_counts[brightness_counts < MIN_BRIGHTNESS_COUNT] = (
+            MISSING_COUNT
+        )
+        brightness_counts[brightness_counts > MAX_BRIGHTNESS_COUNT] = (
+            MISSING_COUNT
+        )
 
-    count_to_temperature_dict_kelvins = _read_lookup_table(
-        file_name_to_band_number(binary_file_name)
-    )
-    brightness_temps_kelvins = numpy.array([
-        count_to_temperature_dict_kelvins[n] for n in brightness_counts
-    ])
-    brightness_temp_matrix_kelvins = numpy.reshape(
-        brightness_temps_kelvins, (num_grid_rows, num_grid_columns)
-    )
-    brightness_temp_matrix_kelvins = (
-        numpy.flipud(brightness_temp_matrix_kelvins)
-    )
+        count_to_temperature_dict_kelvins = _read_lookup_table(
+            file_name_to_band_number(binary_file_name)
+        )
+        data_values = numpy.array([
+            count_to_temperature_dict_kelvins[n] for n in brightness_counts
+        ])
+    else:
+        brightness_counts = data_matrix[:, BRIGHTNESS_COUNT_INDEX]
+        brightness_counts[brightness_counts < MIN_BRIGHTNESS_COUNT] = numpy.nan
+        brightness_counts[brightness_counts > MAX_BRIGHTNESS_COUNT] = numpy.nan
+        data_values = brightness_counts
+
+    data_matrix = numpy.reshape(data_values, (num_grid_rows, num_grid_columns))
+    data_matrix = numpy.flipud(data_matrix)
 
     latitudes_deg_n = numpy.reshape(
         all_latitudes_deg_n, (num_grid_rows, num_grid_columns)
@@ -320,4 +332,4 @@ def read_file(
         all_longitudes_deg_e, (num_grid_rows, num_grid_columns)
     )[0, :]
 
-    return brightness_temp_matrix_kelvins, latitudes_deg_n, longitudes_deg_e
+    return data_matrix, latitudes_deg_n, longitudes_deg_e

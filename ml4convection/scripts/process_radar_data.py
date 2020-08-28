@@ -13,6 +13,7 @@ DAYS_TO_SECONDS = 86400
 INPUT_DIR_ARG_NAME = 'input_radar_dir_name'
 FIRST_DATE_ARG_NAME = 'first_date_string'
 LAST_DATE_ARG_NAME = 'last_date_string'
+ALLOW_MISSING_DAYS_ARG_NAME = 'allow_missing_days'
 WITH_3D_ARG_NAME = 'with_3d'
 OUTPUT_DIR_ARG_NAME = 'output_radar_dir_name'
 
@@ -26,6 +27,10 @@ DATE_HELP_STRING = (
     'the period `{0:s}`...`{1:s}`.'
 ).format(FIRST_DATE_ARG_NAME, LAST_DATE_ARG_NAME)
 
+ALLOW_MISSING_DAYS_HELP_STRING = (
+    'Boolean flag.  If 1, will gracefully skip days with no data.  If 0, will '
+    'throw an error if this happens.'
+)
 WITH_3D_HELP_STRING = 'Boolean flag.  If 1 (0), will process 3-D (2-D) data.'
 OUTPUT_DIR_HELP_STRING = (
     'Name of output directory.  Daily NetCDF files will be written by '
@@ -45,6 +50,10 @@ INPUT_ARG_PARSER.add_argument(
     '--' + LAST_DATE_ARG_NAME, type=str, required=True, help=DATE_HELP_STRING
 )
 INPUT_ARG_PARSER.add_argument(
+    '--' + ALLOW_MISSING_DAYS_ARG_NAME, type=int, required=False, default=0,
+    help=ALLOW_MISSING_DAYS_HELP_STRING
+)
+INPUT_ARG_PARSER.add_argument(
     '--' + WITH_3D_ARG_NAME, type=int, required=False, default=0,
     help=WITH_3D_HELP_STRING
 )
@@ -54,12 +63,14 @@ INPUT_ARG_PARSER.add_argument(
 )
 
 
-def _process_radar_data_one_day(input_dir_name, date_string, output_dir_name):
+def _process_radar_data_one_day(input_dir_name, date_string, allow_missing_days,
+                                output_dir_name):
     """Processes radar data for one day.
 
     :param input_dir_name: See documentation at top of file.
     :param date_string: Will process for this day (format "yyyymmdd").
-    :param output_dir_name: See documentation at top of file.
+    :param allow_missing_days: See documentation at top of file.
+    :param output_dir_name: Same.
     """
 
     first_time_unix_sec = (
@@ -71,7 +82,8 @@ def _process_radar_data_one_day(input_dir_name, date_string, output_dir_name):
     input_file_names = twb_radar_io.find_many_files(
         top_directory_name=input_dir_name,
         first_time_unix_sec=first_time_unix_sec,
-        last_time_unix_sec=last_time_unix_sec, with_3d=False
+        last_time_unix_sec=last_time_unix_sec, with_3d=False,
+        raise_error_if_all_missing=not allow_missing_days
     )
     output_file_name = radar_io.find_file(
         top_directory_name=output_dir_name, valid_date_string=date_string,
@@ -95,8 +107,8 @@ def _process_radar_data_one_day(input_dir_name, date_string, output_dir_name):
         )
 
 
-def _run(input_dir_name, first_date_string, last_date_string, with_3d,
-         output_dir_name):
+def _run(input_dir_name, first_date_string, last_date_string,
+         allow_missing_days, with_3d, output_dir_name):
     """Converts radar data to daily NetCDF files.
 
     This is effectively the main method.
@@ -104,6 +116,7 @@ def _run(input_dir_name, first_date_string, last_date_string, with_3d,
     :param input_dir_name: See documentation at top of file.
     :param first_date_string: Same.
     :param last_date_string: Same.
+    :param allow_missing_days: Same.
     :param with_3d: Same.
     :param output_dir_name: Same.
     :raises: ValueError: if `with_3d == True`, since I still have not figured
@@ -120,6 +133,7 @@ def _run(input_dir_name, first_date_string, last_date_string, with_3d,
     for i in range(len(date_strings)):
         _process_radar_data_one_day(
             input_dir_name=input_dir_name, date_string=date_strings[i],
+            allow_missing_days=allow_missing_days,
             output_dir_name=output_dir_name
         )
 
@@ -134,6 +148,9 @@ if __name__ == '__main__':
         input_dir_name=getattr(INPUT_ARG_OBJECT, INPUT_DIR_ARG_NAME),
         first_date_string=getattr(INPUT_ARG_OBJECT, FIRST_DATE_ARG_NAME),
         last_date_string=getattr(INPUT_ARG_OBJECT, LAST_DATE_ARG_NAME),
+        allow_missing_days=bool(getattr(
+            INPUT_ARG_OBJECT, ALLOW_MISSING_DAYS_ARG_NAME
+        )),
         with_3d=bool(getattr(INPUT_ARG_OBJECT, WITH_3D_ARG_NAME)),
         output_dir_name=getattr(INPUT_ARG_OBJECT, OUTPUT_DIR_ARG_NAME)
     )

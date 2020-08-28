@@ -13,6 +13,11 @@ TOLERANCE = 1e-6
 DATE_FORMAT = '%Y%m%d'
 DAYS_TO_SECONDS = 86400
 
+BAND_NUMBERS = numpy.array([8, 9, 10, 11, 13, 14, 16], dtype=int)
+
+MIN_BRIGHTNESS_COUNT = 0
+MAX_BRIGHTNESS_COUNT = 255
+
 TIME_DIMENSION_KEY = 'time'
 ROW_DIMENSION_KEY = 'row'
 COLUMN_DIMENSION_KEY = 'column'
@@ -23,6 +28,7 @@ LATITUDES_KEY = 'latitudes_deg_n'
 LONGITUDES_KEY = 'longitudes_deg_e'
 BAND_NUMBERS_KEY = 'band_numbers'
 BRIGHTNESS_TEMP_KEY = 'brightness_temp_matrix_kelvins'
+BRIGHTNESS_COUNT_KEY = 'brightness_count_matrix'
 
 
 def find_file(top_directory_name, valid_date_string,
@@ -128,23 +134,28 @@ def find_many_files(
 
 
 def write_file(
-        netcdf_file_name, brightness_temp_matrix_kelvins, latitudes_deg_n,
-        longitudes_deg_e, band_numbers, valid_time_unix_sec, append):
+        netcdf_file_name, latitudes_deg_n, longitudes_deg_e, band_numbers,
+        valid_time_unix_sec, append, brightness_temp_matrix_kelvins=None,
+        brightness_count_matrix=None):
     """Writes satellite data to NetCDF file.
 
     M = number of rows in grid
     N = number of columns in grid
     C = number of channels (spectral bands)
 
+    At least one of the last two arguments must be specified.
+
     :param netcdf_file_name: Path to output file.
-    :param brightness_temp_matrix_kelvins: M-by-N-by-C numpy array of brightness
-        temperatures.
     :param latitudes_deg_n: length-M numpy array of latitudes (deg N).
     :param longitudes_deg_e: length-N numpy array of longitudes (deg E).
     :param band_numbers: length-C numpy array of band numbers (integers).
     :param valid_time_unix_sec: Valid time.
     :param append: Boolean flag.  If True, will append to file if file already
         exists.  If False, will create new file, overwriting if necessary.
+    :param brightness_temp_matrix_kelvins: M-by-N-by-C numpy array of brightness
+        temperatures.
+    :param brightness_count_matrix: M-by-N-by-C numpy array of brightness
+        counts.
     """
 
     # Check input args.
@@ -173,12 +184,32 @@ def write_file(
     num_grid_rows = len(latitudes_deg_n)
     num_grid_columns = len(longitudes_deg_e)
     num_channels = len(band_numbers)
-
     expected_dim = numpy.array(
         [num_grid_rows, num_grid_columns, num_channels], dtype=int
     )
-    error_checking.assert_is_numpy_array(
-        brightness_temp_matrix_kelvins, exact_dimensions=expected_dim
+
+    if brightness_temp_matrix_kelvins is not None:
+        error_checking.assert_is_numpy_array(
+            brightness_temp_matrix_kelvins, exact_dimensions=expected_dim
+        )
+        error_checking.assert_is_greater_numpy_array(
+            brightness_temp_matrix_kelvins, 0., allow_nan=True
+        )
+
+    if brightness_count_matrix is not None:
+        error_checking.assert_is_numpy_array(
+            brightness_count_matrix, exact_dimensions=expected_dim
+        )
+        error_checking.assert_is_geq_numpy_array(
+            brightness_count_matrix, MIN_BRIGHTNESS_COUNT, allow_nan=True
+        )
+        error_checking.assert_is_leq_numpy_array(
+            brightness_count_matrix, MAX_BRIGHTNESS_COUNT, allow_nan=True
+        )
+
+    assert not (
+        brightness_temp_matrix_kelvins is None
+        and brightness_count_matrix is None
     )
 
     error_checking.assert_is_boolean(append)
@@ -212,9 +243,16 @@ def write_file(
         dataset_object.variables[VALID_TIMES_KEY][num_times_orig, ...] = (
             valid_time_unix_sec
         )
-        dataset_object.variables[BRIGHTNESS_TEMP_KEY][num_times_orig, ...] = (
-            brightness_temp_matrix_kelvins
-        )
+
+        if brightness_temp_matrix_kelvins is not None:
+            dataset_object.variables[BRIGHTNESS_TEMP_KEY][
+                num_times_orig, ...
+            ] = brightness_temp_matrix_kelvins
+
+        if brightness_count_matrix is not None:
+            dataset_object.variables[BRIGHTNESS_COUNT_KEY][
+                num_times_orig, ...
+            ] = brightness_count_matrix
 
         dataset_object.close()
         return
@@ -255,12 +293,22 @@ def write_file(
         TIME_DIMENSION_KEY, ROW_DIMENSION_KEY, COLUMN_DIMENSION_KEY,
         BAND_DIMENSION_KEY
     )
-    dataset_object.createVariable(
-        BRIGHTNESS_TEMP_KEY, datatype=numpy.float32, dimensions=these_dim
-    )
-    dataset_object.variables[BRIGHTNESS_TEMP_KEY][:] = (
-        numpy.expand_dims(brightness_temp_matrix_kelvins, axis=0)
-    )
+
+    if brightness_temp_matrix_kelvins is not None:
+        dataset_object.createVariable(
+            BRIGHTNESS_TEMP_KEY, datatype=numpy.float32, dimensions=these_dim
+        )
+        dataset_object.variables[BRIGHTNESS_TEMP_KEY][:] = (
+            numpy.expand_dims(brightness_temp_matrix_kelvins, axis=0)
+        )
+
+    if brightness_count_matrix is not None:
+        dataset_object.createVariable(
+            BRIGHTNESS_COUNT_KEY, datatype=numpy.float32, dimensions=these_dim
+        )
+        dataset_object.variables[BRIGHTNESS_COUNT_KEY][:] = (
+            numpy.expand_dims(brightness_count_matrix, axis=0)
+        )
 
     dataset_object.close()
 
@@ -276,7 +324,9 @@ def read_file(netcdf_file_name):
     :param netcdf_file_name: Path to input file.
     :return: satellite_dict: Dictionary with the following keys.
     satellite_dict['brightness_temp_matrix_kelvins']: T-by-M-by-N-by-C numpy
-        array of brightness temperatures.
+        array of brightness temperatures.  This may also be None.
+    satellite_dict['brightness_count_matrix']: T-by-M-by-N-by-C numpy
+        array of brightness counts.  This may also be None.
     satellite_dict['valid_times_unix_sec']: length-T numpy array of valid times.
     satellite_dict['latitudes_deg_n']: length-M numpy array of latitudes
         (deg N).
@@ -289,12 +339,23 @@ def read_file(netcdf_file_name):
     dataset_object = netCDF4.Dataset(netcdf_file_name)
 
     satellite_dict = {
-        BRIGHTNESS_TEMP_KEY: dataset_object.variables[BRIGHTNESS_TEMP_KEY][:],
+        BRIGHTNESS_TEMP_KEY: None,
+        BRIGHTNESS_COUNT_KEY: None,
         VALID_TIMES_KEY: dataset_object.variables[VALID_TIMES_KEY][:],
         LATITUDES_KEY: dataset_object.variables[LATITUDES_KEY][:],
         LONGITUDES_KEY: dataset_object.variables[LONGITUDES_KEY][:],
         BAND_NUMBERS_KEY: dataset_object.variables[BAND_NUMBERS_KEY][:]
     }
+
+    if BRIGHTNESS_TEMP_KEY in dataset_object.variables:
+        satellite_dict[BRIGHTNESS_TEMP_KEY] = (
+            dataset_object.variables[BRIGHTNESS_TEMP_KEY][:]
+        )
+
+    if BRIGHTNESS_COUNT_KEY in dataset_object.variables:
+        satellite_dict[BRIGHTNESS_COUNT_KEY] = (
+            dataset_object.variables[BRIGHTNESS_COUNT_KEY][:]
+        )
 
     dataset_object.close()
     return satellite_dict
