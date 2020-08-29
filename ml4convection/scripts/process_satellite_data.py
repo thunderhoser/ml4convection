@@ -1,5 +1,6 @@
 """Converts satellite data to daily NetCDF files."""
 
+import os
 import argparse
 import numpy
 from gewittergefahr.gg_utils import time_conversion
@@ -89,9 +90,15 @@ def _process_satellite_data_one_time(
         print('Reading data from: "{0:s}"...'.format(this_file_name))
         this_count_matrix, these_latitudes_deg_n, these_longitudes_deg_e = (
             twb_satellite_io.read_file(
-                binary_file_name=this_file_name, return_brightness_temps=False
+                binary_file_name=this_file_name, return_brightness_temps=False,
+                raise_fortran_errors=False
             )
         )
+
+        if this_count_matrix is None:
+
+
+            return
 
         if j == 0:
             num_grid_rows = len(these_latitudes_deg_n)
@@ -169,6 +176,7 @@ def _process_satellite_data_one_day(
         raise_error_if_missing=False
     )
 
+    os.remove(output_file_name)
     num_times = len(valid_times_unix_sec)
 
     for i in range(num_times):

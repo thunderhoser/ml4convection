@@ -1,6 +1,7 @@
 """IO methods for satellite files from Taiwanese Weather Bureau (TWB)."""
 
 import os
+import warnings
 import tempfile
 import numpy
 from gewittergefahr.gg_utils import number_rounding
@@ -30,6 +31,16 @@ FORTRAN_EXE_NAME = (
 TIME_FORMAT_IN_MESSAGES = '%Y-%m-%d-%H%M%S'
 TIME_FORMAT_IN_DIR_NAMES = '%Y-%m'
 TIME_FORMAT_IN_FILE_NAMES = '%Y-%m-%d_%H%M'
+
+BAND_NUMBER_TO_FILE_NAME_PART = {
+    8: 'GSD',
+    9: 'GDS',
+    10: 'GDS',
+    11: 'GDS',
+    13: 'GSD',
+    14: 'GDS',
+    16: 'GSD'
+}
 
 LATITUDE_COLUMN_INDEX = 0
 LONGITUDE_COLUMN_INDEX = 1
@@ -107,7 +118,7 @@ def find_file(
     error_checking.assert_is_greater(band_number, 0)
     error_checking.assert_is_boolean(raise_error_if_missing)
 
-    satellite_file_name = '{0:s}/{1:s}/{2:s}.B{3:02d}.GSD.Cnt'.format(
+    satellite_file_name = '{0:s}/{1:s}/{2:s}.B{3:02d}.{4:s}.Cnt'.format(
         top_directory_name,
         time_conversion.unix_sec_to_string(
             valid_time_unix_sec, TIME_FORMAT_IN_DIR_NAMES
@@ -115,7 +126,8 @@ def find_file(
         time_conversion.unix_sec_to_string(
             valid_time_unix_sec, TIME_FORMAT_IN_FILE_NAMES
         ),
-        band_number
+        band_number,
+        BAND_NUMBER_TO_FILE_NAME_PART[band_number]
     )
 
     if os.path.isfile(satellite_file_name) or not raise_error_if_missing:
@@ -227,7 +239,7 @@ def find_many_files(
 def read_file(
         binary_file_name, return_brightness_temps=True,
         gfortran_compiler_name=DEFAULT_GFORTRAN_COMPILER_NAME,
-        temporary_dir_name=None):
+        temporary_dir_name=None, raise_fortran_errors=False):
     """Reads satellite data (brightness temperatures) from binary file.
 
     M = number of rows in grid
@@ -240,6 +252,9 @@ def read_file(
     :param temporary_dir_name: Name of temporary directory for text file, which
         will be deleted as soon as it is read.  If None, temporary directory
         will be set to default.
+    :param raise_fortran_errors: Boolean flag.  If True, will raise any Fortran
+        error that occurs.  If False and a Fortran error occurs, will just
+        return None for all output variables.
     :return: data_matrix: M-by-N matrix of data values.  If
         `return_brightness_temps == True`, these are brightness temperatures in
         Kelvins.  Otherwise, these are raw counts.
@@ -249,6 +264,7 @@ def read_file(
 
     error_checking.assert_file_exists(binary_file_name)
     error_checking.assert_is_boolean(return_brightness_temps)
+    error_checking.assert_is_boolean(raise_fortran_errors)
     # error_checking.assert_file_exists(gfortran_compiler_name)
 
     if not os.path.isfile(FORTRAN_EXE_NAME):
@@ -280,7 +296,11 @@ def read_file(
 
     exit_code = os.system(command_string)
     if exit_code != 0:
-        raise ValueError(ERROR_STRING)
+        if raise_fortran_errors:
+            raise ValueError(ERROR_STRING)
+
+        warnings.warn(ERROR_STRING)
+        return None, None, None
 
     print('Reading data from temporary text file: "{0:s}"...'.format(
         temporary_text_file_name
