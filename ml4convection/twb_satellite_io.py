@@ -2,6 +2,7 @@
 
 import os
 import sys
+import warnings
 import tempfile
 import numpy
 
@@ -15,6 +16,10 @@ import time_conversion
 import time_periods
 import file_system_utils
 import error_checking
+
+THIS_DIRECTORY_NAME = os.path.dirname(os.path.realpath(
+    os.path.join(os.getcwd(), os.path.expanduser(__file__))
+))
 
 TIME_INTERVAL_SEC = 600
 
@@ -241,7 +246,7 @@ def find_many_files(
 def read_file(
         binary_file_name, return_brightness_temps=True,
         gfortran_compiler_name=DEFAULT_GFORTRAN_COMPILER_NAME,
-        temporary_dir_name=None):
+        temporary_dir_name=None, raise_fortran_errors=False):
     """Reads satellite data (brightness temperatures) from binary file.
 
     M = number of rows in grid
@@ -254,6 +259,9 @@ def read_file(
     :param temporary_dir_name: Name of temporary directory for text file, which
         will be deleted as soon as it is read.  If None, temporary directory
         will be set to default.
+    :param raise_fortran_errors: Boolean flag.  If True, will raise any Fortran
+        error that occurs.  If False and a Fortran error occurs, will just
+        return None for all output variables.
     :return: data_matrix: M-by-N matrix of data values.  If
         `return_brightness_temps == True`, these are brightness temperatures in
         Kelvins.  Otherwise, these are raw counts.
@@ -263,6 +271,7 @@ def read_file(
 
     error_checking.assert_file_exists(binary_file_name)
     error_checking.assert_is_boolean(return_brightness_temps)
+    error_checking.assert_is_boolean(raise_fortran_errors)
     # error_checking.assert_file_exists(gfortran_compiler_name)
 
     if not os.path.isfile(FORTRAN_EXE_NAME):
@@ -294,7 +303,11 @@ def read_file(
 
     exit_code = os.system(command_string)
     if exit_code != 0:
-        raise ValueError(ERROR_STRING)
+        if raise_fortran_errors:
+            raise ValueError(ERROR_STRING)
+
+        warnings.warn(ERROR_STRING)
+        return None, None, None
 
     print('Reading data from temporary text file: "{0:s}"...'.format(
         temporary_text_file_name
