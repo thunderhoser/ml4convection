@@ -183,7 +183,9 @@ def _process_satellite_data_one_day(
         raise_error_if_missing=False
     )
 
-    os.remove(output_file_name)
+    if os.path.isfile(output_file_name):
+        os.remove(output_file_name)
+
     num_times = len(valid_times_unix_sec)
 
     for i in range(num_times):
