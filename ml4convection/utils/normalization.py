@@ -116,7 +116,7 @@ def _uniform_to_actual_dist(uniform_values_new, actual_values_training):
 
     actual_values_new_1d = numpy.percentile(
         numpy.ravel(actual_values_training), 100 * uniform_values_new_1d,
-        interpolation='midpoint'
+        interpolation='linear'
     )
 
     return numpy.reshape(actual_values_new_1d, uniform_values_new.shape)
@@ -258,6 +258,84 @@ def normalize_data(satellite_dict, uniformize=False,
             else:
                 satellite_dict[main_key][..., j] = _normalize_one_variable(
                     actual_values_new=satellite_dict[main_key][..., j],
+                    mean_value_training=norm_dict_for_count[MEAN_VALUES_KEY][k],
+                    stdev_training=
+                    norm_dict_for_count[STANDARD_DEVIATIONS_KEY][k]
+                )
+
+    return satellite_dict
+
+
+def denormalize_data(satellite_dict, uniformize=False,
+                     norm_dict_for_temperature=None, norm_dict_for_count=None):
+    """Denormalizes all predictor variables.
+
+    At least one of `norm_dict_for_temperature` and `norm_dict_for_count` must
+    be specified.
+
+    :param satellite_dict: See doc for `normalize_data`.
+    :param uniformize: Same.
+    :param norm_dict_for_temperature: Same.
+    :param norm_dict_for_count: Same.
+    :return: satellite_dict: Same.
+    """
+
+    do_temperatures = norm_dict_for_temperature is not None
+    do_counts = norm_dict_for_count is not None
+    error_checking.assert_is_greater(int(do_temperatures) + int(do_counts), 0)
+
+    error_checking.assert_is_boolean(uniformize)
+    band_numbers_new = satellite_dict[satellite_io.BAND_NUMBERS_KEY]
+
+    for j in range(len(band_numbers_new)):
+        print((
+            'Denormalizing brightness {0:s} in band {1:d}, '
+            '{2:s} uniformization...'
+        ).format(
+            'temperatures and counts' if do_temperatures and do_counts
+            else 'temperatures' if do_temperatures
+            else 'counts',
+            band_numbers_new[j],
+            'with' if uniformize else 'without'
+        ))
+
+        if do_temperatures:
+            main_key = satellite_io.BRIGHTNESS_TEMP_KEY
+            k = numpy.where(
+                norm_dict_for_temperature[BAND_NUMBERS_KEY] ==
+                band_numbers_new[j]
+            )[0][0]
+
+            if uniformize:
+                satellite_dict[main_key][..., j] = _denorm_one_variable(
+                    normalized_values_new=satellite_dict[main_key][..., j],
+                    actual_values_training=
+                    norm_dict_for_temperature[SAMPLED_VALUES_KEY][:, k]
+                )
+            else:
+                satellite_dict[main_key][..., j] = _denorm_one_variable(
+                    normalized_values_new=satellite_dict[main_key][..., j],
+                    mean_value_training=
+                    norm_dict_for_temperature[MEAN_VALUES_KEY][k],
+                    stdev_training=
+                    norm_dict_for_temperature[STANDARD_DEVIATIONS_KEY][k]
+                )
+
+        if do_counts:
+            main_key = satellite_io.BRIGHTNESS_COUNT_KEY
+            k = numpy.where(
+                norm_dict_for_count[BAND_NUMBERS_KEY] == band_numbers_new[j]
+            )[0][0]
+
+            if uniformize:
+                satellite_dict[main_key][..., j] = _denorm_one_variable(
+                    normalized_values_new=satellite_dict[main_key][..., j],
+                    actual_values_training=
+                    norm_dict_for_count[SAMPLED_VALUES_KEY][:, k]
+                )
+            else:
+                satellite_dict[main_key][..., j] = _denorm_one_variable(
+                    normalized_values_new=satellite_dict[main_key][..., j],
                     mean_value_training=norm_dict_for_count[MEAN_VALUES_KEY][k],
                     stdev_training=
                     norm_dict_for_count[STANDARD_DEVIATIONS_KEY][k]
