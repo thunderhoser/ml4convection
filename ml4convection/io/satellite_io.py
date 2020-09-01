@@ -367,3 +367,36 @@ def read_file(netcdf_file_name, read_temperatures, read_counts):
 
     dataset_object.close()
     return satellite_dict
+
+
+def subset_by_band(satellite_dict, band_numbers):
+    """Subsets data by spectral band.
+
+    :param satellite_dict: See doc for `read_file`.
+    :param band_numbers: 1-D numpy array of desired band numbers (integers).
+    :return: example_dict: Same as input but with fewer heights.
+    """
+
+    error_checking.assert_is_integer_numpy_array(band_numbers)
+    error_checking.assert_is_greater_numpy_array(band_numbers, 0)
+
+    indices_to_keep = numpy.array([
+        numpy.where(satellite_dict[BAND_NUMBERS_KEY] == n)[0][0]
+        for n in band_numbers
+    ], dtype=int)
+
+    satellite_dict[BAND_NUMBERS_KEY] = (
+        satellite_dict[BAND_NUMBERS_KEY][indices_to_keep]
+    )
+
+    if satellite_dict[BRIGHTNESS_TEMP_KEY] is not None:
+        satellite_dict[BRIGHTNESS_TEMP_KEY] = (
+            satellite_dict[BRIGHTNESS_TEMP_KEY][..., indices_to_keep]
+        )
+
+    if satellite_dict[BRIGHTNESS_COUNT_KEY] is not None:
+        satellite_dict[BRIGHTNESS_COUNT_KEY] = (
+            satellite_dict[BRIGHTNESS_COUNT_KEY][..., indices_to_keep]
+        )
+
+    return satellite_dict

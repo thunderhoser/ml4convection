@@ -1,8 +1,10 @@
 """Methods for normalizing satellite variables (predictors)."""
 
 import copy
+import pickle
 import numpy
 import scipy.stats
+from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
 from ml4convection.io import satellite_io
 
@@ -533,5 +535,46 @@ def get_normalization_params(
             ))
     else:
         norm_dict_for_count = None
+
+    return norm_dict_for_temperature, norm_dict_for_count
+
+
+def write_file(pickle_file_name, norm_dict_for_temperature,
+               norm_dict_for_count):
+    """Writes normalization parameters to Pickle file.
+
+    :param pickle_file_name: Path to output file.
+    :param norm_dict_for_temperature: See doc for `get_normalization_params`.
+    :param norm_dict_for_count: Same.
+    """
+
+    have_temperatures = norm_dict_for_temperature is not None
+    have_counts = norm_dict_for_count is not None
+    error_checking.assert_is_greater(
+        int(have_temperatures) + int(have_counts), 0
+    )
+
+    file_system_utils.mkdir_recursive_if_necessary(file_name=pickle_file_name)
+
+    pickle_file_handle = open(pickle_file_name, 'wb')
+    pickle.dump(norm_dict_for_temperature, pickle_file_handle)
+    pickle.dump(norm_dict_for_count, pickle_file_handle)
+    pickle_file_handle.close()
+
+
+def read_file(pickle_file_name):
+    """Reads normalization parameters from Pickle file.
+
+    :param pickle_file_name: Path to input file.
+    :return: norm_dict_for_temperature: See doc for `get_normalization_params`.
+    :return: norm_dict_for_count: Same.
+    """
+
+    error_checking.assert_file_exists(pickle_file_name)
+
+    pickle_file_handle = open(pickle_file_name, 'rb')
+    norm_dict_for_temperature = pickle.load(pickle_file_handle)
+    norm_dict_for_count = pickle.load(pickle_file_handle)
+    pickle_file_handle.close()
 
     return norm_dict_for_temperature, norm_dict_for_count
