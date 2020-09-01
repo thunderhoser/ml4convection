@@ -313,7 +313,7 @@ def write_file(
     dataset_object.close()
 
 
-def read_file(netcdf_file_name):
+def read_file(netcdf_file_name, read_temperatures, read_counts):
     """Reads satellite data from NetCDF file.
 
     T = number of time steps
@@ -322,11 +322,16 @@ def read_file(netcdf_file_name):
     C = number of channels (spectral bands)
 
     :param netcdf_file_name: Path to input file.
+    :param read_temperatures: Boolean flag.  If True, will read brightness
+        temperatures.
+    :param read_counts: Boolean flag.  If True, will read brightness counts.
     :return: satellite_dict: Dictionary with the following keys.
     satellite_dict['brightness_temp_matrix_kelvins']: T-by-M-by-N-by-C numpy
-        array of brightness temperatures.  This may also be None.
+        array of brightness temperatures.  If `read_temperatures == False`,
+        this will be None.
     satellite_dict['brightness_count_matrix']: T-by-M-by-N-by-C numpy
-        array of brightness counts.  This may also be None.
+        array of brightness counts.  If `read_counts == False`,
+        this will be None.
     satellite_dict['valid_times_unix_sec']: length-T numpy array of valid times.
     satellite_dict['latitudes_deg_n']: length-M numpy array of latitudes
         (deg N).
@@ -335,6 +340,9 @@ def read_file(netcdf_file_name):
     satellite_dict['band_numbers']: length-C numpy array of band numbers
         (integers).
     """
+
+    error_checking.assert_is_boolean(read_temperatures)
+    error_checking.assert_is_boolean(read_counts)
 
     dataset_object = netCDF4.Dataset(netcdf_file_name)
 
@@ -347,12 +355,12 @@ def read_file(netcdf_file_name):
         BAND_NUMBERS_KEY: dataset_object.variables[BAND_NUMBERS_KEY][:]
     }
 
-    if BRIGHTNESS_TEMP_KEY in dataset_object.variables:
+    if read_temperatures:
         satellite_dict[BRIGHTNESS_TEMP_KEY] = (
             dataset_object.variables[BRIGHTNESS_TEMP_KEY][:]
         )
 
-    if BRIGHTNESS_COUNT_KEY in dataset_object.variables:
+    if read_counts:
         satellite_dict[BRIGHTNESS_COUNT_KEY] = (
             dataset_object.variables[BRIGHTNESS_COUNT_KEY][:]
         )
