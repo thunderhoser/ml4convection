@@ -455,7 +455,7 @@ def get_normalization_params(
                 ]
 
                 sampled_temperature_matrix_kelvins[
-                    this_first_index:this_last_index, :
+                    this_first_index:this_last_index, j
                 ] = numpy.random.choice(
                     these_temperatures_kelvins,
                     size=num_values_per_band_per_file, replace=False
@@ -474,7 +474,7 @@ def get_normalization_params(
                 )
                 these_counts = these_counts[numpy.isfinite(these_counts)]
 
-                sampled_count_matrix[this_first_index:this_last_index, :] = (
+                sampled_count_matrix[this_first_index:this_last_index, j] = (
                     numpy.random.choice(
                         these_counts,
                         size=num_values_per_band_per_file, replace=False
