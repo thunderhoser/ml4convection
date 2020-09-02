@@ -1,6 +1,7 @@
 """IO methods for processed satellite data."""
 
 import os
+import copy
 import numpy
 import netCDF4
 from gewittergefahr.gg_utils import time_conversion
@@ -29,6 +30,10 @@ LONGITUDES_KEY = 'longitudes_deg_e'
 BAND_NUMBERS_KEY = 'band_numbers'
 BRIGHTNESS_TEMP_KEY = 'brightness_temp_matrix_kelvins'
 BRIGHTNESS_COUNT_KEY = 'brightness_count_matrix'
+
+ONE_PER_EXAMPLE_KEYS = [
+    VALID_TIMES_KEY, BRIGHTNESS_TEMP_KEY, BRIGHTNESS_COUNT_KEY
+]
 
 
 def find_file(top_directory_name, valid_date_string,
@@ -374,7 +379,7 @@ def subset_by_band(satellite_dict, band_numbers):
 
     :param satellite_dict: See doc for `read_file`.
     :param band_numbers: 1-D numpy array of desired band numbers (integers).
-    :return: example_dict: Same as input but with fewer heights.
+    :return: satellite_dict: Same as input but maybe with fewer bands.
     """
 
     error_checking.assert_is_integer_numpy_array(band_numbers)
@@ -398,5 +403,141 @@ def subset_by_band(satellite_dict, band_numbers):
         satellite_dict[BRIGHTNESS_COUNT_KEY] = (
             satellite_dict[BRIGHTNESS_COUNT_KEY][..., indices_to_keep]
         )
+
+    return satellite_dict
+
+
+def subset_by_index(satellite_dict, desired_indices):
+    """Subsets examples (time steps) by index.
+
+    :param satellite_dict: See doc for `read_file`.
+    :param desired_indices: 1-D numpy array of desired indices.
+    :return: satellite_dict: Same as input but with fewer examples.
+    """
+
+    error_checking.assert_is_numpy_array(desired_indices, num_dimensions=1)
+    error_checking.assert_is_integer_numpy_array(desired_indices)
+    error_checking.assert_is_geq_numpy_array(desired_indices, 0)
+    error_checking.assert_is_less_than_numpy_array(
+        desired_indices, len(satellite_dict[VALID_TIMES_KEY])
+    )
+
+    for this_key in ONE_PER_EXAMPLE_KEYS:
+        if satellite_dict[this_key] is None:
+            continue
+
+        satellite_dict[this_key] = (
+            satellite_dict[this_key][desired_indices, ...]
+        )
+
+    return satellite_dict
+
+
+def subset_by_time(satellite_dict, desired_times_unix_sec):
+    """Subsets data by time.
+
+    T = number of desired times
+
+    :param satellite_dict: See doc for `read_file`.
+    :param desired_times_unix_sec: length-T numpy array of desired times.
+    :return: satellite_dict: Same as input but with fewer examples.
+    :return: desired_indices: length-T numpy array of corresponding indices.
+    """
+
+    error_checking.assert_is_numpy_array(
+        desired_times_unix_sec, num_dimensions=1
+    )
+    error_checking.assert_is_integer_numpy_array(desired_times_unix_sec)
+
+    desired_indices = numpy.array([
+        numpy.where(satellite_dict[VALID_TIMES_KEY] == t)[0][0]
+        for t in desired_times_unix_sec
+    ], dtype=int)
+
+    satellite_dict = subset_by_index(
+        satellite_dict=satellite_dict, desired_indices=desired_indices
+    )
+
+    return satellite_dict, desired_indices
+
+
+def concat_data(satellite_dicts):
+    """Concatenates many dictionaries with satellite data into one.
+
+    :param satellite_dicts: List of dictionaries, each in the format returned by
+        `read_file`.
+    :return: satellite_dict: Single dictionary, also in the format returned by
+        `read_file`.
+    :raises: ValueError: if any two dictionaries have different band numbers,
+        latitudes, longitudes, or variables.
+    """
+
+    satellite_dict = copy.deepcopy(satellite_dicts[0])
+    keys_to_match = [BAND_NUMBERS_KEY, LATITUDES_KEY, LONGITUDES_KEY]
+
+    for i in range(1, len(satellite_dicts)):
+        for this_key in keys_to_match:
+            if this_key == BAND_NUMBERS_KEY:
+                if numpy.array_equal(
+                        satellite_dict[this_key], satellite_dicts[i][this_key]
+                ):
+                    continue
+            else:
+                if numpy.allclose(
+                        satellite_dict[this_key], satellite_dicts[i][this_key],
+                        atol=TOLERANCE
+                ):
+                    continue
+
+            error_string = (
+                '1st and {0:d}th dictionaries have different values for '
+                '"{1:s}".  1st dictionary:\n{2:s}\n\n'
+                '{0:d}th dictionary:\n{3:s}'
+            ).format(
+                i + 1, this_key,
+                str(satellite_dict[this_key]),
+                str(satellite_dicts[i][this_key])
+            )
+
+            raise ValueError(error_string)
+
+    have_temperatures_by_dict = numpy.array([
+        d[BRIGHTNESS_TEMP_KEY] is not None for d in satellite_dicts
+    ], dtype=bool)
+
+    have_counts_by_dict = numpy.array([
+        d[BRIGHTNESS_COUNT_KEY] is not None for d in satellite_dicts
+    ], dtype=bool)
+
+    if len(numpy.unique(have_temperatures_by_dict)) > 1:
+        error_string = (
+            '{0:d} dictionaries have brightness temperatures, and {1:d} do not.'
+            '  Either all or none should have brightness temperatures.'
+        ).format(
+            numpy.sum(have_temperatures_by_dict),
+            numpy.sum(numpy.invert(have_temperatures_by_dict))
+        )
+
+        raise ValueError(error_string)
+
+    if len(numpy.unique(have_counts_by_dict)) > 1:
+        error_string = (
+            '{0:d} dictionaries have brightness counts, and {1:d} do not.'
+            '  Either all or none should have brightness counts.'
+        ).format(
+            numpy.sum(have_counts_by_dict),
+            numpy.sum(numpy.invert(have_counts_by_dict))
+        )
+
+        raise ValueError(error_string)
+
+    for i in range(1, len(satellite_dicts)):
+        for this_key in ONE_PER_EXAMPLE_KEYS:
+            if satellite_dict[this_key] is None:
+                continue
+
+            satellite_dict[this_key] = numpy.concatenate((
+                satellite_dict[this_key], satellite_dicts[i][this_key]
+            ), axis=0)
 
     return satellite_dict

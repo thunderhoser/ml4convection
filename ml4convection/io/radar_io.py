@@ -22,6 +22,8 @@ LATITUDES_KEY = 'latitudes_deg_n'
 LONGITUDES_KEY = 'longitudes_deg_e'
 COMPOSITE_REFL_KEY = 'composite_refl_matrix_dbz'
 
+ONE_PER_EXAMPLE_KEYS = [VALID_TIMES_KEY, COMPOSITE_REFL_KEY]
+
 
 def find_file(
         top_directory_name, valid_date_string, with_3d=False,
@@ -274,3 +276,61 @@ def read_2d_file(netcdf_file_name):
 
     dataset_object.close()
     return radar_dict
+
+
+def subset_by_index(radar_dict, desired_indices):
+    """Subsets examples (time steps) by index.
+
+    :param radar_dict: See doc for `read_file`.
+    :param desired_indices: 1-D numpy array of desired indices.
+    :return: radar_dict: Same as input but with fewer examples.
+    """
+
+    # TODO(thunderhoser): Make this handle 3-D data.
+
+    error_checking.assert_is_numpy_array(desired_indices, num_dimensions=1)
+    error_checking.assert_is_integer_numpy_array(desired_indices)
+    error_checking.assert_is_geq_numpy_array(desired_indices, 0)
+    error_checking.assert_is_less_than_numpy_array(
+        desired_indices, len(radar_dict[VALID_TIMES_KEY])
+    )
+
+    for this_key in ONE_PER_EXAMPLE_KEYS:
+        if radar_dict[this_key] is None:
+            continue
+
+        radar_dict[this_key] = (
+            radar_dict[this_key][desired_indices, ...]
+        )
+
+    return radar_dict
+
+
+def subset_by_time(radar_dict, desired_times_unix_sec):
+    """Subsets data by time.
+
+    T = number of desired times
+
+    :param radar_dict: See doc for `read_file`.
+    :param desired_times_unix_sec: length-T numpy array of desired times.
+    :return: radar_dict: Same as input but with fewer examples.
+    :return: desired_indices: length-T numpy array of corresponding indices.
+    """
+
+    # TODO(thunderhoser): Make this handle 3-D data.
+
+    error_checking.assert_is_numpy_array(
+        desired_times_unix_sec, num_dimensions=1
+    )
+    error_checking.assert_is_integer_numpy_array(desired_times_unix_sec)
+
+    desired_indices = numpy.array([
+        numpy.where(radar_dict[VALID_TIMES_KEY] == t)[0][0]
+        for t in desired_times_unix_sec
+    ], dtype=int)
+
+    radar_dict = subset_by_index(
+        radar_dict=radar_dict, desired_indices=desired_indices
+    )
+
+    return radar_dict, desired_indices
