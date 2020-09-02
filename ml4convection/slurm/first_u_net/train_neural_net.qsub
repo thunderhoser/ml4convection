@@ -1,0 +1,42 @@
+#!/bin/tcsh
+
+#SBATCH --job-name="train_neural_net"
+#SBATCH --partition="fge"
+#SBATCH --account="rda-ghpcs"
+#SBATCH --qos="batch"
+#SBATCH --nodes=1
+#SBATCH --ntasks=8           # 8 tasks per node
+#SBATCH --cpus-per-task=2
+#SBATCH --ntasks-per-node=8  # 8 GPUs per node
+#SBATCH --exclusive
+#SBATCH --time=24:00:00
+#SBATCH --exclude=h28n12
+##SBATCH --exclude=h31n03,h28n12
+##SBATCH --exclude=h29n01,h26n05,h28n06,h29n07,h30n03,h30n15
+#SBATCH --mail-type=BEGIN,END,FAIL
+#SBATCH --mail-user=ryan.lagerquist@noaa.gov
+#SBATCH --output=train_neural_net_%A.out
+
+module load cuda/10.1
+source /scratch2/BMC/gsd-hpcs/Jebb.Q.Stewart/conda3.7/etc/profile.d/conda.csh
+conda activate base
+
+set CODE_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_standalone/ml4convection"
+set TEMPLATE_FILE_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_models/first_u_net/template/model.h5"
+set OUTPUT_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_models/first_u_net"
+
+set TRAINING_SATELLITE_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_project/satellite_data"
+set VALIDN_SATELLITE_DIR_NAME="${TRAINING_SATELLITE_DIR_NAME}"
+set TRAINING_RADAR_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_project/radar_data"
+set VALIDN_RADAR_DIR_NAME="${TRAINING_RADAR_DIR_NAME}"
+set NORMALIZATION_FILE_NAME=""
+
+python3 -u "${CODE_DIR_NAME}/train_neural_net.py" \
+--training_satellite_dir_name="${TRAINING_SATELLITE_DIR_NAME}" \
+--validn_satellite_dir_name="${VALIDN_SATELLITE_DIR_NAME}" \
+--training_radar_dir_name="${TRAINING_RADAR_DIR_NAME}" \
+--validn_radar_dir_name="${VALIDN_RADAR_DIR_NAME}" \
+--input_model_file_name="${TEMPLATE_FILE_NAME}" \
+--output_model_dir_name="${OUTPUT_DIR_NAME}" \
+--lead_time_seconds=0 \
+--input_normalization_file_name="${NORMALIZATION_FILE_NAME}"
