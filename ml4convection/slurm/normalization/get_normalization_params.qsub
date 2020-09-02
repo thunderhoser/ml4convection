@@ -1,0 +1,33 @@
+#!/bin/tcsh
+
+#SBATCH --job-name="get_normalization_params"
+#SBATCH --partition="fge"
+#SBATCH --account="rda-ghpcs"
+#SBATCH --qos="batch"
+#SBATCH --ntasks=1
+#SBATCH --nodes=1
+#SBATCH --cpus-per-task=1
+#SBATCH --mem=24G
+#SBATCH --time=24:00:00
+##SBATCH --exclude=h31n03,h28n12
+##SBATCH --exclude=h29n01,h26n05,h28n06,h29n07,h30n03,h30n15
+#SBATCH --mail-type=BEGIN,END,FAIL
+#SBATCH --mail-user=ryan.lagerquist@noaa.gov
+#SBATCH --output=get_normalization_params_%A.out
+
+module load cuda/10.1
+source /scratch2/BMC/gsd-hpcs/Jebb.Q.Stewart/conda3.7/etc/profile.d/conda.csh
+conda activate base
+
+set CODE_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_standalone/ml4convection"
+set TOP_INPUT_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_project/satellite_data"
+set OUTPUT_FILE_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_project/satellite_data/normalization_params_20160101-20161224.p"
+
+python3 -u "${CODE_DIR_NAME}/get_normalization_params.py" \
+--input_satellite_dir_name="${TOP_INPUT_DIR_NAME}" \
+--first_date_string="20160101" \
+--last_date_string="20161224" \
+--num_values_per_band=200000 \
+--do_temperatures=0 \
+--do_counts=1 \
+--output_file_name="${OUTPUT_FILE_NAME}"
