@@ -4,6 +4,7 @@ import numpy
 import keras
 from gewittergefahr.gg_utils import error_checking
 from gewittergefahr.deep_learning import architecture_utils
+from ml4convection.machine_learning import neural_net
 
 INPUT_DIMENSIONS_KEY = 'input_dimensions'
 NUM_LEVELS_KEY = 'num_levels'
@@ -393,7 +394,8 @@ def create_model(option_dict):
 
     model_object.compile(
         loss=keras.losses.binary_crossentropy,
-        optimizer=keras.optimizers.Adam()
+        optimizer=keras.optimizers.Adam(),
+        metrics=neural_net.METRIC_FUNCTION_LIST
     )
 
     model_object.summary()
