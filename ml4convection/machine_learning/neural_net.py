@@ -252,12 +252,11 @@ def _read_inputs_one_day(
         )
 
     predictor_matrix = satellite_dict[satellite_io.BRIGHTNESS_COUNT_KEY]
-    target_matrix = keras.utils.to_categorical(
-        radar_dict[radar_io.COMPOSITE_REFL_KEY] >= reflectivity_threshold_dbz,
-        2
-    )
+    target_matrix = (
+        radar_dict[radar_io.COMPOSITE_REFL_KEY] >= reflectivity_threshold_dbz
+    ).astype(int)
 
-    return predictor_matrix, target_matrix
+    return predictor_matrix, numpy.expand_dims(target_matrix, axis=-1)
 
 
 def _write_metafile(
@@ -361,6 +360,7 @@ def create_data(option_dict):
     )
 
     predictor_matrix = predictor_matrix.astype('float32')
+    target_matrix = target_matrix.astype('float32')
     return predictor_matrix, target_matrix
 
 
@@ -402,8 +402,8 @@ def data_generator(option_dict):
 
     :return: predictor_matrix: E-by-M-by-N-by-C numpy array of predictor values,
         based on satellite data.
-    :return: target_matrix: E-by-M-by-N-by-2 numpy array of target values
-        (Boolean flags in 0...1, indicating whether or not convection occurs at
+    :return: target_matrix: E-by-M-by-N-by-1 numpy array of target values
+        (integers in 0...1, indicating whether or not convection occurs at
         the given lead time).
     """
 
@@ -509,6 +509,7 @@ def data_generator(option_dict):
             num_examples_in_memory = predictor_matrix.shape[0]
 
         predictor_matrix = predictor_matrix.astype('float32')
+        target_matrix = target_matrix.astype('float32')
         yield predictor_matrix, target_matrix
 
 
