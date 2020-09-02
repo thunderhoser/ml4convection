@@ -3,6 +3,7 @@
 import os
 import sys
 import copy
+import random
 import pickle
 import numpy
 import keras
@@ -470,7 +471,7 @@ def data_generator(option_dict):
     valid_date_strings = time_conversion.get_spc_dates_in_range(
         first_valid_date_string, last_valid_date_string
     )
-
+    random.shuffle(valid_date_strings)
     date_index = 0
 
     while True:
@@ -513,6 +514,8 @@ def data_generator(option_dict):
                     (target_matrix, this_target_matrix), axis=0
                 )
 
+            print(predictor_matrix.shape)
+            print(target_matrix.shape)
             num_examples_in_memory = predictor_matrix.shape[0]
 
         predictor_matrix = predictor_matrix.astype('float32')
