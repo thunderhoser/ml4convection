@@ -39,4 +39,5 @@ python3 -u "${CODE_DIR_NAME}/train_neural_net.py" \
 --input_model_file_name="${TEMPLATE_FILE_NAME}" \
 --output_model_dir_name="${OUTPUT_DIR_NAME}" \
 --lead_time_seconds=0 \
+--num_examples_per_batch=32 \
 --input_normalization_file_name="${NORMALIZATION_FILE_NAME}"

@@ -403,7 +403,7 @@ def create_model(option_dict):
     model_object.compile(
         loss=keras.losses.binary_crossentropy,
         optimizer=keras.optimizers.Adam(),
-        metrics=neural_net.METRIC_FUNCTION_LIST
+        # metrics=neural_net.METRIC_FUNCTION_LIST
     )
 
     model_object.summary()
