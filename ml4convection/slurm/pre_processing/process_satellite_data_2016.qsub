@@ -34,4 +34,5 @@ python3 -u "${CODE_DIR_NAME}/process_satellite_data.py" \
 --input_satellite_dir_name="${INPUT_DIR_NAME}" \
 --first_date_string="${first_date_string}" \
 --last_date_string="${last_date_string}" \
+--temporary_dir_name="${OUTPUT_DIR_NAME}/temporary/${first_date_string}-${last_date_string}" \
 --output_satellite_dir_name="${OUTPUT_DIR_NAME}"

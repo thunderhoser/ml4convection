@@ -36,4 +36,5 @@ python3 -u "${CODE_DIR_NAME}/process_radar_data.py" \
 --last_date_string="${last_date_string}" \
 --with_3d=0 \
 --allow_missing_days=1 \
+--temporary_dir_name="${OUTPUT_DIR_NAME}/temporary/${first_date_string}-${last_date_string}" \
 --output_radar_dir_name="${OUTPUT_DIR_NAME}"
