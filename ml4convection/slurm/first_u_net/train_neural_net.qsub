@@ -38,6 +38,7 @@ python3 -u "${CODE_DIR_NAME}/train_neural_net.py" \
 --validn_radar_dir_name="${VALIDN_RADAR_DIR_NAME}" \
 --input_model_file_name="${TEMPLATE_FILE_NAME}" \
 --output_model_dir_name="${OUTPUT_DIR_NAME}" \
+--spatial_downsampling_factor=4 \
 --lead_time_seconds=0 \
 --num_examples_per_batch=32 \
 --input_normalization_file_name="${NORMALIZATION_FILE_NAME}"
