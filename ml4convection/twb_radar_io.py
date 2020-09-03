@@ -32,10 +32,10 @@ ERROR_STRING = (
 
 DEFAULT_GFORTRAN_COMPILER_NAME = 'gfortran'
 FORTRAN_SCRIPT_NAME = (
-    '{0:s}/read_twb_satellite_file.f90'.format(THIS_DIRECTORY_NAME)
+    '{0:s}/read_twb_radar_file.f90'.format(THIS_DIRECTORY_NAME)
 )
 FORTRAN_EXE_NAME = (
-    '{0:s}/read_twb_satellite_file.exe'.format(THIS_DIRECTORY_NAME)
+    '{0:s}/read_twb_radar_file.exe'.format(THIS_DIRECTORY_NAME)
 )
 
 TIME_FORMAT_IN_MESSAGES = '%Y-%m-%d-%H%M%S'
