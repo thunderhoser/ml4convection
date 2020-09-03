@@ -147,7 +147,7 @@ def _run(model_file_name, top_satellite_dir_name, top_radar_dir_name,
     metadata_dict = neural_net.read_metafile(metafile_name)
     training_option_dict = metadata_dict[neural_net.TRAINING_OPTIONS_KEY]
     normalization_file_name = (
-        training_option_dict[neural_net.UNIFORMIZE_FLAG_KEY]
+        training_option_dict[neural_net.NORMALIZATION_FILE_KEY]
     )
 
     if normalization_file_name is None:
