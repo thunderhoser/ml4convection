@@ -8,6 +8,7 @@ VALIDN_SATELLITE_DIR_ARG_NAME = 'validn_satellite_dir_name'
 VALIDN_RADAR_DIR_ARG_NAME = 'validn_radar_dir_name'
 INPUT_MODEL_FILE_ARG_NAME = 'input_model_file_name'
 OUTPUT_MODEL_DIR_ARG_NAME = 'output_model_dir_name'
+SPATIAL_DS_FACTOR_ARG_NAME = 'spatial_downsampling_factor'
 BAND_NUMBERS_ARG_NAME = 'band_numbers'
 REFL_THRESHOLD_ARG_NAME = 'reflectivity_threshold_dbz'
 LEAD_TIME_ARG_NAME = 'lead_time_seconds'
@@ -48,6 +49,10 @@ INPUT_MODEL_FILE_HELP_STRING = (
 )
 OUTPUT_MODEL_DIR_HELP_STRING = (
     'Name of output directory.  Model will be saved here.'
+)
+SPATIAL_DS_FACTOR_HELP_STRING = (
+    'Downsampling factor, used to coarsen spatial resolution.  If you do not '
+    'want to coarsen spatial resolution, make this 1.'
 )
 BAND_NUMBERS_HELP_STRING = (
     'List of band numbers (integers) for satellite data.  Will use only these '
@@ -125,6 +130,10 @@ def add_input_args(parser_object):
     parser_object.add_argument(
         '--' + OUTPUT_MODEL_DIR_ARG_NAME, type=str, required=True,
         help=OUTPUT_MODEL_DIR_HELP_STRING
+    )
+    parser_object.add_argument(
+        '--' + SPATIAL_DS_FACTOR_ARG_NAME, type=int, required=False, default=1,
+        help=SPATIAL_DS_FACTOR_HELP_STRING
     )
     parser_object.add_argument(
         '--' + BAND_NUMBERS_ARG_NAME, type=int, nargs='+', required=False,
