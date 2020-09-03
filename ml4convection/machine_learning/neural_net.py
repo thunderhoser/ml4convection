@@ -1,6 +1,7 @@
 """Methods for training and applying neural nets."""
 
 import copy
+import random
 import os.path
 import dill
 import numpy
@@ -12,6 +13,7 @@ from gewittergefahr.deep_learning import keras_metrics as custom_metrics
 from ml4convection.io import satellite_io
 from ml4convection.io import radar_io
 from ml4convection.utils import normalization
+from ml4convection.utils import general_utils
 
 TOLERANCE = 1e-6
 
@@ -179,6 +181,18 @@ def _read_inputs_one_day(
     print('Reading data from: "{0:s}"...'.format(desired_radar_file_name))
     radar_dict = radar_io.read_2d_file(desired_radar_file_name)
 
+    # TODO(thunderhoser): This is a HACK.
+    (
+        radar_dict[radar_io.COMPOSITE_REFL_KEY],
+        radar_dict[radar_io.LONGITUDES_KEY],
+        radar_dict[radar_io.LATITUDES_KEY]
+    ) = general_utils.downsample_in_space(
+        data_matrix=radar_dict[radar_io.COMPOSITE_REFL_KEY],
+        x_coordinates=radar_dict[radar_io.LONGITUDES_KEY],
+        y_coordinates=radar_dict[radar_io.LATITUDES_KEY],
+        downsampling_factor=4
+    )
+
     satellite_dicts = []
 
     for this_file_name in desired_satellite_file_names:
@@ -187,6 +201,19 @@ def _read_inputs_one_day(
             netcdf_file_name=this_file_name, read_temperatures=False,
             read_counts=True
         )
+
+        # TODO(thunderhoser): This is a HACK.
+        (
+            this_satellite_dict[satellite_io.BRIGHTNESS_COUNT_KEY],
+            this_satellite_dict[satellite_io.LONGITUDES_KEY],
+            this_satellite_dict[satellite_io.LATITUDES_KEY]
+        ) = general_utils.downsample_in_space(
+            data_matrix=this_satellite_dict[satellite_io.BRIGHTNESS_COUNT_KEY],
+            x_coordinates=this_satellite_dict[satellite_io.LONGITUDES_KEY],
+            y_coordinates=this_satellite_dict[satellite_io.LATITUDES_KEY],
+            downsampling_factor=4
+        )
+
         this_satellite_dict = satellite_io.subset_by_band(
             satellite_dict=this_satellite_dict, band_numbers=band_numbers
         )
@@ -463,7 +490,7 @@ def data_generator(option_dict):
     valid_date_strings = time_conversion.get_spc_dates_in_range(
         first_valid_date_string, last_valid_date_string
     )
-
+    random.shuffle(valid_date_strings)
     date_index = 0
 
     while True:
@@ -506,6 +533,8 @@ def data_generator(option_dict):
                     (target_matrix, this_target_matrix), axis=0
                 )
 
+            print(predictor_matrix.shape)
+            print(target_matrix.shape)
             num_examples_in_memory = predictor_matrix.shape[0]
 
         predictor_matrix = predictor_matrix.astype('float32')
