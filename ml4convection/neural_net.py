@@ -195,6 +195,7 @@ def _read_inputs_one_day(
         radar_dict[radar_io.LATITUDES_KEY]
     ) = general_utils.downsample_in_space(
         data_matrix=radar_dict[radar_io.COMPOSITE_REFL_KEY],
+        x_axis_index=2, y_axis_index=1,
         x_coordinates=radar_dict[radar_io.LONGITUDES_KEY],
         y_coordinates=radar_dict[radar_io.LATITUDES_KEY],
         downsampling_factor=4
@@ -216,6 +217,7 @@ def _read_inputs_one_day(
             this_satellite_dict[satellite_io.LATITUDES_KEY]
         ) = general_utils.downsample_in_space(
             data_matrix=this_satellite_dict[satellite_io.BRIGHTNESS_COUNT_KEY],
+            x_axis_index=2, y_axis_index=1,
             x_coordinates=this_satellite_dict[satellite_io.LONGITUDES_KEY],
             y_coordinates=this_satellite_dict[satellite_io.LATITUDES_KEY],
             downsampling_factor=4
