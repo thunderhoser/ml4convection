@@ -114,7 +114,7 @@ def _apply_net_one_day(model_object, base_option_dict, valid_date_string,
     print('Writing predictions to: "{0:s}"...'.format(output_file_name))
     prediction_io.write_file(
         netcdf_file_name=output_file_name,
-        target_matrix=data_dict[neural_net.TARGET_MATRIX_KEY],
+        target_matrix=data_dict[neural_net.TARGET_MATRIX_KEY][..., 0],
         forecast_probability_matrix=forecast_probability_matrix,
         valid_times_unix_sec=data_dict[neural_net.VALID_TIMES_KEY],
         latitudes_deg_n=data_dict[neural_net.LATITUDES_KEY],
