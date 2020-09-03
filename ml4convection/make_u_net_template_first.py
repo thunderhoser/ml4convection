@@ -26,7 +26,13 @@ MODEL_FILE_NAME = (
 
 ARCHITECTURE_OPTION_DICT = {
     u_net_architecture.INPUT_DIMENSIONS_KEY:
-        numpy.array([881, 921, 7], dtype=int)
+        numpy.array([221, 231, 7], dtype=int),
+    u_net_architecture.NUM_LEVELS_KEY: 5,
+    u_net_architecture.CONV_LAYER_CHANNEL_COUNTS_KEY:
+        numpy.array([16, 24, 32, 48, 64, 96], dtype=int),
+    u_net_architecture.CONV_LAYER_DROPOUT_RATES_KEY: numpy.full(6, 0.),
+    u_net_architecture.UPCONV_LAYER_DROPOUT_RATES_KEY: numpy.full(5, 0.),
+    u_net_architecture.SKIP_LAYER_DROPOUT_RATES_KEY: numpy.full(5, 0.)
 }
 
 
