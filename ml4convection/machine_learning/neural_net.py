@@ -86,6 +86,12 @@ METADATA_KEYS = [
     EARLY_STOPPING_KEY, PLATEAU_LR_MUTIPLIER_KEY
 ]
 
+PREDICTOR_MATRIX_KEY = 'predictor_matrix'
+TARGET_MATRIX_KEY = 'target_matrix'
+VALID_TIMES_KEY = 'valid_times_unix_sec'
+LATITUDES_KEY = 'latitudes_deg_n'
+LONGITUDES_KEY = 'longitudes_deg_e'
+
 
 def _check_generator_args(option_dict):
     """Error-checks input arguments for generator.
@@ -219,8 +225,12 @@ def _read_inputs_one_day(
         valid_date_string, satellite_file_names, band_numbers,
         norm_dict_for_count, uniformize, radar_file_names, lead_time_seconds,
         reflectivity_threshold_dbz, spatial_downsampling_factor,
-        num_examples_to_read):
+        num_examples_to_read, return_coords):
     """Reads inputs (satellite and radar data) for one day.
+
+    E = number of examples
+    M = number of rows in grid
+    N = number of columns in grid
 
     :param valid_date_string: Valid date (format "yyyymmdd").
     :param satellite_file_names: 1-D list of paths to satellite files (readable
@@ -236,8 +246,17 @@ def _read_inputs_one_day(
     :param reflectivity_threshold_dbz: Same.
     :param spatial_downsampling_factor: Same.
     :param num_examples_to_read: Number of examples to read.
-    :return: predictor_matrix: See doc for `data_generator`.
-    :return: target_matrix: Same.
+    :param return_coords: Boolean flag.  If True, will return latitudes and
+        longitudes for grid points.
+
+    :return: data_dict: Dictionary with the following keys.
+    data_dict['predictor_matrix']: See doc for `data_generator`.
+    data_dict['target_matrix']: Same.
+    data_dict['valid_times_unix_sec']: length-E numpy array of valid times.
+    data_dict['latitudes_deg_n']: length-M numpy array of latitudes (deg N).
+        If `return_coords == False`, this is None.
+    data_dict['longitudes_deg_e']: length-N numpy array of longitudes (deg E).
+        If `return_coords == False`, this is None.
     """
 
     radar_date_strings = [
@@ -294,7 +313,7 @@ def _read_inputs_one_day(
     ], dtype=bool)
 
     if not numpy.any(good_flags):
-        return None, None
+        return None
 
     good_indices = numpy.where(good_flags)[0]
     valid_times_unix_sec = valid_times_unix_sec[good_indices]
@@ -328,7 +347,7 @@ def _read_inputs_one_day(
         satellite_dict, radar_dict = _downsample_data_in_space(
             satellite_dict=satellite_dict, radar_dict=radar_dict,
             downsampling_factor=spatial_downsampling_factor,
-            change_coordinates=False
+            change_coordinates=return_coords
         )
 
     if norm_dict_for_count is not None:
@@ -342,7 +361,23 @@ def _read_inputs_one_day(
         radar_dict[radar_io.COMPOSITE_REFL_KEY] >= reflectivity_threshold_dbz
     ).astype(int)
 
-    return predictor_matrix, numpy.expand_dims(target_matrix, axis=-1)
+    print('Number of target values in batch = {0:d} ... mean = {1:.3g}'.format(
+        target_matrix.size, numpy.mean(target_matrix)
+    ))
+
+    data_dict = {
+        PREDICTOR_MATRIX_KEY: predictor_matrix,
+        TARGET_MATRIX_KEY: numpy.expand_dims(target_matrix, axis=-1),
+        VALID_TIMES_KEY: valid_times_unix_sec,
+        LATITUDES_KEY: None,
+        LONGITUDES_KEY: None
+    }
+
+    if return_coords:
+        data_dict[LATITUDES_KEY] = radar_dict[radar_io.LATITUDES_KEY]
+        data_dict[LONGITUDES_KEY] = radar_dict[radar_io.LONGITUDES_KEY]
+
+    return data_dict
 
 
 def _write_metafile(
@@ -413,7 +448,7 @@ def _find_days_with_radar_and_satellite(satellite_file_names, radar_file_names,
     return valid_date_strings
 
 
-def create_data(option_dict):
+def create_data(option_dict, return_coords=False):
     """Creates data for neural net.
 
     This method is the same as `data_generator`, except that it returns all the
@@ -431,11 +466,12 @@ def create_data(option_dict):
     option_dict['norm_dict_for_count']: See doc for `_read_inputs_one_day`.
     option_dict['uniformize']: See doc for `data_generator`.
 
-    :return: predictor_matrix: See doc for `data_generator`.
-    :return: target_matrix: Same.
+    :param return_coords: See doc for `_read_inputs_one_day`.
+    :return: data_dict: Same.
     """
 
     option_dict = _check_generator_args(option_dict)
+    error_checking.assert_is_boolean(return_coords)
 
     top_satellite_dir_name = option_dict[SATELLITE_DIRECTORY_KEY]
     top_radar_dir_name = option_dict[RADAR_DIRECTORY_KEY]
@@ -461,14 +497,16 @@ def create_data(option_dict):
         top_directory_name=top_satellite_dir_name,
         first_date_string=first_init_date_string,
         last_date_string=valid_date_string,
+        raise_error_if_all_missing=False,
         raise_error_if_any_missing=False
     )
 
     radar_file_names = radar_io.find_many_files(
         top_directory_name=top_radar_dir_name,
         first_date_string=valid_date_string,
-        last_date_string=valid_date_string,
-        with_3d=False, raise_error_if_any_missing=False
+        last_date_string=valid_date_string, with_3d=False,
+        raise_error_if_all_missing=False,
+        raise_error_if_any_missing=False
     )
 
     valid_date_strings = _find_days_with_radar_and_satellite(
@@ -477,9 +515,9 @@ def create_data(option_dict):
     )
 
     if len(valid_date_strings) == 0:
-        return None, None
+        return None
 
-    predictor_matrix, target_matrix = _read_inputs_one_day(
+    return _read_inputs_one_day(
         valid_date_string=valid_date_string,
         satellite_file_names=satellite_file_names,
         band_numbers=band_numbers,
@@ -488,15 +526,8 @@ def create_data(option_dict):
         lead_time_seconds=lead_time_seconds,
         reflectivity_threshold_dbz=reflectivity_threshold_dbz,
         spatial_downsampling_factor=spatial_downsampling_factor,
-        num_examples_to_read=int(1e6)
+        num_examples_to_read=int(1e6), return_coords=return_coords
     )
-
-    if predictor_matrix is None:
-        return None, None
-
-    predictor_matrix = predictor_matrix.astype('float32')
-    target_matrix = target_matrix.astype('float32')
-    return predictor_matrix, target_matrix
 
 
 def data_generator(option_dict):
@@ -626,7 +657,7 @@ def data_generator(option_dict):
                 num_examples_per_batch - num_examples_in_memory
             ])
 
-            this_predictor_matrix, this_target_matrix = _read_inputs_one_day(
+            this_data_dict = _read_inputs_one_day(
                 valid_date_string=valid_date_strings[date_index],
                 satellite_file_names=satellite_file_names,
                 band_numbers=band_numbers,
@@ -635,12 +666,15 @@ def data_generator(option_dict):
                 lead_time_seconds=lead_time_seconds,
                 reflectivity_threshold_dbz=reflectivity_threshold_dbz,
                 spatial_downsampling_factor=spatial_downsampling_factor,
-                num_examples_to_read=num_examples_to_read
+                num_examples_to_read=num_examples_to_read, return_coords=False
             )
 
             date_index += 1
-            if this_predictor_matrix is None:
+            if this_data_dict is None:
                 continue
+
+            this_predictor_matrix = this_data_dict[PREDICTOR_MATRIX_KEY]
+            this_target_matrix = this_data_dict[TARGET_MATRIX_KEY]
 
             if predictor_matrix is None:
                 predictor_matrix = this_predictor_matrix + 0.
@@ -653,8 +687,6 @@ def data_generator(option_dict):
                     (target_matrix, this_target_matrix), axis=0
                 )
 
-            print(predictor_matrix.shape)
-            print(target_matrix.shape)
             num_examples_in_memory = predictor_matrix.shape[0]
 
         predictor_matrix = predictor_matrix.astype('float32')
