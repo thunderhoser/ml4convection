@@ -2,7 +2,6 @@
 
 import os
 import sys
-import copy
 import pickle
 import numpy
 import scipy.stats
@@ -407,24 +406,30 @@ def get_normalization_params(
     band_numbers = satellite_io.BAND_NUMBERS
     num_bands = len(band_numbers)
 
-    original_param_dict = {
-        NUM_VALUES_KEY: 0,
-        MEAN_VALUE_KEY: 0.,
-        MEAN_OF_SQUARES_KEY: 0.
-    }
-
     if do_temperatures:
-        param_dicts_for_temperature = (
-            [copy.deepcopy(original_param_dict)] * num_bands
-        )
+        param_dicts_for_temperature = [dict()] * num_bands
+
+        for j in range(num_bands):
+            param_dicts_for_temperature[j] = {
+                NUM_VALUES_KEY: 0,
+                MEAN_VALUE_KEY: 0.,
+                MEAN_OF_SQUARES_KEY: 0.
+            }
+
         sampled_temperature_matrix_kelvins = numpy.full(
             (num_values_per_band, num_bands), numpy.nan
         )
 
     if do_counts:
-        param_dicts_for_count = (
-            [copy.deepcopy(original_param_dict)] * num_bands
-        )
+        param_dicts_for_count = [dict()] * num_bands
+
+        for j in range(num_bands):
+            param_dicts_for_count[j] = {
+                NUM_VALUES_KEY: 0,
+                MEAN_VALUE_KEY: 0.,
+                MEAN_OF_SQUARES_KEY: 0.
+            }
+
         sampled_count_matrix = numpy.full(
             (num_values_per_band, num_bands), numpy.nan
         )
