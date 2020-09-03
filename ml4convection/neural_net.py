@@ -21,6 +21,7 @@ import satellite_io
 import radar_io
 import normalization
 import general_utils
+import standalone_utils
 
 TOLERANCE = 1e-6
 
@@ -55,6 +56,7 @@ METRIC_FUNCTION_DICT = {
 
 SATELLITE_DIRECTORY_KEY = 'top_satellite_dir_name'
 RADAR_DIRECTORY_KEY = 'top_radar_dir_name'
+SPATIAL_DS_FACTOR_KEY = 'spatial_downsampling_factor'
 BATCH_SIZE_KEY = 'num_examples_per_batch'
 MAX_DAILY_EXAMPLES_KEY = 'max_examples_per_day_in_batch'
 BAND_NUMBERS_KEY = 'band_numbers'
@@ -69,6 +71,7 @@ VALID_DATE_KEY = 'valid_date_string'
 NORMALIZATION_DICT_KEY = 'norm_dict_for_count'
 
 DEFAULT_GENERATOR_OPTION_DICT = {
+    SPATIAL_DS_FACTOR_KEY: 1,
     BATCH_SIZE_KEY: 256,
     MAX_DAILY_EXAMPLES_KEY: 64,
     BAND_NUMBERS_KEY: satellite_io.BAND_NUMBERS,
@@ -109,6 +112,8 @@ def _check_generator_args(option_dict):
 
     error_checking.assert_is_integer(option_dict[BATCH_SIZE_KEY])
     error_checking.assert_is_geq(option_dict[BATCH_SIZE_KEY], 2)
+    error_checking.assert_is_integer(option_dict[SPATIAL_DS_FACTOR_KEY])
+    error_checking.assert_is_geq(option_dict[SPATIAL_DS_FACTOR_KEY], 1)
     error_checking.assert_is_integer(option_dict[MAX_DAILY_EXAMPLES_KEY])
     error_checking.assert_is_geq(option_dict[MAX_DAILY_EXAMPLES_KEY], 2)
     error_checking.assert_is_integer(option_dict[LEAD_TIME_KEY])
@@ -147,10 +152,81 @@ def _check_inference_args(predictor_matrix, num_examples_per_batch, verbose):
     return num_examples_per_batch
 
 
+def _downsample_data_in_space(satellite_dict, radar_dict, downsampling_factor,
+                              change_coordinates=False):
+    """Downsamples both satellite and radar data in space.
+
+    :param satellite_dict: Dictionary in format returned by
+        `satellite_io.read_file`.
+    :param radar_dict: Dictionary in format returned by `radar_io.read_2d_file`.
+    :param downsampling_factor: Downsampling factor (integer).
+    :param change_coordinates: Boolean flag.  If True (False), will (not) change
+        coordinates in dictionaries to reflect downsampling.
+    :return: satellite_dict: Same as input but maybe with coarser spatial
+        resolution.
+    :return: radar_dict: Same as input but maybe with coarser spatial
+        resolution.
+    """
+
+    this_key = (
+        satellite_io.BRIGHTNESS_COUNT_KEY
+        if satellite_dict[satellite_io.BRIGHTNESS_TEMP_KEY] is None
+        else satellite_io.BRIGHTNESS_TEMP_KEY
+    )
+    satellite_dict[this_key] = standalone_utils.do_2d_pooling(
+        feature_matrix=satellite_dict[this_key],
+        window_size_px=downsampling_factor, do_max_pooling=False
+    )
+
+    composite_refl_matrix_dbz = numpy.expand_dims(
+        radar_dict[radar_io.COMPOSITE_REFL_KEY], axis=-1
+    )
+    composite_refl_matrix_dbz = standalone_utils.do_2d_pooling(
+        feature_matrix=composite_refl_matrix_dbz,
+        window_size_px=downsampling_factor, do_max_pooling=True
+    )
+    radar_dict[radar_io.COMPOSITE_REFL_KEY] = composite_refl_matrix_dbz[..., 0]
+
+    if not change_coordinates:
+        return satellite_dict, radar_dict
+
+    latitude_matrix_deg_n = numpy.expand_dims(
+        satellite_dict[satellite_io.LATITUDES_KEY], axis=0
+    )
+    latitude_matrix_deg_n = numpy.expand_dims(latitude_matrix_deg_n, axis=-1)
+    latitude_matrix_deg_n = standalone_utils.do_1d_pooling(
+        feature_matrix=latitude_matrix_deg_n,
+        window_size_px=downsampling_factor, do_max_pooling=False
+    )
+
+    latitudes_deg_n = latitude_matrix_deg_n[0, :, 0]
+    satellite_dict[satellite_io.LATITUDES_KEY] = latitudes_deg_n + 0.
+    radar_dict[radar_io.LATITUDES_KEY] = latitudes_deg_n + 0.
+
+    longitude_matrix_deg_e = numpy.expand_dims(
+        satellite_dict[satellite_io.LONGITUDES_KEY], axis=0
+    )
+    longitude_matrix_deg_e = numpy.expand_dims(longitude_matrix_deg_e, axis=-1)
+
+    # TODO(thunderhoser): Careful: this will not work with wrap-around at the
+    # date line.
+    longitude_matrix_deg_e = standalone_utils.do_1d_pooling(
+        feature_matrix=longitude_matrix_deg_e,
+        window_size_px=downsampling_factor, do_max_pooling=False
+    )
+
+    longitudes_deg_e = longitude_matrix_deg_e[0, :, 0]
+    satellite_dict[satellite_io.LONGITUDES_KEY] = longitudes_deg_e + 0.
+    radar_dict[radar_io.LONGITUDES_KEY] = longitudes_deg_e + 0.
+
+    return satellite_dict, radar_dict
+
+
 def _read_inputs_one_day(
         valid_date_string, satellite_file_names, band_numbers,
         norm_dict_for_count, uniformize, radar_file_names, lead_time_seconds,
-        reflectivity_threshold_dbz, num_examples_to_read):
+        reflectivity_threshold_dbz, spatial_downsampling_factor,
+        num_examples_to_read):
     """Reads inputs (satellite and radar data) for one day.
 
     :param valid_date_string: Valid date (format "yyyymmdd").
@@ -165,6 +241,7 @@ def _read_inputs_one_day(
         `radar_io.read_2d_file`).
     :param lead_time_seconds: See doc for `data_generator`.
     :param reflectivity_threshold_dbz: Same.
+    :param spatial_downsampling_factor: Same.
     :param num_examples_to_read: Number of examples to read.
     :return: predictor_matrix: See doc for `data_generator`.
     :return: target_matrix: Same.
@@ -188,19 +265,6 @@ def _read_inputs_one_day(
     print('Reading data from: "{0:s}"...'.format(desired_radar_file_name))
     radar_dict = radar_io.read_2d_file(desired_radar_file_name)
 
-    # TODO(thunderhoser): This is a HACK.
-    (
-        radar_dict[radar_io.COMPOSITE_REFL_KEY],
-        radar_dict[radar_io.LONGITUDES_KEY],
-        radar_dict[radar_io.LATITUDES_KEY]
-    ) = general_utils.downsample_in_space(
-        data_matrix=radar_dict[radar_io.COMPOSITE_REFL_KEY],
-        x_axis_index=2, y_axis_index=1,
-        x_coordinates=radar_dict[radar_io.LONGITUDES_KEY],
-        y_coordinates=radar_dict[radar_io.LATITUDES_KEY],
-        downsampling_factor=4
-    )
-
     satellite_dicts = []
 
     for this_file_name in desired_satellite_file_names:
@@ -209,20 +273,6 @@ def _read_inputs_one_day(
             netcdf_file_name=this_file_name, read_temperatures=False,
             read_counts=True
         )
-
-        # TODO(thunderhoser): This is a HACK.
-        (
-            this_satellite_dict[satellite_io.BRIGHTNESS_COUNT_KEY],
-            this_satellite_dict[satellite_io.LONGITUDES_KEY],
-            this_satellite_dict[satellite_io.LATITUDES_KEY]
-        ) = general_utils.downsample_in_space(
-            data_matrix=this_satellite_dict[satellite_io.BRIGHTNESS_COUNT_KEY],
-            x_axis_index=2, y_axis_index=1,
-            x_coordinates=this_satellite_dict[satellite_io.LONGITUDES_KEY],
-            y_coordinates=this_satellite_dict[satellite_io.LATITUDES_KEY],
-            downsampling_factor=4
-        )
-
         this_satellite_dict = satellite_io.subset_by_band(
             satellite_dict=this_satellite_dict, band_numbers=band_numbers
         )
@@ -281,6 +331,13 @@ def _read_inputs_one_day(
             satellite_dict=satellite_dict, desired_indices=desired_indices
         )
 
+    if spatial_downsampling_factor > 1:
+        satellite_dict, radar_dict = _downsample_data_in_space(
+            satellite_dict=satellite_dict, radar_dict=radar_dict,
+            downsampling_factor=spatial_downsampling_factor,
+            change_coordinates=False
+        )
+
     if norm_dict_for_count is not None:
         satellite_dict = normalization.normalize_data(
             satellite_dict=satellite_dict, uniformize=uniformize,
@@ -328,6 +385,41 @@ def _write_metafile(
     dill_file_handle.close()
 
 
+def _find_days_with_radar_and_satellite(satellite_file_names, radar_file_names,
+                                        lead_time_seconds):
+    """Finds days with both radar and satellite data.
+
+    :param satellite_file_names: See doc for `_read_inputs_one_day`.
+    :param radar_file_names: Same.
+    :param lead_time_seconds: Same.
+    :return: valid_date_strings: List of valid dates (radar dates) for which
+        both satellite and radar data exist, in format "yyyymmdd".
+    """
+
+    satellite_date_strings = [
+        satellite_io.file_name_to_date(f) for f in satellite_file_names
+    ]
+    radar_date_strings = [
+        radar_io.file_name_to_date(f) for f in radar_file_names
+    ]
+    valid_date_strings = []
+
+    for this_radar_date_string in radar_date_strings:
+        if this_radar_date_string not in satellite_date_strings:
+            continue
+
+        if lead_time_seconds > 0:
+            if (
+                    general_utils.get_previous_date(this_radar_date_string)
+                    not in satellite_date_strings
+            ):
+                continue
+
+        valid_date_strings.append(this_radar_date_string)
+
+    return valid_date_strings
+
+
 def create_data(option_dict):
     """Creates data for neural net.
 
@@ -337,6 +429,7 @@ def create_data(option_dict):
     :param option_dict: Dictionary with the following keys.
     option_dict['top_satellite_dir_name']: See doc for `data_generator`.
     option_dict['top_radar_dir_name']: Same.
+    option_dict['spatial_downsampling_factor']: Same.
     option_dict['band_numbers']: Same.
     option_dict['lead_time_seconds']: Same.
     option_dict['reflectivity_threshold_dbz']: Same.
@@ -353,6 +446,7 @@ def create_data(option_dict):
 
     top_satellite_dir_name = option_dict[SATELLITE_DIRECTORY_KEY]
     top_radar_dir_name = option_dict[RADAR_DIRECTORY_KEY]
+    spatial_downsampling_factor = option_dict[SPATIAL_DS_FACTOR_KEY]
     band_numbers = option_dict[BAND_NUMBERS_KEY]
     lead_time_seconds = option_dict[LEAD_TIME_KEY]
     reflectivity_threshold_dbz = option_dict[REFL_THRESHOLD_KEY]
@@ -374,15 +468,23 @@ def create_data(option_dict):
         top_directory_name=top_satellite_dir_name,
         first_date_string=first_init_date_string,
         last_date_string=valid_date_string,
-        raise_error_if_any_missing=True
+        raise_error_if_any_missing=False
     )
 
     radar_file_names = radar_io.find_many_files(
         top_directory_name=top_radar_dir_name,
         first_date_string=valid_date_string,
         last_date_string=valid_date_string,
-        with_3d=False, raise_error_if_any_missing=True
+        with_3d=False, raise_error_if_any_missing=False
     )
+
+    valid_date_strings = _find_days_with_radar_and_satellite(
+        satellite_file_names=satellite_file_names,
+        radar_file_names=radar_file_names, lead_time_seconds=lead_time_seconds
+    )
+
+    if len(valid_date_strings) == 0:
+        return None, None
 
     predictor_matrix, target_matrix = _read_inputs_one_day(
         valid_date_string=valid_date_string,
@@ -392,8 +494,12 @@ def create_data(option_dict):
         radar_file_names=radar_file_names,
         lead_time_seconds=lead_time_seconds,
         reflectivity_threshold_dbz=reflectivity_threshold_dbz,
+        spatial_downsampling_factor=spatial_downsampling_factor,
         num_examples_to_read=int(1e6)
     )
+
+    if predictor_matrix is None:
+        return None, None
 
     predictor_matrix = predictor_matrix.astype('float32')
     target_matrix = target_matrix.astype('float32')
@@ -415,6 +521,9 @@ def data_generator(option_dict):
     option_dict['top_radar_dir_name']: Name of top-level directory with radar
         data (targets).  Files therein will be found by `radar_io.find_file` and
         read by `radar_io.read_2d_file`.
+    option_dict['spatial_downsampling_factor']: Downsampling factor (integer),
+        used to coarsen spatial resolution.  If you do not want to coarsen
+        spatial resolution, make this 1.
     option_dict['num_examples_per_batch']: Batch size.
     option_dict['max_examples_per_day_in_batch']: Max number of examples from
         the same day in one batch.
@@ -441,6 +550,8 @@ def data_generator(option_dict):
     :return: target_matrix: E-by-M-by-N-by-1 numpy array of target values
         (integers in 0...1, indicating whether or not convection occurs at
         the given lead time).
+    :raises: ValueError: if no valid date can be found for which radar and
+        satellite data are available.
     """
 
     # TODO(thunderhoser): Allow downsampling?
@@ -452,6 +563,7 @@ def data_generator(option_dict):
 
     top_satellite_dir_name = option_dict[SATELLITE_DIRECTORY_KEY]
     top_radar_dir_name = option_dict[RADAR_DIRECTORY_KEY]
+    spatial_downsampling_factor = option_dict[SPATIAL_DS_FACTOR_KEY]
     num_examples_per_batch = option_dict[BATCH_SIZE_KEY]
     max_examples_per_day_in_batch = option_dict[MAX_DAILY_EXAMPLES_KEY]
     band_numbers = option_dict[BAND_NUMBERS_KEY]
@@ -465,11 +577,8 @@ def data_generator(option_dict):
     if lead_time_seconds == 0:
         first_init_date_string = copy.deepcopy(first_valid_date_string)
     else:
-        first_valid_time_unix_sec = time_conversion.string_to_unix_sec(
-            first_valid_date_string, DATE_FORMAT
-        )
-        first_init_date_string = time_conversion.unix_sec_to_string(
-            first_valid_time_unix_sec - DAYS_TO_SECONDS, DATE_FORMAT
+        first_init_date_string = general_utils.get_previous_date(
+            first_valid_date_string
         )
 
     if normalization_file_name is None:
@@ -486,19 +595,27 @@ def data_generator(option_dict):
         top_directory_name=top_satellite_dir_name,
         first_date_string=first_init_date_string,
         last_date_string=last_valid_date_string,
-        raise_error_if_any_missing=True
+        raise_error_if_any_missing=False
     )
 
     radar_file_names = radar_io.find_many_files(
         top_directory_name=top_radar_dir_name,
         first_date_string=first_valid_date_string,
         last_date_string=last_valid_date_string,
-        with_3d=False, raise_error_if_any_missing=True
+        with_3d=False, raise_error_if_any_missing=False
     )
 
-    valid_date_strings = time_conversion.get_spc_dates_in_range(
-        first_valid_date_string, last_valid_date_string
+    valid_date_strings = _find_days_with_radar_and_satellite(
+        satellite_file_names=satellite_file_names,
+        radar_file_names=radar_file_names, lead_time_seconds=lead_time_seconds
     )
+
+    if len(valid_date_strings) == 0:
+        raise ValueError(
+            'Cannot find any valid date for which both radar and satellite data'
+            ' are available.'
+        )
+
     random.shuffle(valid_date_strings)
     date_index = 0
 
@@ -524,6 +641,7 @@ def data_generator(option_dict):
                 radar_file_names=radar_file_names,
                 lead_time_seconds=lead_time_seconds,
                 reflectivity_threshold_dbz=reflectivity_threshold_dbz,
+                spatial_downsampling_factor=spatial_downsampling_factor,
                 num_examples_to_read=num_examples_to_read
             )
 
