@@ -76,7 +76,7 @@ RADAR_DICT_SUBSET_BY_INDEX = {
 }
 
 
-def _compare_radar_dicts(first_radar_dict, second_radar_dict):
+def compare_radar_dicts(first_radar_dict, second_radar_dict):
     """Compares two dictionaries with radar data.
 
     :param first_radar_dict: See doc for `radar_io.read_file`.
@@ -194,7 +194,7 @@ class RadarIoTests(unittest.TestCase):
             desired_indices=DESIRED_INDICES
         )
 
-        self.assertTrue(_compare_radar_dicts(
+        self.assertTrue(compare_radar_dicts(
             this_radar_dict, RADAR_DICT_SUBSET_BY_INDEX
         ))
 
@@ -206,7 +206,7 @@ class RadarIoTests(unittest.TestCase):
             desired_times_unix_sec=DESIRED_TIMES_UNIX_SEC
         )[0]
 
-        self.assertTrue(_compare_radar_dicts(
+        self.assertTrue(compare_radar_dicts(
             this_radar_dict, RADAR_DICT_SUBSET_BY_TIME
         ))
 

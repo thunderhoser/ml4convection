@@ -163,7 +163,7 @@ def _downsample_data_in_space(satellite_dict, radar_dict, downsampling_factor,
 
     this_key = (
         satellite_io.BRIGHTNESS_COUNT_KEY
-        if satellite_io.BRIGHTNESS_COUNT_KEY in satellite_dict
+        if satellite_dict[satellite_io.BRIGHTNESS_TEMP_KEY] is None
         else satellite_io.BRIGHTNESS_TEMP_KEY
     )
     satellite_dict[this_key] = standalone_utils.do_2d_pooling(
@@ -388,8 +388,6 @@ def _find_days_with_radar_and_satellite(satellite_file_names, radar_file_names,
     :return: valid_date_strings: List of valid dates (radar dates) for which
         both satellite and radar data exist, in format "yyyymmdd".
     """
-
-    # TODO(thunderhoser): Write unit test!
 
     satellite_date_strings = [
         satellite_io.file_name_to_date(f) for f in satellite_file_names

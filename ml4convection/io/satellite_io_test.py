@@ -112,7 +112,7 @@ SATELLITE_DICT_CONCAT = {
 }
 
 
-def _compare_satellite_dicts(first_satellite_dict, second_satellite_dict):
+def compare_satellite_dicts(first_satellite_dict, second_satellite_dict):
     """Compares two dictionaries with radar data.
 
     :param first_satellite_dict: See doc for `satellite_io.read_file`.
@@ -194,7 +194,7 @@ class SatelliteIoTests(unittest.TestCase):
             band_numbers=DESIRED_BAND_NUMBERS
         )
 
-        self.assertTrue(_compare_satellite_dicts(
+        self.assertTrue(compare_satellite_dicts(
             this_satellite_dict, SATELLITE_DICT_SUBSET_BY_BAND
         ))
 
@@ -206,7 +206,7 @@ class SatelliteIoTests(unittest.TestCase):
             desired_indices=DESIRED_INDICES
         )
 
-        self.assertTrue(_compare_satellite_dicts(
+        self.assertTrue(compare_satellite_dicts(
             this_satellite_dict, SATELLITE_DICT_SUBSET_BY_INDEX
         ))
 
@@ -218,7 +218,7 @@ class SatelliteIoTests(unittest.TestCase):
             desired_times_unix_sec=DESIRED_TIMES_UNIX_SEC
         )[0]
 
-        self.assertTrue(_compare_satellite_dicts(
+        self.assertTrue(compare_satellite_dicts(
             this_satellite_dict, SATELLITE_DICT_SUBSET_BY_TIME
         ))
 
@@ -231,7 +231,7 @@ class SatelliteIoTests(unittest.TestCase):
             ]
         )
 
-        self.assertTrue(_compare_satellite_dicts(
+        self.assertTrue(compare_satellite_dicts(
             this_satellite_dict, SATELLITE_DICT_CONCAT
         ))
 
