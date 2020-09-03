@@ -2,6 +2,7 @@
 
 import copy
 import argparse
+import numpy
 from gewittergefahr.gg_utils import time_conversion
 from ml4convection.io import prediction_io
 from ml4convection.utils import normalization
@@ -94,6 +95,9 @@ def _apply_net_one_day(model_object, base_option_dict, valid_date_string,
         num_examples_per_batch=NUM_EXAMPLES_PER_BATCH, verbose=True
     )
 
+    these_percentiles = numpy.array([90, 95, 96, 97, 98, 99, 100], dtype=float)
+    print(numpy.percentile(forecast_probability_matrix, these_percentiles))
+
     output_file_name = prediction_io.find_file(
         top_directory_name=top_output_dir_name,
         valid_date_string=valid_date_string, raise_error_if_missing=False
@@ -102,7 +106,7 @@ def _apply_net_one_day(model_object, base_option_dict, valid_date_string,
     print('Writing predictions to: "{0:s}"...'.format(output_file_name))
     prediction_io.write_file(
         netcdf_file_name=output_file_name,
-        target_matrix=data_dict[neural_net.TARGET_MATRIX_KEY],
+        target_matrix=data_dict[neural_net.TARGET_MATRIX_KEY][..., 0],
         forecast_probability_matrix=forecast_probability_matrix,
         valid_times_unix_sec=data_dict[neural_net.VALID_TIMES_KEY],
         latitudes_deg_n=data_dict[neural_net.LATITUDES_KEY],
@@ -135,7 +139,7 @@ def _run(model_file_name, top_satellite_dir_name, top_radar_dir_name,
     metadata_dict = neural_net.read_metafile(metafile_name)
     training_option_dict = metadata_dict[neural_net.TRAINING_OPTIONS_KEY]
     normalization_file_name = (
-        training_option_dict[neural_net.UNIFORMIZE_FLAG_KEY]
+        training_option_dict[neural_net.NORMALIZATION_FILE_KEY]
     )
 
     if normalization_file_name is None:

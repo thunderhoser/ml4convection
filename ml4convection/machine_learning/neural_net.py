@@ -357,6 +357,11 @@ def _read_inputs_one_day(
         )
 
     predictor_matrix = satellite_dict[satellite_io.BRIGHTNESS_COUNT_KEY]
+    print('Mean reflectivity = {0:.2f} dBZ'.format(
+        numpy.mean(radar_dict[radar_io.COMPOSITE_REFL_KEY])
+    ))
+    print('Threshold = {0:.2f} dBZ'.format(reflectivity_threshold_dbz))
+
     target_matrix = (
         radar_dict[radar_io.COMPOSITE_REFL_KEY] >= reflectivity_threshold_dbz
     ).astype(int)
