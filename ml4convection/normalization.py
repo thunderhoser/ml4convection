@@ -485,6 +485,7 @@ def get_normalization_params(
                     normalization_param_dict=param_dicts_for_count[j],
                     new_data_matrix=these_counts
                 )
+                print(param_dicts_for_count[j])
 
     if do_temperatures:
         error_checking.assert_is_numpy_array_without_nan(
