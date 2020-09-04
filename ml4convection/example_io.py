@@ -234,7 +234,10 @@ def _write_predictor_file(predictor_dict, netcdf_file_name):
         predictor_dict[BAND_NUMBERS_KEY]
     )
 
-    these_dim = (num_times, num_grid_rows, num_grid_columns, num_channels)
+    these_dim = (
+        TIME_DIMENSION_KEY, ROW_DIMENSION_KEY, COLUMN_DIMENSION_KEY,
+        BAND_DIMENSION_KEY
+    )
     dataset_object.createVariable(
         PREDICTOR_MATRIX_UNNORM_KEY, datatype=numpy.float32,
         dimensions=these_dim
@@ -301,7 +304,7 @@ def _write_target_file(target_dict, netcdf_file_name):
     )
     dataset_object.variables[LONGITUDES_KEY][:] = target_dict[LONGITUDES_KEY]
 
-    these_dim = (num_times, num_grid_rows, num_grid_columns)
+    these_dim = (TIME_DIMENSION_KEY, ROW_DIMENSION_KEY, COLUMN_DIMENSION_KEY)
     dataset_object.createVariable(
         COMPOSITE_REFL_MATRIX_KEY, datatype=numpy.float32, dimensions=these_dim
     )
