@@ -19,9 +19,9 @@ import error_checking
 import custom_metrics
 import satellite_io
 import radar_io
+import example_io
 import normalization
 import general_utils
-import standalone_utils
 
 TOLERANCE = 1e-6
 
@@ -158,76 +158,6 @@ def _check_inference_args(predictor_matrix, num_examples_per_batch, verbose):
     return num_examples_per_batch
 
 
-def _downsample_data_in_space(satellite_dict, radar_dict, downsampling_factor,
-                              change_coordinates=False):
-    """Downsamples both satellite and radar data in space.
-
-    :param satellite_dict: Dictionary in format returned by
-        `satellite_io.read_file`.
-    :param radar_dict: Dictionary in format returned by `radar_io.read_2d_file`.
-    :param downsampling_factor: Downsampling factor (integer).
-    :param change_coordinates: Boolean flag.  If True (False), will (not) change
-        coordinates in dictionaries to reflect downsampling.
-    :return: satellite_dict: Same as input but maybe with coarser spatial
-        resolution.
-    :return: radar_dict: Same as input but maybe with coarser spatial
-        resolution.
-    """
-
-    this_key = (
-        satellite_io.BRIGHTNESS_COUNT_KEY
-        if satellite_dict[satellite_io.BRIGHTNESS_TEMP_KEY] is None
-        else satellite_io.BRIGHTNESS_TEMP_KEY
-    )
-    satellite_dict[this_key] = standalone_utils.do_2d_pooling(
-        feature_matrix=satellite_dict[this_key],
-        window_size_px=downsampling_factor, do_max_pooling=False
-    )
-
-    composite_refl_matrix_dbz = numpy.expand_dims(
-        radar_dict[radar_io.COMPOSITE_REFL_KEY], axis=-1
-    )
-    composite_refl_matrix_dbz = standalone_utils.do_2d_pooling(
-        feature_matrix=composite_refl_matrix_dbz,
-        window_size_px=downsampling_factor, do_max_pooling=True
-    )
-    radar_dict[radar_io.COMPOSITE_REFL_KEY] = composite_refl_matrix_dbz[..., 0]
-
-    if not change_coordinates:
-        return satellite_dict, radar_dict
-
-    latitude_matrix_deg_n = numpy.expand_dims(
-        satellite_dict[satellite_io.LATITUDES_KEY], axis=0
-    )
-    latitude_matrix_deg_n = numpy.expand_dims(latitude_matrix_deg_n, axis=-1)
-    latitude_matrix_deg_n = standalone_utils.do_1d_pooling(
-        feature_matrix=latitude_matrix_deg_n,
-        window_size_px=downsampling_factor, do_max_pooling=False
-    )
-
-    latitudes_deg_n = latitude_matrix_deg_n[0, :, 0]
-    satellite_dict[satellite_io.LATITUDES_KEY] = latitudes_deg_n + 0.
-    radar_dict[radar_io.LATITUDES_KEY] = latitudes_deg_n + 0.
-
-    longitude_matrix_deg_e = numpy.expand_dims(
-        satellite_dict[satellite_io.LONGITUDES_KEY], axis=0
-    )
-    longitude_matrix_deg_e = numpy.expand_dims(longitude_matrix_deg_e, axis=-1)
-
-    # TODO(thunderhoser): Careful: this will not work with wrap-around at the
-    # date line.
-    longitude_matrix_deg_e = standalone_utils.do_1d_pooling(
-        feature_matrix=longitude_matrix_deg_e,
-        window_size_px=downsampling_factor, do_max_pooling=False
-    )
-
-    longitudes_deg_e = longitude_matrix_deg_e[0, :, 0]
-    satellite_dict[satellite_io.LONGITUDES_KEY] = longitudes_deg_e + 0.
-    radar_dict[radar_io.LONGITUDES_KEY] = longitudes_deg_e + 0.
-
-    return satellite_dict, radar_dict
-
-
 def _read_inputs_one_day(
         valid_date_string, satellite_file_names, band_numbers,
         norm_dict_for_count, uniformize, radar_file_names, lead_time_seconds,
@@ -351,7 +281,7 @@ def _read_inputs_one_day(
         )
 
     if spatial_downsampling_factor > 1:
-        satellite_dict, radar_dict = _downsample_data_in_space(
+        satellite_dict, radar_dict = example_io.downsample_data_in_space(
             satellite_dict=satellite_dict, radar_dict=radar_dict,
             downsampling_factor=spatial_downsampling_factor,
             change_coordinates=return_coords
