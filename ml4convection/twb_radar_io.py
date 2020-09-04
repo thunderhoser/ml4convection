@@ -5,6 +5,7 @@ import sys
 import gzip
 import copy
 import shutil
+import warnings
 import tempfile
 import numpy
 
@@ -207,7 +208,7 @@ def find_many_files(
 
 def read_2d_file(
         binary_file_name, gfortran_compiler_name=DEFAULT_GFORTRAN_COMPILER_NAME,
-        temporary_dir_name=None):
+        temporary_dir_name=None, raise_fortran_errors=False):
     """Reads 2-D radar data (composite reflectivity) from binary file.
 
     M = number of rows in grid
@@ -218,6 +219,9 @@ def read_2d_file(
     :param temporary_dir_name: Name of temporary directory for text file, which
         will be deleted as soon as it is read.  If None, temporary directory
         will be set to default.
+    :param raise_fortran_errors: Boolean flag.  If True, will raise any Fortran
+        error that occurs.  If False and a Fortran error occurs, will just
+        return None for all output variables.
     :return: composite_refl_matrix_dbz: M-by-N numpy array of composite
         (column-maximum) reflectivities.
     :return: latitudes_deg_n: length-M numpy array of latitudes (deg N).
@@ -226,6 +230,7 @@ def read_2d_file(
 
     error_checking.assert_file_exists(binary_file_name)
     # error_checking.assert_file_exists(gfortran_compiler_name)
+    error_checking.assert_is_boolean(raise_fortran_errors)
 
     if not os.path.isfile(FORTRAN_EXE_NAME):
         command_string = '"{0:s}" "{1:s}" -o "{2:s}"'.format(
@@ -272,7 +277,11 @@ def read_2d_file(
     if is_file_zipped:
         os.remove(binary_file_name)
     if exit_code != 0:
-        raise ValueError(ERROR_STRING)
+        if raise_fortran_errors:
+            raise ValueError(ERROR_STRING)
+
+        warnings.warn(ERROR_STRING)
+        return None, None, None
 
     print('Reading data from temporary text file: "{0:s}"...'.format(
         temporary_text_file_name
@@ -295,7 +304,7 @@ def read_2d_file(
     )
     composite_refl_matrix_dbz[
         composite_refl_matrix_dbz < MIN_REFLECTIVITY_DBZ
-        ] = numpy.nan
+    ] = numpy.nan
 
     latitudes_deg_n = numpy.reshape(
         all_latitudes_deg_n, (num_grid_rows, num_grid_columns)

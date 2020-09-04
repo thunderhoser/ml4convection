@@ -90,6 +90,8 @@ def _process_satellite_data_one_time(
     :param temporary_dir_name: See documentation at top of file.
     :param output_file_name: Path to output file.
     :param append: See documentation for `satellite_io.write_file`.
+    :return: success: Boolean flag (True if this method wrote to the output
+        file).
     """
 
     brightness_count_matrix = None
@@ -115,7 +117,7 @@ def _process_satellite_data_one_time(
         )
 
         if this_count_matrix is None:
-            return
+            return False
 
         if j == 0:
             num_grid_rows = len(these_latitudes_deg_n)
@@ -144,6 +146,8 @@ def _process_satellite_data_one_time(
         valid_time_unix_sec=valid_time_unix_sec, append=append,
         brightness_count_matrix=brightness_count_matrix
     )
+
+    return True
 
 
 def _process_satellite_data_one_day(
@@ -199,13 +203,17 @@ def _process_satellite_data_one_day(
         os.remove(output_file_name)
     num_times = len(valid_times_unix_sec)
 
+    append = False
+
     for i in range(num_times):
-        _process_satellite_data_one_time(
+        success = _process_satellite_data_one_time(
             input_dir_name=input_dir_name,
             valid_time_unix_sec=valid_times_unix_sec[i],
             temporary_dir_name=temporary_dir_name,
-            output_file_name=output_file_name, append=i > 0
+            output_file_name=output_file_name, append=append
         )
+
+        append = append or success
 
         if i != num_times - 1:
             print('\n')

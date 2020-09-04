@@ -208,9 +208,6 @@ def normalize_data(satellite_dict, uniformize=False,
     :return: satellite_dict: Same but with normalized predictor values.
     """
 
-    # TODO(thunderhoser): Need to remove NaN's from predictor matrices
-    # somewhere.
-
     do_temperatures = norm_dict_for_temperature is not None
     do_counts = norm_dict_for_count is not None
     error_checking.assert_is_greater(int(do_temperatures) + int(do_counts), 0)

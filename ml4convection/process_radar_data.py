@@ -108,14 +108,20 @@ def _process_radar_data_one_day(input_dir_name, date_string, allow_missing_days,
         with_3d=False, raise_error_if_missing=False
     )
 
+    append = False
+
     for i in range(len(input_file_names)):
         print('Reading data from: "{0:s}"...'.format(input_file_names[i]))
         composite_refl_matrix_dbz, latitudes_deg_n, longitudes_deg_e = (
             twb_radar_io.read_2d_file(
                 binary_file_name=input_file_names[i],
+                raise_fortran_errors=False,
                 temporary_dir_name=temporary_dir_name
             )
         )
+
+        if composite_refl_matrix_dbz is None:
+            continue
 
         print('Writing data to: "{0:s}"...'.format(output_file_name))
         radar_io.write_2d_file(
@@ -124,8 +130,10 @@ def _process_radar_data_one_day(input_dir_name, date_string, allow_missing_days,
             latitudes_deg_n=latitudes_deg_n, longitudes_deg_e=longitudes_deg_e,
             valid_time_unix_sec=
             twb_radar_io.file_name_to_time(input_file_names[i]),
-            append=i > 0
+            append=append
         )
+
+        append = True
 
 
 def _run(input_dir_name, first_date_string, last_date_string,
