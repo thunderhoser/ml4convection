@@ -21,6 +21,7 @@ INPUT_DIR_ARG_NAME = 'input_satellite_dir_name'
 FIRST_DATE_ARG_NAME = 'first_date_string'
 LAST_DATE_ARG_NAME = 'last_date_string'
 ALLOW_MISSING_DAYS_ARG_NAME = 'allow_missing_days'
+TEMPORARY_DIR_ARG_NAME = 'temporary_dir_name'
 OUTPUT_DIR_ARG_NAME = 'output_satellite_dir_name'
 
 INPUT_DIR_HELP_STRING = (
@@ -36,6 +37,10 @@ DATE_HELP_STRING = (
 ALLOW_MISSING_DAYS_HELP_STRING = (
     'Boolean flag.  If 1, will gracefully skip days with no data.  If 0, will '
     'throw an error if this happens.'
+)
+TEMPORARY_DIR_HELP_STRING = (
+    'Name of temporary directory.  Intermediate text files (between input '
+    'binary files and output NetCDF files) will be stored here.'
 )
 OUTPUT_DIR_HELP_STRING = (
     'Name of output directory.  Daily NetCDF files will be written by '
@@ -59,19 +64,27 @@ INPUT_ARG_PARSER.add_argument(
     help=ALLOW_MISSING_DAYS_HELP_STRING
 )
 INPUT_ARG_PARSER.add_argument(
+    '--' + TEMPORARY_DIR_ARG_NAME, type=str, required=True,
+    help=TEMPORARY_DIR_HELP_STRING
+)
+INPUT_ARG_PARSER.add_argument(
     '--' + OUTPUT_DIR_ARG_NAME, type=str, required=True,
     help=OUTPUT_DIR_HELP_STRING
 )
 
 
 def _process_satellite_data_one_time(
-        input_dir_name, valid_time_unix_sec, output_file_name, append):
+        input_dir_name, valid_time_unix_sec, temporary_dir_name,
+        output_file_name, append):
     """Processes satellite data for one time step.
 
     :param input_dir_name: See documentation at top of file.
     :param valid_time_unix_sec: Valid time.
+    :param temporary_dir_name: See documentation at top of file.
     :param output_file_name: Path to output file.
     :param append: See documentation for `satellite_io.write_file`.
+    :return: success: Boolean flag (True if this method wrote to the output
+        file).
     """
 
     brightness_count_matrix = None
@@ -91,14 +104,13 @@ def _process_satellite_data_one_time(
         this_count_matrix, these_latitudes_deg_n, these_longitudes_deg_e = (
             twb_satellite_io.read_file(
                 binary_file_name=this_file_name, return_brightness_temps=False,
-                raise_fortran_errors=False
+                raise_fortran_errors=False,
+                temporary_dir_name=temporary_dir_name
             )
         )
 
         if this_count_matrix is None:
-
-
-            return
+            return False
 
         if j == 0:
             num_grid_rows = len(these_latitudes_deg_n)
@@ -128,14 +140,18 @@ def _process_satellite_data_one_time(
         brightness_count_matrix=brightness_count_matrix
     )
 
+    return True
+
 
 def _process_satellite_data_one_day(
-        input_dir_name, date_string, allow_missing_days, output_dir_name):
+        input_dir_name, date_string, allow_missing_days, temporary_dir_name,
+        output_dir_name):
     """Processes satellite data for one day.
 
     :param input_dir_name: See documentation at top of file.
     :param date_string: Will process for this day (format "yyyymmdd").
     :param allow_missing_days: See documentation at top of file.
+    :param temporary_dir_name: Same.
     :param output_dir_name: Same.
     """
 
@@ -180,19 +196,24 @@ def _process_satellite_data_one_day(
         os.remove(output_file_name)
     num_times = len(valid_times_unix_sec)
 
+    append = False
+
     for i in range(num_times):
-        _process_satellite_data_one_time(
+        success = _process_satellite_data_one_time(
             input_dir_name=input_dir_name,
             valid_time_unix_sec=valid_times_unix_sec[i],
-            output_file_name=output_file_name, append=i > 0
+            temporary_dir_name=temporary_dir_name,
+            output_file_name=output_file_name, append=append
         )
+
+        append = append or success
 
         if i != num_times - 1:
             print('\n')
 
 
 def _run(input_dir_name, first_date_string, last_date_string,
-         allow_missing_days, output_dir_name):
+         allow_missing_days, temporary_dir_name, output_dir_name):
     """Converts satellite data to daily NetCDF files.
 
     This is effectively the main method.
@@ -201,6 +222,7 @@ def _run(input_dir_name, first_date_string, last_date_string,
     :param first_date_string: Same.
     :param last_date_string: Same.
     :param allow_missing_days: Same.
+    :param temporary_dir_name: Same.
     :param output_dir_name: Same.
     """
 
@@ -212,6 +234,7 @@ def _run(input_dir_name, first_date_string, last_date_string,
         _process_satellite_data_one_day(
             input_dir_name=input_dir_name, date_string=date_strings[i],
             allow_missing_days=allow_missing_days,
+            temporary_dir_name=temporary_dir_name,
             output_dir_name=output_dir_name
         )
 
@@ -229,5 +252,6 @@ if __name__ == '__main__':
         allow_missing_days=bool(getattr(
             INPUT_ARG_OBJECT, ALLOW_MISSING_DAYS_ARG_NAME
         )),
+        temporary_dir_name=getattr(INPUT_ARG_OBJECT, TEMPORARY_DIR_ARG_NAME),
         output_dir_name=getattr(INPUT_ARG_OBJECT, OUTPUT_DIR_ARG_NAME)
     )

@@ -15,6 +15,7 @@ FIRST_DATE_ARG_NAME = 'first_date_string'
 LAST_DATE_ARG_NAME = 'last_date_string'
 ALLOW_MISSING_DAYS_ARG_NAME = 'allow_missing_days'
 WITH_3D_ARG_NAME = 'with_3d'
+TEMPORARY_DIR_ARG_NAME = 'temporary_dir_name'
 OUTPUT_DIR_ARG_NAME = 'output_radar_dir_name'
 
 INPUT_DIR_HELP_STRING = (
@@ -32,6 +33,10 @@ ALLOW_MISSING_DAYS_HELP_STRING = (
     'throw an error if this happens.'
 )
 WITH_3D_HELP_STRING = 'Boolean flag.  If 1 (0), will process 3-D (2-D) data.'
+TEMPORARY_DIR_HELP_STRING = (
+    'Name of temporary directory.  Intermediate text files (between input '
+    'binary files and output NetCDF files) will be stored here.'
+)
 OUTPUT_DIR_HELP_STRING = (
     'Name of output directory.  Daily NetCDF files will be written by '
     '`radar_io.write_2d_file` or `radar_io.write_3d_file`, to locations therein'
@@ -58,18 +63,23 @@ INPUT_ARG_PARSER.add_argument(
     help=WITH_3D_HELP_STRING
 )
 INPUT_ARG_PARSER.add_argument(
+    '--' + TEMPORARY_DIR_ARG_NAME, type=str, required=True,
+    help=TEMPORARY_DIR_HELP_STRING
+)
+INPUT_ARG_PARSER.add_argument(
     '--' + OUTPUT_DIR_ARG_NAME, type=str, required=True,
     help=OUTPUT_DIR_HELP_STRING
 )
 
 
 def _process_radar_data_one_day(input_dir_name, date_string, allow_missing_days,
-                                output_dir_name):
+                                temporary_dir_name, output_dir_name):
     """Processes radar data for one day.
 
     :param input_dir_name: See documentation at top of file.
     :param date_string: Will process for this day (format "yyyymmdd").
     :param allow_missing_days: See documentation at top of file.
+    :param temporary_dir_name: Same.
     :param output_dir_name: Same.
     """
 
@@ -90,11 +100,20 @@ def _process_radar_data_one_day(input_dir_name, date_string, allow_missing_days,
         with_3d=False, raise_error_if_missing=False
     )
 
+    append = False
+
     for i in range(len(input_file_names)):
         print('Reading data from: "{0:s}"...'.format(input_file_names[i]))
         composite_refl_matrix_dbz, latitudes_deg_n, longitudes_deg_e = (
-            twb_radar_io.read_2d_file(binary_file_name=input_file_names[i])
+            twb_radar_io.read_2d_file(
+                binary_file_name=input_file_names[i],
+                raise_fortran_errors=False,
+                temporary_dir_name=temporary_dir_name
+            )
         )
+
+        if composite_refl_matrix_dbz is None:
+            continue
 
         print('Writing data to: "{0:s}"...'.format(output_file_name))
         radar_io.write_2d_file(
@@ -103,12 +122,14 @@ def _process_radar_data_one_day(input_dir_name, date_string, allow_missing_days,
             latitudes_deg_n=latitudes_deg_n, longitudes_deg_e=longitudes_deg_e,
             valid_time_unix_sec=
             twb_radar_io.file_name_to_time(input_file_names[i]),
-            append=i > 0
+            append=append
         )
+
+        append = True
 
 
 def _run(input_dir_name, first_date_string, last_date_string,
-         allow_missing_days, with_3d, output_dir_name):
+         allow_missing_days, with_3d, temporary_dir_name, output_dir_name):
     """Converts radar data to daily NetCDF files.
 
     This is effectively the main method.
@@ -118,6 +139,7 @@ def _run(input_dir_name, first_date_string, last_date_string,
     :param last_date_string: Same.
     :param allow_missing_days: Same.
     :param with_3d: Same.
+    :param temporary_dir_name: Same.
     :param output_dir_name: Same.
     :raises: ValueError: if `with_3d == True`, since I still have not figured
         out how to read the raw files.
@@ -134,6 +156,7 @@ def _run(input_dir_name, first_date_string, last_date_string,
         _process_radar_data_one_day(
             input_dir_name=input_dir_name, date_string=date_strings[i],
             allow_missing_days=allow_missing_days,
+            temporary_dir_name=temporary_dir_name,
             output_dir_name=output_dir_name
         )
 
@@ -152,5 +175,6 @@ if __name__ == '__main__':
             INPUT_ARG_OBJECT, ALLOW_MISSING_DAYS_ARG_NAME
         )),
         with_3d=bool(getattr(INPUT_ARG_OBJECT, WITH_3D_ARG_NAME)),
+        temporary_dir_name=getattr(INPUT_ARG_OBJECT, TEMPORARY_DIR_ARG_NAME),
         output_dir_name=getattr(INPUT_ARG_OBJECT, OUTPUT_DIR_ARG_NAME)
     )

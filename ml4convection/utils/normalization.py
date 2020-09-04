@@ -1,6 +1,5 @@
 """Methods for normalizing satellite variables (predictors)."""
 
-import copy
 import pickle
 import numpy
 import scipy.stats
@@ -201,9 +200,6 @@ def normalize_data(satellite_dict, uniformize=False,
     :return: satellite_dict: Same but with normalized predictor values.
     """
 
-    # TODO(thunderhoser): Need to remove NaN's from predictor matrices
-    # somewhere.
-
     do_temperatures = norm_dict_for_temperature is not None
     do_counts = norm_dict_for_count is not None
     error_checking.assert_is_greater(int(do_temperatures) + int(do_counts), 0)
@@ -399,24 +395,30 @@ def get_normalization_params(
     band_numbers = satellite_io.BAND_NUMBERS
     num_bands = len(band_numbers)
 
-    original_param_dict = {
-        NUM_VALUES_KEY: 0,
-        MEAN_VALUE_KEY: 0.,
-        MEAN_OF_SQUARES_KEY: 0.
-    }
-
     if do_temperatures:
-        param_dicts_for_temperature = (
-            [copy.deepcopy(original_param_dict)] * num_bands
-        )
+        param_dicts_for_temperature = [dict()] * num_bands
+
+        for j in range(num_bands):
+            param_dicts_for_temperature[j] = {
+                NUM_VALUES_KEY: 0,
+                MEAN_VALUE_KEY: 0.,
+                MEAN_OF_SQUARES_KEY: 0.
+            }
+
         sampled_temperature_matrix_kelvins = numpy.full(
             (num_values_per_band, num_bands), numpy.nan
         )
 
     if do_counts:
-        param_dicts_for_count = (
-            [copy.deepcopy(original_param_dict)] * num_bands
-        )
+        param_dicts_for_count = [dict()] * num_bands
+
+        for j in range(num_bands):
+            param_dicts_for_count[j] = {
+                NUM_VALUES_KEY: 0,
+                MEAN_VALUE_KEY: 0.,
+                MEAN_OF_SQUARES_KEY: 0.
+            }
+
         sampled_count_matrix = numpy.full(
             (num_values_per_band, num_bands), numpy.nan
         )
@@ -477,6 +479,7 @@ def get_normalization_params(
                     normalization_param_dict=param_dicts_for_count[j],
                     new_data_matrix=these_counts
                 )
+                print(param_dicts_for_count[j])
 
     if do_temperatures:
         error_checking.assert_is_numpy_array_without_nan(
