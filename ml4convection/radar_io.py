@@ -256,7 +256,7 @@ def write_2d_file(
     dataset_object.close()
 
 
-def read_2d_file(netcdf_file_name):
+def read_2d_file(netcdf_file_name, fill_nans=True):
     """Reads 2-D radar data (composite reflectivity) from NetCDF file.
 
     T = number of time steps
@@ -264,6 +264,8 @@ def read_2d_file(netcdf_file_name):
     N = number of columns in grid
 
     :param netcdf_file_name: Path to input file.
+    :param fill_nans: Boolean flag.  If True, will use interpolation to fill NaN
+        values.
     :return: radar_dict: Dictionary with the following keys.
     radar_dict['composite_refl_matrix_dbz']: T-by-M-by-N numpy array of
         composite (column-maximum) reflectivities.
@@ -272,6 +274,7 @@ def read_2d_file(netcdf_file_name):
     radar_dict['valid_times_unix_sec']: length-T numpy array of valid times.
     """
 
+    error_checking.assert_is_boolean(fill_nans)
     dataset_object = netCDF4.Dataset(netcdf_file_name)
 
     radar_dict = {
@@ -285,6 +288,11 @@ def read_2d_file(netcdf_file_name):
     radar_dict[COMPOSITE_REFL_KEY] = numpy.flip(
         radar_dict[COMPOSITE_REFL_KEY], axis=1
     )
+
+    if fill_nans:
+        radar_dict[COMPOSITE_REFL_KEY][
+            numpy.isnan(radar_dict[COMPOSITE_REFL_KEY])
+        ] = 0.
 
     dataset_object.close()
     return radar_dict

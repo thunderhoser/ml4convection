@@ -325,7 +325,7 @@ def write_file(
     dataset_object.close()
 
 
-def read_file(netcdf_file_name, read_temperatures, read_counts):
+def read_file(netcdf_file_name, read_temperatures, read_counts, fill_nans=True):
     """Reads satellite data from NetCDF file.
 
     T = number of time steps
@@ -337,6 +337,8 @@ def read_file(netcdf_file_name, read_temperatures, read_counts):
     :param read_temperatures: Boolean flag.  If True, will read brightness
         temperatures.
     :param read_counts: Boolean flag.  If True, will read brightness counts.
+    :param fill_nans: Boolean flag.  If True, will use interpolation to fill NaN
+        values.
     :return: satellite_dict: Dictionary with the following keys.
     satellite_dict['brightness_temp_matrix_kelvins']: T-by-M-by-N-by-C numpy
         array of brightness temperatures.  If `read_temperatures == False`,
@@ -355,6 +357,7 @@ def read_file(netcdf_file_name, read_temperatures, read_counts):
 
     error_checking.assert_is_boolean(read_temperatures)
     error_checking.assert_is_boolean(read_counts)
+    error_checking.assert_is_boolean(fill_nans)
 
     dataset_object = netCDF4.Dataset(netcdf_file_name)
 
@@ -372,10 +375,21 @@ def read_file(netcdf_file_name, read_temperatures, read_counts):
             dataset_object.variables[BRIGHTNESS_TEMP_KEY][:]
         )
 
+        # TODO(thunderhoser): Find smarter way to deal with this.
+        satellite_dict[BRIGHTNESS_TEMP_KEY][
+            numpy.isnan(satellite_dict[BRIGHTNESS_TEMP_KEY])
+        ] = 300.
+
     if read_counts:
         satellite_dict[BRIGHTNESS_COUNT_KEY] = (
             dataset_object.variables[BRIGHTNESS_COUNT_KEY][:]
         )
+
+        if fill_nans:
+            satellite_dict[BRIGHTNESS_COUNT_KEY][
+                numpy.isnan(satellite_dict[BRIGHTNESS_COUNT_KEY])
+            ] = 0.
+
 
     dataset_object.close()
     return satellite_dict
