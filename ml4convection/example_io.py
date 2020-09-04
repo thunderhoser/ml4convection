@@ -153,7 +153,7 @@ def _process_targets_one_day(input_file_name, spatial_downsampling_factor,
 
     if spatial_downsampling_factor > 1:
         radar_dict = downsample_data_in_space(
-            satellite_dict=radar_dict,
+            radar_dict=radar_dict,
             downsampling_factor=spatial_downsampling_factor,
             change_coordinates=True
         )[1]
