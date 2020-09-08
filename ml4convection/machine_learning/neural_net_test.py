@@ -5,7 +5,7 @@ from ml4convection.io import radar_io
 from ml4convection.io import satellite_io
 from ml4convection.machine_learning import neural_net
 
-# The following constants are used to test _find_days_with_radar_and_satellite.
+# The following constants are used to test _find_days_with_raw_inputs.
 TOP_SATELLITE_DIR_NAME = 'foo'
 TOP_RADAR_DIR_NAME = 'bar'
 
@@ -42,12 +42,12 @@ class NeuralNetTests(unittest.TestCase):
     """Each method is a unit test for neural_net.py."""
 
     def test_find_days_zero_lead(self):
-        """Ensures correct output from _find_days_with_radar_and_satellite.
+        """Ensures correct output from _find_days_with_raw_inputs.
 
         In this case, lead time is zero.
         """
 
-        these_date_strings = neural_net._find_days_with_radar_and_satellite(
+        these_date_strings = neural_net._find_days_with_raw_inputs(
             satellite_file_names=SATELLITE_FILE_NAMES,
             radar_file_names=RADAR_FILE_NAMES, lead_time_seconds=0
         )
@@ -55,12 +55,12 @@ class NeuralNetTests(unittest.TestCase):
         self.assertTrue(these_date_strings == VALID_DATE_STRINGS_ZERO_LEAD)
 
     def test_find_days_nonzero_lead(self):
-        """Ensures correct output from _find_days_with_radar_and_satellite.
+        """Ensures correct output from _find_days_with_raw_inputs.
 
         In this case, lead time is non-zero.
         """
 
-        these_date_strings = neural_net._find_days_with_radar_and_satellite(
+        these_date_strings = neural_net._find_days_with_raw_inputs(
             satellite_file_names=SATELLITE_FILE_NAMES,
             radar_file_names=RADAR_FILE_NAMES, lead_time_seconds=600
         )
