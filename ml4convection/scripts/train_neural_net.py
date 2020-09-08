@@ -12,26 +12,27 @@ INPUT_ARG_PARSER = argparse.ArgumentParser()
 INPUT_ARG_PARSER = training_args.add_input_args(parser_object=INPUT_ARG_PARSER)
 
 
-def _run(training_satellite_dir_name, training_radar_dir_name,
-         validn_satellite_dir_name, validn_radar_dir_name,
+def _run(use_preprocessed_files,
+         training_predictor_dir_name, training_target_dir_name,
+         validn_predictor_dir_name, validn_target_dir_name,
          input_model_file_name, output_model_dir_name,
          spatial_downsampling_factor, band_numbers,
          reflectivity_threshold_dbz, lead_time_seconds,
          first_training_date_string, last_training_date_string,
          first_validn_date_string, last_validn_date_string,
-         normalization_file_name, uniformize, num_examples_per_batch,
-         max_examples_per_day_in_batch, num_epochs,
+         normalization_file_name, normalize, uniformize,
+         num_examples_per_batch, max_examples_per_day_in_batch, num_epochs,
          num_training_batches_per_epoch, num_validn_batches_per_epoch,
          plateau_lr_multiplier):
     """Trains neural net.
 
     This is effectively the main method.
 
-    :param training_satellite_dir_name: See documentation at top of
-        training_args.py.
-    :param training_radar_dir_name: Same.
-    :param validn_satellite_dir_name: Same.
-    :param validn_radar_dir_name: Same.
+    :param use_preprocessed_files: See documentation at top of training_args.py.
+    :param training_predictor_dir_name: Same.
+    :param training_target_dir_name: Same.
+    :param validn_predictor_dir_name: Same.
+    :param validn_target_dir_name: Same.
     :param input_model_file_name: Same.
     :param output_model_dir_name: Same.
     :param spatial_downsampling_factor: Same.
@@ -43,6 +44,7 @@ def _run(training_satellite_dir_name, training_radar_dir_name,
     :param first_validn_date_string: Same.
     :param last_validn_date_string: Same.
     :param normalization_file_name: Same.
+    :param normalize: Same.
     :param uniformize: Same.
     :param num_examples_per_batch: Same.
     :param max_examples_per_day_in_batch: Same.
@@ -55,27 +57,48 @@ def _run(training_satellite_dir_name, training_radar_dir_name,
     if normalization_file_name in NONE_STRINGS:
         normalization_file_name = None
 
-    training_option_dict = {
-        neural_net.SATELLITE_DIRECTORY_KEY: training_satellite_dir_name,
-        neural_net.RADAR_DIRECTORY_KEY: training_radar_dir_name,
-        neural_net.SPATIAL_DS_FACTOR_KEY: spatial_downsampling_factor,
-        neural_net.BATCH_SIZE_KEY: num_examples_per_batch,
-        neural_net.MAX_DAILY_EXAMPLES_KEY: max_examples_per_day_in_batch,
-        neural_net.BAND_NUMBERS_KEY: band_numbers,
-        neural_net.LEAD_TIME_KEY: lead_time_seconds,
-        neural_net.REFL_THRESHOLD_KEY: reflectivity_threshold_dbz,
-        neural_net.FIRST_VALID_DATE_KEY: first_training_date_string,
-        neural_net.LAST_VALID_DATE_KEY: last_training_date_string,
-        neural_net.NORMALIZATION_FILE_KEY: normalization_file_name,
-        neural_net.UNIFORMIZE_FLAG_KEY: uniformize
-    }
+    if use_preprocessed_files:
+        training_option_dict = {
+            neural_net.PREDICTOR_DIRECTORY_KEY: training_predictor_dir_name,
+            neural_net.TARGET_DIRECTORY_KEY: training_target_dir_name,
+            neural_net.BATCH_SIZE_KEY: num_examples_per_batch,
+            neural_net.MAX_DAILY_EXAMPLES_KEY: max_examples_per_day_in_batch,
+            neural_net.BAND_NUMBERS_KEY: band_numbers,
+            neural_net.LEAD_TIME_KEY: lead_time_seconds,
+            neural_net.FIRST_VALID_DATE_KEY: first_training_date_string,
+            neural_net.LAST_VALID_DATE_KEY: last_training_date_string,
+            neural_net.NORMALIZE_FLAG_KEY: normalize,
+            neural_net.UNIFORMIZE_FLAG_KEY: uniformize
+        }
 
-    validation_option_dict = {
-        neural_net.SATELLITE_DIRECTORY_KEY: validn_satellite_dir_name,
-        neural_net.RADAR_DIRECTORY_KEY: validn_radar_dir_name,
-        neural_net.FIRST_VALID_DATE_KEY: first_validn_date_string,
-        neural_net.LAST_VALID_DATE_KEY: last_validn_date_string
-    }
+        validation_option_dict = {
+            neural_net.PREDICTOR_DIRECTORY_KEY: validn_predictor_dir_name,
+            neural_net.TARGET_DIRECTORY_KEY: validn_target_dir_name,
+            neural_net.FIRST_VALID_DATE_KEY: first_validn_date_string,
+            neural_net.LAST_VALID_DATE_KEY: last_validn_date_string
+        }
+    else:
+        training_option_dict = {
+            neural_net.SATELLITE_DIRECTORY_KEY: training_predictor_dir_name,
+            neural_net.RADAR_DIRECTORY_KEY: training_target_dir_name,
+            neural_net.SPATIAL_DS_FACTOR_KEY: spatial_downsampling_factor,
+            neural_net.BATCH_SIZE_KEY: num_examples_per_batch,
+            neural_net.MAX_DAILY_EXAMPLES_KEY: max_examples_per_day_in_batch,
+            neural_net.BAND_NUMBERS_KEY: band_numbers,
+            neural_net.LEAD_TIME_KEY: lead_time_seconds,
+            neural_net.REFL_THRESHOLD_KEY: reflectivity_threshold_dbz,
+            neural_net.FIRST_VALID_DATE_KEY: first_training_date_string,
+            neural_net.LAST_VALID_DATE_KEY: last_training_date_string,
+            neural_net.NORMALIZATION_FILE_KEY: normalization_file_name,
+            neural_net.UNIFORMIZE_FLAG_KEY: uniformize
+        }
+
+        validation_option_dict = {
+            neural_net.SATELLITE_DIRECTORY_KEY: validn_predictor_dir_name,
+            neural_net.RADAR_DIRECTORY_KEY: validn_target_dir_name,
+            neural_net.FIRST_VALID_DATE_KEY: first_validn_date_string,
+            neural_net.LAST_VALID_DATE_KEY: last_validn_date_string
+        }
 
     print('Reading untrained model from: "{0:s}"...'.format(
         input_model_file_name
@@ -83,32 +106,46 @@ def _run(training_satellite_dir_name, training_radar_dir_name,
     model_object = neural_net.read_model(input_model_file_name)
     print(SEPARATOR_STRING)
 
-    neural_net.train_model_with_generator(
-        model_object=model_object, output_dir_name=output_model_dir_name,
-        num_epochs=num_epochs,
-        num_training_batches_per_epoch=num_training_batches_per_epoch,
-        training_option_dict=training_option_dict,
-        num_validation_batches_per_epoch=num_validn_batches_per_epoch,
-        validation_option_dict=validation_option_dict,
-        do_early_stopping=True, plateau_lr_multiplier=plateau_lr_multiplier
-    )
+    if use_preprocessed_files:
+        neural_net.train_model_from_preprocessed_files(
+            model_object=model_object, output_dir_name=output_model_dir_name,
+            num_epochs=num_epochs,
+            num_training_batches_per_epoch=num_training_batches_per_epoch,
+            training_option_dict=training_option_dict,
+            num_validation_batches_per_epoch=num_validn_batches_per_epoch,
+            validation_option_dict=validation_option_dict,
+            do_early_stopping=True, plateau_lr_multiplier=plateau_lr_multiplier
+        )
+    else:
+        neural_net.train_model_from_raw_files(
+            model_object=model_object, output_dir_name=output_model_dir_name,
+            num_epochs=num_epochs,
+            num_training_batches_per_epoch=num_training_batches_per_epoch,
+            training_option_dict=training_option_dict,
+            num_validation_batches_per_epoch=num_validn_batches_per_epoch,
+            validation_option_dict=validation_option_dict,
+            do_early_stopping=True, plateau_lr_multiplier=plateau_lr_multiplier
+        )
 
 
 if __name__ == '__main__':
     INPUT_ARG_OBJECT = INPUT_ARG_PARSER.parse_args()
 
     _run(
-        training_satellite_dir_name=getattr(
-            INPUT_ARG_OBJECT, training_args.TRAINING_SATELLITE_DIR_ARG_NAME
+        use_preprocessed_files=bool(getattr(
+            INPUT_ARG_OBJECT, training_args.USE_PREPROCESSED_FILES_ARG_NAME
+        )),
+        training_predictor_dir_name=getattr(
+            INPUT_ARG_OBJECT, training_args.TRAINING_PREDICTOR_DIR_ARG_NAME
         ),
-        training_radar_dir_name=getattr(
-            INPUT_ARG_OBJECT, training_args.TRAINING_RADAR_DIR_ARG_NAME
+        training_target_dir_name=getattr(
+            INPUT_ARG_OBJECT, training_args.TRAINING_TARGET_DIR_ARG_NAME
         ),
-        validn_satellite_dir_name=getattr(
-            INPUT_ARG_OBJECT, training_args.VALIDN_SATELLITE_DIR_ARG_NAME
+        validn_predictor_dir_name=getattr(
+            INPUT_ARG_OBJECT, training_args.VALIDN_PREDICTOR_DIR_ARG_NAME
         ),
-        validn_radar_dir_name=getattr(
-            INPUT_ARG_OBJECT, training_args.VALIDN_RADAR_DIR_ARG_NAME
+        validn_target_dir_name=getattr(
+            INPUT_ARG_OBJECT, training_args.VALIDN_TARGET_DIR_ARG_NAME
         ),
         input_model_file_name=getattr(
             INPUT_ARG_OBJECT, training_args.INPUT_MODEL_FILE_ARG_NAME
@@ -144,6 +181,9 @@ if __name__ == '__main__':
         normalization_file_name=getattr(
             INPUT_ARG_OBJECT, training_args.NORMALIZATION_FILE_ARG_NAME
         ),
+        normalize=bool(getattr(
+            INPUT_ARG_OBJECT, training_args.NORMALIZE_ARG_NAME
+        )),
         uniformize=bool(getattr(
             INPUT_ARG_OBJECT, training_args.UNIFORMIZE_ARG_NAME
         )),
