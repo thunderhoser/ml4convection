@@ -6,6 +6,7 @@ import os.path
 import dill
 import numpy
 import keras
+import tensorflow.keras as tf_keras
 from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
@@ -15,6 +16,7 @@ from ml4convection.io import radar_io
 from ml4convection.io import example_io
 from ml4convection.utils import normalization
 from ml4convection.utils import general_utils
+from ml4convection.machine_learning import custom_losses
 
 TOLERANCE = 1e-6
 
@@ -83,11 +85,12 @@ NUM_VALIDATION_BATCHES_KEY = 'num_validation_batches_per_epoch'
 VALIDATION_OPTIONS_KEY = 'validation_option_dict'
 EARLY_STOPPING_KEY = 'do_early_stopping'
 PLATEAU_LR_MUTIPLIER_KEY = 'plateau_lr_multiplier'
+CLASS_WEIGHTS_KEY = 'class_weights'
 
 METADATA_KEYS = [
     NUM_EPOCHS_KEY, NUM_TRAINING_BATCHES_KEY, TRAINING_OPTIONS_KEY,
     NUM_VALIDATION_BATCHES_KEY, VALIDATION_OPTIONS_KEY,
-    EARLY_STOPPING_KEY, PLATEAU_LR_MUTIPLIER_KEY
+    EARLY_STOPPING_KEY, PLATEAU_LR_MUTIPLIER_KEY, CLASS_WEIGHTS_KEY
 ]
 
 PREDICTOR_MATRIX_KEY = 'predictor_matrix'
@@ -466,7 +469,8 @@ def _read_preprocessed_inputs_one_day(
 def _write_metafile(
         dill_file_name, num_epochs, num_training_batches_per_epoch,
         training_option_dict, num_validation_batches_per_epoch,
-        validation_option_dict, do_early_stopping, plateau_lr_multiplier):
+        validation_option_dict, do_early_stopping, plateau_lr_multiplier,
+        class_weights):
     """Writes metadata to Dill file.
 
     :param dill_file_name: Path to output file.
@@ -477,6 +481,7 @@ def _write_metafile(
     :param validation_option_dict: Same.
     :param do_early_stopping: Same.
     :param plateau_lr_multiplier: Same.
+    :param class_weights: Same.
     """
 
     metadata_dict = {
@@ -486,7 +491,8 @@ def _write_metafile(
         NUM_VALIDATION_BATCHES_KEY: num_validation_batches_per_epoch,
         VALIDATION_OPTIONS_KEY: validation_option_dict,
         EARLY_STOPPING_KEY: do_early_stopping,
-        PLATEAU_LR_MUTIPLIER_KEY: plateau_lr_multiplier
+        PLATEAU_LR_MUTIPLIER_KEY: plateau_lr_multiplier,
+        CLASS_WEIGHTS_KEY: class_weights
     }
 
     file_system_utils.mkdir_recursive_if_necessary(file_name=dill_file_name)
@@ -565,6 +571,20 @@ def _find_days_with_preprocessed_inputs(
         valid_date_strings.append(this_target_date_string)
 
     return valid_date_strings
+
+
+def check_class_weights(class_weights):
+    """Error-checks class weights.
+
+    :param class_weights: length-2 numpy with class weights for loss function.
+        Elements will be interpreted as
+        (negative_class_weight, positive_class_weight).
+    """
+
+    error_checking.assert_is_numpy_array(
+        class_weights, exact_dimensions=numpy.array([2], dtype=int)
+    )
+    error_checking.assert_is_greater_numpy_array(class_weights, 0.)
 
 
 def create_data_from_raw_files(option_dict, return_coords=False):
@@ -1023,7 +1043,8 @@ def train_model_from_raw_files(
         num_training_batches_per_epoch, training_option_dict,
         num_validation_batches_per_epoch, validation_option_dict,
         do_early_stopping=True,
-        plateau_lr_multiplier=DEFAULT_LEARNING_RATE_MULTIPLIER):
+        plateau_lr_multiplier=DEFAULT_LEARNING_RATE_MULTIPLIER,
+        class_weights=None):
     """Trains neural net from raw (satellite and radar) files.
 
     :param model_object: Untrained neural net (instance of `keras.models.Model`
@@ -1050,6 +1071,8 @@ def train_model_from_raw_files(
     :param plateau_lr_multiplier: Multiplier for learning rate.  Learning
         rate will be multiplied by this factor upon plateau in validation
         performance.
+    :param class_weights: See doc for `check_class_weights`.  If model uses
+        unweighted loss function, leave this alone.
     """
 
     file_system_utils.mkdir_recursive_if_necessary(
@@ -1067,6 +1090,9 @@ def train_model_from_raw_files(
     if do_early_stopping:
         error_checking.assert_is_greater(plateau_lr_multiplier, 0.)
         error_checking.assert_is_less_than(plateau_lr_multiplier, 1.)
+
+    if class_weights is not None:
+        check_class_weights(class_weights)
 
     training_option_dict = _check_generator_args(training_option_dict)
 
@@ -1125,7 +1151,7 @@ def train_model_from_raw_files(
         num_validation_batches_per_epoch=num_validation_batches_per_epoch,
         validation_option_dict=validation_option_dict,
         do_early_stopping=do_early_stopping,
-        plateau_lr_multiplier=plateau_lr_multiplier
+        plateau_lr_multiplier=plateau_lr_multiplier, class_weights=class_weights
     )
 
     training_generator = generator_from_raw_files(training_option_dict)
@@ -1145,7 +1171,8 @@ def train_model_from_preprocessed_files(
         num_training_batches_per_epoch, training_option_dict,
         num_validation_batches_per_epoch, validation_option_dict,
         do_early_stopping=True,
-        plateau_lr_multiplier=DEFAULT_LEARNING_RATE_MULTIPLIER):
+        plateau_lr_multiplier=DEFAULT_LEARNING_RATE_MULTIPLIER,
+        class_weights=None):
     """Trains neural net from pre-processed (predictor and target) files.
 
     :param model_object: See doc for `train_model_from_raw_files`.
@@ -1167,6 +1194,7 @@ def train_model_from_preprocessed_files(
 
     :param do_early_stopping: See doc for `train_model_from_raw_files`.
     :param plateau_lr_multiplier: Same.
+    :param class_weights: Same.
     """
 
     file_system_utils.mkdir_recursive_if_necessary(
@@ -1184,6 +1212,9 @@ def train_model_from_preprocessed_files(
     if do_early_stopping:
         error_checking.assert_is_greater(plateau_lr_multiplier, 0.)
         error_checking.assert_is_less_than(plateau_lr_multiplier, 1.)
+
+    if class_weights is not None:
+        check_class_weights(class_weights)
 
     training_option_dict = _check_generator_args(training_option_dict)
 
@@ -1238,7 +1269,7 @@ def train_model_from_preprocessed_files(
         num_validation_batches_per_epoch=num_validation_batches_per_epoch,
         validation_option_dict=validation_option_dict,
         do_early_stopping=do_early_stopping,
-        plateau_lr_multiplier=plateau_lr_multiplier
+        plateau_lr_multiplier=plateau_lr_multiplier, class_weights=class_weights
     )
 
     training_generator = generator_from_preprocessed_files(training_option_dict)
@@ -1263,8 +1294,29 @@ def read_model(hdf5_file_name):
     """
 
     error_checking.assert_file_exists(hdf5_file_name)
-    return keras.models.load_model(
-        hdf5_file_name, custom_objects=METRIC_FUNCTION_DICT
+
+    try:
+        return tf_keras.models.load_model(
+            hdf5_file_name, custom_objects=METRIC_FUNCTION_DICT
+        )
+    except ValueError:
+        pass
+
+    metafile_name = find_metafile(
+        model_file_name=hdf5_file_name, raise_error_if_missing=True
+    )
+
+    metadata_dict = read_metafile(metafile_name)
+    class_weights = metadata_dict[CLASS_WEIGHTS_KEY]
+    custom_object_dict = copy.deepcopy(METRIC_FUNCTION_DICT)
+
+    if class_weights is not None:
+        custom_object_dict['loss'] = custom_losses.weighted_xentropy(
+            class_weights
+        )
+
+    return tf_keras.models.load_model(
+        hdf5_file_name, custom_objects=custom_object_dict
     )
 
 
@@ -1306,6 +1358,7 @@ def read_metafile(dill_file_name):
     metadata_dict['validation_option_dict']: Same.
     metadata_dict['do_early_stopping']: Same.
     metadata_dict['plateau_lr_multiplier']: Same.
+    metadata_dict['class_weights']: Same.
 
     :raises: ValueError: if any expected key is not found in dictionary.
     """
@@ -1315,6 +1368,9 @@ def read_metafile(dill_file_name):
     dill_file_handle = open(dill_file_name, 'rb')
     metadata_dict = dill.load(dill_file_handle)
     dill_file_handle.close()
+
+    if CLASS_WEIGHTS_KEY not in metadata_dict:
+        metadata_dict[CLASS_WEIGHTS_KEY] = None
 
     missing_keys = list(set(METADATA_KEYS) - set(metadata_dict.keys()))
     if len(missing_keys) == 0:

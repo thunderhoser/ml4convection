@@ -104,6 +104,15 @@ def _run(use_preprocessed_files,
         input_model_file_name
     ))
     model_object = neural_net.read_model(input_model_file_name)
+    input_metafile_name = neural_net.find_metafile(
+        model_file_name=input_model_file_name
+    )
+
+    print('Reading class weights from: "{0:s}"...'.format(input_metafile_name))
+    class_weights = neural_net.read_metafile(input_metafile_name)[
+        neural_net.CLASS_WEIGHTS_KEY
+    ]
+
     print(SEPARATOR_STRING)
 
     if use_preprocessed_files:
@@ -114,7 +123,8 @@ def _run(use_preprocessed_files,
             training_option_dict=training_option_dict,
             num_validation_batches_per_epoch=num_validn_batches_per_epoch,
             validation_option_dict=validation_option_dict,
-            do_early_stopping=True, plateau_lr_multiplier=plateau_lr_multiplier
+            do_early_stopping=True, plateau_lr_multiplier=plateau_lr_multiplier,
+            class_weights=class_weights
         )
     else:
         neural_net.train_model_from_raw_files(
@@ -124,7 +134,8 @@ def _run(use_preprocessed_files,
             training_option_dict=training_option_dict,
             num_validation_batches_per_epoch=num_validn_batches_per_epoch,
             validation_option_dict=validation_option_dict,
-            do_early_stopping=True, plateau_lr_multiplier=plateau_lr_multiplier
+            do_early_stopping=True, plateau_lr_multiplier=plateau_lr_multiplier,
+            class_weights=class_weights
         )
 
 
