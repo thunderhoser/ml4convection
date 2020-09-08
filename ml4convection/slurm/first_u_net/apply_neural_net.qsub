@@ -26,8 +26,8 @@ conda activate base
 
 set CODE_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_standalone/ml4convection"
 set MODEL_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_models/first_u_net"
-set TOP_SATELLITE_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_project/satellite_data"
-set TOP_RADAR_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_project/radar_data"
+set TOP_PREDICTOR_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_project/predictors"
+set TOP_TARGET_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_project/targets"
 
 set FIRST_VALIDN_DATE_STRING="20170101"
 set LAST_VALIDN_DATE_STRING="20171224"
@@ -39,8 +39,8 @@ set prediction_dir_name="${model_dir_name}/validation"
 
 python3 -u "${CODE_DIR_NAME}/apply_neural_net.py" \
 --input_model_file_name="${model_file_name}" \
---input_satellite_dir_name="${TOP_SATELLITE_DIR_NAME}" \
---input_radar_dir_name="${TOP_RADAR_DIR_NAME}" \
+--input_predictor_dir_name="${TOP_PREDICTOR_DIR_NAME}" \
+--input_target_dir_name="${TOP_TARGET_DIR_NAME}" \
 --first_valid_date_string="${FIRST_VALIDN_DATE_STRING}" \
 --last_valid_date_string="${LAST_VALIDN_DATE_STRING}" \
 --output_dir_name="${prediction_dir_name}"

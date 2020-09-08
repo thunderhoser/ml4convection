@@ -197,8 +197,8 @@ def add_input_args(parser_object):
         default='20171224', help=VALIDN_DATE_HELP_STRING
     )
     parser_object.add_argument(
-        '--' + NORMALIZATION_FILE_ARG_NAME, type=str, required=True,
-        help=NORMALIZATION_FILE_HELP_STRING
+        '--' + NORMALIZATION_FILE_ARG_NAME, type=str, required=False,
+        default='', help=NORMALIZATION_FILE_HELP_STRING
     )
     parser_object.add_argument(
         '--' + NORMALIZE_ARG_NAME, type=int, required=False, default=1,

@@ -20,8 +20,8 @@ source /scratch2/BMC/gsd-hpcs/Jebb.Q.Stewart/conda3.7/etc/profile.d/conda.csh
 conda activate base
 
 set CODE_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_standalone/ml4convection"
-set TOP_INPUT_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_project/satellite_data/new"
-set OUTPUT_FILE_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_project/satellite_data/new/normalization_params_20160101-20161224.p"
+set TOP_INPUT_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_project/satellite_data"
+set OUTPUT_FILE_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_project/satellite_data/normalization_params_20160101-20161224.p"
 
 python3 -u "${CODE_DIR_NAME}/get_normalization_params.py" \
 --input_satellite_dir_name="${TOP_INPUT_DIR_NAME}" \

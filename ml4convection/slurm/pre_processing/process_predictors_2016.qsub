@@ -21,8 +21,8 @@ source /scratch2/BMC/gsd-hpcs/Jebb.Q.Stewart/conda3.7/etc/profile.d/conda.csh
 conda activate base
 
 set CODE_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_standalone/ml4convection"
-set NORMALIZATION_FILE_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_project/satellite_data/new/normalization_params_20160101-20161224.p"
-set TOP_SATELLITE_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_project/satellite_data/new"
+set NORMALIZATION_FILE_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_project/satellite_data/normalization_params_20160101-20161224.p"
+set TOP_SATELLITE_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_project/satellite_data"
 set TOP_PREDICTOR_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_project/predictors"
 
 set FIRST_DATE_STRINGS=("20160101" "20160108" "20160115" "20160122" "20160129" "20160205" "20160212" "20160219" "20160226" "20160304" "20160311" "20160318" "20160325" "20160401" "20160408" "20160415" "20160422" "20160429" "20160506" "20160513" "20160520" "20160527" "20160603" "20160610" "20160617" "20160624" "20160701" "20160708" "20160715" "20160722" "20160729" "20160805" "20160812" "20160819" "20160826" "20160902" "20160909" "20160916" "20160923" "20160930" "20161007" "20161014" "20161021" "20161028" "20161104" "20161111" "20161118" "20161125" "20161202" "20161209" "20161216" "20161223" "20161230")

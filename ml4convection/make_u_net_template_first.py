@@ -35,12 +35,16 @@ ARCHITECTURE_OPTION_DICT = {
     u_net_architecture.SKIP_LAYER_DROPOUT_RATES_KEY: numpy.full(5, 0.)
 }
 
+CLASS_WEIGHTS = numpy.array([1, 99], dtype=float)
+
 
 def _run():
     """Main method."""
 
     file_system_utils.mkdir_recursive_if_necessary(file_name=MODEL_FILE_NAME)
-    model_object = u_net_architecture.create_model(ARCHITECTURE_OPTION_DICT)
+    model_object = u_net_architecture.create_model(
+        option_dict=ARCHITECTURE_OPTION_DICT, class_weights=CLASS_WEIGHTS
+    )
 
     print('Writing model to: "{0:s}"...'.format(MODEL_FILE_NAME))
     model_object.save(
@@ -59,7 +63,8 @@ def _run():
         training_option_dict=dummy_option_dict,
         num_validation_batches_per_epoch=100,
         validation_option_dict=dummy_option_dict,
-        do_early_stopping=True, plateau_lr_multiplier=0.6
+        do_early_stopping=True, plateau_lr_multiplier=0.6,
+        class_weights=CLASS_WEIGHTS
     )
 
 

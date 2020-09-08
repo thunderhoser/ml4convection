@@ -25,20 +25,21 @@ set CODE_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_stan
 set TEMPLATE_FILE_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_models/first_u_net/template/model.h5"
 set OUTPUT_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_models/first_u_net"
 
-set TRAINING_SATELLITE_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_project/satellite_data"
-set VALIDN_SATELLITE_DIR_NAME="${TRAINING_SATELLITE_DIR_NAME}"
-set TRAINING_RADAR_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_project/radar_data"
-set VALIDN_RADAR_DIR_NAME="${TRAINING_RADAR_DIR_NAME}"
-set NORMALIZATION_FILE_NAME=""
+set TRAINING_PREDICTOR_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_project/predictors"
+set VALIDN_PREDICTOR_DIR_NAME="${TRAINING_PREDICTOR_DIR_NAME}"
+set TRAINING_TARGET_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_project/targets"
+set VALIDN_TARGET_DIR_NAME="${TRAINING_TARGET_DIR_NAME}"
 
 python3 -u "${CODE_DIR_NAME}/train_neural_net.py" \
---training_satellite_dir_name="${TRAINING_SATELLITE_DIR_NAME}" \
---validn_satellite_dir_name="${VALIDN_SATELLITE_DIR_NAME}" \
---training_radar_dir_name="${TRAINING_RADAR_DIR_NAME}" \
---validn_radar_dir_name="${VALIDN_RADAR_DIR_NAME}" \
+--use_preprocessed_files=1 \
+--training_predictor_dir_name="${TRAINING_PREDICTOR_DIR_NAME}" \
+--validn_predictor_dir_name="${VALIDN_PREDICTOR_DIR_NAME}" \
+--training_target_dir_name="${TRAINING_TARGET_DIR_NAME}" \
+--validn_target_dir_name="${VALIDN_TARGET_DIR_NAME}" \
 --input_model_file_name="${TEMPLATE_FILE_NAME}" \
 --output_model_dir_name="${OUTPUT_DIR_NAME}" \
---spatial_downsampling_factor=4 \
 --lead_time_seconds=0 \
+--normalize=1 \
+--uniformize=1 \
 --num_examples_per_batch=32 \
---input_normalization_file_name="${NORMALIZATION_FILE_NAME}"
+--max_examples_per_day_in_batch=11
