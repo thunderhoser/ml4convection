@@ -2,6 +2,7 @@
 
 import os
 import sys
+import copy
 import numpy
 import netCDF4
 
@@ -18,26 +19,39 @@ import satellite_io
 import normalization
 import standalone_utils
 
+TOLERANCE = 1e-6
 DATE_FORMAT = '%Y%m%d'
 
 PREDICTOR_MATRIX_UNNORM_KEY = 'predictor_matrix_unnorm'
 PREDICTOR_MATRIX_NORM_KEY = 'predictor_matrix_norm'
 PREDICTOR_MATRIX_UNIF_NORM_KEY = 'predictor_matrix_unif_norm'
 VALID_TIMES_KEY = 'valid_times_unix_sec'
+BAND_NUMBERS_KEY = 'band_numbers'
 LATITUDES_KEY = 'latitudes_deg_n'
 LONGITUDES_KEY = 'longitudes_deg_e'
 NORMALIZATION_FILE_KEY = 'normalization_file_name'
+
+ONE_PER_PREDICTOR_TIME_KEYS = [
+    PREDICTOR_MATRIX_UNNORM_KEY, PREDICTOR_MATRIX_NORM_KEY,
+    PREDICTOR_MATRIX_UNIF_NORM_KEY, VALID_TIMES_KEY
+]
+ONE_PER_BAND_NUMBER_KEYS = [
+    PREDICTOR_MATRIX_UNNORM_KEY, PREDICTOR_MATRIX_NORM_KEY,
+    PREDICTOR_MATRIX_UNIF_NORM_KEY, BAND_NUMBERS_KEY
+]
 
 TARGET_MATRIX_KEY = 'target_matrix'
 COMPOSITE_REFL_MATRIX_KEY = 'composite_refl_matrix_dbz'
 COMPOSITE_REFL_THRESHOLD_KEY = 'composite_refl_threshold_dbz'
 
+ONE_PER_TARGET_TIME_KEYS = [
+    TARGET_MATRIX_KEY, COMPOSITE_REFL_MATRIX_KEY, VALID_TIMES_KEY
+]
+
 TIME_DIMENSION_KEY = 'time'
 ROW_DIMENSION_KEY = 'row'
 COLUMN_DIMENSION_KEY = 'column'
 BAND_DIMENSION_KEY = 'band'
-
-BAND_NUMBERS_KEY = 'band_numbers'
 
 
 def _process_predictors_one_day(
@@ -567,23 +581,103 @@ def find_predictor_file(top_directory_name, date_string,
     raise ValueError(error_string)
 
 
-def read_predictor_file(netcdf_file_name):
+def predictor_file_name_to_date(predictor_file_name):
+    """Parses date from name of predictor file.
+
+    :param predictor_file_name: Path to predictor file (see
+        `find_predictor_file` for naming convention).
+    :return: valid_date_string: Valid date (format "yyyymmdd").
+    """
+
+    error_checking.assert_is_string(predictor_file_name)
+    pathless_file_name = os.path.split(predictor_file_name)[-1]
+    extensionless_file_name = os.path.splitext(pathless_file_name)[0]
+
+    valid_date_string = extensionless_file_name.split('_')[-1]
+    _ = time_conversion.string_to_unix_sec(valid_date_string, DATE_FORMAT)
+
+    return valid_date_string
+
+
+def find_many_predictor_files(
+        top_directory_name, first_date_string, last_date_string,
+        raise_error_if_all_missing=True, raise_error_if_any_missing=False,
+        test_mode=False):
+    """Finds many NetCDF files with predictors.
+
+    :param top_directory_name: See doc for `find_predictor_file`.
+    :param first_date_string: First date (format "yyyymmdd").
+    :param last_date_string: Last date (format "yyyymmdd").
+    :param raise_error_if_any_missing: Boolean flag.  If any file is missing and
+        `raise_error_if_any_missing == True`, will throw error.
+    :param raise_error_if_all_missing: Boolean flag.  If all files are missing
+        and `raise_error_if_all_missing == True`, will throw error.
+    :param test_mode: Leave this alone.
+    :return: predictor_file_names: 1-D list of paths to target files.  This list
+        does *not* contain expected paths to non-existent files.
+    :raises: ValueError: if all files are missing and
+        `raise_error_if_all_missing == True`.
+    """
+
+    error_checking.assert_is_boolean(raise_error_if_any_missing)
+    error_checking.assert_is_boolean(raise_error_if_all_missing)
+    error_checking.assert_is_boolean(test_mode)
+
+    date_strings = time_conversion.get_spc_dates_in_range(
+        first_date_string, last_date_string
+    )
+
+    predictor_file_names = []
+
+    for this_date_string in date_strings:
+        this_file_name = find_predictor_file(
+            top_directory_name=top_directory_name, date_string=this_date_string,
+            raise_error_if_missing=raise_error_if_any_missing
+        )
+
+        if test_mode or os.path.isfile(this_file_name):
+            predictor_file_names.append(this_file_name)
+
+    if raise_error_if_all_missing and len(predictor_file_names) == 0:
+        error_string = (
+            'Cannot find any file in directory "{0:s}" from dates {1:s} to '
+            '{2:s}.'
+        ).format(
+            top_directory_name, first_date_string, last_date_string
+        )
+        raise ValueError(error_string)
+
+    return predictor_file_names
+
+
+def read_predictor_file(netcdf_file_name, read_unnormalized, read_normalized,
+                        read_unif_normalized):
     """Reads predictors from NetCDF file.
 
     :param netcdf_file_name: Path to input file.
+    :param read_unnormalized: Boolean flag.  If True, will read unnormalized
+        predictors.  If False, key `predictor_matrix_unnorm` in the output
+        dictionary will be None.
+    :param read_normalized: Boolean flag.  If True, will read normalized
+        predictors.  If False, key `predictor_matrix_norm` in the output
+        dictionary will be None.
+    :param read_unif_normalized: Boolean flag.  If True, will read
+        uniformized/normalized predictors.  If False, key
+        `predictor_matrix_unif_norm` in the output dictionary will be None.
     :return: predictor_dict: Dictionary in format returned by
         `_process_predictors_one_day`.
     """
 
+    error_checking.assert_is_boolean(read_unnormalized)
+    error_checking.assert_is_boolean(read_normalized)
+    error_checking.assert_is_boolean(read_unif_normalized)
+
     dataset_object = netCDF4.Dataset(netcdf_file_name)
 
     predictor_dict = {
-        PREDICTOR_MATRIX_UNNORM_KEY:
-            dataset_object.variables[PREDICTOR_MATRIX_UNNORM_KEY][:],
-        PREDICTOR_MATRIX_NORM_KEY:
-            dataset_object.variables[PREDICTOR_MATRIX_NORM_KEY][:],
-        PREDICTOR_MATRIX_UNIF_NORM_KEY:
-            dataset_object.variables[PREDICTOR_MATRIX_UNIF_NORM_KEY][:],
+        PREDICTOR_MATRIX_UNNORM_KEY: None,
+        PREDICTOR_MATRIX_NORM_KEY: None,
+        PREDICTOR_MATRIX_UNIF_NORM_KEY: None,
         VALID_TIMES_KEY: dataset_object.variables[VALID_TIMES_KEY][:],
         LATITUDES_KEY: dataset_object.variables[LATITUDES_KEY][:],
         LONGITUDES_KEY: dataset_object.variables[LONGITUDES_KEY][:],
@@ -591,6 +685,21 @@ def read_predictor_file(netcdf_file_name):
         NORMALIZATION_FILE_KEY:
             str(getattr(dataset_object, NORMALIZATION_FILE_KEY))
     }
+
+    if read_unnormalized:
+        predictor_dict[PREDICTOR_MATRIX_UNNORM_KEY] = (
+            dataset_object.variables[PREDICTOR_MATRIX_UNNORM_KEY][:]
+        )
+
+    if read_normalized:
+        predictor_dict[PREDICTOR_MATRIX_NORM_KEY] = (
+            dataset_object.variables[PREDICTOR_MATRIX_NORM_KEY][:]
+        )
+
+    if read_unif_normalized:
+        predictor_dict[PREDICTOR_MATRIX_UNIF_NORM_KEY] = (
+            dataset_object.variables[PREDICTOR_MATRIX_UNIF_NORM_KEY][:]
+        )
 
     dataset_object.close()
     return predictor_dict
@@ -628,20 +737,97 @@ def find_target_file(top_directory_name, date_string,
     raise ValueError(error_string)
 
 
-def read_target_file(netcdf_file_name):
+def target_file_name_to_date(target_file_name):
+    """Parses date from name of target file.
+
+    :param target_file_name: Path to predictor file (see `find_target_file` for
+        naming convention).
+    :return: valid_date_string: Valid date (format "yyyymmdd").
+    """
+
+    error_checking.assert_is_string(target_file_name)
+    pathless_file_name = os.path.split(target_file_name)[-1]
+    extensionless_file_name = os.path.splitext(pathless_file_name)[0]
+
+    valid_date_string = extensionless_file_name.split('_')[-1]
+    _ = time_conversion.string_to_unix_sec(valid_date_string, DATE_FORMAT)
+
+    return valid_date_string
+
+
+def find_many_target_files(
+        top_directory_name, first_date_string, last_date_string,
+        raise_error_if_all_missing=True, raise_error_if_any_missing=False,
+        test_mode=False):
+    """Finds many NetCDF files with targets.
+
+    :param top_directory_name: See doc for `find_target_file`.
+    :param first_date_string: First date (format "yyyymmdd").
+    :param last_date_string: Last date (format "yyyymmdd").
+    :param raise_error_if_any_missing: Boolean flag.  If any file is missing and
+        `raise_error_if_any_missing == True`, will throw error.
+    :param raise_error_if_all_missing: Boolean flag.  If all files are missing
+        and `raise_error_if_all_missing == True`, will throw error.
+    :param test_mode: Leave this alone.
+    :return: target_file_names: 1-D list of paths to target files.  This list
+        does *not* contain expected paths to non-existent files.
+    :raises: ValueError: if all files are missing and
+        `raise_error_if_all_missing == True`.
+    """
+
+    error_checking.assert_is_boolean(raise_error_if_any_missing)
+    error_checking.assert_is_boolean(raise_error_if_all_missing)
+    error_checking.assert_is_boolean(test_mode)
+
+    date_strings = time_conversion.get_spc_dates_in_range(
+        first_date_string, last_date_string
+    )
+
+    target_file_names = []
+
+    for this_date_string in date_strings:
+        this_file_name = find_target_file(
+            top_directory_name=top_directory_name, date_string=this_date_string,
+            raise_error_if_missing=raise_error_if_any_missing
+        )
+
+        if test_mode or os.path.isfile(this_file_name):
+            target_file_names.append(this_file_name)
+
+    if raise_error_if_all_missing and len(target_file_names) == 0:
+        error_string = (
+            'Cannot find any file in directory "{0:s}" from dates {1:s} to '
+            '{2:s}.'
+        ).format(
+            top_directory_name, first_date_string, last_date_string
+        )
+        raise ValueError(error_string)
+
+    return target_file_names
+
+
+def read_target_file(netcdf_file_name, read_targets=True,
+                     read_reflectivities=False):
     """Reads targets from NetCDF file.
 
     :param netcdf_file_name: Path to input file.
+    :param read_targets: Boolean flag.  If True, will read target values.
+        If False, key `target_matrix` in the output dictionary will be None.
+    :param read_reflectivities: Boolean flag.  If True, will read reflectivity
+        values.  If False, key `composite_refl_matrix_dbz` in the output
+        dictionary will be None.
     :return: target_dict: Dictionary in format returned by
         `_process_targets_one_day`.
     """
 
+    error_checking.assert_is_boolean(read_targets)
+    error_checking.assert_is_boolean(read_reflectivities)
+
     dataset_object = netCDF4.Dataset(netcdf_file_name)
 
     predictor_dict = {
-        COMPOSITE_REFL_MATRIX_KEY:
-            dataset_object.variables[COMPOSITE_REFL_MATRIX_KEY][:],
-        TARGET_MATRIX_KEY: dataset_object.variables[TARGET_MATRIX_KEY][:],
+        TARGET_MATRIX_KEY: None,
+        COMPOSITE_REFL_MATRIX_KEY: None,
         VALID_TIMES_KEY: dataset_object.variables[VALID_TIMES_KEY][:],
         LATITUDES_KEY: dataset_object.variables[LATITUDES_KEY][:],
         LONGITUDES_KEY: dataset_object.variables[LONGITUDES_KEY][:],
@@ -649,5 +835,194 @@ def read_target_file(netcdf_file_name):
             str(getattr(dataset_object, COMPOSITE_REFL_THRESHOLD_KEY))
     }
 
+    if read_targets:
+        predictor_dict[TARGET_MATRIX_KEY] = (
+            dataset_object.variables[TARGET_MATRIX_KEY][:]
+        )
+
+    if read_reflectivities:
+        predictor_dict[COMPOSITE_REFL_MATRIX_KEY] = (
+            dataset_object.variables[COMPOSITE_REFL_MATRIX_KEY][:]
+        )
+
     dataset_object.close()
+    return predictor_dict
+
+
+def subset_predictors_by_band(predictor_dict, band_numbers):
+    """Subsets predictor (satellite) data by spectral band.
+
+    :param predictor_dict: See doc for `read_predictor_file`.
+    :param band_numbers: 1-D numpy array of desired band numbers (integers).
+    :return: predictor_dict: Same as input but maybe with fewer bands.
+    """
+
+    error_checking.assert_is_integer_numpy_array(band_numbers)
+    error_checking.assert_is_greater_numpy_array(band_numbers, 0)
+
+    indices_to_keep = numpy.array([
+        numpy.where(predictor_dict[BAND_NUMBERS_KEY] == n)[0][0]
+        for n in band_numbers
+    ], dtype=int)
+
+    for this_key in ONE_PER_BAND_NUMBER_KEYS:
+        if predictor_dict[this_key] is None:
+            continue
+
+        predictor_dict[this_key] = (
+            predictor_dict[this_key][..., indices_to_keep]
+        )
+
+    return predictor_dict
+
+
+def subset_by_time(desired_times_unix_sec, predictor_dict=None,
+                   target_dict=None):
+    """Subsets predictor and target data by time.
+
+    T = number of desired times
+
+    :param desired_times_unix_sec: length-T numpy array of desired times.
+    :param predictor_dict: See doc for `read_predictor_file`.
+    :param target_dict: See doc for `read_target_file`.
+    :return: predictor_dict: Same as input but maybe with fewer examples.
+    :return: target_dict: Same as input but maybe with fewer examples.
+    :raises: ValueError: if `predictor_dict is None and target_dict is None`.
+    """
+
+    if predictor_dict is None and target_dict is None:
+        raise ValueError(
+            'At least one of predictor_dict and target_dict must be specified.'
+        )
+
+    error_checking.assert_is_numpy_array(
+        desired_times_unix_sec, num_dimensions=1
+    )
+    error_checking.assert_is_integer_numpy_array(desired_times_unix_sec)
+
+    if predictor_dict is not None:
+        these_indices = numpy.array([
+            numpy.where(predictor_dict[VALID_TIMES_KEY] == t)[0][0]
+            for t in desired_times_unix_sec
+        ], dtype=int)
+
+        predictor_dict = subset_by_index(
+            predictor_dict=predictor_dict, desired_indices=these_indices
+        )[0]
+
+    if target_dict is not None:
+        these_indices = numpy.array([
+            numpy.where(target_dict[VALID_TIMES_KEY] == t)[0][0]
+            for t in desired_times_unix_sec
+        ], dtype=int)
+
+        target_dict = subset_by_index(
+            target_dict=target_dict, desired_indices=these_indices
+        )[1]
+
+    return predictor_dict, target_dict
+
+
+def subset_by_index(desired_indices, predictor_dict=None, target_dict=None):
+    """Subsets predictor and target data by time index.
+
+    :param desired_indices: 1-D numpy array of desired indices.
+    :param predictor_dict: See doc for `read_predictor_file`.
+    :param target_dict: See doc for `read_target_file`.
+    :return: predictor_dict: Same as input but maybe with fewer examples.
+    :return: target_dict: Same as input but maybe with fewer examples.
+    :raises: ValueError: if `predictor_dict is None and target_dict is None`.
+    """
+
+    error_checking.assert_is_numpy_array(desired_indices, num_dimensions=1)
+    error_checking.assert_is_integer_numpy_array(desired_indices)
+    error_checking.assert_is_geq_numpy_array(desired_indices, 0)
+
+    if predictor_dict is not None and target_dict is not None:
+        error_checking.assert_equals(
+            len(predictor_dict[VALID_TIMES_KEY]),
+            len(target_dict[VALID_TIMES_KEY])
+        )
+
+    if predictor_dict is not None:
+        error_checking.assert_is_less_than_numpy_array(
+            desired_indices, len(predictor_dict[VALID_TIMES_KEY])
+        )
+
+        for this_key in ONE_PER_PREDICTOR_TIME_KEYS:
+            if predictor_dict[this_key] is None:
+                continue
+
+            predictor_dict[this_key] = (
+                predictor_dict[this_key][desired_indices, ...]
+            )
+
+    if target_dict is not None:
+        error_checking.assert_is_less_than_numpy_array(
+            desired_indices, len(target_dict[VALID_TIMES_KEY])
+        )
+
+        for this_key in ONE_PER_TARGET_TIME_KEYS:
+            if target_dict[this_key] is None:
+                continue
+
+            target_dict[this_key] = target_dict[this_key][desired_indices, ...]
+
+    return predictor_dict, target_dict
+
+
+def concat_predictor_data(predictor_dicts):
+    """Concatenates many dictionaries with predictor data into one.
+
+    :param predictor_dicts: List of dictionaries, each in the format returned by
+        `read_predictor_file`.
+    :return: predictor_dict: Single dictionary, also in the format returned by
+        `read_predictor_file`.
+    :raises: ValueError: if any two dictionaries have different band numbers,
+        latitudes, or longitudes.
+    """
+
+    predictor_dict = copy.deepcopy(predictor_dicts[0])
+    keys_to_match = [
+        BAND_NUMBERS_KEY, LATITUDES_KEY, LONGITUDES_KEY, NORMALIZATION_FILE_KEY
+    ]
+
+    for i in range(1, len(predictor_dicts)):
+        for this_key in keys_to_match:
+            if this_key == BAND_NUMBERS_KEY:
+                if numpy.array_equal(
+                        predictor_dict[this_key], predictor_dicts[i][this_key]
+                ):
+                    continue
+            elif this_key == NORMALIZATION_FILE_KEY:
+                if predictor_dict[this_key] == predictor_dicts[i][this_key]:
+                    continue
+            else:
+                if numpy.allclose(
+                        predictor_dict[this_key], predictor_dicts[i][this_key],
+                        atol=TOLERANCE
+                ):
+                    continue
+
+            error_string = (
+                '1st and {0:d}th dictionaries have different values for '
+                '"{1:s}".  1st dictionary:\n{2:s}\n\n'
+                '{0:d}th dictionary:\n{3:s}'
+            ).format(
+                i + 1, this_key,
+                str(predictor_dict[this_key]),
+                str(predictor_dicts[i][this_key])
+            )
+
+            raise ValueError(error_string)
+
+    for i in range(1, len(predictor_dicts)):
+        for this_key in ONE_PER_PREDICTOR_TIME_KEYS:
+            if predictor_dict[this_key] is None:
+                continue
+
+            predictor_dict[this_key] = numpy.concatenate((
+                predictor_dict[this_key], predictor_dicts[i][this_key]
+            ), axis=0)
+
     return predictor_dict
