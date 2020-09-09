@@ -75,7 +75,7 @@ def plot_with_basemap(
         `matplotlib.axes._subplots.AxesSubplot`).
     :param min_latitude_deg_n: Latitude (deg N) at southernmost row of grid
         points.
-    :param longitude_spacing_deg: Longitude (deg E) at westernmost column of
+    :param min_longitude_deg_e: Longitude (deg E) at westernmost column of
         grid points.
     :param latitude_spacing_deg: Spacing (deg N) between adjacent grid rows.
     :param longitude_spacing_deg: Spacing (deg E) between adjacent grid columns.

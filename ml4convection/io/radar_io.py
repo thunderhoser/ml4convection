@@ -277,10 +277,11 @@ def read_2d_file(netcdf_file_name, fill_nans=True):
         VALID_TIMES_KEY: dataset_object.variables[VALID_TIMES_KEY][:]
     }
 
-    radar_dict[LATITUDES_KEY] = radar_dict[LATITUDES_KEY][::-1]
-    radar_dict[COMPOSITE_REFL_KEY] = numpy.flip(
-        radar_dict[COMPOSITE_REFL_KEY], axis=1
-    )
+    if numpy.any(numpy.diff(radar_dict[LATITUDES_KEY]) < 0):
+        radar_dict[LATITUDES_KEY] = radar_dict[LATITUDES_KEY][::-1]
+        radar_dict[COMPOSITE_REFL_KEY] = numpy.flip(
+            radar_dict[COMPOSITE_REFL_KEY], axis=1
+        )
 
     if fill_nans:
         radar_dict[COMPOSITE_REFL_KEY][

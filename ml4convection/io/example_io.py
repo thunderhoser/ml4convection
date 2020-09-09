@@ -319,6 +319,13 @@ def _write_target_file(target_dict, netcdf_file_name):
         target_dict[COMPOSITE_REFL_MATRIX_KEY]
     )
 
+    dataset_object.createVariable(
+        TARGET_MATRIX_KEY, datatype=numpy.int32, dimensions=these_dim
+    )
+    dataset_object.variables[TARGET_MATRIX_KEY][:] = (
+        target_dict[TARGET_MATRIX_KEY]
+    )
+
     dataset_object.close()
 
 
@@ -837,6 +844,19 @@ def read_target_file(netcdf_file_name, read_targets=True,
         predictor_dict[COMPOSITE_REFL_MATRIX_KEY] = (
             dataset_object.variables[COMPOSITE_REFL_MATRIX_KEY][:]
         )
+
+    if numpy.any(numpy.diff(predictor_dict[LATITUDES_KEY]) < 0):
+        predictor_dict[LATITUDES_KEY] = predictor_dict[LATITUDES_KEY][::-1]
+
+        if predictor_dict[TARGET_MATRIX_KEY] is not None:
+            predictor_dict[TARGET_MATRIX_KEY] = numpy.flip(
+                predictor_dict[TARGET_MATRIX_KEY], axis=1
+            )
+
+        if predictor_dict[COMPOSITE_REFL_MATRIX_KEY] is not None:
+            predictor_dict[COMPOSITE_REFL_MATRIX_KEY] = numpy.flip(
+                predictor_dict[COMPOSITE_REFL_MATRIX_KEY], axis=1
+            )
 
     dataset_object.close()
     return predictor_dict
