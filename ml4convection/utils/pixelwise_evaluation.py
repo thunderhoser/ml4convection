@@ -36,7 +36,8 @@ BRIER_SCORE_KEY = 'brier_score'
 BRIER_SKILL_SCORE_KEY = 'brier_skill_score'
 
 
-def _update_basic_scores(basic_score_table_xarray, prediction_file_name):
+def _update_basic_scores(basic_score_table_xarray, prediction_file_name,
+                         prediction_dict=None):
     """Updates basic scores.
 
     :param basic_score_table_xarray: xarray table in format produced by
@@ -44,13 +45,16 @@ def _update_basic_scores(basic_score_table_xarray, prediction_file_name):
     :param prediction_file_name: Path to input file (will be read by
         `prediction_io.read_file`).  Predictions in this file will be used to
         update scores in the table.
+    :param prediction_dict: Leave this alone.  Used for testing only.
     :return: basic_score_table_xarray: Same as input but with different values.
     :return: num_examples_new: Number of examples in new file.
     :return: num_positive_examples_new: Number of positive examples in new file.
     """
 
-    print('Reading data from: "{0:s}"...'.format(prediction_file_name))
-    prediction_dict = prediction_io.read_file(prediction_file_name)
+    if prediction_dict is None:
+        print('Reading data from: "{0:s}"...'.format(prediction_file_name))
+        prediction_dict = prediction_io.read_file(prediction_file_name)
+
     forecast_probabilities = numpy.ravel(
         prediction_dict[prediction_io.PROBABILITY_MATRIX_KEY]
     )
@@ -140,7 +144,7 @@ def _update_basic_scores(basic_score_table_xarray, prediction_file_name):
 def get_basic_scores(
         prediction_file_names, event_frequency_in_training=None,
         num_prob_thresholds=DEFAULT_NUM_PROB_THRESHOLDS,
-        num_bins_for_reliability=DEFAULT_NUM_RELIA_BINS):
+        num_bins_for_reliability=DEFAULT_NUM_RELIA_BINS, test_mode=False):
     """Computes basic scores (contingency tables and reliability info).
 
     T = number of probability thresholds
@@ -152,13 +156,17 @@ def get_basic_scores(
         None, this method will compute event frequency in new data.
     :param num_prob_thresholds: Number of probability thresholds (T above).
     :param num_bins_for_reliability: Number of bins for reliability (B above).
+    :param test_mode: Leave this alone.
     :return: basic_score_table_xarray: xarray table with results (variable and
         dimension names should make the table self-explanatory).
     """
 
-    error_checking.assert_is_string_list(prediction_file_names)
     error_checking.assert_is_integer(num_bins_for_reliability)
     error_checking.assert_is_geq(num_bins_for_reliability, 10)
+    error_checking.assert_is_boolean(test_mode)
+
+    if not test_mode:
+        error_checking.assert_is_string_list(prediction_file_names)
 
     num_examples_total = 0
     num_positive_examples_total = 0
@@ -183,19 +191,19 @@ def get_basic_scores(
     these_dim = (PROBABILITY_THRESHOLD_DIM,)
     this_array = numpy.full(num_prob_thresholds, 0, dtype=int)
     main_data_dict = {
-        NUM_TRUE_POSITIVES_KEY: (these_dim, this_array),
-        NUM_FALSE_POSITIVES_KEY: (these_dim, this_array),
-        NUM_FALSE_NEGATIVES_KEY: (these_dim, this_array),
-        NUM_TRUE_NEGATIVES_KEY: (these_dim, this_array)
+        NUM_TRUE_POSITIVES_KEY: (these_dim, this_array + 0),
+        NUM_FALSE_POSITIVES_KEY: (these_dim, this_array + 0),
+        NUM_FALSE_NEGATIVES_KEY: (these_dim, this_array + 0),
+        NUM_TRUE_NEGATIVES_KEY: (these_dim, this_array + 0)
     }
 
     these_dim = (RELIABILITY_BIN_DIM,)
     this_integer_array = numpy.full(num_bins_for_reliability, 0, dtype=int)
     this_float_array = numpy.full(num_bins_for_reliability, 0, dtype=float)
     new_dict = {
-        NUM_EXAMPLES_KEY: (these_dim, this_integer_array),
-        EVENT_FREQUENCY_KEY: (these_dim, this_float_array),
-        MEAN_FORECAST_PROB_KEY: (these_dim, this_float_array)
+        NUM_EXAMPLES_KEY: (these_dim, this_integer_array + 0),
+        EVENT_FREQUENCY_KEY: (these_dim, this_float_array + 0.),
+        MEAN_FORECAST_PROB_KEY: (these_dim, this_float_array + 0.)
     }
 
     main_data_dict.update(new_dict)
@@ -222,7 +230,10 @@ def get_basic_scores(
         if i != len(prediction_file_names) - 1:
             print('\n')
 
-    if basic_score_table_xarray.attrs[CLIMO_EVENT_FREQ_KEY] is None:
+    if (
+            basic_score_table_xarray.attrs[CLIMO_EVENT_FREQ_KEY] is None
+            and not test_mode
+    ):
         basic_score_table_xarray.attrs[CLIMO_EVENT_FREQ_KEY] = (
             float(num_positive_examples_total) / num_examples_total
         )
@@ -254,13 +265,13 @@ def get_advanced_scores(basic_score_table_xarray):
     these_dim = (PROBABILITY_THRESHOLD_DIM,)
     this_array = numpy.full(num_prob_thresholds, numpy.nan)
     main_data_dict = {
-        POD_KEY: (these_dim, this_array),
-        POFD_KEY: (these_dim, this_array),
-        SUCCESS_RATIO_KEY: (these_dim, this_array),
-        FREQUENCY_BIAS_KEY: (these_dim, this_array),
-        CSI_KEY: (these_dim, this_array),
-        ACCURACY_KEY: (these_dim, this_array),
-        HEIDKE_SCORE_KEY: (these_dim, this_array)
+        POD_KEY: (these_dim, this_array + 0.),
+        POFD_KEY: (these_dim, this_array + 0.),
+        SUCCESS_RATIO_KEY: (these_dim, this_array + 0.),
+        FREQUENCY_BIAS_KEY: (these_dim, this_array + 0.),
+        CSI_KEY: (these_dim, this_array + 0.),
+        ACCURACY_KEY: (these_dim, this_array + 0.),
+        HEIDKE_SCORE_KEY: (these_dim, this_array + 0.)
     }
 
     advanced_score_table_xarray = xarray.Dataset(
