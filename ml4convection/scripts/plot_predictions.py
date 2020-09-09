@@ -8,7 +8,6 @@ from matplotlib import pyplot
 from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
-from gewittergefahr.plotting import plotting_utils
 from ml4convection.io import prediction_io
 from ml4convection.plotting import prediction_plotting
 
@@ -17,6 +16,8 @@ TIME_FORMAT = '%Y-%m-%d-%H%M'
 NUM_PARALLELS = 8
 NUM_MERIDIANS = 6
 FIGURE_RESOLUTION_DPI = 300
+FIGURE_WIDTH_INCHES = 15
+FIGURE_HEIGHT_INCHES = 15
 
 INPUT_DIR_ARG_NAME = 'input_prediction_dir_name'
 FIRST_DATE_ARG_NAME = 'first_date_string'
@@ -96,33 +97,37 @@ def _plot_predictions_one_example(
     latitudes_deg_n = prediction_dict[prediction_io.LATITUDES_KEY]
     longitudes_deg_e = prediction_dict[prediction_io.LONGITUDES_KEY]
 
-    figure_object, axes_object, basemap_object = (
-        plotting_utils.create_equidist_cylindrical_map(
-            min_latitude_deg=numpy.min(latitudes_deg_n),
-            max_latitude_deg=numpy.max(latitudes_deg_n),
-            min_longitude_deg=numpy.min(longitudes_deg_e),
-            max_longitude_deg=numpy.max(longitudes_deg_e),
-            resolution_string='i'
-        )
-    )
+    # figure_object, axes_object, basemap_object = (
+    #     plotting_utils.create_equidist_cylindrical_map(
+    #         min_latitude_deg=numpy.min(latitudes_deg_n),
+    #         max_latitude_deg=numpy.max(latitudes_deg_n),
+    #         min_longitude_deg=numpy.min(longitudes_deg_e),
+    #         max_longitude_deg=numpy.max(longitudes_deg_e),
+    #         resolution_string='i'
+    #     )
+    # )
+    #
+    # plotting_utils.plot_coastlines(
+    #     basemap_object=basemap_object, axes_object=axes_object,
+    #     line_colour=plotting_utils.DEFAULT_COUNTRY_COLOUR
+    # )
+    # plotting_utils.plot_countries(
+    #     basemap_object=basemap_object, axes_object=axes_object
+    # )
+    # plotting_utils.plot_states_and_provinces(
+    #     basemap_object=basemap_object, axes_object=axes_object
+    # )
+    # plotting_utils.plot_parallels(
+    #     basemap_object=basemap_object, axes_object=axes_object,
+    #     num_parallels=NUM_PARALLELS
+    # )
+    # plotting_utils.plot_meridians(
+    #     basemap_object=basemap_object, axes_object=axes_object,
+    #     num_meridians=NUM_MERIDIANS
+    # )
 
-    plotting_utils.plot_coastlines(
-        basemap_object=basemap_object, axes_object=axes_object,
-        line_colour=plotting_utils.DEFAULT_COUNTRY_COLOUR
-    )
-    plotting_utils.plot_countries(
-        basemap_object=basemap_object, axes_object=axes_object
-    )
-    plotting_utils.plot_states_and_provinces(
-        basemap_object=basemap_object, axes_object=axes_object
-    )
-    plotting_utils.plot_parallels(
-        basemap_object=basemap_object, axes_object=axes_object,
-        num_parallels=NUM_PARALLELS
-    )
-    plotting_utils.plot_meridians(
-        basemap_object=basemap_object, axes_object=axes_object,
-        num_meridians=NUM_MERIDIANS
+    figure_object, axes_object = pyplot.subplots(
+        1, 1, figsize=(FIGURE_WIDTH_INCHES, FIGURE_HEIGHT_INCHES)
     )
 
     i = example_index
@@ -150,6 +155,8 @@ def _plot_predictions_one_example(
     ).format(valid_time_string)
 
     axes_object.set_title(title_string)
+    axes_object.set_xlabel(r'Longitude ($^{\circ}$E)')
+    axes_object.set_ylabel(r'Latitude ($^{\circ}$N)')
 
     output_file_name = '{0:s}/predictions_{1:s}.jpg'.format(
         output_dir_name, valid_time_string
