@@ -326,6 +326,13 @@ def _write_target_file(target_dict, netcdf_file_name):
         target_dict[COMPOSITE_REFL_MATRIX_KEY]
     )
 
+    dataset_object.createVariable(
+        TARGET_MATRIX_KEY, datatype=numpy.int32, dimensions=these_dim
+    )
+    dataset_object.variables[TARGET_MATRIX_KEY][:] = (
+        target_dict[TARGET_MATRIX_KEY]
+    )
+
     dataset_object.close()
 
 
