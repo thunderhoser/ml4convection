@@ -36,19 +36,19 @@ def _get_colour_scheme(for_targets):
         `matplotlib.colors.Normalize`.
     """
 
-    main_colour_list = [NO_CONVECTION_COLOUR]
+    main_colour_list = [NO_CONVECTION_COLOUR] * 2
 
     if for_targets:
-        main_colour_list.append(ACTUAL_CONVECTION_COLOUR)
+        main_colour_list += [ACTUAL_CONVECTION_COLOUR] * 2
     else:
-        main_colour_list.append(PREDICTED_CONVECTION_COLOUR)
+        main_colour_list += [PREDICTED_CONVECTION_COLOUR] * 2
 
     colour_map_object = matplotlib.colors.ListedColormap(main_colour_list)
     colour_map_object.set_under(BACKGROUND_COLOUR)
-    colour_map_object.set_over(BACKGROUND_COLOUR)
+    colour_map_object.set_over(main_colour_list[-1])
 
     colour_norm_object = matplotlib.colors.BoundaryNorm(
-        numpy.array([0.5, 1.5]), colour_map_object.N
+        numpy.array([0, 0.5, 1, 1.5]), colour_map_object.N
     )
 
     return colour_map_object, colour_norm_object
