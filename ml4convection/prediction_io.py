@@ -28,6 +28,10 @@ LATITUDES_KEY = 'latitude_deg_n'
 LONGITUDES_KEY = 'longitude_deg_e'
 MODEL_FILE_KEY = 'model_file_name'
 
+ONE_PER_EXAMPLE_KEYS = [
+    PROBABILITY_MATRIX_KEY, TARGET_MATRIX_KEY, VALID_TIMES_KEY
+]
+
 
 def find_file(top_directory_name, valid_date_string,
               raise_error_if_missing=True):
@@ -59,6 +63,58 @@ def find_file(top_directory_name, valid_date_string,
         radar_file_name
     )
     raise ValueError(error_string)
+
+
+def find_many_files(
+        top_directory_name, first_date_string, last_date_string,
+        raise_error_if_all_missing=True, raise_error_if_any_missing=False,
+        test_mode=False):
+    """Finds many NetCDF files with predictions.
+
+    :param top_directory_name: See doc for `find_file`.
+    :param first_date_string: First valid date (format "yyyymmdd").
+    :param last_date_string: Last valid date (format "yyyymmdd").
+    :param raise_error_if_any_missing: Boolean flag.  If any file is missing and
+        `raise_error_if_any_missing == True`, will throw error.
+    :param raise_error_if_all_missing: Boolean flag.  If all files are missing
+        and `raise_error_if_all_missing == True`, will throw error.
+    :param test_mode: Leave this alone.
+    :return: prediction_file_names: 1-D list of paths to prediction files.  This
+        list does *not* contain expected paths to non-existent files.
+    :raises: ValueError: if all files are missing and
+        `raise_error_if_all_missing == True`.
+    """
+
+    error_checking.assert_is_boolean(raise_error_if_any_missing)
+    error_checking.assert_is_boolean(raise_error_if_all_missing)
+    error_checking.assert_is_boolean(test_mode)
+
+    valid_date_strings = time_conversion.get_spc_dates_in_range(
+        first_date_string, last_date_string
+    )
+
+    prediction_file_names = []
+
+    for this_date_string in valid_date_strings:
+        this_file_name = find_file(
+            top_directory_name=top_directory_name,
+            valid_date_string=this_date_string,
+            raise_error_if_missing=raise_error_if_any_missing
+        )
+
+        if test_mode or os.path.isfile(this_file_name):
+            prediction_file_names.append(this_file_name)
+
+    if raise_error_if_all_missing and len(prediction_file_names) == 0:
+        error_string = (
+            'Cannot find any file in directory "{0:s}" from dates {1:s} to '
+            '{2:s}.'
+        ).format(
+            top_directory_name, first_date_string, last_date_string
+        )
+        raise ValueError(error_string)
+
+    return prediction_file_names
 
 
 def write_file(
@@ -194,4 +250,30 @@ def read_file(netcdf_file_name):
     }
 
     dataset_object.close()
+    return prediction_dict
+
+
+def subset_by_index(prediction_dict, desired_indices):
+    """Subsets examples (time steps) by index.
+
+    :param prediction_dict: See doc for `read_file`.
+    :param desired_indices: 1-D numpy array of desired indices.
+    :return: prediction_dict: Same as input but with fewer examples.
+    """
+
+    error_checking.assert_is_numpy_array(desired_indices, num_dimensions=1)
+    error_checking.assert_is_integer_numpy_array(desired_indices)
+    error_checking.assert_is_geq_numpy_array(desired_indices, 0)
+    error_checking.assert_is_less_than_numpy_array(
+        desired_indices, len(prediction_dict[VALID_TIMES_KEY])
+    )
+
+    for this_key in ONE_PER_EXAMPLE_KEYS:
+        if prediction_dict[this_key] is None:
+            continue
+
+        prediction_dict[this_key] = (
+            prediction_dict[this_key][desired_indices, ...]
+        )
+
     return prediction_dict
