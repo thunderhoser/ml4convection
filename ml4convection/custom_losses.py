@@ -11,7 +11,7 @@ def _log2(input_tensor):
         `input_tensor`.
     """
 
-    return K.log(input_tensor) / K.log(2.)
+    return K.log(K.maximum(input_tensor, 1e-6)) / K.log(2.)
 
 
 def weighted_xentropy(class_weights):
