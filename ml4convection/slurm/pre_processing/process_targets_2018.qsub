@@ -1,7 +1,7 @@
 #!/bin/tcsh
 
 #SBATCH --job-name="process_targets_2018"
-#SBATCH --partition="hera"
+#SBATCH --partition="fge"
 #SBATCH --account="rda-ghpcs"
 #SBATCH --qos="batch"
 #SBATCH --ntasks=1
