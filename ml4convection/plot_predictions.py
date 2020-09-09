@@ -1,5 +1,7 @@
 """Plot predictions (and targets) for the given days."""
 
+import os
+import sys
 import argparse
 import numpy
 import matplotlib
