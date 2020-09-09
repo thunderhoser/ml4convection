@@ -390,11 +390,11 @@ def _read_preprocessed_inputs_one_day(
 
     predictor_dict = example_io.concat_predictor_data(predictor_dicts)
 
-    # assert numpy.allclose(
-    #     target_dict[example_io.LATITUDES_KEY],
-    #     predictor_dict[example_io.LATITUDES_KEY],
-    #     atol=TOLERANCE
-    # )
+    assert numpy.allclose(
+        target_dict[example_io.LATITUDES_KEY],
+        predictor_dict[example_io.LATITUDES_KEY],
+        atol=TOLERANCE
+    )
 
     assert numpy.allclose(
         target_dict[example_io.LONGITUDES_KEY],
