@@ -389,9 +389,9 @@ def _read_preprocessed_inputs_one_day(
         predictor_dicts.append(this_predictor_dict)
 
     predictor_dict = example_io.concat_predictor_data(predictor_dicts)
-    print(target_dict[example_io.LATITUDES_KEY])
+    print(target_dict[example_io.LONGITUDES_KEY])
     print('\n\n')
-    print(predictor_dict[example_io.LATITUDES_KEY])
+    print(predictor_dict[example_io.LONGITUDES_KEY])
 
     assert numpy.allclose(
         target_dict[example_io.LATITUDES_KEY],

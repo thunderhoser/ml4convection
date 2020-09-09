@@ -190,9 +190,9 @@ def _process_targets_one_day(input_file_name, spatial_downsampling_factor,
     return {
         COMPOSITE_REFL_MATRIX_KEY: composite_refl_matrix_dbz,
         TARGET_MATRIX_KEY: target_matrix,
-        VALID_TIMES_KEY: radar_dict[satellite_io.VALID_TIMES_KEY],
-        LATITUDES_KEY: radar_dict[satellite_io.LATITUDES_KEY],
-        LONGITUDES_KEY: radar_dict[satellite_io.LONGITUDES_KEY],
+        VALID_TIMES_KEY: radar_dict[radar_io.VALID_TIMES_KEY],
+        LATITUDES_KEY: radar_dict[radar_io.LATITUDES_KEY],
+        LONGITUDES_KEY: radar_dict[radar_io.LONGITUDES_KEY],
         COMPOSITE_REFL_THRESHOLD_KEY: composite_refl_threshold_dbz
     }
 
