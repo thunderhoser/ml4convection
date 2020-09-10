@@ -122,6 +122,7 @@ def fractions_skill_score(half_window_size_px, use_as_loss_function,
         :return: loss: Fractions skill score.
         """
 
+        print(target_tensor)
         smoothed_target_tensor = K.conv2d(
             x=target_tensor, kernel=weight_matrix,
             padding='same' if test_mode else 'valid',
@@ -129,6 +130,7 @@ def fractions_skill_score(half_window_size_px, use_as_loss_function,
         )
         print(smoothed_target_tensor)
 
+        print(prediction_tensor)
         smoothed_prediction_tensor = K.conv2d(
             x=prediction_tensor, kernel=weight_matrix,
             padding='same' if test_mode else 'valid',
