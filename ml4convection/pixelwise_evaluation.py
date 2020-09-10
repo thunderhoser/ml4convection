@@ -11,7 +11,7 @@ THIS_DIRECTORY_NAME = os.path.dirname(os.path.realpath(
 sys.path.append(os.path.normpath(os.path.join(THIS_DIRECTORY_NAME, '..')))
 
 import histograms
-import model_evaluation as gg_model_eval
+import gg_model_evaluation as gg_model_eval
 import general_utils as gg_general_utils
 import file_system_utils
 import error_checking
