@@ -337,6 +337,7 @@ def get_advanced_scores(basic_score_table_xarray):
             gg_model_eval.NUM_TRUE_NEGATIVES_KEY:
                 basic_score_table_xarray[NUM_TRUE_NEGATIVES_KEY].values[k]
         }
+        print(this_contingency_table)
 
         advanced_score_table_xarray[POD_KEY].values[k] = (
             gg_model_eval.get_pod(this_contingency_table)
@@ -359,7 +360,7 @@ def get_advanced_scores(basic_score_table_xarray):
         advanced_score_table_xarray[HEIDKE_SCORE_KEY].values[k] = (
             gg_model_eval.get_heidke_score(this_contingency_table)
         )
-        print(advanced_score_table_xarray[HEIDKE_SCORE_KEY].values[k])
+        print(advanced_score_table_xarray[POFD_KEY].values[k])
 
     auc = gg_model_eval.get_area_under_roc_curve(
         pofd_by_threshold=advanced_score_table_xarray[POFD_KEY].values,
