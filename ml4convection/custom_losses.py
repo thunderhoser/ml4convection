@@ -127,16 +127,14 @@ def fractions_skill_score(half_window_size_px, use_as_loss_function,
             padding='same' if test_mode else 'valid',
             strides=(1, 1), data_format='channels_last'
         )
-        print(K.min(smoothed_target_tensor))
-        print(K.max(smoothed_target_tensor))
+        print(smoothed_target_tensor)
 
         smoothed_prediction_tensor = K.conv2d(
             x=prediction_tensor, kernel=weight_matrix,
             padding='same' if test_mode else 'valid',
             strides=(1, 1), data_format='channels_last'
         )
-        print(K.min(smoothed_prediction_tensor))
-        print(K.max(smoothed_prediction_tensor))
+        print(smoothed_prediction_tensor)
 
         actual_mse = K.mean(
             (smoothed_target_tensor - smoothed_prediction_tensor) ** 2
