@@ -17,7 +17,7 @@ import file_system_utils
 import error_checking
 import prediction_io
 
-DEFAULT_NUM_PROB_THRESHOLDS = 101
+DEFAULT_NUM_PROB_THRESHOLDS = 501
 DEFAULT_NUM_RELIA_BINS = 20
 
 PROBABILITY_THRESHOLD_DIM = 'probability_threshold'
@@ -155,7 +155,7 @@ def _update_basic_scores(basic_score_table_xarray, prediction_file_name,
             ))
 
         these_forecast_classes = (
-                forecast_probabilities >= probability_thresholds[k]
+            forecast_probabilities >= probability_thresholds[k]
         ).astype(int)
 
         basic_score_table_xarray[NUM_TRUE_POSITIVES_KEY].values[k] += (
@@ -170,6 +170,12 @@ def _update_basic_scores(basic_score_table_xarray, prediction_file_name,
         basic_score_table_xarray[NUM_TRUE_NEGATIVES_KEY].values[k] += (
             numpy.sum(these_forecast_classes[negative_example_indices] == 0)
         )
+
+    print((
+        'Have updated contingency tables for all {0:d} probability thresholds!'
+    ).format(
+        num_prob_thresholds
+    ))
 
     return (
         basic_score_table_xarray,
