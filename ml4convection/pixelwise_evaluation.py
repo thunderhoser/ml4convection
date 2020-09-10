@@ -11,8 +11,8 @@ THIS_DIRECTORY_NAME = os.path.dirname(os.path.realpath(
 sys.path.append(os.path.normpath(os.path.join(THIS_DIRECTORY_NAME, '..')))
 
 import histograms
-import gg_model_evaluation as gg_model_eval
-import gg_general_utils
+import model_evaluation as gg_model_eval
+import general_utils as gg_general_utils
 import file_system_utils
 import error_checking
 import prediction_io
@@ -220,12 +220,11 @@ def get_basic_scores(
 
     probability_thresholds = gg_model_eval.get_binarization_thresholds(
         threshold_arg=num_prob_thresholds
-    ).astype(numpy.float32)
+    )
     num_prob_thresholds = len(probability_thresholds)
 
     bin_indices = numpy.linspace(
-        0, num_bins_for_reliability - 1, num=num_bins_for_reliability,
-        dtype=numpy.int32
+        0, num_bins_for_reliability - 1, num=num_bins_for_reliability, dtype=int
     )
     metadata_dict = {
         PROBABILITY_THRESHOLD_DIM: probability_thresholds,
@@ -233,7 +232,7 @@ def get_basic_scores(
     }
 
     these_dim = (PROBABILITY_THRESHOLD_DIM,)
-    this_array = numpy.full(num_prob_thresholds, 0, dtype=numpy.int32)
+    this_array = numpy.full(num_prob_thresholds, 0, dtype=int)
     main_data_dict = {
         NUM_TRUE_POSITIVES_KEY: (these_dim, this_array + 0),
         NUM_FALSE_POSITIVES_KEY: (these_dim, this_array + 0),
@@ -242,12 +241,8 @@ def get_basic_scores(
     }
 
     these_dim = (RELIABILITY_BIN_DIM,)
-    this_integer_array = numpy.full(
-        num_bins_for_reliability, 0, dtype=numpy.int32
-    )
-    this_float_array = numpy.full(
-        num_bins_for_reliability, 0, dtype=numpy.float32
-    )
+    this_integer_array = numpy.full(num_bins_for_reliability, 0, dtype=int)
+    this_float_array = numpy.full(num_bins_for_reliability, 0, dtype=float)
     new_dict = {
         NUM_EXAMPLES_KEY: (these_dim, this_integer_array + 0),
         EVENT_FREQUENCY_KEY: (these_dim, this_float_array + 0.),
@@ -311,7 +306,7 @@ def get_advanced_scores(basic_score_table_xarray):
     }
 
     these_dim = (PROBABILITY_THRESHOLD_DIM,)
-    this_array = numpy.full(num_prob_thresholds, numpy.nan, dtype=numpy.float32)
+    this_array = numpy.full(num_prob_thresholds, numpy.nan)
     main_data_dict = {
         POD_KEY: (these_dim, this_array + 0.),
         POFD_KEY: (these_dim, this_array + 0.),
@@ -337,7 +332,6 @@ def get_advanced_scores(basic_score_table_xarray):
             gg_model_eval.NUM_TRUE_NEGATIVES_KEY:
                 basic_score_table_xarray[NUM_TRUE_NEGATIVES_KEY].values[k]
         }
-        print(this_contingency_table)
 
         advanced_score_table_xarray[POD_KEY].values[k] = (
             gg_model_eval.get_pod(this_contingency_table)
@@ -360,7 +354,6 @@ def get_advanced_scores(basic_score_table_xarray):
         advanced_score_table_xarray[HEIDKE_SCORE_KEY].values[k] = (
             gg_model_eval.get_heidke_score(this_contingency_table)
         )
-        print(advanced_score_table_xarray[POFD_KEY].values[k])
 
     auc = gg_model_eval.get_area_under_roc_curve(
         pofd_by_threshold=advanced_score_table_xarray[POFD_KEY].values,
@@ -405,8 +398,17 @@ def write_file(score_table_xarray, netcdf_file_name):
     #     path=netcdf_file_name, mode='w', format='NETCDF3_64BIT_OFFSET'
     # )
 
+    encoding_dict = {
+        NUM_TRUE_POSITIVES_KEY: 'int64',
+        NUM_FALSE_POSITIVES_KEY: 'int64',
+        NUM_FALSE_NEGATIVES_KEY: 'int64',
+        NUM_TRUE_NEGATIVES_KEY: 'int64',
+        NUM_EXAMPLES_KEY: 'int64'
+    }
+
     score_table_xarray.to_netcdf(
-        path=netcdf_file_name, mode='w', format='NETCDF3_64BIT'
+        path=netcdf_file_name, mode='w',
+        format='NETCDF3_64BIT', encoding=encoding_dict
     )
 
 
