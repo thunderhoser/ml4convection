@@ -3,8 +3,6 @@
 import os
 import sys
 import numpy
-import tensorflow
-import tensorflow.keras as tf_keras
 from tensorflow.keras import backend as K
 
 THIS_DIRECTORY_NAME = os.path.dirname(os.path.realpath(
@@ -123,41 +121,17 @@ def fractions_skill_score(half_window_size_px, use_as_loss_function,
         :return: loss: Fractions skill score.
         """
 
-        sess = tensorflow.Session()
-        with sess.as_default():
-            print(K.eval(K.min(target_tensor)))
-            print(K.eval(K.max(target_tensor)))
-        print('\n\n')
-
         smoothed_target_tensor = K.conv2d(
             x=target_tensor, kernel=weight_matrix,
             padding='same' if test_mode else 'valid',
             strides=(1, 1), data_format='channels_last'
         )
 
-        sess = tensorflow.Session()
-        with sess.as_default():
-            print(K.eval(K.min(smoothed_target_tensor)))
-            print(K.eval(K.max(smoothed_target_tensor)))
-        print('\n\n')
-
-        sess = tensorflow.Session()
-        with sess.as_default():
-            print(K.eval(K.min(prediction_tensor)))
-            print(K.eval(K.max(prediction_tensor)))
-        print('\n\n')
-
         smoothed_prediction_tensor = K.conv2d(
             x=prediction_tensor, kernel=weight_matrix,
             padding='same' if test_mode else 'valid',
             strides=(1, 1), data_format='channels_last'
         )
-
-        sess = tensorflow.Session()
-        with sess.as_default():
-            print(K.eval(K.min(smoothed_prediction_tensor)))
-            print(K.eval(K.max(smoothed_prediction_tensor)))
-        print('\n\n\n\n\n\n\n****************\n\n\n\n\n\n\n')
 
         actual_mse = K.mean(
             (smoothed_target_tensor - smoothed_prediction_tensor) ** 2

@@ -42,6 +42,8 @@ METRIC_FUNCTION_LIST = [
     custom_metrics.binary_pod, custom_metrics.binary_pofd,
     custom_metrics.binary_peirce_score, custom_metrics.binary_success_ratio,
     custom_metrics.binary_focn,
+    custom_metrics.min_target, custom_metrics.max_target,
+    custom_metrics.min_prediction, custom_metrics.max_prediction
     # custom_losses.fractions_skill_score(
     #     half_window_size_px=1, use_as_loss_function=False
     # ),
@@ -66,6 +68,10 @@ METRIC_FUNCTION_DICT = {
     'binary_peirce_score': custom_metrics.binary_peirce_score,
     'binary_success_ratio': custom_metrics.binary_success_ratio,
     'binary_focn': custom_metrics.binary_focn,
+    'min_target': custom_metrics.min_target,
+    'max_target': custom_metrics.max_target,
+    'min_prediction': custom_metrics.min_prediction,
+    'max_prediction': custom_metrics.max_prediction
     # 'fss_3by3': custom_losses.fractions_skill_score(
     #     half_window_size_px=1, use_as_loss_function=False
     # ),
