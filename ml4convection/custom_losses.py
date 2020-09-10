@@ -185,17 +185,17 @@ def fractions_skill_score(half_window_size_px, use_as_loss_function,
         # smoothed_target_tensor = mean_filter_layer_object(target_tensor)
         # smoothed_prediction_tensor = mean_filter_layer_object(prediction_tensor)
 
-        smoothed_target_matrix = _do_2d_convolution(
-            feature_matrix=K.eval(target_tensor),
-            kernel_matrix=weight_matrix, pad_edges=test_mode, stride_length_px=1
+        smoothed_target_tensor = K.conv2d(
+            x=target_tensor, kernel=K.variable(weight_matrix),
+            padding='same' if test_mode else 'valid',
+            strides=(1, 1), data_format='channels_last'
         )
-        smoothed_target_tensor = K.variable(smoothed_target_matrix)
 
-        smoothed_prediction_matrix = _do_2d_convolution(
-            feature_matrix=K.eval(prediction_tensor),
-            kernel_matrix=weight_matrix, pad_edges=test_mode, stride_length_px=1
+        smoothed_prediction_tensor = K.conv2d(
+            x=prediction_tensor, kernel=K.variable(weight_matrix),
+            padding='same' if test_mode else 'valid',
+            strides=(1, 1), data_format='channels_last'
         )
-        smoothed_prediction_tensor = K.variable(smoothed_prediction_matrix)
 
         actual_mse = K.mean(
             (smoothed_target_tensor - smoothed_prediction_tensor) ** 2
