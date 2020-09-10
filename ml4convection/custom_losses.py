@@ -186,13 +186,13 @@ def fractions_skill_score(half_window_size_px, use_as_loss_function,
         # smoothed_prediction_tensor = mean_filter_layer_object(prediction_tensor)
 
         smoothed_target_tensor = K.conv2d(
-            x=target_tensor, kernel=K.variable(weight_matrix),
+            x=target_tensor, kernel=weight_matrix,
             padding='same' if test_mode else 'valid',
             strides=(1, 1), data_format='channels_last'
         )
 
         smoothed_prediction_tensor = K.conv2d(
-            x=prediction_tensor, kernel=K.variable(weight_matrix),
+            x=prediction_tensor, kernel=weight_matrix,
             padding='same' if test_mode else 'valid',
             strides=(1, 1), data_format='channels_last'
         )
