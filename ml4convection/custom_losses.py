@@ -14,6 +14,56 @@ sys.path.append(os.path.normpath(os.path.join(THIS_DIRECTORY_NAME, '..')))
 import error_checking
 
 
+def _do_2d_convolution(
+        feature_matrix, kernel_matrix, pad_edges=False, stride_length_px=1):
+    """Convolves 2-D feature maps with 2-D kernel.
+
+    m = number of rows in kernel
+    n = number of columns in kernel
+    c = number of output feature maps (channels)
+
+    :param feature_matrix: Input feature maps (numpy array).  Dimensions must be
+        M x N x C or 1 x M x N x C.
+    :param kernel_matrix: Kernel as numpy array.  Dimensions must be
+        m x n x C x c.
+    :param pad_edges: Boolean flag.  If True, edges of input feature maps will
+        be zero-padded during convolution, so spatial dimensions of the output
+        feature maps will be the same (M x N).  If False, dimensions
+        of the output maps will be (M - m + 1) x (N - n + 1).
+    :param stride_length_px: Stride length (pixels).  The kernel will move by
+        this many rows or columns at a time as it slides over each input feature
+        map.
+    :return: feature_matrix: Output feature maps (numpy array).  Dimensions will
+        be 1 x M x N x c or 1 x (M - m + 1) x (N - n + 1) x c, depending on
+        whether or not edges are padded.
+    """
+
+    error_checking.assert_is_numpy_array_without_nan(feature_matrix)
+    error_checking.assert_is_numpy_array_without_nan(kernel_matrix)
+    error_checking.assert_is_numpy_array(kernel_matrix, num_dimensions=4)
+    error_checking.assert_is_boolean(pad_edges)
+    error_checking.assert_is_integer(stride_length_px)
+    error_checking.assert_is_geq(stride_length_px, 1)
+
+    if len(feature_matrix.shape) == 3:
+        feature_matrix = numpy.expand_dims(feature_matrix, axis=0)
+
+    error_checking.assert_is_numpy_array(feature_matrix, num_dimensions=4)
+
+    if pad_edges:
+        padding_string = 'same'
+    else:
+        padding_string = 'valid'
+
+    feature_tensor = K.conv2d(
+        x=K.variable(feature_matrix), kernel=K.variable(kernel_matrix),
+        strides=(stride_length_px, stride_length_px), padding=padding_string,
+        data_format='channels_last'
+    )
+
+    return feature_tensor.numpy()
+
+
 def _create_mean_filter(half_num_rows, half_num_columns, num_channels):
     """Creates convolutional filter that computes mean.
 
@@ -132,8 +182,20 @@ def fractions_skill_score(half_window_size_px, use_as_loss_function,
         :return: loss: Fractions skill score.
         """
 
-        smoothed_target_tensor = mean_filter_layer_object(target_tensor)
-        smoothed_prediction_tensor = mean_filter_layer_object(prediction_tensor)
+        # smoothed_target_tensor = mean_filter_layer_object(target_tensor)
+        # smoothed_prediction_tensor = mean_filter_layer_object(prediction_tensor)
+
+        smoothed_target_matrix = _do_2d_convolution(
+            feature_matrix=K.eval(target_tensor),
+            kernel_matrix=weight_matrix, pad_edges=test_mode, stride_length_px=1
+        )
+        smoothed_target_tensor = K.variable(smoothed_target_matrix)
+
+        smoothed_prediction_matrix = _do_2d_convolution(
+            feature_matrix=K.eval(prediction_tensor),
+            kernel_matrix=weight_matrix, pad_edges=test_mode, stride_length_px=1
+        )
+        smoothed_prediction_tensor = K.variable(smoothed_prediction_matrix)
 
         actual_mse = K.mean(
             (smoothed_target_tensor - smoothed_prediction_tensor) ** 2
