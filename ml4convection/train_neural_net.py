@@ -117,9 +117,7 @@ def _run(use_preprocessed_files,
     )
 
     print('Reading class weights from: "{0:s}"...'.format(input_metafile_name))
-    class_weights = neural_net.read_metafile(input_metafile_name)[
-        neural_net.CLASS_WEIGHTS_KEY
-    ]
+    metadata_dict = neural_net.read_metafile(input_metafile_name)
 
     print(SEPARATOR_STRING)
 
@@ -132,7 +130,9 @@ def _run(use_preprocessed_files,
             num_validation_batches_per_epoch=num_validn_batches_per_epoch,
             validation_option_dict=validation_option_dict,
             do_early_stopping=True, plateau_lr_multiplier=plateau_lr_multiplier,
-            class_weights=class_weights
+            class_weights=metadata_dict[neural_net.CLASS_WEIGHTS_KEY],
+            fss_half_window_size_px=
+            metadata_dict[neural_net.FSS_HALF_WINDOW_SIZE_KEY]
         )
     else:
         neural_net.train_model_from_raw_files(
@@ -143,7 +143,9 @@ def _run(use_preprocessed_files,
             num_validation_batches_per_epoch=num_validn_batches_per_epoch,
             validation_option_dict=validation_option_dict,
             do_early_stopping=True, plateau_lr_multiplier=plateau_lr_multiplier,
-            class_weights=class_weights
+            class_weights=metadata_dict[neural_net.CLASS_WEIGHTS_KEY],
+            fss_half_window_size_px=
+            metadata_dict[neural_net.FSS_HALF_WINDOW_SIZE_KEY]
         )
 
 
