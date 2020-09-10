@@ -132,8 +132,12 @@ def fractions_skill_score(half_window_size_px, use_as_loss_function,
         :return: loss: Fractions skill score.
         """
 
-        smoothed_target_tensor = mean_filter_layer_object(target_tensor)
-        smoothed_prediction_tensor = mean_filter_layer_object(prediction_tensor)
+        smoothed_target_tensor = mean_filter_layer_object(
+            K.expand_dims(target_tensor, axis=-1)
+        )
+        smoothed_prediction_tensor = mean_filter_layer_object(
+            K.expand_dims(prediction_tensor, axis=-1)
+        )
 
         actual_mse = K.mean(
             (smoothed_target_tensor - smoothed_prediction_tensor) ** 2
