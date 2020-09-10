@@ -123,14 +123,14 @@ def _run(top_prediction_dir_name, first_date_string, last_date_string,
         'frequency bias = {5:.4f} ... accuracy = {6:.4f} ... '
         'Heidke score = {7:.4f}\n'
     ).format(
-        a.coords[pixelwise_eval.CSI_KEY].values[best_index],
+        a[pixelwise_eval.CSI_KEY].values[best_index],
         a.coords[pixelwise_eval.PROBABILITY_THRESHOLD_DIM].values[best_index],
-        a.coords[pixelwise_eval.POD_KEY].values[best_index],
-        a.coords[pixelwise_eval.POFD_KEY].values[best_index],
-        a.coords[pixelwise_eval.SUCCESS_RATIO_KEY].values[best_index],
-        a.coords[pixelwise_eval.FREQUENCY_BIAS_KEY].values[best_index],
-        a.coords[pixelwise_eval.ACCURACY_KEY].values[best_index],
-        a.coords[pixelwise_eval.HEIDKE_SCORE_KEY].values[best_index]
+        a[pixelwise_eval.POD_KEY].values[best_index],
+        a[pixelwise_eval.POFD_KEY].values[best_index],
+        a[pixelwise_eval.SUCCESS_RATIO_KEY].values[best_index],
+        a[pixelwise_eval.FREQUENCY_BIAS_KEY].values[best_index],
+        a[pixelwise_eval.ACCURACY_KEY].values[best_index],
+        a[pixelwise_eval.HEIDKE_SCORE_KEY].values[best_index]
     ))
 
     basic_file_name = '{0:s}/basic_scores.nc'.format(output_dir_name)

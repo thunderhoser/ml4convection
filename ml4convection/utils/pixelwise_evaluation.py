@@ -4,11 +4,12 @@ import numpy
 import xarray
 from gewittergefahr.gg_utils import histograms
 from gewittergefahr.gg_utils import model_evaluation as gg_model_eval
+from gewittergefahr.gg_utils import general_utils as gg_general_utils
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
 from ml4convection.io import prediction_io
 
-DEFAULT_NUM_PROB_THRESHOLDS = 1001
+DEFAULT_NUM_PROB_THRESHOLDS = 201
 DEFAULT_NUM_RELIA_BINS = 20
 
 PROBABILITY_THRESHOLD_DIM = 'probability_threshold'
@@ -113,10 +114,38 @@ def _update_basic_scores(basic_score_table_xarray, prediction_file_name,
     )
     num_prob_thresholds = len(probability_thresholds)
 
-    positive_example_indices = numpy.where(target_classes == 1)[0]
-    negative_example_indices = numpy.where(target_classes == 0)[0]
+    sort_indices = numpy.argsort(target_classes)
+    target_classes = target_classes[sort_indices]
+    forecast_probabilities = forecast_probabilities[sort_indices]
+    num_points = len(target_classes)
+
+    if numpy.max(target_classes) == 0:
+        negative_example_indices = numpy.linspace(
+            0, num_points - 1, num=num_points, dtype=int
+        )
+        positive_example_indices = numpy.array([], dtype=int)
+    else:
+        first_positive_index = gg_general_utils.find_nearest_value(
+            sorted_input_values=target_classes, test_value=1
+        )[1]
+
+        negative_example_indices = numpy.linspace(
+            0, first_positive_index - 1, num=first_positive_index, dtype=int
+        )
+        positive_example_indices = numpy.linspace(
+            first_positive_index, num_points - 1,
+            num=num_points - first_positive_index, dtype=int
+        )
 
     for k in range(num_prob_thresholds):
+        if numpy.mod(k, 10) == 0:
+            print((
+                'Have updated contingency tables for {0:d} of {1:d} probability'
+                ' thresholds...'
+            ).format(
+                k, num_prob_thresholds
+            ))
+
         these_forecast_classes = (
             forecast_probabilities >= probability_thresholds[k]
         ).astype(int)
@@ -133,6 +162,12 @@ def _update_basic_scores(basic_score_table_xarray, prediction_file_name,
         basic_score_table_xarray[NUM_TRUE_NEGATIVES_KEY].values[k] += (
             numpy.sum(these_forecast_classes[negative_example_indices] == 0)
         )
+
+    print((
+        'Have updated contingency tables for all {0:d} probability thresholds!'
+    ).format(
+        num_prob_thresholds
+    ))
 
     return (
         basic_score_table_xarray,
@@ -177,11 +212,12 @@ def get_basic_scores(
 
     probability_thresholds = gg_model_eval.get_binarization_thresholds(
         threshold_arg=num_prob_thresholds
-    )
+    ).astype(numpy.float32)
     num_prob_thresholds = len(probability_thresholds)
 
     bin_indices = numpy.linspace(
-        0, num_bins_for_reliability - 1, num=num_bins_for_reliability, dtype=int
+        0, num_bins_for_reliability - 1, num=num_bins_for_reliability,
+        dtype=numpy.int32
     )
     metadata_dict = {
         PROBABILITY_THRESHOLD_DIM: probability_thresholds,
@@ -189,7 +225,7 @@ def get_basic_scores(
     }
 
     these_dim = (PROBABILITY_THRESHOLD_DIM,)
-    this_array = numpy.full(num_prob_thresholds, 0, dtype=int)
+    this_array = numpy.full(num_prob_thresholds, 0, dtype=numpy.int32)
     main_data_dict = {
         NUM_TRUE_POSITIVES_KEY: (these_dim, this_array + 0),
         NUM_FALSE_POSITIVES_KEY: (these_dim, this_array + 0),
@@ -198,8 +234,12 @@ def get_basic_scores(
     }
 
     these_dim = (RELIABILITY_BIN_DIM,)
-    this_integer_array = numpy.full(num_bins_for_reliability, 0, dtype=int)
-    this_float_array = numpy.full(num_bins_for_reliability, 0, dtype=float)
+    this_integer_array = numpy.full(
+        num_bins_for_reliability, 0, dtype=numpy.int32
+    )
+    this_float_array = numpy.full(
+        num_bins_for_reliability, 0, dtype=numpy.float32
+    )
     new_dict = {
         NUM_EXAMPLES_KEY: (these_dim, this_integer_array + 0),
         EVENT_FREQUENCY_KEY: (these_dim, this_float_array + 0.),
@@ -263,7 +303,7 @@ def get_advanced_scores(basic_score_table_xarray):
     }
 
     these_dim = (PROBABILITY_THRESHOLD_DIM,)
-    this_array = numpy.full(num_prob_thresholds, numpy.nan)
+    this_array = numpy.full(num_prob_thresholds, numpy.nan, dtype=numpy.float32)
     main_data_dict = {
         POD_KEY: (these_dim, this_array + 0.),
         POFD_KEY: (these_dim, this_array + 0.),
