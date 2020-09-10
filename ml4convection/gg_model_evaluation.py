@@ -626,23 +626,16 @@ def get_heidke_score(contingency_table_as_dict):
     :return: heidke_score: Heidke score.
     """
 
-    numerator = 2 * float(
-        contingency_table_as_dict[NUM_TRUE_POSITIVES_KEY] *
-        contingency_table_as_dict[NUM_TRUE_NEGATIVES_KEY] -
-        contingency_table_as_dict[NUM_FALSE_POSITIVES_KEY] *
-        contingency_table_as_dict[NUM_FALSE_NEGATIVES_KEY]
-    )
-
     num_positives = (
         contingency_table_as_dict[NUM_TRUE_POSITIVES_KEY] +
         contingency_table_as_dict[NUM_FALSE_POSITIVES_KEY]
     )
-    num_negatives = (
-        contingency_table_as_dict[NUM_TRUE_NEGATIVES_KEY] +
-        contingency_table_as_dict[NUM_FALSE_NEGATIVES_KEY]
-    )
     num_events = (
         contingency_table_as_dict[NUM_TRUE_POSITIVES_KEY] +
+        contingency_table_as_dict[NUM_FALSE_NEGATIVES_KEY]
+    )
+    num_negatives = (
+        contingency_table_as_dict[NUM_TRUE_NEGATIVES_KEY] +
         contingency_table_as_dict[NUM_FALSE_NEGATIVES_KEY]
     )
     num_non_events = (
@@ -650,7 +643,21 @@ def get_heidke_score(contingency_table_as_dict):
         contingency_table_as_dict[NUM_FALSE_POSITIVES_KEY]
     )
 
-    denominator = num_positives * num_non_events + num_negatives * num_events
+    num_examples = num_positives + num_negatives
+
+    try:
+        expected_num_correct = float(
+            num_positives * num_events + num_negatives * num_non_events
+        ) / num_examples
+    except ZeroDivisionError:
+        return numpy.nan
+
+    numerator = float(
+        contingency_table_as_dict[NUM_TRUE_POSITIVES_KEY] +
+        contingency_table_as_dict[NUM_TRUE_NEGATIVES_KEY] -
+        expected_num_correct
+    )
+    denominator = num_examples - expected_num_correct
 
     try:
         return numerator / denominator
