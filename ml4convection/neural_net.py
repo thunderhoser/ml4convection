@@ -42,18 +42,18 @@ METRIC_FUNCTION_LIST = [
     custom_metrics.binary_pod, custom_metrics.binary_pofd,
     custom_metrics.binary_peirce_score, custom_metrics.binary_success_ratio,
     custom_metrics.binary_focn,
-    custom_losses.fractions_skill_score(
-        half_window_size_px=1, use_as_loss_function=False
-    ),
-    custom_losses.fractions_skill_score(
-        half_window_size_px=2, use_as_loss_function=False
-    ),
-    custom_losses.fractions_skill_score(
-        half_window_size_px=3, use_as_loss_function=False
-    ),
-    custom_losses.fractions_skill_score(
-        half_window_size_px=4, use_as_loss_function=False
-    )
+    # custom_losses.fractions_skill_score(
+    #     half_window_size_px=1, use_as_loss_function=False
+    # ),
+    # custom_losses.fractions_skill_score(
+    #     half_window_size_px=2, use_as_loss_function=False
+    # ),
+    # custom_losses.fractions_skill_score(
+    #     half_window_size_px=3, use_as_loss_function=False
+    # ),
+    # custom_losses.fractions_skill_score(
+    #     half_window_size_px=4, use_as_loss_function=False
+    # )
 ]
 
 METRIC_FUNCTION_DICT = {
@@ -66,18 +66,18 @@ METRIC_FUNCTION_DICT = {
     'binary_peirce_score': custom_metrics.binary_peirce_score,
     'binary_success_ratio': custom_metrics.binary_success_ratio,
     'binary_focn': custom_metrics.binary_focn,
-    'fss_3by3': custom_losses.fractions_skill_score(
-        half_window_size_px=1, use_as_loss_function=False
-    ),
-    'fss_5by5': custom_losses.fractions_skill_score(
-        half_window_size_px=2, use_as_loss_function=False
-    ),
-    'fss_7by7': custom_losses.fractions_skill_score(
-        half_window_size_px=3, use_as_loss_function=False
-    ),
-    'fss_9by9': custom_losses.fractions_skill_score(
-        half_window_size_px=4, use_as_loss_function=False
-    )
+    # 'fss_3by3': custom_losses.fractions_skill_score(
+    #     half_window_size_px=1, use_as_loss_function=False
+    # ),
+    # 'fss_5by5': custom_losses.fractions_skill_score(
+    #     half_window_size_px=2, use_as_loss_function=False
+    # ),
+    # 'fss_7by7': custom_losses.fractions_skill_score(
+    #     half_window_size_px=3, use_as_loss_function=False
+    # ),
+    # 'fss_9by9': custom_losses.fractions_skill_score(
+    #     half_window_size_px=4, use_as_loss_function=False
+    # )
 }
 
 SATELLITE_DIRECTORY_KEY = 'top_satellite_dir_name'
