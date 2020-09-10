@@ -3,8 +3,8 @@
 import os
 import sys
 import numpy
-from keras import backend as K
 import tensorflow.keras as tf_keras
+from tensorflow.keras import backend as K
 
 THIS_DIRECTORY_NAME = os.path.dirname(os.path.realpath(
     os.path.join(os.getcwd(), os.path.expanduser(__file__))
@@ -132,12 +132,8 @@ def fractions_skill_score(half_window_size_px, use_as_loss_function,
         :return: loss: Fractions skill score.
         """
 
-        smoothed_target_tensor = mean_filter_layer_object(
-            K.expand_dims(target_tensor, axis=-1)
-        )
-        smoothed_prediction_tensor = mean_filter_layer_object(
-            K.expand_dims(prediction_tensor, axis=-1)
-        )
+        smoothed_target_tensor = mean_filter_layer_object(target_tensor)
+        smoothed_prediction_tensor = mean_filter_layer_object(prediction_tensor)
 
         actual_mse = K.mean(
             (smoothed_target_tensor - smoothed_prediction_tensor) ** 2
