@@ -5,7 +5,6 @@ import keras
 from gewittergefahr.gg_utils import error_checking
 from gewittergefahr.deep_learning import architecture_utils
 from ml4convection.machine_learning import neural_net
-from ml4convection.machine_learning import custom_losses
 
 INPUT_DIMENSIONS_KEY = 'input_dimensions'
 NUM_LEVELS_KEY = 'num_levels'
@@ -141,7 +140,7 @@ def _check_architecture_args(option_dict):
     return option_dict
 
 
-def create_model(option_dict, class_weights=None):
+def create_model(option_dict, loss_function):
     """Creates U-net.
 
     This method sets up the architecture, loss function, and optimizer -- and
@@ -151,18 +150,12 @@ def create_model(option_dict, class_weights=None):
     https://github.com/zhixuhao/unet/blob/master/model.py
 
     :param option_dict: See doc for `_check_architecture_args`.
-    :param class_weights: length-2 numpy with class weights for loss function.
-        Elements will be interpreted as
-        (negative_class_weight, positive_class_weight).  If this is None, will
-        use the default loss function (unweighted cross-entropy).
+    :param loss_function: Loss function.
     :return: model_object: Instance of `keras.models.Model`, with the
         aforementioned architecture.
     """
 
     option_dict = _check_architecture_args(option_dict)
-
-    if class_weights is not None:
-        neural_net.check_class_weights(class_weights)
 
     input_dimensions = option_dict[INPUT_DIMENSIONS_KEY]
     num_levels = option_dict[NUM_LEVELS_KEY]
@@ -397,11 +390,6 @@ def create_model(option_dict, class_weights=None):
     model_object = keras.models.Model(
         inputs=input_layer_object, outputs=skip_layer_by_level[0]
     )
-
-    if class_weights is None:
-        loss_function = keras.losses.binary_crossentropy
-    else:
-        loss_function = custom_losses.weighted_xentropy(class_weights)
 
     model_object.compile(
         loss=loss_function, optimizer=keras.optimizers.Adam(),

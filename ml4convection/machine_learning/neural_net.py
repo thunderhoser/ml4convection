@@ -34,7 +34,19 @@ METRIC_FUNCTION_LIST = [
     custom_metrics.binary_csi, custom_metrics.binary_frequency_bias,
     custom_metrics.binary_pod, custom_metrics.binary_pofd,
     custom_metrics.binary_peirce_score, custom_metrics.binary_success_ratio,
-    custom_metrics.binary_focn
+    custom_metrics.binary_focn,
+    custom_losses.fractions_skill_score(
+        half_window_size_px=1, use_as_loss_function=False
+    ),
+    custom_losses.fractions_skill_score(
+        half_window_size_px=2, use_as_loss_function=False
+    ),
+    custom_losses.fractions_skill_score(
+        half_window_size_px=3, use_as_loss_function=False
+    ),
+    custom_losses.fractions_skill_score(
+        half_window_size_px=4, use_as_loss_function=False
+    )
 ]
 
 METRIC_FUNCTION_DICT = {
@@ -46,7 +58,19 @@ METRIC_FUNCTION_DICT = {
     'binary_pofd': custom_metrics.binary_pofd,
     'binary_peirce_score': custom_metrics.binary_peirce_score,
     'binary_success_ratio': custom_metrics.binary_success_ratio,
-    'binary_focn': custom_metrics.binary_focn
+    'binary_focn': custom_metrics.binary_focn,
+    'fss_3by3': custom_losses.fractions_skill_score(
+        half_window_size_px=1, use_as_loss_function=False
+    ),
+    'fss_5by5': custom_losses.fractions_skill_score(
+        half_window_size_px=2, use_as_loss_function=False
+    ),
+    'fss_7by7': custom_losses.fractions_skill_score(
+        half_window_size_px=3, use_as_loss_function=False
+    ),
+    'fss_9by9': custom_losses.fractions_skill_score(
+        half_window_size_px=4, use_as_loss_function=False
+    )
 }
 
 SATELLITE_DIRECTORY_KEY = 'top_satellite_dir_name'
@@ -86,11 +110,13 @@ VALIDATION_OPTIONS_KEY = 'validation_option_dict'
 EARLY_STOPPING_KEY = 'do_early_stopping'
 PLATEAU_LR_MUTIPLIER_KEY = 'plateau_lr_multiplier'
 CLASS_WEIGHTS_KEY = 'class_weights'
+FSS_HALF_WINDOW_SIZE_KEY = 'fss_half_window_size_px'
 
 METADATA_KEYS = [
     NUM_EPOCHS_KEY, NUM_TRAINING_BATCHES_KEY, TRAINING_OPTIONS_KEY,
     NUM_VALIDATION_BATCHES_KEY, VALIDATION_OPTIONS_KEY,
-    EARLY_STOPPING_KEY, PLATEAU_LR_MUTIPLIER_KEY, CLASS_WEIGHTS_KEY
+    EARLY_STOPPING_KEY, PLATEAU_LR_MUTIPLIER_KEY, CLASS_WEIGHTS_KEY,
+    FSS_HALF_WINDOW_SIZE_KEY
 ]
 
 PREDICTOR_MATRIX_KEY = 'predictor_matrix'
@@ -470,7 +496,7 @@ def _write_metafile(
         dill_file_name, num_epochs, num_training_batches_per_epoch,
         training_option_dict, num_validation_batches_per_epoch,
         validation_option_dict, do_early_stopping, plateau_lr_multiplier,
-        class_weights):
+        class_weights, fss_half_window_size_px):
     """Writes metadata to Dill file.
 
     :param dill_file_name: Path to output file.
@@ -482,6 +508,7 @@ def _write_metafile(
     :param do_early_stopping: Same.
     :param plateau_lr_multiplier: Same.
     :param class_weights: Same.
+    :param fss_half_window_size_px: Same.
     """
 
     metadata_dict = {
@@ -492,7 +519,8 @@ def _write_metafile(
         VALIDATION_OPTIONS_KEY: validation_option_dict,
         EARLY_STOPPING_KEY: do_early_stopping,
         PLATEAU_LR_MUTIPLIER_KEY: plateau_lr_multiplier,
-        CLASS_WEIGHTS_KEY: class_weights
+        CLASS_WEIGHTS_KEY: class_weights,
+        FSS_HALF_WINDOW_SIZE_KEY: fss_half_window_size_px
     }
 
     file_system_utils.mkdir_recursive_if_necessary(file_name=dill_file_name)
@@ -1044,7 +1072,7 @@ def train_model_from_raw_files(
         num_validation_batches_per_epoch, validation_option_dict,
         do_early_stopping=True,
         plateau_lr_multiplier=DEFAULT_LEARNING_RATE_MULTIPLIER,
-        class_weights=None):
+        class_weights=None, fss_half_window_size_px=None):
     """Trains neural net from raw (satellite and radar) files.
 
     :param model_object: Untrained neural net (instance of `keras.models.Model`
@@ -1071,8 +1099,11 @@ def train_model_from_raw_files(
     :param plateau_lr_multiplier: Multiplier for learning rate.  Learning
         rate will be multiplied by this factor upon plateau in validation
         performance.
-    :param class_weights: See doc for `check_class_weights`.  If model uses
-        unweighted loss function, leave this alone.
+    :param class_weights: See doc for `check_class_weights`.  If weighted cross-
+        entropy is not the loss function, leave this alone.
+    :param fss_half_window_size_px: Number of pixels (grid cells) in half of
+        smoothing window for fractions skill score (FSS).  If FSS is not the
+        loss function, leave this alone.
     """
 
     file_system_utils.mkdir_recursive_if_necessary(
@@ -1093,6 +1124,10 @@ def train_model_from_raw_files(
 
     if class_weights is not None:
         check_class_weights(class_weights)
+
+    if fss_half_window_size_px is not None:
+        error_checking.assert_is_integer(fss_half_window_size_px)
+        error_checking.assert_is_geq(fss_half_window_size_px, 0)
 
     training_option_dict = _check_generator_args(training_option_dict)
 
@@ -1151,7 +1186,9 @@ def train_model_from_raw_files(
         num_validation_batches_per_epoch=num_validation_batches_per_epoch,
         validation_option_dict=validation_option_dict,
         do_early_stopping=do_early_stopping,
-        plateau_lr_multiplier=plateau_lr_multiplier, class_weights=class_weights
+        plateau_lr_multiplier=plateau_lr_multiplier,
+        class_weights=class_weights,
+        fss_half_window_size_px=fss_half_window_size_px
     )
 
     training_generator = generator_from_raw_files(training_option_dict)
@@ -1172,7 +1209,7 @@ def train_model_from_preprocessed_files(
         num_validation_batches_per_epoch, validation_option_dict,
         do_early_stopping=True,
         plateau_lr_multiplier=DEFAULT_LEARNING_RATE_MULTIPLIER,
-        class_weights=None):
+        class_weights=None, fss_half_window_size_px=None):
     """Trains neural net from pre-processed (predictor and target) files.
 
     :param model_object: See doc for `train_model_from_raw_files`.
@@ -1195,6 +1232,7 @@ def train_model_from_preprocessed_files(
     :param do_early_stopping: See doc for `train_model_from_raw_files`.
     :param plateau_lr_multiplier: Same.
     :param class_weights: Same.
+    :param fss_half_window_size_px: Same.
     """
 
     file_system_utils.mkdir_recursive_if_necessary(
@@ -1215,6 +1253,10 @@ def train_model_from_preprocessed_files(
 
     if class_weights is not None:
         check_class_weights(class_weights)
+
+    if fss_half_window_size_px is not None:
+        error_checking.assert_is_integer(fss_half_window_size_px)
+        error_checking.assert_is_geq(fss_half_window_size_px, 0)
 
     training_option_dict = _check_generator_args(training_option_dict)
 
@@ -1269,7 +1311,9 @@ def train_model_from_preprocessed_files(
         num_validation_batches_per_epoch=num_validation_batches_per_epoch,
         validation_option_dict=validation_option_dict,
         do_early_stopping=do_early_stopping,
-        plateau_lr_multiplier=plateau_lr_multiplier, class_weights=class_weights
+        plateau_lr_multiplier=plateau_lr_multiplier,
+        class_weights=class_weights,
+        fss_half_window_size_px=fss_half_window_size_px
     )
 
     training_generator = generator_from_preprocessed_files(training_option_dict)
@@ -1308,9 +1352,15 @@ def read_model(hdf5_file_name):
 
     metadata_dict = read_metafile(metafile_name)
     class_weights = metadata_dict[CLASS_WEIGHTS_KEY]
+    fss_half_window_size_px = metadata_dict[FSS_HALF_WINDOW_SIZE_KEY]
     custom_object_dict = copy.deepcopy(METRIC_FUNCTION_DICT)
 
-    if class_weights is not None:
+    if fss_half_window_size_px is not None:
+        custom_object_dict['loss'] = custom_losses.fractions_skill_score(
+            half_window_size_px=fss_half_window_size_px,
+            use_as_loss_function=True
+        )
+    elif class_weights is not None:
         custom_object_dict['loss'] = custom_losses.weighted_xentropy(
             class_weights
         )
@@ -1359,6 +1409,7 @@ def read_metafile(dill_file_name):
     metadata_dict['do_early_stopping']: Same.
     metadata_dict['plateau_lr_multiplier']: Same.
     metadata_dict['class_weights']: Same.
+    metadata_dict['fss_half_window_size_px']: Same.
 
     :raises: ValueError: if any expected key is not found in dictionary.
     """
@@ -1371,6 +1422,8 @@ def read_metafile(dill_file_name):
 
     if CLASS_WEIGHTS_KEY not in metadata_dict:
         metadata_dict[CLASS_WEIGHTS_KEY] = None
+    if FSS_HALF_WINDOW_SIZE_KEY not in metadata_dict:
+        metadata_dict[FSS_HALF_WINDOW_SIZE_KEY] = None
 
     missing_keys = list(set(METADATA_KEYS) - set(metadata_dict.keys()))
     if len(missing_keys) == 0:
