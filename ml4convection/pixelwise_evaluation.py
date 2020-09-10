@@ -398,6 +398,12 @@ def write_file(score_table_xarray, netcdf_file_name):
     #     path=netcdf_file_name, mode='w', format='NETCDF3_64BIT_OFFSET'
     # )
 
+    if NUM_TRUE_POSITIVES_KEY not in score_table_xarray:
+        score_table_xarray.to_netcdf(
+            path=netcdf_file_name, mode='w', format='NETCDF3_64BIT'
+        )
+        return
+
     encoding_dict = {
         NUM_TRUE_POSITIVES_KEY: {'dtype': 'int64'},
         NUM_FALSE_POSITIVES_KEY: {'dtype': 'int64'},
