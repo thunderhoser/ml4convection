@@ -399,11 +399,11 @@ def write_file(score_table_xarray, netcdf_file_name):
     # )
 
     encoding_dict = {
-        NUM_TRUE_POSITIVES_KEY: 'int64',
-        NUM_FALSE_POSITIVES_KEY: 'int64',
-        NUM_FALSE_NEGATIVES_KEY: 'int64',
-        NUM_TRUE_NEGATIVES_KEY: 'int64',
-        NUM_EXAMPLES_KEY: 'int64'
+        NUM_TRUE_POSITIVES_KEY: {'dtype': 'int64'},
+        NUM_FALSE_POSITIVES_KEY: {'dtype': 'int64'},
+        NUM_FALSE_NEGATIVES_KEY: {'dtype': 'int64'},
+        NUM_TRUE_NEGATIVES_KEY: {'dtype': 'int64'},
+        NUM_EXAMPLES_KEY: {'dtype': 'int64'}
     }
 
     score_table_xarray.to_netcdf(
