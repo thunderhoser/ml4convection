@@ -1363,6 +1363,7 @@ def read_model(hdf5_file_name):
     custom_object_dict = copy.deepcopy(METRIC_FUNCTION_DICT)
 
     if fss_half_window_size_px is not None:
+        print('\n\n\n\n\n\n\nFOOOOOOOOOOOOOOOOO\n\n\n\n\n\n\n')
         custom_object_dict['loss'] = custom_losses.fractions_skill_score(
             half_window_size_px=fss_half_window_size_px,
             use_as_loss_function=True
