@@ -1,0 +1,39 @@
+#!/bin/tcsh
+
+#SBATCH --job-name="run_pixelwise_evaluation_small_test"
+#SBATCH --partition="fge"
+#SBATCH --account="rda-ghpcs"
+#SBATCH --qos="batch"
+#SBATCH --ntasks=1
+#SBATCH --nodes=1
+#SBATCH --cpus-per-task=1
+#SBATCH --mem=8G
+##SBATCH --nodes=1
+##SBATCH --ntasks=1
+##SBATCH --cpus-per-task=1
+##SBATCH --ntasks-per-node=1
+#SBATCH --time=08:00:00
+#SBATCH --exclude=h28n12
+##SBATCH --exclude=h31n03,h28n12
+##SBATCH --exclude=h29n01,h26n05,h28n06,h29n07,h30n03,h30n15
+#SBATCH --mail-type=BEGIN,END,FAIL
+#SBATCH --mail-user=ryan.lagerquist@noaa.gov
+#SBATCH --output=run_pixelwise_evaluation_small_test_%A.out
+
+module load cuda/10.1
+source /scratch2/BMC/gsd-hpcs/Jebb.Q.Stewart/conda3.7/etc/profile.d/conda.csh
+conda activate base
+
+set CODE_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_standalone/ml4convection"
+set MODEL_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_models/first_u_net"
+
+set model_file_names={${MODEL_DIR_NAME}/model*.h5}
+set model_file_name=${model_file_names[$#model_file_names]}
+set model_dir_name=`echo $model_file_name | rev | cut -c 4- | rev`
+set prediction_dir_name="${model_dir_name}/validation"
+
+python3 -u "${CODE_DIR_NAME}/run_pixelwise_evaluation.py" \
+--input_prediction_dir_name="${prediction_dir_name}" \
+--first_date_string="20170701" \
+--last_date_string="20170702" \
+--output_dir_name="${prediction_dir_name}/evaluation_test"
