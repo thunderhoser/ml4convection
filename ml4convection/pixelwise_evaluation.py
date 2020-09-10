@@ -17,7 +17,7 @@ import file_system_utils
 import error_checking
 import prediction_io
 
-DEFAULT_NUM_PROB_THRESHOLDS = 501
+DEFAULT_NUM_PROB_THRESHOLDS = 201
 DEFAULT_NUM_RELIA_BINS = 20
 
 PROBABILITY_THRESHOLD_DIM = 'probability_threshold'
@@ -220,11 +220,12 @@ def get_basic_scores(
 
     probability_thresholds = gg_model_eval.get_binarization_thresholds(
         threshold_arg=num_prob_thresholds
-    )
+    ).astype(numpy.float32)
     num_prob_thresholds = len(probability_thresholds)
 
     bin_indices = numpy.linspace(
-        0, num_bins_for_reliability - 1, num=num_bins_for_reliability, dtype=int
+        0, num_bins_for_reliability - 1, num=num_bins_for_reliability,
+        dtype=numpy.int32
     )
     metadata_dict = {
         PROBABILITY_THRESHOLD_DIM: probability_thresholds,
@@ -232,7 +233,7 @@ def get_basic_scores(
     }
 
     these_dim = (PROBABILITY_THRESHOLD_DIM,)
-    this_array = numpy.full(num_prob_thresholds, 0, dtype=int)
+    this_array = numpy.full(num_prob_thresholds, 0, dtype=numpy.int32)
     main_data_dict = {
         NUM_TRUE_POSITIVES_KEY: (these_dim, this_array + 0),
         NUM_FALSE_POSITIVES_KEY: (these_dim, this_array + 0),
@@ -241,8 +242,12 @@ def get_basic_scores(
     }
 
     these_dim = (RELIABILITY_BIN_DIM,)
-    this_integer_array = numpy.full(num_bins_for_reliability, 0, dtype=int)
-    this_float_array = numpy.full(num_bins_for_reliability, 0, dtype=float)
+    this_integer_array = numpy.full(
+        num_bins_for_reliability, 0, dtype=numpy.int32
+    )
+    this_float_array = numpy.full(
+        num_bins_for_reliability, 0, dtype=numpy.float32
+    )
     new_dict = {
         NUM_EXAMPLES_KEY: (these_dim, this_integer_array + 0),
         EVENT_FREQUENCY_KEY: (these_dim, this_float_array + 0.),
@@ -306,7 +311,7 @@ def get_advanced_scores(basic_score_table_xarray):
     }
 
     these_dim = (PROBABILITY_THRESHOLD_DIM,)
-    this_array = numpy.full(num_prob_thresholds, numpy.nan)
+    this_array = numpy.full(num_prob_thresholds, numpy.nan, dtype=numpy.float32)
     main_data_dict = {
         POD_KEY: (these_dim, this_array + 0.),
         POFD_KEY: (these_dim, this_array + 0.),
