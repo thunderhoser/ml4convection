@@ -61,7 +61,7 @@ def _run():
 
         for j in range(num_dropout_rates):
             these_dropout_rates = numpy.full(
-                num_levels, CONV_LAYER_DROPOUT_RATES[j]
+                num_levels + 1, CONV_LAYER_DROPOUT_RATES[j]
             )
 
             for k in range(num_l2_weights):

@@ -2,6 +2,7 @@
 
 import os
 import sys
+import pickle
 import numpy
 import xarray
 
@@ -385,45 +386,42 @@ def get_advanced_scores(basic_score_table_xarray):
     return advanced_score_table_xarray
 
 
-def write_file(score_table_xarray, netcdf_file_name):
-    """Writes evaluation results to NetCDF file.
+def write_file(score_table_xarray, output_file_name):
+    """Writes evaluation results to NetCDF or Pickle file.
 
     :param score_table_xarray: Table created by `get_basic_scores` or
         `get_advanced_scores`.
-    :param netcdf_file_name: Path to output file.
+    :param output_file_name: Path to output file.
     """
 
-    file_system_utils.mkdir_recursive_if_necessary(file_name=netcdf_file_name)
+    file_system_utils.mkdir_recursive_if_necessary(file_name=output_file_name)
     # score_table_xarray.to_netcdf(
-    #     path=netcdf_file_name, mode='w', format='NETCDF3_64BIT_OFFSET'
+    #     path=output_file_name, mode='w', format='NETCDF3_64BIT_OFFSET'
     # )
 
-    if NUM_TRUE_POSITIVES_KEY not in score_table_xarray:
+    if NUM_TRUE_POSITIVES_KEY in score_table_xarray:
+        pickle_file_handle = open(output_file_name, 'wb')
+        pickle.dump(output_file_name, pickle_file_handle)
+        pickle_file_handle.close()
+    else:
         score_table_xarray.to_netcdf(
-            path=netcdf_file_name, mode='w', format='NETCDF3_64BIT'
+            path=output_file_name, mode='w', format='NETCDF3_64BIT'
         )
-        return
-
-    encoding_dict = {
-        NUM_TRUE_POSITIVES_KEY: {'dtype': 'int64'},
-        NUM_FALSE_POSITIVES_KEY: {'dtype': 'int64'},
-        NUM_FALSE_NEGATIVES_KEY: {'dtype': 'int64'},
-        NUM_TRUE_NEGATIVES_KEY: {'dtype': 'int64'},
-        NUM_EXAMPLES_KEY: {'dtype': 'int64'}
-    }
-
-    score_table_xarray.to_netcdf(
-        path=netcdf_file_name, mode='w',
-        format='NETCDF3_64BIT', encoding=encoding_dict
-    )
 
 
-def read_file(netcdf_file_name):
-    """Reads evaluation results from NetCDF file.
+def read_file(input_file_name):
+    """Reads evaluation results from NetCDF or Pickle file.
 
-    :param netcdf_file_name: Path to input file.
+    :param input_file_name: Path to input file.
     :return: score_table_xarray: Table created by `get_basic_scores` or
         `get_advanced_scores`.
     """
 
-    return xarray.open_dataset(netcdf_file_name)
+    try:
+        pickle_file_handle = open(input_file_name, 'rb')
+        score_table_xarray = pickle.load(pickle_file_handle)
+        pickle_file_handle.close()
+    except:
+        score_table_xarray = xarray.open_dataset(input_file_name)
+
+    return score_table_xarray
