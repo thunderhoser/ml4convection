@@ -10,7 +10,6 @@ THIS_DIRECTORY_NAME = os.path.dirname(os.path.realpath(
 sys.path.append(os.path.normpath(os.path.join(THIS_DIRECTORY_NAME, '..')))
 
 import u_net_architecture
-import architecture_utils
 import file_system_utils
 import neural_net
 import custom_losses
