@@ -1,5 +1,6 @@
 """Pixelwise (grid-point-by-grid-point) evaluation."""
 
+import pickle
 import numpy
 import xarray
 from gewittergefahr.gg_utils import histograms
@@ -212,12 +213,11 @@ def get_basic_scores(
 
     probability_thresholds = gg_model_eval.get_binarization_thresholds(
         threshold_arg=num_prob_thresholds
-    ).astype(numpy.float32)
+    )
     num_prob_thresholds = len(probability_thresholds)
 
     bin_indices = numpy.linspace(
-        0, num_bins_for_reliability - 1, num=num_bins_for_reliability,
-        dtype=numpy.int32
+        0, num_bins_for_reliability - 1, num=num_bins_for_reliability, dtype=int
     )
     metadata_dict = {
         PROBABILITY_THRESHOLD_DIM: probability_thresholds,
@@ -225,7 +225,7 @@ def get_basic_scores(
     }
 
     these_dim = (PROBABILITY_THRESHOLD_DIM,)
-    this_array = numpy.full(num_prob_thresholds, 0, dtype=numpy.int32)
+    this_array = numpy.full(num_prob_thresholds, 0, dtype=int)
     main_data_dict = {
         NUM_TRUE_POSITIVES_KEY: (these_dim, this_array + 0),
         NUM_FALSE_POSITIVES_KEY: (these_dim, this_array + 0),
@@ -234,12 +234,8 @@ def get_basic_scores(
     }
 
     these_dim = (RELIABILITY_BIN_DIM,)
-    this_integer_array = numpy.full(
-        num_bins_for_reliability, 0, dtype=numpy.int32
-    )
-    this_float_array = numpy.full(
-        num_bins_for_reliability, 0, dtype=numpy.float32
-    )
+    this_integer_array = numpy.full(num_bins_for_reliability, 0, dtype=int)
+    this_float_array = numpy.full(num_bins_for_reliability, 0, dtype=float)
     new_dict = {
         NUM_EXAMPLES_KEY: (these_dim, this_integer_array + 0),
         EVENT_FREQUENCY_KEY: (these_dim, this_float_array + 0.),
@@ -303,7 +299,7 @@ def get_advanced_scores(basic_score_table_xarray):
     }
 
     these_dim = (PROBABILITY_THRESHOLD_DIM,)
-    this_array = numpy.full(num_prob_thresholds, numpy.nan, dtype=numpy.float32)
+    this_array = numpy.full(num_prob_thresholds, numpy.nan)
     main_data_dict = {
         POD_KEY: (these_dim, this_array + 0.),
         POFD_KEY: (these_dim, this_array + 0.),
@@ -382,30 +378,42 @@ def get_advanced_scores(basic_score_table_xarray):
     return advanced_score_table_xarray
 
 
-def write_file(score_table_xarray, netcdf_file_name):
-    """Writes evaluation results to NetCDF file.
+def write_file(score_table_xarray, output_file_name):
+    """Writes evaluation results to NetCDF or Pickle file.
 
     :param score_table_xarray: Table created by `get_basic_scores` or
         `get_advanced_scores`.
-    :param netcdf_file_name: Path to output file.
+    :param output_file_name: Path to output file.
     """
 
-    file_system_utils.mkdir_recursive_if_necessary(file_name=netcdf_file_name)
+    file_system_utils.mkdir_recursive_if_necessary(file_name=output_file_name)
     # score_table_xarray.to_netcdf(
-    #     path=netcdf_file_name, mode='w', format='NETCDF3_64BIT_OFFSET'
+    #     path=output_file_name, mode='w', format='NETCDF3_64BIT_OFFSET'
     # )
 
-    score_table_xarray.to_netcdf(
-        path=netcdf_file_name, mode='w', format='NETCDF3_64BIT'
-    )
+    if NUM_TRUE_POSITIVES_KEY in score_table_xarray:
+        pickle_file_handle = open(output_file_name, 'wb')
+        pickle.dump(output_file_name, pickle_file_handle)
+        pickle_file_handle.close()
+    else:
+        score_table_xarray.to_netcdf(
+            path=output_file_name, mode='w', format='NETCDF3_64BIT'
+        )
 
 
-def read_file(netcdf_file_name):
-    """Reads evaluation results from NetCDF file.
+def read_file(input_file_name):
+    """Reads evaluation results from NetCDF or Pickle file.
 
-    :param netcdf_file_name: Path to input file.
+    :param input_file_name: Path to input file.
     :return: score_table_xarray: Table created by `get_basic_scores` or
         `get_advanced_scores`.
     """
 
-    return xarray.open_dataset(netcdf_file_name)
+    try:
+        pickle_file_handle = open(input_file_name, 'rb')
+        score_table_xarray = pickle.load(pickle_file_handle)
+        pickle_file_handle.close()
+    except:
+        score_table_xarray = xarray.open_dataset(input_file_name)
+
+    return score_table_xarray

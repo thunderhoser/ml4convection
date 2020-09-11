@@ -1,8 +1,8 @@
 """Custom loss functions for Keras models."""
 
 import numpy
-from keras import backend as K
 import tensorflow.keras as tf_keras
+from tensorflow.keras import backend as K
 from gewittergefahr.gg_utils import error_checking
 
 
@@ -81,7 +81,7 @@ def weighted_xentropy(class_weights):
 
 
 def fractions_skill_score(half_window_size_px, use_as_loss_function,
-                          test_mode=False):
+                          function_name=None, test_mode=False):
     """Fractions skill score (FSS).
 
     :param half_window_size_px: Number of pixels (grid cells) in half of
@@ -92,28 +92,21 @@ def fractions_skill_score(half_window_size_px, use_as_loss_function,
         negatively oriented.  Thus, if `use_as_loss_function == True`, will
         return 1 - FSS.  If `use_as_loss_function == False`, will return just
         FSS.
+    :param function_name: Function name (string).
     :param test_mode: Leave this alone.
     :return: loss: Loss function (defined below).
     """
 
     error_checking.assert_is_boolean(use_as_loss_function)
     error_checking.assert_is_boolean(test_mode)
+    if function_name is not None:
+        error_checking.assert_is_string(function_name)
 
     # TODO(thunderhoser): Allow multiple channels.
 
     weight_matrix = _create_mean_filter(
         half_num_rows=half_window_size_px,
         half_num_columns=half_window_size_px, num_channels=1
-    )
-    bias_vector = numpy.array([0.])  # One per channel.
-    window_size_px = 2 * half_window_size_px + 1
-
-    mean_filter_layer_object = tf_keras.layers.Conv2D(
-        filters=1, kernel_size=(window_size_px, window_size_px),
-        strides=(1, 1), dilation_rate=(1, 1),
-        padding='same' if test_mode else 'valid', data_format='channels_last',
-        activation=None, use_bias=True, trainable=False,
-        weights=[weight_matrix, bias_vector]
     )
 
     def loss(target_tensor, prediction_tensor):
@@ -124,8 +117,17 @@ def fractions_skill_score(half_window_size_px, use_as_loss_function,
         :return: loss: Fractions skill score.
         """
 
-        smoothed_target_tensor = mean_filter_layer_object(target_tensor)
-        smoothed_prediction_tensor = mean_filter_layer_object(prediction_tensor)
+        smoothed_target_tensor = K.conv2d(
+            x=target_tensor, kernel=weight_matrix,
+            padding='same' if test_mode else 'valid',
+            strides=(1, 1), data_format='channels_last'
+        )
+
+        smoothed_prediction_tensor = K.conv2d(
+            x=prediction_tensor, kernel=weight_matrix,
+            padding='same' if test_mode else 'valid',
+            strides=(1, 1), data_format='channels_last'
+        )
 
         actual_mse = K.mean(
             (smoothed_target_tensor - smoothed_prediction_tensor) ** 2
@@ -138,5 +140,8 @@ def fractions_skill_score(half_window_size_px, use_as_loss_function,
             return actual_mse / reference_mse
 
         return 1. - actual_mse / reference_mse
+
+    if function_name is not None:
+        loss.__name__ = function_name
 
     return loss
