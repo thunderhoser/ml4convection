@@ -1,4 +1,4 @@
-"""Makes U-net templates for Experiment 1."""
+"""Makes U-net templates for Experiment 2."""
 
 import sys
 import copy
@@ -18,11 +18,13 @@ import custom_losses
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 
 HOME_DIR_NAME = '/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist'
-OUTPUT_DIR_NAME = '{0:s}/ml4convection_models/experiment01/templates'.format(
+OUTPUT_DIR_NAME = '{0:s}/ml4convection_models/experiment02/templates'.format(
     HOME_DIR_NAME
 )
 
-FSS_HALF_WINDOW_SIZES_PX = numpy.array([1, 2, 3, 4, 5], dtype=int)
+POSITIVE_CLASS_WEIGHTS = numpy.array(
+    [1, 10, 25, 50, 75, 100, 150, 200], dtype=int
+)
 CONV_LAYER_DROPOUT_RATES = numpy.array([0, 0.175, 0.35, 0.525, 0.7])
 L2_WEIGHTS = numpy.logspace(-4, -2, num=5)
 
@@ -39,7 +41,7 @@ DEFAULT_OPTION_DICT = {
 
 
 def _run():
-    """Makes U-net templates for Experiment 1.
+    """Makes U-net templates for Experiment 2.
 
     This is effectively the main method.
     """
@@ -48,15 +50,17 @@ def _run():
         directory_name=OUTPUT_DIR_NAME
     )
 
-    num_window_sizes = len(FSS_HALF_WINDOW_SIZES_PX)
+    num_pos_class_weights = len(POSITIVE_CLASS_WEIGHTS)
     num_dropout_rates = len(CONV_LAYER_DROPOUT_RATES)
     num_l2_weights = len(L2_WEIGHTS)
     num_levels = DEFAULT_OPTION_DICT[u_net_architecture.NUM_LEVELS_KEY]
 
-    for i in range(num_window_sizes):
-        this_loss_function = custom_losses.fractions_skill_score(
-            half_window_size_px=FSS_HALF_WINDOW_SIZES_PX[i],
-            use_as_loss_function=True
+    for i in range(num_pos_class_weights):
+        these_class_weights = numpy.array(
+            [1, POSITIVE_CLASS_WEIGHTS[i]], dtype=float
+        )
+        this_loss_function = custom_losses.weighted_xentropy(
+            these_class_weights
         )
 
         for j in range(num_dropout_rates):
@@ -82,10 +86,10 @@ def _run():
                 )
 
                 this_model_file_name = (
-                    '{0:s}/model_fss-half-window-size-px={1:d}_'
+                    '{0:s}/model_positive-class-weight={1:03d}_'
                     'conv-dropout={2:.3f}_l2-weight={3:.6f}.h5'
                 ).format(
-                    OUTPUT_DIR_NAME, FSS_HALF_WINDOW_SIZES_PX[i],
+                    OUTPUT_DIR_NAME, POSITIVE_CLASS_WEIGHTS[i],
                     CONV_LAYER_DROPOUT_RATES[j], L2_WEIGHTS[k]
                 )
 
@@ -113,8 +117,8 @@ def _run():
                     num_validation_batches_per_epoch=100,
                     validation_option_dict=dummy_option_dict,
                     do_early_stopping=True, plateau_lr_multiplier=0.6,
-                    class_weights=None,
-                    fss_half_window_size_px=FSS_HALF_WINDOW_SIZES_PX[i]
+                    class_weights=these_class_weights,
+                    fss_half_window_size_px=None
                 )
 
 
