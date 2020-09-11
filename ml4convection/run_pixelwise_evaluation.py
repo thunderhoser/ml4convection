@@ -141,18 +141,18 @@ def _run(top_prediction_dir_name, first_date_string, last_date_string,
         a[pixelwise_eval.HEIDKE_SCORE_KEY].values[best_index]
     ))
 
-    basic_file_name = '{0:s}/basic_scores.nc'.format(output_dir_name)
+    basic_file_name = '{0:s}/basic_scores.p'.format(output_dir_name)
     print('Writing results to: "{0:s}"...'.format(basic_file_name))
     pixelwise_eval.write_file(
         score_table_xarray=basic_score_table_xarray,
-        netcdf_file_name=basic_file_name
+        output_file_name=basic_file_name
     )
 
     advanced_file_name = '{0:s}/advanced_scores.nc'.format(output_dir_name)
     print('Writing results to: "{0:s}"...'.format(advanced_file_name))
     pixelwise_eval.write_file(
         score_table_xarray=advanced_score_table_xarray,
-        netcdf_file_name=advanced_file_name
+        output_file_name=advanced_file_name
     )
 
 
