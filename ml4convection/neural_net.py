@@ -45,7 +45,9 @@ METRIC_FUNCTION_LIST = [
     custom_metrics.min_target, custom_metrics.max_target,
     custom_metrics.min_prediction, custom_metrics.max_prediction,
     custom_losses.min_smoothed_target, custom_losses.max_smoothed_target,
-    custom_losses.min_smoothed_prediction, custom_losses.max_smoothed_prediction
+    custom_losses.min_smoothed_prediction,
+    custom_losses.max_smoothed_prediction,
+    custom_losses.fss_actual_mse, custom_losses.fss_reference_mse
     # custom_losses.fractions_skill_score(
     #     half_window_size_px=1, use_as_loss_function=False
     # ),
@@ -77,7 +79,9 @@ METRIC_FUNCTION_DICT = {
     'min_smoothed_target': custom_losses.min_smoothed_target,
     'max_smoothed_target': custom_losses.max_smoothed_target,
     'min_smoothed_prediction': custom_losses.min_smoothed_prediction,
-    'max_smoothed_prediction': custom_losses.max_smoothed_prediction
+    'max_smoothed_prediction': custom_losses.max_smoothed_prediction,
+    'fss_actual_mse': custom_losses.fss_actual_mse,
+    'fss_reference_mse': custom_losses.fss_reference_mse
     # 'fss_3by3': custom_losses.fractions_skill_score(
     #     half_window_size_px=1, use_as_loss_function=False
     # ),

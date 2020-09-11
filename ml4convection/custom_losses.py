@@ -198,3 +198,43 @@ def max_smoothed_prediction(target_tensor, forecast_probability_tensor):
     )
 
     return K.max(smoothed_prediction_tensor)
+
+
+def fss_actual_mse(target_tensor, prediction_tensor):
+    weight_matrix = _create_mean_filter(
+        half_num_rows=3, half_num_columns=3, num_channels=1
+    )
+
+    smoothed_target_tensor = K.conv2d(
+        x=target_tensor, kernel=weight_matrix, padding='valid',
+        strides=(1, 1), data_format='channels_last'
+    )
+
+    smoothed_prediction_tensor = K.conv2d(
+        x=prediction_tensor, kernel=weight_matrix, padding='valid',
+        strides=(1, 1), data_format='channels_last'
+    )
+
+    return K.mean(
+        (smoothed_target_tensor - smoothed_prediction_tensor) ** 2
+    )
+
+
+def fss_reference_mse(target_tensor, prediction_tensor):
+    weight_matrix = _create_mean_filter(
+        half_num_rows=3, half_num_columns=3, num_channels=1
+    )
+
+    smoothed_target_tensor = K.conv2d(
+        x=target_tensor, kernel=weight_matrix, padding='valid',
+        strides=(1, 1), data_format='channels_last'
+    )
+
+    smoothed_prediction_tensor = K.conv2d(
+        x=prediction_tensor, kernel=weight_matrix, padding='valid',
+        strides=(1, 1), data_format='channels_last'
+    )
+
+    return K.mean(
+        smoothed_target_tensor ** 2 + smoothed_prediction_tensor ** 2
+    )
