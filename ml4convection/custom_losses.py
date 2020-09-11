@@ -146,3 +146,55 @@ def fractions_skill_score(half_window_size_px, use_as_loss_function,
         return 1. - actual_mse / reference_mse
 
     return loss
+
+
+def min_smoothed_target(target_tensor, forecast_probability_tensor):
+    weight_matrix = _create_mean_filter(
+        half_num_rows=3, half_num_columns=3, num_channels=1
+    )
+
+    smoothed_target_tensor = K.conv2d(
+        x=target_tensor, kernel=weight_matrix, padding='valid',
+        strides=(1, 1), data_format='channels_last'
+    )
+
+    return K.min(smoothed_target_tensor)
+
+
+def max_smoothed_target(target_tensor, forecast_probability_tensor):
+    weight_matrix = _create_mean_filter(
+        half_num_rows=3, half_num_columns=3, num_channels=1
+    )
+
+    smoothed_target_tensor = K.conv2d(
+        x=target_tensor, kernel=weight_matrix, padding='valid',
+        strides=(1, 1), data_format='channels_last'
+    )
+
+    return K.max(smoothed_target_tensor)
+
+
+def min_smoothed_prediction(target_tensor, forecast_probability_tensor):
+    weight_matrix = _create_mean_filter(
+        half_num_rows=3, half_num_columns=3, num_channels=1
+    )
+
+    smoothed_prediction_tensor = K.conv2d(
+        x=forecast_probability_tensor, kernel=weight_matrix, padding='valid',
+        strides=(1, 1), data_format='channels_last'
+    )
+
+    return K.min(smoothed_prediction_tensor)
+
+
+def max_smoothed_prediction(target_tensor, forecast_probability_tensor):
+    weight_matrix = _create_mean_filter(
+        half_num_rows=3, half_num_columns=3, num_channels=1
+    )
+
+    smoothed_prediction_tensor = K.conv2d(
+        x=forecast_probability_tensor, kernel=weight_matrix, padding='valid',
+        strides=(1, 1), data_format='channels_last'
+    )
+
+    return K.max(smoothed_prediction_tensor)
