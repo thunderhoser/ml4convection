@@ -36,30 +36,44 @@ PLATEAU_COOLDOWN_EPOCHS = 0
 EARLY_STOPPING_PATIENCE_EPOCHS = 30
 LOSS_PATIENCE = 0.
 
+fss_function_size1 = custom_losses.fractions_skill_score(
+    half_window_size_px=1, use_as_loss_function=False,
+    function_name='fss_3by3'
+)
+fss_function_size2 = custom_losses.fractions_skill_score(
+    half_window_size_px=2, use_as_loss_function=False,
+    function_name='fss_5by5'
+)
+fss_function_size3 = custom_losses.fractions_skill_score(
+    half_window_size_px=3, use_as_loss_function=False,
+    function_name='fss_7by7'
+)
+fss_function_size4 = custom_losses.fractions_skill_score(
+    half_window_size_px=4, use_as_loss_function=False,
+    function_name='fss_9by9'
+)
+fss_function_size5 = custom_losses.fractions_skill_score(
+    half_window_size_px=5, use_as_loss_function=False,
+    function_name='fss_11by11'
+)
+fss_function_size6 = custom_losses.fractions_skill_score(
+    half_window_size_px=6, use_as_loss_function=False,
+    function_name='fss_13by13'
+)
+fss_function_size7 = custom_losses.fractions_skill_score(
+    half_window_size_px=7, use_as_loss_function=False,
+    function_name='fss_15by15'
+)
+
 METRIC_FUNCTION_LIST = [
     custom_metrics.accuracy, custom_metrics.binary_accuracy,
     custom_metrics.binary_csi, custom_metrics.binary_frequency_bias,
     custom_metrics.binary_pod, custom_metrics.binary_pofd,
     custom_metrics.binary_peirce_score, custom_metrics.binary_success_ratio,
     custom_metrics.binary_focn,
-    custom_metrics.min_target, custom_metrics.max_target,
-    custom_metrics.min_prediction, custom_metrics.max_prediction,
-    custom_losses.min_smoothed_target, custom_losses.max_smoothed_target,
-    custom_losses.min_smoothed_prediction,
-    custom_losses.max_smoothed_prediction,
-    custom_losses.fss_actual_mse, custom_losses.fss_reference_mse
-    # custom_losses.fractions_skill_score(
-    #     half_window_size_px=1, use_as_loss_function=False
-    # ),
-    # custom_losses.fractions_skill_score(
-    #     half_window_size_px=2, use_as_loss_function=False
-    # ),
-    # custom_losses.fractions_skill_score(
-    #     half_window_size_px=3, use_as_loss_function=False
-    # ),
-    # custom_losses.fractions_skill_score(
-    #     half_window_size_px=4, use_as_loss_function=False
-    # )
+    fss_function_size1, fss_function_size2, fss_function_size3,
+    fss_function_size4, fss_function_size5, fss_function_size6,
+    fss_function_size7
 ]
 
 METRIC_FUNCTION_DICT = {
@@ -72,28 +86,13 @@ METRIC_FUNCTION_DICT = {
     'binary_peirce_score': custom_metrics.binary_peirce_score,
     'binary_success_ratio': custom_metrics.binary_success_ratio,
     'binary_focn': custom_metrics.binary_focn,
-    'min_target': custom_metrics.min_target,
-    'max_target': custom_metrics.max_target,
-    'min_prediction': custom_metrics.min_prediction,
-    'max_prediction': custom_metrics.max_prediction,
-    'min_smoothed_target': custom_losses.min_smoothed_target,
-    'max_smoothed_target': custom_losses.max_smoothed_target,
-    'min_smoothed_prediction': custom_losses.min_smoothed_prediction,
-    'max_smoothed_prediction': custom_losses.max_smoothed_prediction,
-    'fss_actual_mse': custom_losses.fss_actual_mse,
-    'fss_reference_mse': custom_losses.fss_reference_mse
-    # 'fss_3by3': custom_losses.fractions_skill_score(
-    #     half_window_size_px=1, use_as_loss_function=False
-    # ),
-    # 'fss_5by5': custom_losses.fractions_skill_score(
-    #     half_window_size_px=2, use_as_loss_function=False
-    # ),
-    # 'fss_7by7': custom_losses.fractions_skill_score(
-    #     half_window_size_px=3, use_as_loss_function=False
-    # ),
-    # 'fss_9by9': custom_losses.fractions_skill_score(
-    #     half_window_size_px=4, use_as_loss_function=False
-    # )
+    'fss_3by3': fss_function_size1,
+    'fss_5by5': fss_function_size2,
+    'fss_7by7': fss_function_size3,
+    'fss_9by9': fss_function_size4,
+    'fss_11by11': fss_function_size5,
+    'fss_13by13': fss_function_size6,
+    'fss_15by15': fss_function_size7
 }
 
 SATELLITE_DIRECTORY_KEY = 'top_satellite_dir_name'

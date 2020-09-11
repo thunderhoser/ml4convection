@@ -88,7 +88,7 @@ def weighted_xentropy(class_weights):
 
 
 def fractions_skill_score(half_window_size_px, use_as_loss_function,
-                          test_mode=False):
+                          function_name=None, test_mode=False):
     """Fractions skill score (FSS).
 
     :param half_window_size_px: Number of pixels (grid cells) in half of
@@ -99,12 +99,15 @@ def fractions_skill_score(half_window_size_px, use_as_loss_function,
         negatively oriented.  Thus, if `use_as_loss_function == True`, will
         return 1 - FSS.  If `use_as_loss_function == False`, will return just
         FSS.
+    :param function_name: Function name (string).
     :param test_mode: Leave this alone.
     :return: loss: Loss function (defined below).
     """
 
     error_checking.assert_is_boolean(use_as_loss_function)
     error_checking.assert_is_boolean(test_mode)
+    if function_name is not None:
+        error_checking.assert_is_string(function_name)
 
     # TODO(thunderhoser): Allow multiple channels.
 
@@ -145,96 +148,7 @@ def fractions_skill_score(half_window_size_px, use_as_loss_function,
 
         return 1. - actual_mse / reference_mse
 
+    if function_name is not None:
+        loss.__name__ = function_name
+
     return loss
-
-
-def min_smoothed_target(target_tensor, forecast_probability_tensor):
-    weight_matrix = _create_mean_filter(
-        half_num_rows=3, half_num_columns=3, num_channels=1
-    )
-
-    smoothed_target_tensor = K.conv2d(
-        x=target_tensor, kernel=weight_matrix, padding='valid',
-        strides=(1, 1), data_format='channels_last'
-    )
-
-    return K.min(smoothed_target_tensor)
-
-
-def max_smoothed_target(target_tensor, forecast_probability_tensor):
-    weight_matrix = _create_mean_filter(
-        half_num_rows=3, half_num_columns=3, num_channels=1
-    )
-
-    smoothed_target_tensor = K.conv2d(
-        x=target_tensor, kernel=weight_matrix, padding='valid',
-        strides=(1, 1), data_format='channels_last'
-    )
-
-    return K.max(smoothed_target_tensor)
-
-
-def min_smoothed_prediction(target_tensor, forecast_probability_tensor):
-    weight_matrix = _create_mean_filter(
-        half_num_rows=3, half_num_columns=3, num_channels=1
-    )
-
-    smoothed_prediction_tensor = K.conv2d(
-        x=forecast_probability_tensor, kernel=weight_matrix, padding='valid',
-        strides=(1, 1), data_format='channels_last'
-    )
-
-    return K.min(smoothed_prediction_tensor)
-
-
-def max_smoothed_prediction(target_tensor, forecast_probability_tensor):
-    weight_matrix = _create_mean_filter(
-        half_num_rows=3, half_num_columns=3, num_channels=1
-    )
-
-    smoothed_prediction_tensor = K.conv2d(
-        x=forecast_probability_tensor, kernel=weight_matrix, padding='valid',
-        strides=(1, 1), data_format='channels_last'
-    )
-
-    return K.max(smoothed_prediction_tensor)
-
-
-def fss_actual_mse(target_tensor, prediction_tensor):
-    weight_matrix = _create_mean_filter(
-        half_num_rows=3, half_num_columns=3, num_channels=1
-    )
-
-    smoothed_target_tensor = K.conv2d(
-        x=target_tensor, kernel=weight_matrix, padding='valid',
-        strides=(1, 1), data_format='channels_last'
-    )
-
-    smoothed_prediction_tensor = K.conv2d(
-        x=prediction_tensor, kernel=weight_matrix, padding='valid',
-        strides=(1, 1), data_format='channels_last'
-    )
-
-    return K.mean(
-        (smoothed_target_tensor - smoothed_prediction_tensor) ** 2
-    )
-
-
-def fss_reference_mse(target_tensor, prediction_tensor):
-    weight_matrix = _create_mean_filter(
-        half_num_rows=3, half_num_columns=3, num_channels=1
-    )
-
-    smoothed_target_tensor = K.conv2d(
-        x=target_tensor, kernel=weight_matrix, padding='valid',
-        strides=(1, 1), data_format='channels_last'
-    )
-
-    smoothed_prediction_tensor = K.conv2d(
-        x=prediction_tensor, kernel=weight_matrix, padding='valid',
-        strides=(1, 1), data_format='channels_last'
-    )
-
-    return K.mean(
-        smoothed_target_tensor ** 2 + smoothed_prediction_tensor ** 2
-    )

@@ -315,19 +315,3 @@ def binary_focn(target_tensor, forecast_probability_tensor):
     """
 
     return 1. - binary_dfr(target_tensor, forecast_probability_tensor)
-
-
-def min_target(target_tensor, forecast_probability_tensor):
-    return K.min(target_tensor)
-
-
-def max_target(target_tensor, forecast_probability_tensor):
-    return K.max(target_tensor)
-
-
-def min_prediction(target_tensor, forecast_probability_tensor):
-    return K.min(forecast_probability_tensor)
-
-
-def max_prediction(target_tensor, forecast_probability_tensor):
-    return K.max(forecast_probability_tensor)
