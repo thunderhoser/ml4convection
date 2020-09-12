@@ -78,3 +78,48 @@ def do_1d_pooling(feature_matrix, do_max_pooling, window_size_px=2):
     )
 
     return feature_matrix[..., 0, :]
+
+
+def do_2d_convolution(
+        feature_matrix, kernel_matrix, pad_edges=False, stride_length_px=1):
+    """Convolves 2-D feature maps.
+
+    E = number of examples
+    M = number of input rows
+    N = number of input columns
+    C = number of input channels
+    m = number of rows in kernel
+    n = number of columns in kernel
+    c = number of output channels
+
+    :param feature_matrix: E-by-M-by-N-by-C numpy array of feature values.
+    :param kernel_matrix: m-by-n-by-C-by-c numpy array of kernel weights (filter
+        weights).
+    :param pad_edges: Boolean flag.  If True, edges will be padded so that the
+        output feature matrix has the same dimensions as the input matrix.  If
+        False, edges will not be padded, so the output feature matrix will be
+        smaller.
+    :param stride_length_px: Stride length in pixels.  The kernel (filter) will
+        move this far at each step.
+    :return: feature_matrix: E-by-?-by-?-by-c numpy array of feature values.
+        The spatial dimensions will be determined by filter size and
+        edge-padding.
+    """
+
+    error_checking.assert_is_numpy_array_without_nan(feature_matrix)
+    error_checking.assert_is_numpy_array(feature_matrix, num_dimensions=4)
+    error_checking.assert_is_numpy_array_without_nan(kernel_matrix)
+    error_checking.assert_is_numpy_array(kernel_matrix, num_dimensions=4)
+    error_checking.assert_is_boolean(pad_edges)
+    error_checking.assert_is_integer(stride_length_px)
+    error_checking.assert_is_geq(stride_length_px, 1)
+
+    feature_tensor = K.conv2d(
+        x=K.variable(feature_matrix),
+        kernel=K.variable(kernel_matrix),
+        strides=(stride_length_px, stride_length_px),
+        padding='same' if pad_edges else 'valid',
+        data_format='channels_last'
+    )
+
+    return feature_tensor.numpy()
