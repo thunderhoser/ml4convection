@@ -409,6 +409,8 @@ def read_file(input_file_name):
         `get_advanced_scores`.
     """
 
+    error_checking.assert_file_exists(input_file_name)
+
     try:
         pickle_file_handle = open(input_file_name, 'rb')
         score_table_xarray = pickle.load(pickle_file_handle)

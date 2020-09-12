@@ -1,6 +1,8 @@
 """Spatially aware (not pixelwise) evaluation."""
 
+import pickle
 import numpy
+from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
 from ml4convection.io import prediction_io
 from ml4convection.utils import general_utils
@@ -149,3 +151,52 @@ def get_fractions_skill_scores(prediction_file_names, half_window_sizes_px):
     return numpy.array([
         _get_fss_from_components(d) for d in fss_dict_by_scale
     ])
+
+
+def write_file(fractions_skill_scores, half_window_sizes_px, pickle_file_name):
+    """Writes results to Pickle file.
+
+    S = number of scales
+
+    :param fractions_skill_scores: length-S numpy array of scores.
+    :param half_window_sizes_px: See doc for `get_fractions_skill_scores`.
+    :param pickle_file_name: Path to output file.
+    """
+
+    error_checking.assert_is_integer_numpy_array(half_window_sizes_px)
+    error_checking.assert_is_numpy_array(half_window_sizes_px, num_dimensions=1)
+    error_checking.assert_is_geq_numpy_array(half_window_sizes_px, 0)
+
+    num_scales = len(half_window_sizes_px)
+    expected_dim = numpy.array([num_scales], dtype=int)
+
+    error_checking.assert_is_numpy_array(
+        fractions_skill_scores, exact_dimensions=expected_dim
+    )
+    error_checking.assert_is_geq_numpy_array(fractions_skill_scores, 0.)
+    error_checking.assert_is_leq_numpy_array(fractions_skill_scores, 1.)
+
+    file_system_utils.mkdir_recursive_if_necessary(file_name=pickle_file_name)
+
+    pickle_file_handle = open(pickle_file_name, 'wb')
+    pickle.dump(fractions_skill_scores, pickle_file_handle)
+    pickle.dump(half_window_sizes_px, pickle_file_handle)
+    pickle_file_handle.close()
+
+
+def read_file(pickle_file_name):
+    """Reads results from Pickle file.
+
+    :param pickle_file_name: Path to input file.
+    :return: fractions_skill_scores: See doc for `write_file`.
+    :return: half_window_sizes_px: Same.
+    """
+
+    error_checking.assert_file_exists(pickle_file_name)
+
+    pickle_file_handle = open(pickle_file_name, 'rb')
+    fractions_skill_scores = pickle.load(pickle_file_handle)
+    half_window_sizes_px = pickle.load(pickle_file_handle)
+    pickle_file_handle.close()
+
+    return fractions_skill_scores, half_window_sizes_px
