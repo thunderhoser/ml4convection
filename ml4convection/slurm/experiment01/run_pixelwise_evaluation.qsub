@@ -43,7 +43,7 @@ set half_window_size_string=`printf "%d" $half_window_size_px`
 set conv_layer_dropout_string=`printf "%.3f" $conv_layer_dropout_rate`
 set l2_weight_string=`printf "%.6f" $l2_weight`
 
-set model_dir_name="${TOP_OUTPUT_DIR_NAME}/fss-half-window-size-px=${half_window_size_string}_conv-dropout=${conv_layer_dropout_string}_l2-weight=${l2_weight_string}"
+set model_dir_name="${TOP_MODEL_DIR_NAME}/fss-half-window-size-px=${half_window_size_string}_conv-dropout=${conv_layer_dropout_string}_l2-weight=${l2_weight_string}"
 set prediction_dir_name="${model_dir_name}/validation"
 
 python3 -u "${CODE_DIR_NAME}/run_pixelwise_evaluation.py" \
