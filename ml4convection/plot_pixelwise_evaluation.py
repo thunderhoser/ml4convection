@@ -67,7 +67,6 @@ def _run(basic_score_file_name, advanced_score_file_name, output_dir_name):
 
     print('Reading data from: "{0:s}"...'.format(basic_score_file_name))
     basic_score_table_xarray = pixelwise_eval.read_file(basic_score_file_name)
-    print(basic_score_table_xarray)
 
     print('Reading data from: "{0:s}"...'.format(advanced_score_file_name))
     advanced_score_table_xarray = pixelwise_eval.read_file(
