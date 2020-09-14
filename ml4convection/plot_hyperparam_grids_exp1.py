@@ -252,6 +252,7 @@ def _run(experiment_dir_name):
                     half_window_sizes_for_eval_px = (
                         this_score_dict[HALF_WINDOW_SIZES_FOR_EVAL_KEY]
                     )
+                    print('HALF-WINDOW SIZES:\n{0:s}'.format(half_window_sizes_for_eval_px))
                     these_dim = (
                         num_window_sizes_for_loss, num_dropout_rates,
                         num_l2_weights, len(half_window_sizes_for_eval_px)
