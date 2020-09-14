@@ -182,8 +182,8 @@ def _print_ranking_one_score(score_matrix, score_name):
     """
 
     scores_1d = numpy.ravel(score_matrix)
-    scores_1d[numpy.isnan(scores_1d)] = numpy.inf
-    sort_indices_1d = numpy.argsort(scores_1d)
+    scores_1d[numpy.isnan(scores_1d)] = -numpy.inf
+    sort_indices_1d = numpy.argsort(-scores_1d)
     i_sort_indices, j_sort_indices, k_sort_indices = numpy.unravel_index(
         sort_indices_1d, score_matrix.shape
     )
@@ -194,13 +194,13 @@ def _print_ranking_one_score(score_matrix, score_name):
         k = k_sort_indices[m]
 
         print((
-            '{0:d}th-lowest {1:s} = {2:.4g} ... '
+            '{0:d}th-highest {1:s} = {2:.4g} ... '
             'half-window size for loss function = {3:d} ... '
-            'conv-layer dropout rate = {4:.3f} ... L_2 weight = {5:.1f}'
+            'conv-layer dropout rate = {4:.3f} ... L_2 weight = 10^{5:.1f}'
         ).format(
             m + 1, score_name, score_matrix[i, j, k],
             HALF_WINDOW_SIZES_FOR_LOSS_PX[i], CONV_LAYER_DROPOUT_RATES[j],
-            L2_WEIGHTS[k]
+            numpy.log10(L2_WEIGHTS[k])
         ))
 
 
@@ -250,9 +250,8 @@ def _run(experiment_dir_name):
 
                 if fss_matrix is None:
                     half_window_sizes_for_eval_px = (
-                        this_score_dict[HALF_WINDOW_SIZES_FOR_EVAL_KEY]
+                        this_score_dict[HALF_WINDOW_SIZES_FOR_EVAL_KEY] + 0
                     )
-                    print('HALF-WINDOW SIZES:\n{0:s}'.format(str(half_window_sizes_for_eval_px)))
                     these_dim = (
                         num_window_sizes_for_loss, num_dropout_rates,
                         num_l2_weights, len(half_window_sizes_for_eval_px)
@@ -276,6 +275,7 @@ def _run(experiment_dir_name):
     print(SEPARATOR_STRING)
 
     num_window_sizes_for_eval = len(half_window_sizes_for_eval_px)
+    print('NUMBER OF WINDOW SIZES FOR EVAL = {0:d}'.format(num_window_sizes_for_eval))
 
     for m in range(num_window_sizes_for_eval):
         this_window_size_px = int(numpy.round(
@@ -384,6 +384,8 @@ def _run(experiment_dir_name):
             pad_inches=0, bbox_inches='tight'
         )
         pyplot.close(figure_object)
+
+        print('NUMBER OF WINDOW SIZES FOR EVAL = {0:d}'.format(num_window_sizes_for_eval))
 
         for m in range(num_window_sizes_for_eval):
             this_window_size_for_eval_px = int(numpy.round(
