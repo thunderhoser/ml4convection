@@ -275,7 +275,6 @@ def _run(experiment_dir_name):
     print(SEPARATOR_STRING)
 
     num_window_sizes_for_eval = len(half_window_sizes_for_eval_px)
-    print('NUMBER OF WINDOW SIZES FOR EVAL = {0:d}'.format(num_window_sizes_for_eval))
 
     for m in range(num_window_sizes_for_eval):
         this_window_size_px = int(numpy.round(
@@ -385,11 +384,9 @@ def _run(experiment_dir_name):
         )
         pyplot.close(figure_object)
 
-        print('NUMBER OF WINDOW SIZES FOR EVAL = {0:d}'.format(num_window_sizes_for_eval))
-
         for m in range(num_window_sizes_for_eval):
             this_window_size_for_eval_px = int(numpy.round(
-                2 * half_window_sizes_for_eval_px[i] + 1
+                2 * half_window_sizes_for_eval_px[m] + 1
             ))
 
             figure_object, axes_object = _plot_scores_2d(
