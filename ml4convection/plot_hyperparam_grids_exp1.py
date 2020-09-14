@@ -5,7 +5,6 @@ import os.path
 import argparse
 import numpy
 import matplotlib
-
 matplotlib.use('agg')
 import matplotlib.colors
 from matplotlib import pyplot
