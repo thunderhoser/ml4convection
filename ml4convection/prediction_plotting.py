@@ -17,16 +17,29 @@ import grids
 import error_checking
 
 BACKGROUND_COLOUR = numpy.full(3, 1.)
-NO_CONVECTION_COLOUR = numpy.full(3, 1.)
-ACTUAL_CONVECTION_COLOUR = numpy.array([247, 129, 191], dtype=float) / 255
-PREDICTED_CONVECTION_COLOUR = numpy.full(3, 153. / 255)
+NO_MASK_COLOUR = numpy.full(3, 1.)
+ACTUAL_MASK_COLOUR = numpy.array([247, 129, 191], dtype=float) / 255
+PREDICTED_MASK_COLOUR = numpy.full(3, 153. / 255)
 
-ACTUAL_CONVECTION_OPACITY = 1.
-PREDICTED_CONVECTION_OPACITY = 0.5
+ACTUAL_MASK_OPACITY = 1.
+PREDICTED_MASK_OPACITY = 0.5
+
+DEFAULT_TARGET_MARKER_SIZE = 8
+DEFAULT_TARGET_MARKER_TYPE = 'o'
+DEFAULT_TARGET_MARKER_COLOUR = numpy.full(3, 0.)
+
+FONT_SIZE = 30
+pyplot.rc('font', size=FONT_SIZE)
+pyplot.rc('axes', titlesize=FONT_SIZE)
+pyplot.rc('axes', labelsize=FONT_SIZE)
+pyplot.rc('xtick', labelsize=FONT_SIZE)
+pyplot.rc('ytick', labelsize=FONT_SIZE)
+pyplot.rc('legend', fontsize=FONT_SIZE)
+pyplot.rc('figure', titlesize=FONT_SIZE)
 
 
-def _get_colour_scheme(for_targets):
-    """Returns colour scheme for either predicted or target (actual) values.
+def _get_deterministic_colour_scheme(for_targets):
+    """Returns colour scheme for either predicted or actual convection mask.
 
     :param for_targets: Boolean flag.  If True (False), will return colour
         scheme for actual (predicted) values.
@@ -36,12 +49,12 @@ def _get_colour_scheme(for_targets):
         `matplotlib.colors.Normalize`.
     """
 
-    main_colour_list = [NO_CONVECTION_COLOUR] * 2
+    main_colour_list = [NO_MASK_COLOUR] * 2
 
     if for_targets:
-        main_colour_list += [ACTUAL_CONVECTION_COLOUR] * 2
+        main_colour_list += [ACTUAL_MASK_COLOUR] * 2
     else:
-        main_colour_list += [PREDICTED_CONVECTION_COLOUR] * 2
+        main_colour_list += [PREDICTED_MASK_COLOUR] * 2
 
     colour_map_object = matplotlib.colors.ListedColormap(main_colour_list)
     colour_map_object.set_under(BACKGROUND_COLOUR)
@@ -54,10 +67,46 @@ def _get_colour_scheme(for_targets):
     return colour_map_object, colour_norm_object
 
 
-def plot_with_basemap(
+def get_prob_colour_scheme():
+    """Returns colour scheme for probabilities.
+
+    :return: colour_map_object: See doc for `_get_deterministic_colour_scheme`.
+    :return: colour_norm_object: Same.
+    """
+
+    main_colour_list = [
+        # numpy.array([0, 90, 50]),
+        numpy.array([35, 139, 69]),
+        numpy.array([65, 171, 93]), numpy.array([116, 196, 118]),
+        numpy.array([161, 217, 155]), numpy.array([8, 69, 148]),
+        numpy.array([33, 113, 181]), numpy.array([66, 146, 198]),
+        numpy.array([107, 174, 214]), numpy.array([158, 202, 225]),
+        numpy.array([74, 20, 134]), numpy.array([106, 81, 163]),
+        numpy.array([128, 125, 186]), numpy.array([158, 154, 200]),
+        numpy.array([188, 189, 220]), numpy.array([153, 0, 13]),
+        numpy.array([203, 24, 29]), numpy.array([239, 59, 44]),
+        numpy.array([251, 106, 74]), numpy.array([252, 146, 114])
+    ]
+
+    for i in range(len(main_colour_list)):
+        main_colour_list[i] = main_colour_list[i].astype(float) / 255
+
+    colour_map_object = matplotlib.colors.ListedColormap(main_colour_list)
+    colour_map_object.set_under(BACKGROUND_COLOUR)
+    colour_map_object.set_over(BACKGROUND_COLOUR)
+
+    colour_bounds = numpy.linspace(0.05, 1, num=20)
+    colour_norm_object = matplotlib.colors.BoundaryNorm(
+        colour_bounds, colour_map_object.N
+    )
+
+    return colour_map_object, colour_norm_object
+
+
+def plot_deterministic(
         target_matrix, prediction_matrix, axes_object, min_latitude_deg_n,
         min_longitude_deg_e, latitude_spacing_deg, longitude_spacing_deg):
-    """Plots predicted and target (actual) convection masks with basemap.
+    """Plots gridded predictions and labels.
 
     M = number of rows in grid
     N = number of columns in grid
@@ -102,10 +151,9 @@ def plot_with_basemap(
         lng_spacing_deg=longitude_spacing_deg
     )[0]
 
-    edge_target_matrix = numpy.ma.masked_where(
-        numpy.isnan(edge_target_matrix), edge_target_matrix
+    colour_map_object, colour_norm_object = _get_deterministic_colour_scheme(
+        for_targets=True
     )
-    colour_map_object, colour_norm_object = _get_colour_scheme(for_targets=True)
 
     if hasattr(colour_norm_object, 'boundaries'):
         min_colour_value = colour_norm_object.boundaries[0]
@@ -119,13 +167,10 @@ def plot_with_basemap(
         cmap=colour_map_object, norm=colour_norm_object,
         vmin=min_colour_value, vmax=max_colour_value, shading='flat',
         edgecolors='None', axes=axes_object, zorder=-1e11,
-        alpha=ACTUAL_CONVECTION_OPACITY
+        alpha=ACTUAL_MASK_OPACITY
     )
 
-    edge_prediction_matrix = numpy.ma.masked_where(
-        numpy.isnan(edge_prediction_matrix), edge_prediction_matrix
-    )
-    colour_map_object, colour_norm_object = _get_colour_scheme(
+    colour_map_object, colour_norm_object = _get_deterministic_colour_scheme(
         for_targets=False
     )
 
@@ -141,5 +186,91 @@ def plot_with_basemap(
         cmap=colour_map_object, norm=colour_norm_object,
         vmin=min_colour_value, vmax=max_colour_value, shading='flat',
         edgecolors='None', axes=axes_object, zorder=-1e11,
-        alpha=PREDICTED_CONVECTION_OPACITY
+        alpha=PREDICTED_MASK_OPACITY
+    )
+
+
+def plot_probabilistic(
+        target_matrix, probability_matrix, axes_object, min_latitude_deg_n,
+        min_longitude_deg_e, latitude_spacing_deg, longitude_spacing_deg,
+        target_marker_size=DEFAULT_TARGET_MARKER_SIZE,
+        target_marker_type=DEFAULT_TARGET_MARKER_TYPE,
+        target_marker_colour=DEFAULT_TARGET_MARKER_COLOUR):
+    """Plots gridded probabilities and labels.
+
+    M = number of rows in grid
+    N = number of columns in grid
+
+    :param target_matrix: See doc for `plot_deterministic`.
+    :param probability_matrix: M-by-N numpy array with forecast probabilities of
+        convection.
+    :param axes_object: See doc for `plot_deterministic`.
+    :param min_latitude_deg_n: Same.
+    :param min_longitude_deg_e: Same.
+    :param latitude_spacing_deg: Same.
+    :param longitude_spacing_deg: Same.
+    :param target_marker_size: Size of marker used to show where convection
+        occurs.
+    :param target_marker_type: Type of marker used to show where convection
+        occurs.
+    :param target_marker_colour: Colour of marker used to show where convection
+        occurs.
+    """
+
+    error_checking.assert_is_geq_numpy_array(probability_matrix, 0.)
+    error_checking.assert_is_leq_numpy_array(probability_matrix, 1.)
+    error_checking.assert_is_numpy_array(probability_matrix, num_dimensions=2)
+
+    error_checking.assert_is_integer_numpy_array(target_matrix)
+    error_checking.assert_is_geq_numpy_array(target_matrix, 0)
+    error_checking.assert_is_leq_numpy_array(target_matrix, 1)
+    error_checking.assert_is_numpy_array(
+        target_matrix,
+        exact_dimensions=numpy.array(probability_matrix.shape, dtype=int)
+    )
+
+    latitudes_deg_n, longitudes_deg_e = grids.get_latlng_grid_points(
+        min_latitude_deg=min_latitude_deg_n,
+        min_longitude_deg=min_longitude_deg_e,
+        lat_spacing_deg=latitude_spacing_deg,
+        lng_spacing_deg=longitude_spacing_deg,
+        num_rows=target_matrix.shape[0], num_columns=target_matrix.shape[1]
+    )
+
+    edge_probability_matrix, edge_latitudes_deg_n, edge_longitudes_deg_e = (
+        grids.latlng_field_grid_points_to_edges(
+            field_matrix=probability_matrix,
+            min_latitude_deg=min_latitude_deg_n,
+            min_longitude_deg=min_longitude_deg_e,
+            lat_spacing_deg=latitude_spacing_deg,
+            lng_spacing_deg=longitude_spacing_deg
+        )
+    )
+
+    colour_map_object, colour_norm_object = get_prob_colour_scheme()
+
+    if hasattr(colour_norm_object, 'boundaries'):
+        min_colour_value = colour_norm_object.boundaries[0]
+        max_colour_value = colour_norm_object.boundaries[-1]
+    else:
+        min_colour_value = colour_norm_object.vmin
+        max_colour_value = colour_norm_object.vmax
+
+    pyplot.pcolormesh(
+        edge_longitudes_deg_e, edge_latitudes_deg_n, edge_probability_matrix,
+        cmap=colour_map_object, norm=colour_norm_object,
+        vmin=min_colour_value, vmax=max_colour_value, shading='flat',
+        edgecolors='None', axes=axes_object, zorder=-1e11
+    )
+
+    row_indices, column_indices = numpy.where(target_matrix == 1)
+    positive_latitudes_deg_n = latitudes_deg_n[row_indices]
+    positive_longitudes_deg_e = longitudes_deg_e[column_indices]
+
+    axes_object.plot(
+        positive_longitudes_deg_e, positive_latitudes_deg_n,
+        linestyle='None', marker=target_marker_type,
+        markersize=target_marker_size, markeredgewidth=0,
+        markerfacecolor=target_marker_colour,
+        markeredgecolor=target_marker_colour
     )

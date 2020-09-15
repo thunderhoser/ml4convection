@@ -16,6 +16,7 @@ sys.path.append(os.path.normpath(os.path.join(THIS_DIRECTORY_NAME, '..')))
 import time_conversion
 import file_system_utils
 import error_checking
+import plotting_utils
 import prediction_io
 import prediction_plotting
 
@@ -32,6 +33,7 @@ FIRST_DATE_ARG_NAME = 'first_date_string'
 LAST_DATE_ARG_NAME = 'last_date_string'
 NUM_EXAMPLES_PER_DAY_ARG_NAME = 'num_examples_per_day'
 PLOT_RANDOM_ARG_NAME = 'plot_random_examples'
+PLOT_DETERMINISTIC_ARG_NAME = 'plot_deterministic'
 PROB_THRESHOLD_ARG_NAME = 'probability_threshold'
 OUTPUT_DIR_ARG_NAME = 'output_dir_name'
 
@@ -52,11 +54,16 @@ PLOT_RANDOM_HELP_STRING = (
     'If 0, will draw the first `{0:s}` examples from each day.'
 ).format(NUM_EXAMPLES_PER_DAY_ARG_NAME)
 
+PLOT_DETERMINISTIC_HELP_STRING = (
+    'Boolean flag.  If 1 (0), will plot deterministic (probabilistic) '
+    'predictions.'
+)
 PROB_THRESHOLD_HELP_STRING = (
-    'Threshold used to convert probabilistic forecasts to deterministic.  All '
-    'probabilities >= `{0:s}` will be considered "yes" forecasts, and all '
-    'probabilities < `{0:s}` will be considered "no" forecasts.'
-).format(PROB_THRESHOLD_ARG_NAME)
+    '[used only if `{0:s} == 1`] Threshold used to convert probabilistic '
+    'forecasts to deterministic.  All probabilities >= `{1:s}` will be '
+    'considered "yes" forecasts, and all probabilities < `{1:s}` will be '
+    'considered "no" forecasts.'
+).format(PLOT_DETERMINISTIC_ARG_NAME, PROB_THRESHOLD_ARG_NAME)
 
 OUTPUT_DIR_HELP_STRING = (
     'Name of output directory.  Figures will be saved here.'
@@ -82,7 +89,11 @@ INPUT_ARG_PARSER.add_argument(
     help=PLOT_RANDOM_HELP_STRING
 )
 INPUT_ARG_PARSER.add_argument(
-    '--' + PROB_THRESHOLD_ARG_NAME, type=float, required=True,
+    '--' + PLOT_DETERMINISTIC_ARG_NAME, type=int, required=False, default=0,
+    help=PLOT_DETERMINISTIC_HELP_STRING
+)
+INPUT_ARG_PARSER.add_argument(
+    '--' + PROB_THRESHOLD_ARG_NAME, type=float, required=False, default=-1,
     help=PROB_THRESHOLD_HELP_STRING
 )
 INPUT_ARG_PARSER.add_argument(
@@ -92,13 +103,15 @@ INPUT_ARG_PARSER.add_argument(
 
 
 def _plot_predictions_one_example(
-        prediction_dict, example_index, probability_threshold, output_dir_name):
+        prediction_dict, example_index, plot_deterministic,
+        probability_threshold, output_dir_name):
     """Plots predictions (and targets) for one example (time step).
 
     :param prediction_dict: Dictionary in format returned by
         `prediction_io.read_file`.
     :param example_index: Will plot [i]th example, where i = `example_index`.
-    :param probability_threshold: See documentation at top of file.
+    :param plot_deterministic: See documentation at top of file.
+    :param probability_threshold: Same.
     :param output_dir_name: Same.
     """
 
@@ -140,27 +153,57 @@ def _plot_predictions_one_example(
 
     i = example_index
     valid_time_unix_sec = prediction_dict[prediction_io.VALID_TIMES_KEY][i]
-    target_matrix = prediction_dict[prediction_io.TARGET_MATRIX_KEY][i, ...]
-    prediction_matrix = (
-        prediction_dict[prediction_io.PROBABILITY_MATRIX_KEY][i, ...]
-        >= probability_threshold
-    ).astype(int)
-
-    prediction_plotting.plot_with_basemap(
-        target_matrix=target_matrix, prediction_matrix=prediction_matrix,
-        axes_object=axes_object,
-        min_latitude_deg_n=latitudes_deg_n[0],
-        min_longitude_deg_e=longitudes_deg_e[0],
-        latitude_spacing_deg=numpy.diff(latitudes_deg_n[:2])[0],
-        longitude_spacing_deg=numpy.diff(longitudes_deg_e[:2])[0]
-    )
-
     valid_time_string = time_conversion.unix_sec_to_string(
         valid_time_unix_sec, TIME_FORMAT
     )
-    title_string = (
-        'Actual (pink) and predicted (grey) convection at {0:s}'
-    ).format(valid_time_string)
+
+    target_matrix = prediction_dict[prediction_io.TARGET_MATRIX_KEY][i, ...]
+    probability_matrix = (
+        prediction_dict[prediction_io.PROBABILITY_MATRIX_KEY][i, ...]
+    )
+
+    if plot_deterministic:
+        prediction_matrix = (
+            (probability_matrix >= probability_threshold).astype(int)
+        )
+
+        prediction_plotting.plot_deterministic(
+            target_matrix=target_matrix, prediction_matrix=prediction_matrix,
+            axes_object=axes_object,
+            min_latitude_deg_n=latitudes_deg_n[0],
+            min_longitude_deg_e=longitudes_deg_e[0],
+            latitude_spacing_deg=numpy.diff(latitudes_deg_n[:2])[0],
+            longitude_spacing_deg=numpy.diff(longitudes_deg_e[:2])[0]
+        )
+
+        title_string = (
+            'Actual (pink) and predicted (grey) convection at {0:s}'
+        ).format(valid_time_string)
+    else:
+        prediction_plotting.plot_probabilistic(
+            target_matrix=target_matrix, probability_matrix=probability_matrix,
+            axes_object=axes_object,
+            min_latitude_deg_n=latitudes_deg_n[0],
+            min_longitude_deg_e=longitudes_deg_e[0],
+            latitude_spacing_deg=numpy.diff(latitudes_deg_n[:2])[0],
+            longitude_spacing_deg=numpy.diff(longitudes_deg_e[:2])[0]
+        )
+
+        title_string = 'Forecast convection probabilities at {0:s}'.format(
+            valid_time_string
+        )
+
+        colour_map_object, colour_norm_object = (
+            prediction_plotting.get_prob_colour_scheme()
+        )
+
+        plotting_utils.plot_colour_bar(
+            axes_object_or_matrix=axes_object, data_matrix=probability_matrix,
+            colour_map_object=colour_map_object,
+            colour_norm_object=colour_norm_object,
+            orientation_string='horizontal', extend_min=False, extend_max=False,
+            fraction_of_axis_length=0.8
+        )
 
     axes_object.set_title(title_string)
     axes_object.set_xlabel(r'Longitude ($^{\circ}$E)')
@@ -180,13 +223,14 @@ def _plot_predictions_one_example(
 
 def _plot_predictions_one_day(
         prediction_file_name, num_examples, plot_random_examples,
-        probability_threshold, output_dir_name):
+        plot_deterministic, probability_threshold, output_dir_name):
     """Plots predictions (and targets) for one day.
 
     :param prediction_file_name: Path to prediction file.  Will be read by
         `prediction_io.read_file`.
     :param num_examples: Number of examples to plot.
     :param plot_random_examples: See documentation at top of file.
+    :param plot_deterministic: Same.
     :param probability_threshold: Same.
     :param output_dir_name: Same.
     """
@@ -215,14 +259,15 @@ def _plot_predictions_one_day(
     for i in range(num_examples):
         _plot_predictions_one_example(
             prediction_dict=prediction_dict, example_index=i,
+            plot_deterministic=plot_deterministic,
             probability_threshold=probability_threshold,
             output_dir_name=output_dir_name
         )
 
 
 def _run(top_prediction_dir_name, first_date_string, last_date_string,
-         num_examples_per_day, plot_random_examples, probability_threshold,
-         output_dir_name):
+         num_examples_per_day, plot_random_examples, plot_deterministic,
+         probability_threshold, output_dir_name):
     """Plot predictions (and targets) for the given days.
 
     This is effectively the main method.
@@ -232,6 +277,7 @@ def _run(top_prediction_dir_name, first_date_string, last_date_string,
     :param last_date_string: Same.
     :param num_examples_per_day: Same.
     :param plot_random_examples: Same.
+    :param plot_deterministic: Same.
     :param probability_threshold: Same.
     :param output_dir_name: Same.
     """
@@ -240,8 +286,11 @@ def _run(top_prediction_dir_name, first_date_string, last_date_string,
         directory_name=output_dir_name
     )
 
-    error_checking.assert_is_greater(probability_threshold, 0.)
-    error_checking.assert_is_less_than(probability_threshold, 1.)
+    if plot_deterministic:
+        probability_threshold = None
+    else:
+        error_checking.assert_is_greater(probability_threshold, 0.)
+        error_checking.assert_is_less_than(probability_threshold, 1.)
 
     prediction_file_names = prediction_io.find_many_files(
         top_directory_name=top_prediction_dir_name,
@@ -255,6 +304,7 @@ def _run(top_prediction_dir_name, first_date_string, last_date_string,
             prediction_file_name=this_file_name,
             num_examples=num_examples_per_day,
             plot_random_examples=plot_random_examples,
+            plot_deterministic=plot_deterministic,
             probability_threshold=probability_threshold,
             output_dir_name=output_dir_name
         )
@@ -272,6 +322,9 @@ if __name__ == '__main__':
         ),
         plot_random_examples=bool(getattr(
             INPUT_ARG_OBJECT, PLOT_RANDOM_ARG_NAME
+        )),
+        plot_deterministic=bool(getattr(
+            INPUT_ARG_OBJECT, PLOT_DETERMINISTIC_ARG_NAME
         )),
         probability_threshold=getattr(
             INPUT_ARG_OBJECT, PROB_THRESHOLD_ARG_NAME
