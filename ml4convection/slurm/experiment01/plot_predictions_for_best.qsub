@@ -35,7 +35,7 @@ set first_date_string=${FIRST_DATE_STRINGS[$SLURM_ARRAY_TASK_ID]}
 set last_date_string=${LAST_DATE_STRINGS[$SLURM_ARRAY_TASK_ID]}
 
 set HALF_WINDOW_SIZE_PX=2
-set CONV_LAYER_DROPOUT_RATE=0.175
+set CONV_LAYER_DROPOUT_RATE=0
 set L2_WEIGHT=0.0001
 
 set half_window_size_string=`printf "%d" $HALF_WINDOW_SIZE_PX`
