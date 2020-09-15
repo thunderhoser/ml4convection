@@ -1,0 +1,53 @@
+#!/bin/tcsh
+
+#SBATCH --job-name="apply_best_neural_net"
+#SBATCH --partition="fge"
+#SBATCH --account="rda-ghpcs"
+#SBATCH --qos="batch"
+#SBATCH --ntasks=1
+#SBATCH --nodes=1
+#SBATCH --cpus-per-task=1
+#SBATCH --mem=16G
+##SBATCH --nodes=1
+##SBATCH --ntasks=1
+##SBATCH --cpus-per-task=1
+##SBATCH --ntasks-per-node=1
+#SBATCH --time=06:00:00
+#SBATCH --exclude=h28n12
+##SBATCH --exclude=h31n03,h28n12
+##SBATCH --exclude=h29n01,h26n05,h28n06,h29n07,h30n03,h30n15
+#SBATCH --mail-type=BEGIN,END,FAIL
+#SBATCH --mail-user=ryan.lagerquist@noaa.gov
+#SBATCH --output=apply_best_neural_net_%A.out
+
+module load cuda/10.1
+source /scratch2/BMC/gsd-hpcs/Jebb.Q.Stewart/conda3.7/etc/profile.d/conda.csh
+conda activate base
+
+set CODE_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_standalone/ml4convection"
+set TOP_MODEL_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_models/experiment02"
+set TOP_PREDICTOR_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_project/predictors"
+set TOP_TARGET_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_project/targets"
+
+set FIRST_VALIDN_DATE_STRING="20170101"
+set LAST_VALIDN_DATE_STRING="20171224"
+
+set positive_class_weight=25
+set conv_layer_dropout_rate=0
+set l2_weight=0.001
+
+set pos_class_weight_string=`printf "%03d" $positive_class_weight`
+set conv_layer_dropout_string=`printf "%.3f" $conv_layer_dropout_rate`
+set l2_weight_string=`printf "%.6f" $l2_weight`
+
+set model_dir_name="${TOP_MODEL_DIR_NAME}/positive-class-weight=${pos_class_weight_string}_conv-dropout=${conv_layer_dropout_string}_l2-weight=${l2_weight_string}"
+set model_file_name="${model_dir_name}/model.h5"
+set prediction_dir_name="${model_dir_name}/validation"
+
+python3 -u "${CODE_DIR_NAME}/apply_neural_net.py" \
+--input_model_file_name="${model_file_name}" \
+--input_predictor_dir_name="${TOP_PREDICTOR_DIR_NAME}" \
+--input_target_dir_name="${TOP_TARGET_DIR_NAME}" \
+--first_valid_date_string="${FIRST_VALIDN_DATE_STRING}" \
+--last_valid_date_string="${LAST_VALIDN_DATE_STRING}" \
+--output_dir_name="${prediction_dir_name}"
