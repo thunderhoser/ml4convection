@@ -85,7 +85,7 @@ def _run():
 
                 this_model_file_name = (
                     '{0:s}/model_fss-half-window-size-px={1:d}_'
-                    'conv-dropout={2:.3f}_l2-weight={3:.6f}.h5'
+                    'conv-dropout={2:.3f}_l2-weight={3:.9f}.h5'
                 ).format(
                     OUTPUT_DIR_NAME, FSS_HALF_WINDOW_SIZES_PX[i],
                     CONV_LAYER_DROPOUT_RATES[j], L2_WEIGHTS[k]
