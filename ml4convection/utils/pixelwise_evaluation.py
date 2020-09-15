@@ -393,7 +393,7 @@ def write_file(score_table_xarray, output_file_name):
 
     if NUM_TRUE_POSITIVES_KEY in score_table_xarray:
         pickle_file_handle = open(output_file_name, 'wb')
-        pickle.dump(output_file_name, pickle_file_handle)
+        pickle.dump(score_table_xarray, pickle_file_handle)
         pickle_file_handle.close()
     else:
         score_table_xarray.to_netcdf(
