@@ -201,7 +201,7 @@ def _plot_predictions_one_example(
             axes_object_or_matrix=axes_object, data_matrix=probability_matrix,
             colour_map_object=colour_map_object,
             colour_norm_object=colour_norm_object,
-            orientation_string='horizontal', padding=0.075,
+            orientation_string='vertical', fraction_of_axis_length=0.8,
             extend_min=False, extend_max=False
         )
 
