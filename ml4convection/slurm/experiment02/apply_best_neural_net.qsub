@@ -32,13 +32,13 @@ set TOP_TARGET_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convectio
 set FIRST_VALIDN_DATE_STRING="20170101"
 set LAST_VALIDN_DATE_STRING="20171224"
 
-set positive_class_weight=25
-set conv_layer_dropout_rate=0
-set l2_weight=0.001
+set POSITIVE_CLASS_WEIGHT=25
+set CONV_LAYER_DROPOUT_RATE=0
+set L2_WEIGHT=0.001
 
-set pos_class_weight_string=`printf "%03d" $positive_class_weight`
-set conv_layer_dropout_string=`printf "%.3f" $conv_layer_dropout_rate`
-set l2_weight_string=`printf "%.6f" $l2_weight`
+set pos_class_weight_string=`printf "%03d" $POSITIVE_CLASS_WEIGHT`
+set conv_layer_dropout_string=`printf "%.3f" $CONV_LAYER_DROPOUT_RATE`
+set l2_weight_string=`printf "%.6f" $L2_WEIGHT`
 
 set model_dir_name="${TOP_MODEL_DIR_NAME}/positive-class-weight=${pos_class_weight_string}_conv-dropout=${conv_layer_dropout_string}_l2-weight=${l2_weight_string}"
 set model_file_name="${model_dir_name}/model.h5"
