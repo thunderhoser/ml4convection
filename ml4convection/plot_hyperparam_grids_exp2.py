@@ -1,4 +1,4 @@
-"""Plots scores on hyperparameter grid for Experiment 1."""
+"""Plots scores on hyperparameter grid for Experiment 2."""
 
 import sys
 import os.path
@@ -21,7 +21,9 @@ import file_system_utils
 
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 
-HALF_WINDOW_SIZES_FOR_LOSS_PX = numpy.array([1, 2, 3, 4, 5], dtype=int)
+POSITIVE_CLASS_WEIGHTS = numpy.array(
+    [1, 10, 25, 50, 75, 100, 150, 200], dtype=int
+)
 CONV_LAYER_DROPOUT_RATES = numpy.array([0, 0.175, 0.35, 0.525, 0.7])
 L2_WEIGHTS = numpy.logspace(-4, -2, num=5)
 
@@ -194,11 +196,11 @@ def _print_ranking_one_score(score_matrix, score_name):
 
         print((
             '{0:d}th-highest {1:s} = {2:.4g} ... '
-            'half-window size for loss function = {3:d} ... '
+            'positive-class weight = {3:d} ... '
             'conv-layer dropout rate = {4:.3f} ... L_2 weight = 10^{5:.1f}'
         ).format(
             m + 1, score_name, score_matrix[i, j, k],
-            HALF_WINDOW_SIZES_FOR_LOSS_PX[i], CONV_LAYER_DROPOUT_RATES[j],
+            POSITIVE_CLASS_WEIGHTS[i], CONV_LAYER_DROPOUT_RATES[j],
             numpy.log10(L2_WEIGHTS[k])
         ))
 
@@ -211,11 +213,11 @@ def _run(experiment_dir_name):
     :param experiment_dir_name: See documentation at top of file.
     """
 
-    num_window_sizes_for_loss = len(HALF_WINDOW_SIZES_FOR_LOSS_PX)
+    num_pos_class_weights = len(POSITIVE_CLASS_WEIGHTS)
     num_dropout_rates = len(CONV_LAYER_DROPOUT_RATES)
     num_l2_weights = len(L2_WEIGHTS)
     dimensions = (
-        num_window_sizes_for_loss, num_dropout_rates, num_l2_weights
+        num_pos_class_weights, num_dropout_rates, num_l2_weights
     )
 
     max_csi_matrix = numpy.full(dimensions, numpy.nan)
@@ -229,19 +231,20 @@ def _run(experiment_dir_name):
         for d in CONV_LAYER_DROPOUT_RATES
     ]
     x_tick_labels = [
-        '10^{0:.1f}'.format(numpy.log10(w)) for w in L2_WEIGHTS
+        r'10$' + r'^{0:.1f}'.format(numpy.log10(w)) + r'$'
+        for w in L2_WEIGHTS
     ]
     y_axis_label = 'Conv-layer dropout rate'
     x_axis_label = r'L$_{2}$ weight'
 
-    for i in range(num_window_sizes_for_loss):
+    for i in range(num_pos_class_weights):
         for j in range(num_dropout_rates):
             for k in range(num_l2_weights):
                 this_model_dir_name = (
-                    '{0:s}/fss-half-window-size-px={1:d}_'
+                    '{0:s}/positive-class-weight={1:03d}_'
                     'conv-dropout={2:.3f}_l2-weight={3:.6f}'
                 ).format(
-                    experiment_dir_name, HALF_WINDOW_SIZES_FOR_LOSS_PX[i],
+                    experiment_dir_name, POSITIVE_CLASS_WEIGHTS[i],
                     CONV_LAYER_DROPOUT_RATES[j], L2_WEIGHTS[k]
                 )
 
@@ -252,7 +255,7 @@ def _run(experiment_dir_name):
                         this_score_dict[HALF_WINDOW_SIZES_FOR_EVAL_KEY] + 0
                     )
                     these_dim = (
-                        num_window_sizes_for_loss, num_dropout_rates,
+                        num_pos_class_weights, num_dropout_rates,
                         num_l2_weights, len(half_window_sizes_for_eval_px)
                     )
                     fss_matrix = numpy.full(these_dim, numpy.nan)
@@ -285,11 +288,7 @@ def _run(experiment_dir_name):
         )
         print(SEPARATOR_STRING)
 
-    for i in range(num_window_sizes_for_loss):
-        this_window_size_for_loss_px = int(numpy.round(
-            2 * HALF_WINDOW_SIZES_FOR_LOSS_PX[i] + 1
-        ))
-
+    for i in range(num_pos_class_weights):
         figure_object, axes_object = _plot_scores_2d(
             score_matrix=auc_matrix[i, ...],
             min_colour_value=numpy.nanpercentile(auc_matrix, 1),
@@ -299,15 +298,15 @@ def _run(experiment_dir_name):
 
         axes_object.set_xlabel(x_axis_label)
         axes_object.set_ylabel(y_axis_label)
-        title_string = 'AUC with {0:d}-by-{0:d} loss function'.format(
-            this_window_size_for_loss_px
+        title_string = 'AUC with positive-class weight = {0:d}'.format(
+            POSITIVE_CLASS_WEIGHTS[i]
         )
         axes_object.set_title(title_string)
 
         figure_file_name = (
-            '{0:s}/fss-half-window-size-px={1:d}_auc_grid.jpg'
+            '{0:s}/positive-class-weight={1:03d}_auc_grid.jpg'
         ).format(
-            experiment_dir_name, HALF_WINDOW_SIZES_FOR_LOSS_PX[i]
+            experiment_dir_name, POSITIVE_CLASS_WEIGHTS[i]
         )
 
         file_system_utils.mkdir_recursive_if_necessary(
@@ -330,15 +329,15 @@ def _run(experiment_dir_name):
 
         axes_object.set_xlabel(x_axis_label)
         axes_object.set_ylabel(y_axis_label)
-        title_string = 'AUPD with {0:d}-by-{0:d} loss function'.format(
-            this_window_size_for_loss_px
+        title_string = 'AUPD with positive-class weight = {0:d}'.format(
+            POSITIVE_CLASS_WEIGHTS[i]
         )
         axes_object.set_title(title_string)
 
         figure_file_name = (
-            '{0:s}/fss-half-window-size-px={1:d}_aupd_grid.jpg'
+            '{0:s}/positive-class-weight={1:03d}_aupd_grid.jpg'
         ).format(
-            experiment_dir_name, HALF_WINDOW_SIZES_FOR_LOSS_PX[i]
+            experiment_dir_name, POSITIVE_CLASS_WEIGHTS[i]
         )
 
         file_system_utils.mkdir_recursive_if_necessary(
@@ -361,15 +360,15 @@ def _run(experiment_dir_name):
 
         axes_object.set_xlabel(x_axis_label)
         axes_object.set_ylabel(y_axis_label)
-        title_string = 'Max CSI with {0:d}-by-{0:d} loss function'.format(
-            this_window_size_for_loss_px
+        title_string = 'Max CSI with positive-class weight = {0:d}'.format(
+            POSITIVE_CLASS_WEIGHTS[i]
         )
         axes_object.set_title(title_string)
 
         figure_file_name = (
-            '{0:s}/fss-half-window-size-px={1:d}_csi_grid.jpg'
+            '{0:s}/positive-class-weight={1:03d}_csi_grid.jpg'
         ).format(
-            experiment_dir_name, HALF_WINDOW_SIZES_FOR_LOSS_PX[i]
+            experiment_dir_name, POSITIVE_CLASS_WEIGHTS[i]
         )
 
         file_system_utils.mkdir_recursive_if_necessary(
@@ -398,16 +397,16 @@ def _run(experiment_dir_name):
             axes_object.set_xlabel(x_axis_label)
             axes_object.set_ylabel(y_axis_label)
             title_string = (
-                '{0:d}-by-{0:d} FSS with {1:d}-by-{1:d} loss function'
+                '{0:d}-by-{0:d} FSS with positive-class weight = {1:d}'
             ).format(
-                this_window_size_for_eval_px, this_window_size_for_loss_px
+                this_window_size_for_eval_px, POSITIVE_CLASS_WEIGHTS[i]
             )
             axes_object.set_title(title_string)
 
             figure_file_name = (
-                '{0:s}/fss-half-window-size-px={1:d}_fss{2:d}by{2:d}_grid.jpg'
+                '{0:s}/positive-class-weight={1:03d}_fss{2:d}by{2:d}_grid.jpg'
             ).format(
-                experiment_dir_name, HALF_WINDOW_SIZES_FOR_LOSS_PX[i],
+                experiment_dir_name, POSITIVE_CLASS_WEIGHTS[i],
                 this_window_size_for_eval_px
             )
 
