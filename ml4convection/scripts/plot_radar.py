@@ -1,4 +1,4 @@
-"""Plot predictions (and targets) for the given days."""
+"""Plots radar images for the given days."""
 
 import argparse
 import numpy
@@ -10,11 +10,16 @@ from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
 from gewittergefahr.plotting import plotting_utils
-from ml4convection.io import prediction_io
-from ml4convection.plotting import prediction_plotting
+from gewittergefahr.plotting import radar_plotting
+from ml4convection.io import radar_io
+from ml4convection.io import example_io
+
+SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 
 DAYS_TO_SECONDS = 86400
 TIME_FORMAT = '%Y-%m-%d-%H%M'
+
+COMPOSITE_REFL_NAME = 'reflectivity_column_max_dbz'
 
 NUM_PARALLELS = 8
 NUM_MERIDIANS = 6
@@ -22,23 +27,28 @@ FIGURE_RESOLUTION_DPI = 300
 FIGURE_WIDTH_INCHES = 15
 FIGURE_HEIGHT_INCHES = 15
 
-INPUT_DIR_ARG_NAME = 'input_prediction_dir_name'
+RADAR_DIR_ARG_NAME = 'input_radar_dir_name'
+TARGET_DIR_ARG_NAME = 'input_target_dir_name'
 FIRST_DATE_ARG_NAME = 'first_date_string'
 LAST_DATE_ARG_NAME = 'last_date_string'
 DAILY_TIMES_ARG_NAME = 'daily_times_seconds'
 NUM_EXAMPLES_PER_DAY_ARG_NAME = 'num_examples_per_day'
 PLOT_RANDOM_ARG_NAME = 'plot_random_examples'
 PLOT_BASEMAP_ARG_NAME = 'plot_basemap'
-PLOT_DETERMINISTIC_ARG_NAME = 'plot_deterministic'
-PROB_THRESHOLD_ARG_NAME = 'probability_threshold'
 OUTPUT_DIR_ARG_NAME = 'output_dir_name'
 
-INPUT_DIR_HELP_STRING = (
-    'Name of input directory.  Files therein will be found by '
-    '`prediction_io.find_file` and read by `prediction_io.read_file`.'
+RADAR_DIR_HELP_STRING = (
+    'Name of directory with radar data.  Files therein will be found by '
+    '`radar_io.find_file` and read by `radar_io.read_2d_file`.'
 )
+TARGET_DIR_HELP_STRING = (
+    '[used only if `{0:s}` is left empty] Name of directory with target data.  '
+    'Files therein will be found by `example_io.find_target_file` and read by '
+    '`example_io.read_target_file`.'
+).format(RADAR_DIR_ARG_NAME)
+
 DATE_HELP_STRING = (
-    'Date (format "yyyymmdd").  Will plot predictions for all days in the '
+    'Date (format "yyyymmdd").  Will plot radar images for all days in the '
     'period `{0:s}`...`{1:s}`.'
 ).format(FIRST_DATE_ARG_NAME, LAST_DATE_ARG_NAME)
 
@@ -58,25 +68,16 @@ NUM_EXAMPLES_PER_DAY_HELP_STRING = (
 PLOT_BASEMAP_HELP_STRING = (
     'Boolean flag.  If 1 (0), will plot radar images with (without) basemap.'
 )
-PLOT_DETERMINISTIC_HELP_STRING = (
-    'Boolean flag.  If 1 (0), will plot deterministic (probabilistic) '
-    'predictions.'
-)
-PROB_THRESHOLD_HELP_STRING = (
-    '[used only if `{0:s} == 1`] Threshold used to convert probabilistic '
-    'forecasts to deterministic.  All probabilities >= `{1:s}` will be '
-    'considered "yes" forecasts, and all probabilities < `{1:s}` will be '
-    'considered "no" forecasts.'
-).format(PLOT_DETERMINISTIC_ARG_NAME, PROB_THRESHOLD_ARG_NAME)
-
-OUTPUT_DIR_HELP_STRING = (
-    'Name of output directory.  Figures will be saved here.'
-)
+OUTPUT_DIR_HELP_STRING = 'Name of output directory.  Images will be saved here.'
 
 INPUT_ARG_PARSER = argparse.ArgumentParser()
 INPUT_ARG_PARSER.add_argument(
-    '--' + INPUT_DIR_ARG_NAME, type=str, required=True,
-    help=INPUT_DIR_HELP_STRING
+    '--' + RADAR_DIR_ARG_NAME, type=str, required=False, default='',
+    help=RADAR_DIR_HELP_STRING
+)
+INPUT_ARG_PARSER.add_argument(
+    '--' + TARGET_DIR_ARG_NAME, type=str, required=False, default='',
+    help=TARGET_DIR_HELP_STRING
 )
 INPUT_ARG_PARSER.add_argument(
     '--' + FIRST_DATE_ARG_NAME, type=str, required=True, help=DATE_HELP_STRING
@@ -101,35 +102,24 @@ INPUT_ARG_PARSER.add_argument(
     help=PLOT_BASEMAP_HELP_STRING
 )
 INPUT_ARG_PARSER.add_argument(
-    '--' + PLOT_DETERMINISTIC_ARG_NAME, type=int, required=False, default=0,
-    help=PLOT_DETERMINISTIC_HELP_STRING
-)
-INPUT_ARG_PARSER.add_argument(
-    '--' + PROB_THRESHOLD_ARG_NAME, type=float, required=False, default=-1,
-    help=PROB_THRESHOLD_HELP_STRING
-)
-INPUT_ARG_PARSER.add_argument(
     '--' + OUTPUT_DIR_ARG_NAME, type=str, required=True,
     help=OUTPUT_DIR_HELP_STRING
 )
 
 
-def _plot_predictions_one_example(
-        prediction_dict, example_index, plot_basemap, plot_deterministic,
-        probability_threshold, output_dir_name):
-    """Plots predictions (and targets) for one example (time step).
+def _plot_radar_one_example(
+        radar_dict, example_index, plot_basemap, output_dir_name):
+    """Plots one radar image.
 
-    :param prediction_dict: Dictionary in format returned by
-        `prediction_io.read_file`.
+    :param radar_dict: Dictionary in the format returned by
+        `radar_io.read_2d_file`.
     :param example_index: Will plot [i]th example, where i = `example_index`.
     :param plot_basemap: See documentation at top of file.
-    :param plot_deterministic: Same.
-    :param probability_threshold: Same.
     :param output_dir_name: Same.
     """
 
-    latitudes_deg_n = prediction_dict[prediction_io.LATITUDES_KEY]
-    longitudes_deg_e = prediction_dict[prediction_io.LONGITUDES_KEY]
+    latitudes_deg_n = radar_dict[radar_io.LATITUDES_KEY]
+    longitudes_deg_e = radar_dict[radar_io.LONGITUDES_KEY]
 
     if plot_basemap:
         figure_object, axes_object, basemap_object = (
@@ -165,58 +155,24 @@ def _plot_predictions_one_example(
             1, 1, figsize=(FIGURE_WIDTH_INCHES, FIGURE_HEIGHT_INCHES)
         )
 
-    i = example_index
-    valid_time_unix_sec = prediction_dict[prediction_io.VALID_TIMES_KEY][i]
+    valid_time_unix_sec = radar_dict[radar_io.VALID_TIMES_KEY][example_index]
     valid_time_string = time_conversion.unix_sec_to_string(
         valid_time_unix_sec, TIME_FORMAT
     )
+    title_string = 'Composite reflectivity at {0:s}'.format(valid_time_string)
 
-    target_matrix = prediction_dict[prediction_io.TARGET_MATRIX_KEY][i, ...]
-    probability_matrix = (
-        prediction_dict[prediction_io.PROBABILITY_MATRIX_KEY][i, ...]
+    composite_refl_matrix_dbz = (
+        radar_dict[radar_io.COMPOSITE_REFL_KEY][example_index, ...]
     )
 
-    if plot_deterministic:
-        prediction_matrix = (
-            (probability_matrix >= probability_threshold).astype(int)
-        )
-
-        prediction_plotting.plot_deterministic(
-            target_matrix=target_matrix, prediction_matrix=prediction_matrix,
-            axes_object=axes_object,
-            min_latitude_deg_n=latitudes_deg_n[0],
-            min_longitude_deg_e=longitudes_deg_e[0],
-            latitude_spacing_deg=numpy.diff(latitudes_deg_n[:2])[0],
-            longitude_spacing_deg=numpy.diff(longitudes_deg_e[:2])[0]
-        )
-
-        title_string = (
-            'Actual (pink) and predicted (grey) convection at {0:s}'
-        ).format(valid_time_string)
-    else:
-        prediction_plotting.plot_probabilistic(
-            target_matrix=target_matrix, probability_matrix=probability_matrix,
-            axes_object=axes_object,
-            min_latitude_deg_n=latitudes_deg_n[0],
-            min_longitude_deg_e=longitudes_deg_e[0],
-            latitude_spacing_deg=numpy.diff(latitudes_deg_n[:2])[0],
-            longitude_spacing_deg=numpy.diff(longitudes_deg_e[:2])[0]
-        )
-
-        title_string = 'Forecast convection probabilities at {0:s}'.format(
-            valid_time_string
-        )
-
-        colour_map_object, colour_norm_object = (
-            prediction_plotting.get_prob_colour_scheme()
-        )
-
-        plotting_utils.plot_colour_bar(
-            axes_object_or_matrix=axes_object, data_matrix=probability_matrix,
-            colour_map_object=colour_map_object,
-            colour_norm_object=colour_norm_object,
-            orientation_string='vertical', extend_min=False, extend_max=False
-        )
+    radar_plotting.plot_latlng_grid(
+        field_matrix=composite_refl_matrix_dbz, field_name=COMPOSITE_REFL_NAME,
+        axes_object=axes_object,
+        min_grid_point_latitude_deg=numpy.min(latitudes_deg_n),
+        min_grid_point_longitude_deg=numpy.min(longitudes_deg_e),
+        latitude_spacing_deg=numpy.diff(latitudes_deg_n[:2])[0],
+        longitude_spacing_deg=numpy.diff(longitudes_deg_e[:2])[0]
+    )
 
     if not plot_basemap:
         tick_latitudes_deg_n = numpy.unique(numpy.round(latitudes_deg_n))
@@ -244,9 +200,21 @@ def _plot_predictions_one_example(
         axes_object.set_xlabel(r'Longitude ($^{\circ}$E)')
         axes_object.set_ylabel(r'Latitude ($^{\circ}$N)')
 
+    colour_map_object, colour_norm_object = (
+        radar_plotting.get_default_colour_scheme(COMPOSITE_REFL_NAME)
+    )
+
+    plotting_utils.plot_colour_bar(
+        axes_object_or_matrix=axes_object,
+        data_matrix=composite_refl_matrix_dbz,
+        colour_map_object=colour_map_object,
+        colour_norm_object=colour_norm_object,
+        orientation_string='vertical', extend_min=False, extend_max=True
+    )
+
     axes_object.set_title(title_string)
 
-    output_file_name = '{0:s}/predictions_{1:s}.jpg'.format(
+    output_file_name = '{0:s}/composite_reflectivity_{1:s}.jpg'.format(
         output_dir_name, valid_time_string
     )
 
@@ -258,30 +226,22 @@ def _plot_predictions_one_example(
     pyplot.close(figure_object)
 
 
-def _plot_predictions_one_day(
-        prediction_file_name, daily_times_seconds, plot_random_examples,
-        num_examples, plot_basemap, plot_deterministic, probability_threshold,
-        output_dir_name):
-    """Plots predictions (and targets) for one day.
+def _plot_radar_one_day(
+        radar_dict, daily_times_seconds, plot_random_examples, num_examples,
+        plot_basemap, output_dir_name):
+    """Plots radar images for one day.
 
-    :param prediction_file_name: Path to prediction file.  Will be read by
-        `prediction_io.read_file`.
+    :param radar_dict: Dictionary in the format returned by
+        `radar_io.read_2d_file`.
     :param daily_times_seconds: See documentation at top of file.
     :param plot_random_examples: Same.
     :param num_examples: Same.
     :param plot_basemap: Same.
-    :param plot_deterministic: Same.
-    :param probability_threshold: Same.
     :param output_dir_name: Same.
     """
 
-    # TODO(thunderhoser): Put this code somewhere reusable.
-
-    print('Reading data from: "{0:s}"...'.format(prediction_file_name))
-    prediction_dict = prediction_io.read_file(prediction_file_name)
-
     if daily_times_seconds is not None:
-        valid_times_unix_sec = prediction_dict[prediction_io.VALID_TIMES_KEY]
+        valid_times_unix_sec = radar_dict[radar_io.VALID_TIMES_KEY]
         base_time_unix_sec = number_rounding.floor_to_nearest(
             valid_times_unix_sec[0], DAYS_TO_SECONDS
         )
@@ -295,12 +255,11 @@ def _plot_predictions_one_day(
             return
 
         desired_times_unix_sec = desired_times_unix_sec[good_flags]
-        prediction_dict = prediction_io.subset_by_time(
-            prediction_dict=prediction_dict,
-            desired_times_unix_sec=desired_times_unix_sec
+        radar_dict = radar_io.subset_by_time(
+            radar_dict=radar_dict, desired_times_unix_sec=desired_times_unix_sec
         )
     else:
-        num_examples_total = len(prediction_dict[prediction_io.VALID_TIMES_KEY])
+        num_examples_total = len(radar_dict[radar_io.VALID_TIMES_KEY])
         desired_indices = numpy.linspace(
             0, num_examples_total - 1, num=num_examples_total, dtype=int
         )
@@ -313,85 +272,117 @@ def _plot_predictions_one_day(
             else:
                 desired_indices = desired_indices[:num_examples]
 
-        prediction_dict = prediction_io.subset_by_index(
-            prediction_dict=prediction_dict, desired_indices=desired_indices
+        radar_dict = radar_io.subset_by_index(
+            radar_dict=radar_dict, desired_indices=desired_indices
         )
 
-    num_examples = len(prediction_dict[prediction_io.VALID_TIMES_KEY])
+    num_examples = len(radar_dict[radar_io.VALID_TIMES_KEY])
 
     for i in range(num_examples):
-        _plot_predictions_one_example(
-            prediction_dict=prediction_dict, example_index=i,
-            plot_basemap=plot_basemap,
-            plot_deterministic=plot_deterministic,
-            probability_threshold=probability_threshold,
+        _plot_radar_one_example(
+            radar_dict=radar_dict, example_index=i, plot_basemap=plot_basemap,
             output_dir_name=output_dir_name
         )
 
 
-def _run(top_prediction_dir_name, first_date_string, last_date_string,
-         daily_times_seconds, plot_random_examples, num_examples_per_day,
-         plot_basemap, plot_deterministic, probability_threshold,
-         output_dir_name):
-    """Plot predictions (and targets) for the given days.
+def _run(top_radar_dir_name, top_target_dir_name, first_date_string,
+         last_date_string, daily_times_seconds, plot_random_examples,
+         num_examples_per_day, plot_basemap, output_dir_name):
+    """Plots radar images for the given days.
 
     This is effectively the main method.
 
-    :param top_prediction_dir_name: See documentation at top of file.
+    :param top_radar_dir_name: See documentation at top of file.
+    :param top_target_dir_name: Same.
     :param first_date_string: Same.
     :param last_date_string: Same.
     :param daily_times_seconds: Same.
     :param plot_random_examples: Same.
     :param num_examples_per_day: Same.
     :param plot_basemap: Same.
-    :param plot_deterministic: Same.
-    :param probability_threshold: Same.
     :param output_dir_name: Same.
+    :raises: ValueError:
+        if `top_radar_dir_name is None and top_target_dir_name is None`.
     """
 
     file_system_utils.mkdir_recursive_if_necessary(
         directory_name=output_dir_name
     )
 
+    if top_radar_dir_name == '':
+        top_radar_dir_name = None
+    if top_target_dir_name == '':
+        top_target_dir_name = None
     if len(daily_times_seconds) == 1 and daily_times_seconds[0] < 0:
         daily_times_seconds = None
 
     if daily_times_seconds is not None:
         error_checking.assert_is_geq(daily_times_seconds, 0)
         error_checking.assert_is_less_than(daily_times_seconds, DAYS_TO_SECONDS)
+
         plot_random_examples = False
 
-    if plot_deterministic:
-        probability_threshold = None
+    if top_radar_dir_name is None and top_target_dir_name is None:
+        raise ValueError((
+            'One of the input args `{0:s}` and `{1:s}` must be specified.'
+        ).format(
+            RADAR_DIR_ARG_NAME, TARGET_DIR_ARG_NAME
+        ))
+
+    if top_radar_dir_name is None:
+        input_file_names = example_io.find_many_target_files(
+            top_directory_name=top_target_dir_name,
+            first_date_string=first_date_string,
+            last_date_string=last_date_string,
+            raise_error_if_any_missing=False
+        )
     else:
-        error_checking.assert_is_greater(probability_threshold, 0.)
-        error_checking.assert_is_less_than(probability_threshold, 1.)
+        input_file_names = radar_io.find_many_files(
+            top_directory_name=top_radar_dir_name,
+            first_date_string=first_date_string,
+            last_date_string=last_date_string,
+            with_3d=False, raise_error_if_any_missing=False
+        )
 
-    prediction_file_names = prediction_io.find_many_files(
-        top_directory_name=top_prediction_dir_name,
-        first_date_string=first_date_string,
-        last_date_string=last_date_string,
-        raise_error_if_any_missing=False
-    )
+    for i in range(len(input_file_names)):
+        print('Reading data from: "{0:s}"...'.format(input_file_names[i]))
 
-    for this_file_name in prediction_file_names:
-        _plot_predictions_one_day(
-            prediction_file_name=this_file_name,
-            daily_times_seconds=daily_times_seconds,
+        if top_radar_dir_name is None:
+            target_dict = example_io.read_target_file(
+                netcdf_file_name=input_file_names[i], read_targets=False,
+                read_reflectivities=True
+            )
+
+            radar_dict = {
+                radar_io.COMPOSITE_REFL_KEY:
+                    target_dict[example_io.COMPOSITE_REFL_MATRIX_KEY],
+                radar_io.VALID_TIMES_KEY: target_dict[
+                    example_io.VALID_TIMES_KEY],
+                radar_io.LATITUDES_KEY: target_dict[example_io.LATITUDES_KEY],
+                radar_io.LONGITUDES_KEY: target_dict[example_io.LONGITUDES_KEY]
+            }
+        else:
+            radar_dict = radar_io.read_2d_file(
+                netcdf_file_name=input_file_names[i], fill_nans=False
+            )
+
+        _plot_radar_one_day(
+            radar_dict=radar_dict, daily_times_seconds=daily_times_seconds,
             plot_random_examples=plot_random_examples,
             num_examples=num_examples_per_day,
-            plot_basemap=plot_basemap,
-            plot_deterministic=plot_deterministic,
-            probability_threshold=probability_threshold,
-            output_dir_name=output_dir_name
+            plot_basemap=plot_basemap, output_dir_name=output_dir_name
         )
+
+        if i != len(input_file_names) - 1:
+            print(SEPARATOR_STRING)
 
 
 if __name__ == '__main__':
     INPUT_ARG_OBJECT = INPUT_ARG_PARSER.parse_args()
 
     _run(
-        top_prediction_dir_name=getattr(INPUT_ARG_OBJECT, INPUT_DIR_ARG_NAME),
+        top_radar_dir_name=getattr(INPUT_ARG_OBJECT, RADAR_DIR_ARG_NAME),
+        top_target_dir_name=getattr(INPUT_ARG_OBJECT, TARGET_DIR_ARG_NAME),
         first_date_string=getattr(INPUT_ARG_OBJECT, FIRST_DATE_ARG_NAME),
         last_date_string=getattr(INPUT_ARG_OBJECT, LAST_DATE_ARG_NAME),
         daily_times_seconds=numpy.array(
@@ -404,11 +395,5 @@ if __name__ == '__main__':
             INPUT_ARG_OBJECT, NUM_EXAMPLES_PER_DAY_ARG_NAME
         ),
         plot_basemap=bool(getattr(INPUT_ARG_OBJECT, PLOT_BASEMAP_ARG_NAME)),
-        plot_deterministic=bool(getattr(
-            INPUT_ARG_OBJECT, PLOT_DETERMINISTIC_ARG_NAME
-        )),
-        probability_threshold=getattr(
-            INPUT_ARG_OBJECT, PROB_THRESHOLD_ARG_NAME
-        ),
         output_dir_name=getattr(INPUT_ARG_OBJECT, OUTPUT_DIR_ARG_NAME)
     )
