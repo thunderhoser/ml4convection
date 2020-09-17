@@ -207,6 +207,9 @@ def _plot_predictions_one_example(
     axes_object.set_title(title_string)
     axes_object.set_xlabel(r'Longitude ($^{\circ}$E)')
     axes_object.set_ylabel(r'Latitude ($^{\circ}$N)')
+    axes_object.grid(
+        b=True, which='major', axis='both', linestyle='--', linewidth=2
+    )
 
     output_file_name = '{0:s}/predictions_{1:s}.jpg'.format(
         output_dir_name, valid_time_string

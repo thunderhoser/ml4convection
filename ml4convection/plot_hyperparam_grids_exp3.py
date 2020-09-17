@@ -1,4 +1,4 @@
-"""Plots scores on hyperparameter grid for Experiment 1."""
+"""Plots scores on hyperparameter grid for Experiment 3."""
 
 import sys
 import os.path
@@ -21,9 +21,11 @@ import file_system_utils
 
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 
-HALF_WINDOW_SIZES_FOR_LOSS_PX = numpy.array([1, 2, 3, 4, 5], dtype=int)
-CONV_LAYER_DROPOUT_RATES = numpy.array([0, 0.175, 0.35, 0.525, 0.7])
-L2_WEIGHTS = numpy.logspace(-4, -2, num=5)
+HALF_WINDOW_SIZES_FOR_LOSS_PX = numpy.array([1, 2, 3], dtype=int)
+CONV_LAYER_DROPOUT_RATES = numpy.array([
+    0, 0.05, 0.1, 0.15, 0.2, 0.25, 0.3, 0.35
+])
+L2_WEIGHTS = numpy.logspace(-7, -4, num=7)
 
 AUC_KEY = pixelwise_eval.AUC_KEY
 AUPD_KEY = pixelwise_eval.AUPD_KEY
@@ -204,7 +206,7 @@ def _print_ranking_one_score(score_matrix, score_name):
 
 
 def _run(experiment_dir_name):
-    """Plots scores on hyperparameter grid for Experiment 1.
+    """Plots scores on hyperparameter grid for Experiment 3.
 
     This is effectively the main method.
 
@@ -239,7 +241,7 @@ def _run(experiment_dir_name):
             for k in range(num_l2_weights):
                 this_model_dir_name = (
                     '{0:s}/fss-half-window-size-px={1:d}_'
-                    'conv-dropout={2:.3f}_l2-weight={3:.6f}'
+                    'conv-dropout={2:.3f}_l2-weight={3:.9f}'
                 ).format(
                     experiment_dir_name, HALF_WINDOW_SIZES_FOR_LOSS_PX[i],
                     CONV_LAYER_DROPOUT_RATES[j], L2_WEIGHTS[k]
