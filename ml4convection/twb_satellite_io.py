@@ -112,21 +112,23 @@ def count_to_temperature(brightness_counts, band_number):
         (same shape as `brightness_counts`).
     """
 
-    error_checking.assert_is_integer_numpy_array(brightness_counts)
+    # error_checking.assert_is_integer_numpy_array(brightness_counts)
     error_checking.assert_is_integer(band_number)
     error_checking.assert_is_geq(band_number, 0)
 
-    brightness_counts[brightness_counts < MIN_BRIGHTNESS_COUNT] = (
+    brightness_counts_1d = numpy.ravel(brightness_counts)
+    brightness_counts_1d[numpy.isnan(brightness_counts_1d)] = MISSING_COUNT
+    brightness_counts_1d[brightness_counts_1d < MIN_BRIGHTNESS_COUNT] = (
         MISSING_COUNT
     )
-    brightness_counts[brightness_counts > MAX_BRIGHTNESS_COUNT] = (
+    brightness_counts_1d[brightness_counts_1d > MAX_BRIGHTNESS_COUNT] = (
         MISSING_COUNT
     )
+    brightness_counts_1d = numpy.round(brightness_counts_1d).astype(int)
 
     count_to_temperature_dict_kelvins = _read_lookup_table(band_number)
     brightness_temps_kelvins = numpy.array([
-        count_to_temperature_dict_kelvins[c]
-        for c in numpy.ravel(brightness_counts)
+        count_to_temperature_dict_kelvins[c] for c in brightness_counts_1d
     ])
 
     return numpy.reshape(brightness_temps_kelvins, brightness_counts.shape)
