@@ -293,7 +293,9 @@ def _plot_predictions_one_day(
         base_time_unix_sec = number_rounding.floor_to_nearest(
             valid_times_unix_sec[0], DAYS_TO_SECONDS
         )
-        desired_times_unix_sec = base_time_unix_sec + daily_times_seconds
+        desired_times_unix_sec = numpy.round(
+            base_time_unix_sec + daily_times_seconds
+        ).astype(int)
 
         good_flags = numpy.array([
             t in valid_times_unix_sec for t in desired_times_unix_sec
