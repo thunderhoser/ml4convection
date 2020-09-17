@@ -308,7 +308,7 @@ def _plot_predictions_one_day(
         prediction_dict = prediction_io.subset_by_time(
             prediction_dict=prediction_dict,
             desired_times_unix_sec=desired_times_unix_sec
-        )
+        )[0]
     else:
         num_examples_total = len(prediction_dict[prediction_io.VALID_TIMES_KEY])
         desired_indices = numpy.linspace(
