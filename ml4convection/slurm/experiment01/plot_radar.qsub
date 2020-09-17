@@ -35,7 +35,7 @@ set first_date_string=${FIRST_DATE_STRINGS[$SLURM_ARRAY_TASK_ID]}
 set last_date_string=${LAST_DATE_STRINGS[$SLURM_ARRAY_TASK_ID]}
 
 python3 -u "${CODE_DIR_NAME}/plot_radar.py" \
---input_radar_dir_name="${TARGET_DIR_NAME}" \
+--input_target_dir_name="${TARGET_DIR_NAME}" \
 --first_date_string="${first_date_string}" \
 --last_date_string="${last_date_string}" \
 --daily_times_seconds 0 7200 14400 21600 28800 36000 43200 50400 57600 64800 72000 79200 \
