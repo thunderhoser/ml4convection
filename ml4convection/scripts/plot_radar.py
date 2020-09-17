@@ -32,8 +32,8 @@ TARGET_DIR_ARG_NAME = 'input_target_dir_name'
 FIRST_DATE_ARG_NAME = 'first_date_string'
 LAST_DATE_ARG_NAME = 'last_date_string'
 DAILY_TIMES_ARG_NAME = 'daily_times_seconds'
-NUM_EXAMPLES_PER_DAY_ARG_NAME = 'num_examples_per_day'
 PLOT_RANDOM_ARG_NAME = 'plot_random_examples'
+NUM_EXAMPLES_PER_DAY_ARG_NAME = 'num_examples_per_day'
 PLOT_BASEMAP_ARG_NAME = 'plot_basemap'
 OUTPUT_DIR_ARG_NAME = 'output_dir_name'
 
@@ -245,7 +245,9 @@ def _plot_radar_one_day(
         base_time_unix_sec = number_rounding.floor_to_nearest(
             valid_times_unix_sec[0], DAYS_TO_SECONDS
         )
-        desired_times_unix_sec = base_time_unix_sec + daily_times_seconds
+        desired_times_unix_sec = numpy.round(
+            base_time_unix_sec + daily_times_seconds
+        ).astype(int)
 
         good_flags = numpy.array([
             t in valid_times_unix_sec for t in desired_times_unix_sec
@@ -257,7 +259,7 @@ def _plot_radar_one_day(
         desired_times_unix_sec = desired_times_unix_sec[good_flags]
         radar_dict = radar_io.subset_by_time(
             radar_dict=radar_dict, desired_times_unix_sec=desired_times_unix_sec
-        )
+        )[0]
     else:
         num_examples_total = len(radar_dict[radar_io.VALID_TIMES_KEY])
         desired_indices = numpy.linspace(
@@ -317,9 +319,10 @@ def _run(top_radar_dir_name, top_target_dir_name, first_date_string,
         daily_times_seconds = None
 
     if daily_times_seconds is not None:
-        error_checking.assert_is_geq(daily_times_seconds, 0)
-        error_checking.assert_is_less_than(daily_times_seconds, DAYS_TO_SECONDS)
-
+        error_checking.assert_is_geq_numpy_array(daily_times_seconds, 0)
+        error_checking.assert_is_less_than_numpy_array(
+            daily_times_seconds, DAYS_TO_SECONDS
+        )
         plot_random_examples = False
 
     if top_radar_dir_name is None and top_target_dir_name is None:

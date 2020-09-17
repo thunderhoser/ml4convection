@@ -61,10 +61,10 @@ def _get_colour_scheme(
     return colour_map_object, colour_norm_object
 
 
-def plot_with_basemap(
+def plot_2d_grid(
         brightness_temp_matrix_kelvins, axes_object, min_latitude_deg_n,
         min_longitude_deg_e, latitude_spacing_deg, longitude_spacing_deg):
-    """Plots brightness-temperature grid with basemap.
+    """Plots brightness temperatures on 2-D grid.
 
     M = number of rows in grid
     N = number of columns in grid
@@ -118,8 +118,7 @@ def plot_with_basemap(
         data_matrix=brightness_temp_matrix_kelvins,
         colour_map_object=colour_map_object,
         colour_norm_object=colour_norm_object,
-        orientation_string='horizontal', padding=0.06,
-        extend_min=True, extend_max=True
+        orientation_string='vertical', extend_min=True, extend_max=True
     )
 
     num_tick_values = 1 + int(numpy.round(

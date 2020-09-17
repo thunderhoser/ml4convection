@@ -1,4 +1,4 @@
-"""Plot predictions (and targets) for the given days."""
+"""Plots satellite images for the given days."""
 
 import argparse
 import numpy
@@ -10,8 +10,8 @@ from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
 from gewittergefahr.plotting import plotting_utils
-from ml4convection.io import prediction_io
-from ml4convection.plotting import prediction_plotting
+from ml4convection.io import satellite_io
+from ml4convection.plotting import satellite_plotting
 
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 
@@ -24,26 +24,29 @@ FIGURE_RESOLUTION_DPI = 300
 FIGURE_WIDTH_INCHES = 15
 FIGURE_HEIGHT_INCHES = 15
 
-INPUT_DIR_ARG_NAME = 'input_prediction_dir_name'
+SATELLITE_DIR_ARG_NAME = 'input_satellite_dir_name'
 FIRST_DATE_ARG_NAME = 'first_date_string'
 LAST_DATE_ARG_NAME = 'last_date_string'
+BAND_NUMBERS_ARG_NAME = 'band_numbers'
 DAILY_TIMES_ARG_NAME = 'daily_times_seconds'
 PLOT_RANDOM_ARG_NAME = 'plot_random_examples'
 NUM_EXAMPLES_PER_DAY_ARG_NAME = 'num_examples_per_day'
 PLOT_BASEMAP_ARG_NAME = 'plot_basemap'
-PLOT_DETERMINISTIC_ARG_NAME = 'plot_deterministic'
-PROB_THRESHOLD_ARG_NAME = 'probability_threshold'
 OUTPUT_DIR_ARG_NAME = 'output_dir_name'
 
-INPUT_DIR_HELP_STRING = (
-    'Name of input directory.  Files therein will be found by '
-    '`prediction_io.find_file` and read by `prediction_io.read_file`.'
+SATELLITE_DIR_HELP_STRING = (
+    'Name of directory with satellite data.  Files therein will be found by '
+    '`satellite_io.find_file` and read by `satellite_io.read_file`.'
 )
 DATE_HELP_STRING = (
-    'Date (format "yyyymmdd").  Will plot predictions for all days in the '
+    'Date (format "yyyymmdd").  Will plot satellite images for all days in the '
     'period `{0:s}`...`{1:s}`.'
 ).format(FIRST_DATE_ARG_NAME, LAST_DATE_ARG_NAME)
 
+BAND_NUMBERS_HELP_STRING = (
+    'List of band numbers.  Will plot brightness temperatures for these '
+    'spectral bands only.'
+)
 DAILY_TIMES_HELP_STRING = (
     'List of times to plot for each day.  All values should be in the range '
     '0...86399.'
@@ -58,33 +61,25 @@ NUM_EXAMPLES_PER_DAY_HELP_STRING = (
     'See documentation for `{0:s}`.'.format(PLOT_RANDOM_ARG_NAME)
 )
 PLOT_BASEMAP_HELP_STRING = (
-    'Boolean flag.  If 1 (0), will plot radar images with (without) basemap.'
+    'Boolean flag.  If 1 (0), will plot satellite images with (without) '
+    'basemap.'
 )
-PLOT_DETERMINISTIC_HELP_STRING = (
-    'Boolean flag.  If 1 (0), will plot deterministic (probabilistic) '
-    'predictions.'
-)
-PROB_THRESHOLD_HELP_STRING = (
-    '[used only if `{0:s} == 1`] Threshold used to convert probabilistic '
-    'forecasts to deterministic.  All probabilities >= `{1:s}` will be '
-    'considered "yes" forecasts, and all probabilities < `{1:s}` will be '
-    'considered "no" forecasts.'
-).format(PLOT_DETERMINISTIC_ARG_NAME, PROB_THRESHOLD_ARG_NAME)
-
-OUTPUT_DIR_HELP_STRING = (
-    'Name of output directory.  Figures will be saved here.'
-)
+OUTPUT_DIR_HELP_STRING = 'Name of output directory.  Images will be saved here.'
 
 INPUT_ARG_PARSER = argparse.ArgumentParser()
 INPUT_ARG_PARSER.add_argument(
-    '--' + INPUT_DIR_ARG_NAME, type=str, required=True,
-    help=INPUT_DIR_HELP_STRING
+    '--' + SATELLITE_DIR_ARG_NAME, type=str, required=False, default='',
+    help=SATELLITE_DIR_HELP_STRING
 )
 INPUT_ARG_PARSER.add_argument(
     '--' + FIRST_DATE_ARG_NAME, type=str, required=True, help=DATE_HELP_STRING
 )
 INPUT_ARG_PARSER.add_argument(
     '--' + LAST_DATE_ARG_NAME, type=str, required=True, help=DATE_HELP_STRING
+)
+INPUT_ARG_PARSER.add_argument(
+    '--' + BAND_NUMBERS_ARG_NAME, type=int, nargs='+', required=True,
+    help=BAND_NUMBERS_HELP_STRING
 )
 INPUT_ARG_PARSER.add_argument(
     '--' + DAILY_TIMES_ARG_NAME, type=int, nargs='+', required=False,
@@ -103,35 +98,25 @@ INPUT_ARG_PARSER.add_argument(
     help=PLOT_BASEMAP_HELP_STRING
 )
 INPUT_ARG_PARSER.add_argument(
-    '--' + PLOT_DETERMINISTIC_ARG_NAME, type=int, required=False, default=0,
-    help=PLOT_DETERMINISTIC_HELP_STRING
-)
-INPUT_ARG_PARSER.add_argument(
-    '--' + PROB_THRESHOLD_ARG_NAME, type=float, required=False, default=-1,
-    help=PROB_THRESHOLD_HELP_STRING
-)
-INPUT_ARG_PARSER.add_argument(
     '--' + OUTPUT_DIR_ARG_NAME, type=str, required=True,
     help=OUTPUT_DIR_HELP_STRING
 )
 
 
-def _plot_predictions_one_example(
-        prediction_dict, example_index, plot_basemap, plot_deterministic,
-        probability_threshold, output_dir_name):
-    """Plots predictions (and targets) for one example (time step).
+def _plot_one_satellite_image(
+        satellite_dict, time_index, band_index, plot_basemap, output_dir_name):
+    """Plots one satellite image.
 
-    :param prediction_dict: Dictionary in format returned by
-        `prediction_io.read_file`.
-    :param example_index: Will plot [i]th example, where i = `example_index`.
+    :param satellite_dict: Dictionary in format returned by
+        `satellite_io.read_file`.
+    :param time_index: Index of time to plot.
+    :param band_index: Index of spectral band to plot.
     :param plot_basemap: See documentation at top of file.
-    :param plot_deterministic: Same.
-    :param probability_threshold: Same.
     :param output_dir_name: Same.
     """
 
-    latitudes_deg_n = prediction_dict[prediction_io.LATITUDES_KEY]
-    longitudes_deg_e = prediction_dict[prediction_io.LONGITUDES_KEY]
+    latitudes_deg_n = satellite_dict[satellite_io.LATITUDES_KEY]
+    longitudes_deg_e = satellite_dict[satellite_io.LONGITUDES_KEY]
 
     if plot_basemap:
         figure_object, axes_object, basemap_object = (
@@ -167,58 +152,31 @@ def _plot_predictions_one_example(
             1, 1, figsize=(FIGURE_WIDTH_INCHES, FIGURE_HEIGHT_INCHES)
         )
 
-    i = example_index
-    valid_time_unix_sec = prediction_dict[prediction_io.VALID_TIMES_KEY][i]
+    valid_time_unix_sec = (
+        satellite_dict[satellite_io.VALID_TIMES_KEY][time_index]
+    )
     valid_time_string = time_conversion.unix_sec_to_string(
         valid_time_unix_sec, TIME_FORMAT
     )
-
-    target_matrix = prediction_dict[prediction_io.TARGET_MATRIX_KEY][i, ...]
-    probability_matrix = (
-        prediction_dict[prediction_io.PROBABILITY_MATRIX_KEY][i, ...]
+    band_number = satellite_dict[satellite_io.BAND_NUMBERS_KEY][band_index]
+    title_string = 'Band-{0:d} brightness temperature at {0:s}'.format(
+        band_number, valid_time_string
     )
 
-    if plot_deterministic:
-        prediction_matrix = (
-            (probability_matrix >= probability_threshold).astype(int)
-        )
+    brightness_temp_matrix_kelvins = (
+        satellite_dict[satellite_io.BRIGHTNESS_TEMP_KEY][
+            time_index, ..., band_index
+        ]
+    )
 
-        prediction_plotting.plot_deterministic(
-            target_matrix=target_matrix, prediction_matrix=prediction_matrix,
-            axes_object=axes_object,
-            min_latitude_deg_n=latitudes_deg_n[0],
-            min_longitude_deg_e=longitudes_deg_e[0],
-            latitude_spacing_deg=numpy.diff(latitudes_deg_n[:2])[0],
-            longitude_spacing_deg=numpy.diff(longitudes_deg_e[:2])[0]
-        )
-
-        title_string = (
-            'Actual (pink) and predicted (grey) convection at {0:s}'
-        ).format(valid_time_string)
-    else:
-        prediction_plotting.plot_probabilistic(
-            target_matrix=target_matrix, probability_matrix=probability_matrix,
-            axes_object=axes_object,
-            min_latitude_deg_n=latitudes_deg_n[0],
-            min_longitude_deg_e=longitudes_deg_e[0],
-            latitude_spacing_deg=numpy.diff(latitudes_deg_n[:2])[0],
-            longitude_spacing_deg=numpy.diff(longitudes_deg_e[:2])[0]
-        )
-
-        title_string = 'Forecast convection probabilities at {0:s}'.format(
-            valid_time_string
-        )
-
-        colour_map_object, colour_norm_object = (
-            prediction_plotting.get_prob_colour_scheme()
-        )
-
-        plotting_utils.plot_colour_bar(
-            axes_object_or_matrix=axes_object, data_matrix=probability_matrix,
-            colour_map_object=colour_map_object,
-            colour_norm_object=colour_norm_object,
-            orientation_string='vertical', extend_min=False, extend_max=False
-        )
+    satellite_plotting.plot_2d_grid(
+        brightness_temp_matrix_kelvins=brightness_temp_matrix_kelvins,
+        axes_object=axes_object,
+        min_latitude_deg_n=numpy.min(latitudes_deg_n),
+        min_longitude_deg_e=numpy.min(longitudes_deg_e),
+        latitude_spacing_deg=numpy.diff(latitudes_deg_n[:2])[0],
+        longitude_spacing_deg=numpy.diff(longitudes_deg_e[:2])[0]
+    )
 
     if not plot_basemap:
         tick_latitudes_deg_n = numpy.unique(numpy.round(latitudes_deg_n))
@@ -248,8 +206,10 @@ def _plot_predictions_one_example(
 
     axes_object.set_title(title_string)
 
-    output_file_name = '{0:s}/predictions_{1:s}.jpg'.format(
-        output_dir_name, valid_time_string
+    output_file_name = (
+        '{0:s}/brightness-temperature_band{1:02d}_{2:s}.jpg'
+    ).format(
+        output_dir_name, band_number, valid_time_string
     )
 
     print('Saving figure to file: "{0:s}"...'.format(output_file_name))
@@ -260,30 +220,32 @@ def _plot_predictions_one_example(
     pyplot.close(figure_object)
 
 
-def _plot_predictions_one_day(
-        prediction_file_name, daily_times_seconds, plot_random_examples,
-        num_examples, plot_basemap, plot_deterministic, probability_threshold,
-        output_dir_name):
-    """Plots predictions (and targets) for one day.
+def _plot_satellite_one_day(
+        satellite_file_name, band_numbers, daily_times_seconds,
+        plot_random_examples, num_examples, plot_basemap, output_dir_name):
+    """Plots satellite images for one day.
 
-    :param prediction_file_name: Path to prediction file.  Will be read by
-        `prediction_io.read_file`.
-    :param daily_times_seconds: See documentation at top of file.
+    :param satellite_file_name: Path to input file.  Will be read by
+        `satellite_io.read_file`.
+    :param band_numbers: See documentation at top of file.
+    :param daily_times_seconds: Same.
     :param plot_random_examples: Same.
     :param num_examples: Same.
     :param plot_basemap: Same.
-    :param plot_deterministic: Same.
-    :param probability_threshold: Same.
     :param output_dir_name: Same.
     """
 
-    # TODO(thunderhoser): Put this code somewhere reusable.
-
-    print('Reading data from: "{0:s}"...'.format(prediction_file_name))
-    prediction_dict = prediction_io.read_file(prediction_file_name)
+    print('Reading data from: "{0:s}"...'.format(satellite_file_name))
+    satellite_dict = satellite_io.read_file(
+        netcdf_file_name=satellite_file_name,
+        read_counts=True, read_temperatures=False, fill_nans=False
+    )
+    satellite_dict = satellite_io.subset_by_band(
+        satellite_dict=satellite_dict, band_numbers=band_numbers
+    )
 
     if daily_times_seconds is not None:
-        valid_times_unix_sec = prediction_dict[prediction_io.VALID_TIMES_KEY]
+        valid_times_unix_sec = satellite_dict[satellite_io.VALID_TIMES_KEY]
         base_time_unix_sec = number_rounding.floor_to_nearest(
             valid_times_unix_sec[0], DAYS_TO_SECONDS
         )
@@ -299,12 +261,12 @@ def _plot_predictions_one_day(
             return
 
         desired_times_unix_sec = desired_times_unix_sec[good_flags]
-        prediction_dict = prediction_io.subset_by_time(
-            prediction_dict=prediction_dict,
+        satellite_dict = satellite_io.subset_by_time(
+            satellite_dict=satellite_dict,
             desired_times_unix_sec=desired_times_unix_sec
         )[0]
     else:
-        num_examples_total = len(prediction_dict[prediction_io.VALID_TIMES_KEY])
+        num_examples_total = len(satellite_dict[satellite_io.VALID_TIMES_KEY])
         desired_indices = numpy.linspace(
             0, num_examples_total - 1, num=num_examples_total, dtype=int
         )
@@ -317,39 +279,37 @@ def _plot_predictions_one_day(
             else:
                 desired_indices = desired_indices[:num_examples]
 
-        prediction_dict = prediction_io.subset_by_index(
-            prediction_dict=prediction_dict, desired_indices=desired_indices
+        satellite_dict = satellite_io.subset_by_index(
+            satellite_dict=satellite_dict, desired_indices=desired_indices
         )
 
-    num_examples = len(prediction_dict[prediction_io.VALID_TIMES_KEY])
+    satellite_dict = satellite_io.counts_to_temperatures(satellite_dict)
+    num_times = len(satellite_dict[satellite_io.VALID_TIMES_KEY])
+    num_bands = len(satellite_dict[satellite_io.BAND_NUMBERS_KEY])
 
-    for i in range(num_examples):
-        _plot_predictions_one_example(
-            prediction_dict=prediction_dict, example_index=i,
-            plot_basemap=plot_basemap,
-            plot_deterministic=plot_deterministic,
-            probability_threshold=probability_threshold,
-            output_dir_name=output_dir_name
-        )
+    for i in range(num_times):
+        for j in range(num_bands):
+            _plot_one_satellite_image(
+                satellite_dict=satellite_dict, time_index=i, band_index=j,
+                plot_basemap=plot_basemap, output_dir_name=output_dir_name
+            )
 
 
-def _run(top_prediction_dir_name, first_date_string, last_date_string,
-         daily_times_seconds, plot_random_examples, num_examples_per_day,
-         plot_basemap, plot_deterministic, probability_threshold,
-         output_dir_name):
-    """Plot predictions (and targets) for the given days.
+def _run(top_satellite_dir_name, first_date_string, last_date_string,
+         band_numbers, daily_times_seconds, plot_random_examples,
+         num_examples_per_day, plot_basemap, output_dir_name):
+    """Plots satellite images for the given days.
 
     This is effectively the main method.
 
-    :param top_prediction_dir_name: See documentation at top of file.
+    :param top_satellite_dir_name: See documentation at top of file.
     :param first_date_string: Same.
     :param last_date_string: Same.
+    :param band_numbers: Same.
     :param daily_times_seconds: Same.
     :param plot_random_examples: Same.
     :param num_examples_per_day: Same.
     :param plot_basemap: Same.
-    :param plot_deterministic: Same.
-    :param probability_threshold: Same.
     :param output_dir_name: Same.
     """
 
@@ -367,32 +327,24 @@ def _run(top_prediction_dir_name, first_date_string, last_date_string,
         )
         plot_random_examples = False
 
-    if plot_deterministic:
-        probability_threshold = None
-    else:
-        error_checking.assert_is_greater(probability_threshold, 0.)
-        error_checking.assert_is_less_than(probability_threshold, 1.)
-
-    prediction_file_names = prediction_io.find_many_files(
-        top_directory_name=top_prediction_dir_name,
+    satellite_file_names = satellite_io.find_many_files(
+        top_directory_name=top_satellite_dir_name,
         first_date_string=first_date_string,
         last_date_string=last_date_string,
         raise_error_if_any_missing=False
     )
 
-    for i in range(len(prediction_file_names)):
-        _plot_predictions_one_day(
-            prediction_file_name=prediction_file_names[i],
+    for i in range(len(satellite_file_names)):
+        _plot_satellite_one_day(
+            satellite_file_name=satellite_file_names[i],
+            band_numbers=band_numbers,
             daily_times_seconds=daily_times_seconds,
             plot_random_examples=plot_random_examples,
             num_examples=num_examples_per_day,
-            plot_basemap=plot_basemap,
-            plot_deterministic=plot_deterministic,
-            probability_threshold=probability_threshold,
-            output_dir_name=output_dir_name
+            plot_basemap=plot_basemap, output_dir_name=output_dir_name
         )
 
-        if i != len(prediction_file_names) - 1:
+        if i != len(satellite_file_names) - 1:
             print(SEPARATOR_STRING)
 
 
@@ -400,9 +352,14 @@ if __name__ == '__main__':
     INPUT_ARG_OBJECT = INPUT_ARG_PARSER.parse_args()
 
     _run(
-        top_prediction_dir_name=getattr(INPUT_ARG_OBJECT, INPUT_DIR_ARG_NAME),
+        top_satellite_dir_name=getattr(
+            INPUT_ARG_OBJECT, SATELLITE_DIR_ARG_NAME
+        ),
         first_date_string=getattr(INPUT_ARG_OBJECT, FIRST_DATE_ARG_NAME),
         last_date_string=getattr(INPUT_ARG_OBJECT, LAST_DATE_ARG_NAME),
+        band_numbers=numpy.array(
+            getattr(INPUT_ARG_OBJECT, BAND_NUMBERS_ARG_NAME), dtype=int
+        ),
         daily_times_seconds=numpy.array(
             getattr(INPUT_ARG_OBJECT, DAILY_TIMES_ARG_NAME), dtype=int
         ),
@@ -413,11 +370,5 @@ if __name__ == '__main__':
             INPUT_ARG_OBJECT, NUM_EXAMPLES_PER_DAY_ARG_NAME
         ),
         plot_basemap=bool(getattr(INPUT_ARG_OBJECT, PLOT_BASEMAP_ARG_NAME)),
-        plot_deterministic=bool(getattr(
-            INPUT_ARG_OBJECT, PLOT_DETERMINISTIC_ARG_NAME
-        )),
-        probability_threshold=getattr(
-            INPUT_ARG_OBJECT, PROB_THRESHOLD_ARG_NAME
-        ),
         output_dir_name=getattr(INPUT_ARG_OBJECT, OUTPUT_DIR_ARG_NAME)
     )

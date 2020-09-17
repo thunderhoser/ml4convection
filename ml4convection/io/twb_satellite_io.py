@@ -96,6 +96,35 @@ def _read_lookup_table(band_number):
     return count_to_temperature_dict_kelvins
 
 
+def count_to_temperature(brightness_counts, band_number):
+    """Converts raw counts to brightness temperatures.
+
+    :param brightness_counts: numpy array of counts.
+    :param band_number: Number of spectral band (integer).
+    :return: brightness_temps_kelvins: numpy array of brightness temperatures
+        (same shape as `brightness_counts`).
+    """
+
+    error_checking.assert_is_integer_numpy_array(brightness_counts)
+    error_checking.assert_is_integer(band_number)
+    error_checking.assert_is_geq(band_number, 0)
+
+    brightness_counts[brightness_counts < MIN_BRIGHTNESS_COUNT] = (
+        MISSING_COUNT
+    )
+    brightness_counts[brightness_counts > MAX_BRIGHTNESS_COUNT] = (
+        MISSING_COUNT
+    )
+
+    count_to_temperature_dict_kelvins = _read_lookup_table(band_number)
+    brightness_temps_kelvins = numpy.array([
+        count_to_temperature_dict_kelvins[c]
+        for c in numpy.ravel(brightness_counts)
+    ])
+
+    return numpy.reshape(brightness_temps_kelvins, brightness_counts.shape)
+
+
 def find_file(
         top_directory_name, valid_time_unix_sec, band_number,
         raise_error_if_missing=True):
@@ -321,19 +350,11 @@ def read_file(
         brightness_counts = (
             numpy.round(data_matrix[:, BRIGHTNESS_COUNT_INDEX]).astype(int)
         )
-        brightness_counts[brightness_counts < MIN_BRIGHTNESS_COUNT] = (
-            MISSING_COUNT
-        )
-        brightness_counts[brightness_counts > MAX_BRIGHTNESS_COUNT] = (
-            MISSING_COUNT
-        )
 
-        count_to_temperature_dict_kelvins = _read_lookup_table(
-            file_name_to_band_number(binary_file_name)
+        data_values = count_to_temperature(
+            brightness_counts=brightness_counts,
+            band_number=file_name_to_band_number(binary_file_name)
         )
-        data_values = numpy.array([
-            count_to_temperature_dict_kelvins[n] for n in brightness_counts
-        ])
     else:
         brightness_counts = data_matrix[:, BRIGHTNESS_COUNT_INDEX]
         brightness_counts[brightness_counts < MIN_BRIGHTNESS_COUNT] = numpy.nan
