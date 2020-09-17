@@ -277,3 +277,31 @@ def subset_by_index(prediction_dict, desired_indices):
         )
 
     return prediction_dict
+
+
+def subset_by_time(prediction_dict, desired_times_unix_sec):
+    """Subsets data by time.
+
+    T = number of desired times
+
+    :param prediction_dict: See doc for `read_file`.
+    :param desired_times_unix_sec: length-T numpy array of desired times.
+    :return: prediction_dict: Same as input but with fewer examples.
+    :return: desired_indices: length-T numpy array of corresponding indices.
+    """
+
+    error_checking.assert_is_numpy_array(
+        desired_times_unix_sec, num_dimensions=1
+    )
+    error_checking.assert_is_integer_numpy_array(desired_times_unix_sec)
+
+    desired_indices = numpy.array([
+        numpy.where(prediction_dict[VALID_TIMES_KEY] == t)[0][0]
+        for t in desired_times_unix_sec
+    ], dtype=int)
+
+    prediction_dict = subset_by_index(
+        prediction_dict=prediction_dict, desired_indices=desired_indices
+    )
+
+    return prediction_dict, desired_indices
