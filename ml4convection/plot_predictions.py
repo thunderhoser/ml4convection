@@ -365,8 +365,10 @@ def _run(top_prediction_dir_name, first_date_string, last_date_string,
         daily_times_seconds = None
 
     if daily_times_seconds is not None:
-        error_checking.assert_is_geq(daily_times_seconds, 0)
-        error_checking.assert_is_less_than(daily_times_seconds, DAYS_TO_SECONDS)
+        error_checking.assert_is_geq_numpy_array(daily_times_seconds, 0)
+        error_checking.assert_is_less_than_numpy_array(
+            daily_times_seconds, DAYS_TO_SECONDS)
+
         plot_random_examples = False
 
     if plot_deterministic:
