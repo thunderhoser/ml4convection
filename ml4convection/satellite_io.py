@@ -15,6 +15,7 @@ import time_conversion
 import longitude_conversion as lng_conversion
 import file_system_utils
 import error_checking
+import twb_satellite_io
 
 TOLERANCE = 1e-6
 
@@ -561,4 +562,33 @@ def concat_data(satellite_dicts):
                 satellite_dict[this_key], satellite_dicts[i][this_key]
             ), axis=0)
 
+    return satellite_dict
+
+
+def counts_to_temperatures(satellite_dict):
+    """Converts raw counts to brightness temperatures.
+
+    :param satellite_dict: List of dictionaries, each in the format returned by
+        `read_file`.
+    :return: satellite_dict: Same but with brightness temperatures, not just
+        counts.
+    """
+
+    band_numbers = satellite_dict[BAND_NUMBERS_KEY]
+    brightness_count_matrix = satellite_dict[BRIGHTNESS_COUNT_KEY]
+    brightness_temp_matrix_kelvins = numpy.full(
+        brightness_count_matrix.shape, numpy.nan
+    )
+
+    num_bands = len(band_numbers)
+
+    for j in range(num_bands):
+        brightness_temp_matrix_kelvins[..., j] = (
+            twb_satellite_io.count_to_temperature(
+                brightness_counts=brightness_count_matrix[..., j],
+                band_number=band_numbers[j]
+            )
+        )
+
+    satellite_dict[BRIGHTNESS_TEMP_KEY] = brightness_temp_matrix_kelvins
     return satellite_dict

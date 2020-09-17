@@ -21,6 +21,8 @@ import plotting_utils
 import prediction_io
 import prediction_plotting
 
+SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
+
 DAYS_TO_SECONDS = 86400
 TIME_FORMAT = '%Y-%m-%d-%H%M'
 
@@ -34,8 +36,8 @@ INPUT_DIR_ARG_NAME = 'input_prediction_dir_name'
 FIRST_DATE_ARG_NAME = 'first_date_string'
 LAST_DATE_ARG_NAME = 'last_date_string'
 DAILY_TIMES_ARG_NAME = 'daily_times_seconds'
-NUM_EXAMPLES_PER_DAY_ARG_NAME = 'num_examples_per_day'
 PLOT_RANDOM_ARG_NAME = 'plot_random_examples'
+NUM_EXAMPLES_PER_DAY_ARG_NAME = 'num_examples_per_day'
 PLOT_BASEMAP_ARG_NAME = 'plot_basemap'
 PLOT_DETERMINISTIC_ARG_NAME = 'plot_deterministic'
 PROB_THRESHOLD_ARG_NAME = 'probability_threshold'
@@ -369,8 +371,8 @@ def _run(top_prediction_dir_name, first_date_string, last_date_string,
     if daily_times_seconds is not None:
         error_checking.assert_is_geq_numpy_array(daily_times_seconds, 0)
         error_checking.assert_is_less_than_numpy_array(
-            daily_times_seconds, DAYS_TO_SECONDS)
-
+            daily_times_seconds, DAYS_TO_SECONDS
+        )
         plot_random_examples = False
 
     if plot_deterministic:
@@ -386,9 +388,9 @@ def _run(top_prediction_dir_name, first_date_string, last_date_string,
         raise_error_if_any_missing=False
     )
 
-    for this_file_name in prediction_file_names:
+    for i in range(len(prediction_file_names)):
         _plot_predictions_one_day(
-            prediction_file_name=this_file_name,
+            prediction_file_name=prediction_file_names[i],
             daily_times_seconds=daily_times_seconds,
             plot_random_examples=plot_random_examples,
             num_examples=num_examples_per_day,
@@ -397,6 +399,9 @@ def _run(top_prediction_dir_name, first_date_string, last_date_string,
             probability_threshold=probability_threshold,
             output_dir_name=output_dir_name
         )
+
+        if i != len(prediction_file_names) - 1:
+            print(SEPARATOR_STRING)
 
 
 if __name__ == '__main__':

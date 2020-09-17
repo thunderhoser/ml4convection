@@ -1,4 +1,4 @@
-"""Plots radar images for the given days."""
+"""Plots satellite images for the given days."""
 
 import os
 import sys
@@ -18,16 +18,13 @@ import time_conversion
 import file_system_utils
 import error_checking
 import plotting_utils
-import radar_plotting
-import radar_io
-import example_io
+import satellite_io
+import satellite_plotting
 
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 
 DAYS_TO_SECONDS = 86400
 TIME_FORMAT = '%Y-%m-%d-%H%M'
-
-COMPOSITE_REFL_NAME = 'reflectivity_column_max_dbz'
 
 NUM_PARALLELS = 8
 NUM_MERIDIANS = 6
@@ -35,31 +32,29 @@ FIGURE_RESOLUTION_DPI = 300
 FIGURE_WIDTH_INCHES = 15
 FIGURE_HEIGHT_INCHES = 15
 
-RADAR_DIR_ARG_NAME = 'input_radar_dir_name'
-TARGET_DIR_ARG_NAME = 'input_target_dir_name'
+SATELLITE_DIR_ARG_NAME = 'input_satellite_dir_name'
 FIRST_DATE_ARG_NAME = 'first_date_string'
 LAST_DATE_ARG_NAME = 'last_date_string'
+BAND_NUMBERS_ARG_NAME = 'band_numbers'
 DAILY_TIMES_ARG_NAME = 'daily_times_seconds'
 PLOT_RANDOM_ARG_NAME = 'plot_random_examples'
 NUM_EXAMPLES_PER_DAY_ARG_NAME = 'num_examples_per_day'
 PLOT_BASEMAP_ARG_NAME = 'plot_basemap'
 OUTPUT_DIR_ARG_NAME = 'output_dir_name'
 
-RADAR_DIR_HELP_STRING = (
-    'Name of directory with radar data.  Files therein will be found by '
-    '`radar_io.find_file` and read by `radar_io.read_2d_file`.'
+SATELLITE_DIR_HELP_STRING = (
+    'Name of directory with satellite data.  Files therein will be found by '
+    '`satellite_io.find_file` and read by `satellite_io.read_file`.'
 )
-TARGET_DIR_HELP_STRING = (
-    '[used only if `{0:s}` is left empty] Name of directory with target data.  '
-    'Files therein will be found by `example_io.find_target_file` and read by '
-    '`example_io.read_target_file`.'
-).format(RADAR_DIR_ARG_NAME)
-
 DATE_HELP_STRING = (
-    'Date (format "yyyymmdd").  Will plot radar images for all days in the '
+    'Date (format "yyyymmdd").  Will plot satellite images for all days in the '
     'period `{0:s}`...`{1:s}`.'
 ).format(FIRST_DATE_ARG_NAME, LAST_DATE_ARG_NAME)
 
+BAND_NUMBERS_HELP_STRING = (
+    'List of band numbers.  Will plot brightness temperatures for these '
+    'spectral bands only.'
+)
 DAILY_TIMES_HELP_STRING = (
     'List of times to plot for each day.  All values should be in the range '
     '0...86399.'
@@ -74,24 +69,25 @@ NUM_EXAMPLES_PER_DAY_HELP_STRING = (
     'See documentation for `{0:s}`.'.format(PLOT_RANDOM_ARG_NAME)
 )
 PLOT_BASEMAP_HELP_STRING = (
-    'Boolean flag.  If 1 (0), will plot radar images with (without) basemap.'
+    'Boolean flag.  If 1 (0), will plot satellite images with (without) '
+    'basemap.'
 )
 OUTPUT_DIR_HELP_STRING = 'Name of output directory.  Images will be saved here.'
 
 INPUT_ARG_PARSER = argparse.ArgumentParser()
 INPUT_ARG_PARSER.add_argument(
-    '--' + RADAR_DIR_ARG_NAME, type=str, required=False, default='',
-    help=RADAR_DIR_HELP_STRING
-)
-INPUT_ARG_PARSER.add_argument(
-    '--' + TARGET_DIR_ARG_NAME, type=str, required=False, default='',
-    help=TARGET_DIR_HELP_STRING
+    '--' + SATELLITE_DIR_ARG_NAME, type=str, required=False, default='',
+    help=SATELLITE_DIR_HELP_STRING
 )
 INPUT_ARG_PARSER.add_argument(
     '--' + FIRST_DATE_ARG_NAME, type=str, required=True, help=DATE_HELP_STRING
 )
 INPUT_ARG_PARSER.add_argument(
     '--' + LAST_DATE_ARG_NAME, type=str, required=True, help=DATE_HELP_STRING
+)
+INPUT_ARG_PARSER.add_argument(
+    '--' + BAND_NUMBERS_ARG_NAME, type=int, nargs='+', required=True,
+    help=BAND_NUMBERS_HELP_STRING
 )
 INPUT_ARG_PARSER.add_argument(
     '--' + DAILY_TIMES_ARG_NAME, type=int, nargs='+', required=False,
@@ -115,19 +111,20 @@ INPUT_ARG_PARSER.add_argument(
 )
 
 
-def _plot_radar_one_example(
-        radar_dict, example_index, plot_basemap, output_dir_name):
-    """Plots one radar image.
+def _plot_one_satellite_image(
+        satellite_dict, time_index, band_index, plot_basemap, output_dir_name):
+    """Plots one satellite image.
 
-    :param radar_dict: Dictionary in the format returned by
-        `radar_io.read_2d_file`.
-    :param example_index: Will plot [i]th example, where i = `example_index`.
+    :param satellite_dict: Dictionary in format returned by
+        `satellite_io.read_file`.
+    :param time_index: Index of time to plot.
+    :param band_index: Index of spectral band to plot.
     :param plot_basemap: See documentation at top of file.
     :param output_dir_name: Same.
     """
 
-    latitudes_deg_n = radar_dict[radar_io.LATITUDES_KEY]
-    longitudes_deg_e = radar_dict[radar_io.LONGITUDES_KEY]
+    latitudes_deg_n = satellite_dict[satellite_io.LATITUDES_KEY]
+    longitudes_deg_e = satellite_dict[satellite_io.LONGITUDES_KEY]
 
     if plot_basemap:
         figure_object, axes_object, basemap_object = (
@@ -163,21 +160,28 @@ def _plot_radar_one_example(
             1, 1, figsize=(FIGURE_WIDTH_INCHES, FIGURE_HEIGHT_INCHES)
         )
 
-    valid_time_unix_sec = radar_dict[radar_io.VALID_TIMES_KEY][example_index]
+    valid_time_unix_sec = (
+        satellite_dict[satellite_io.VALID_TIMES_KEY][time_index]
+    )
     valid_time_string = time_conversion.unix_sec_to_string(
         valid_time_unix_sec, TIME_FORMAT
     )
-    title_string = 'Composite reflectivity at {0:s}'.format(valid_time_string)
-
-    composite_refl_matrix_dbz = (
-        radar_dict[radar_io.COMPOSITE_REFL_KEY][example_index, ...]
+    band_number = satellite_dict[satellite_io.BAND_NUMBERS_KEY][band_index]
+    title_string = 'Band-{0:d} brightness temperature at {0:s}'.format(
+        band_number, valid_time_string
     )
 
-    radar_plotting.plot_latlng_grid(
-        field_matrix=composite_refl_matrix_dbz, field_name=COMPOSITE_REFL_NAME,
+    brightness_temp_matrix_kelvins = (
+        satellite_dict[satellite_io.BRIGHTNESS_TEMP_KEY][
+            time_index, ..., band_index
+        ]
+    )
+
+    satellite_plotting.plot_2d_grid(
+        brightness_temp_matrix_kelvins=brightness_temp_matrix_kelvins,
         axes_object=axes_object,
-        min_grid_point_latitude_deg=numpy.min(latitudes_deg_n),
-        min_grid_point_longitude_deg=numpy.min(longitudes_deg_e),
+        min_latitude_deg_n=numpy.min(latitudes_deg_n),
+        min_longitude_deg_e=numpy.min(longitudes_deg_e),
         latitude_spacing_deg=numpy.diff(latitudes_deg_n[:2])[0],
         longitude_spacing_deg=numpy.diff(longitudes_deg_e[:2])[0]
     )
@@ -208,22 +212,12 @@ def _plot_radar_one_example(
         axes_object.set_xlabel(r'Longitude ($^{\circ}$E)')
         axes_object.set_ylabel(r'Latitude ($^{\circ}$N)')
 
-    colour_map_object, colour_norm_object = (
-        radar_plotting.get_default_colour_scheme(COMPOSITE_REFL_NAME)
-    )
-
-    plotting_utils.plot_colour_bar(
-        axes_object_or_matrix=axes_object,
-        data_matrix=composite_refl_matrix_dbz,
-        colour_map_object=colour_map_object,
-        colour_norm_object=colour_norm_object,
-        orientation_string='vertical', extend_min=False, extend_max=True
-    )
-
     axes_object.set_title(title_string)
 
-    output_file_name = '{0:s}/composite_reflectivity_{1:s}.jpg'.format(
-        output_dir_name, valid_time_string
+    output_file_name = (
+        '{0:s}/brightness-temperature_band{1:02d}_{2:s}.jpg'
+    ).format(
+        output_dir_name, band_number, valid_time_string
     )
 
     print('Saving figure to file: "{0:s}"...'.format(output_file_name))
@@ -234,22 +228,32 @@ def _plot_radar_one_example(
     pyplot.close(figure_object)
 
 
-def _plot_radar_one_day(
-        radar_dict, daily_times_seconds, plot_random_examples, num_examples,
-        plot_basemap, output_dir_name):
-    """Plots radar images for one day.
+def _plot_satellite_one_day(
+        satellite_file_name, band_numbers, daily_times_seconds,
+        plot_random_examples, num_examples, plot_basemap, output_dir_name):
+    """Plots satellite images for one day.
 
-    :param radar_dict: Dictionary in the format returned by
-        `radar_io.read_2d_file`.
-    :param daily_times_seconds: See documentation at top of file.
+    :param satellite_file_name: Path to input file.  Will be read by
+        `satellite_io.read_file`.
+    :param band_numbers: See documentation at top of file.
+    :param daily_times_seconds: Same.
     :param plot_random_examples: Same.
     :param num_examples: Same.
     :param plot_basemap: Same.
     :param output_dir_name: Same.
     """
 
+    print('Reading data from: "{0:s}"...'.format(satellite_file_name))
+    satellite_dict = satellite_io.read_file(
+        netcdf_file_name=satellite_file_name,
+        read_counts=True, read_temperatures=False, fill_nans=False
+    )
+    satellite_dict = satellite_io.subset_by_band(
+        satellite_dict=satellite_dict, band_numbers=band_numbers
+    )
+
     if daily_times_seconds is not None:
-        valid_times_unix_sec = radar_dict[radar_io.VALID_TIMES_KEY]
+        valid_times_unix_sec = satellite_dict[satellite_io.VALID_TIMES_KEY]
         base_time_unix_sec = number_rounding.floor_to_nearest(
             valid_times_unix_sec[0], DAYS_TO_SECONDS
         )
@@ -265,11 +269,12 @@ def _plot_radar_one_day(
             return
 
         desired_times_unix_sec = desired_times_unix_sec[good_flags]
-        radar_dict = radar_io.subset_by_time(
-            radar_dict=radar_dict, desired_times_unix_sec=desired_times_unix_sec
+        satellite_dict = satellite_io.subset_by_time(
+            satellite_dict=satellite_dict,
+            desired_times_unix_sec=desired_times_unix_sec
         )[0]
     else:
-        num_examples_total = len(radar_dict[radar_io.VALID_TIMES_KEY])
+        num_examples_total = len(satellite_dict[satellite_io.VALID_TIMES_KEY])
         desired_indices = numpy.linspace(
             0, num_examples_total - 1, num=num_examples_total, dtype=int
         )
@@ -282,47 +287,44 @@ def _plot_radar_one_day(
             else:
                 desired_indices = desired_indices[:num_examples]
 
-        radar_dict = radar_io.subset_by_index(
-            radar_dict=radar_dict, desired_indices=desired_indices
+        satellite_dict = satellite_io.subset_by_index(
+            satellite_dict=satellite_dict, desired_indices=desired_indices
         )
 
-    num_examples = len(radar_dict[radar_io.VALID_TIMES_KEY])
+    satellite_dict = satellite_io.counts_to_temperatures(satellite_dict)
+    num_times = len(satellite_dict[satellite_io.VALID_TIMES_KEY])
+    num_bands = len(satellite_dict[satellite_io.BAND_NUMBERS_KEY])
 
-    for i in range(num_examples):
-        _plot_radar_one_example(
-            radar_dict=radar_dict, example_index=i, plot_basemap=plot_basemap,
-            output_dir_name=output_dir_name
-        )
+    for i in range(num_times):
+        for j in range(num_bands):
+            _plot_one_satellite_image(
+                satellite_dict=satellite_dict, time_index=i, band_index=j,
+                plot_basemap=plot_basemap, output_dir_name=output_dir_name
+            )
 
 
-def _run(top_radar_dir_name, top_target_dir_name, first_date_string,
-         last_date_string, daily_times_seconds, plot_random_examples,
+def _run(top_satellite_dir_name, first_date_string, last_date_string,
+         band_numbers, daily_times_seconds, plot_random_examples,
          num_examples_per_day, plot_basemap, output_dir_name):
-    """Plots radar images for the given days.
+    """Plots satellite images for the given days.
 
     This is effectively the main method.
 
-    :param top_radar_dir_name: See documentation at top of file.
-    :param top_target_dir_name: Same.
+    :param top_satellite_dir_name: See documentation at top of file.
     :param first_date_string: Same.
     :param last_date_string: Same.
+    :param band_numbers: Same.
     :param daily_times_seconds: Same.
     :param plot_random_examples: Same.
     :param num_examples_per_day: Same.
     :param plot_basemap: Same.
     :param output_dir_name: Same.
-    :raises: ValueError:
-        if `top_radar_dir_name is None and top_target_dir_name is None`.
     """
 
     file_system_utils.mkdir_recursive_if_necessary(
         directory_name=output_dir_name
     )
 
-    if top_radar_dir_name == '':
-        top_radar_dir_name = None
-    if top_target_dir_name == '':
-        top_target_dir_name = None
     if len(daily_times_seconds) == 1 and daily_times_seconds[0] < 0:
         daily_times_seconds = None
 
@@ -333,58 +335,24 @@ def _run(top_radar_dir_name, top_target_dir_name, first_date_string,
         )
         plot_random_examples = False
 
-    if top_radar_dir_name is None and top_target_dir_name is None:
-        raise ValueError((
-            'One of the input args `{0:s}` and `{1:s}` must be specified.'
-        ).format(
-            RADAR_DIR_ARG_NAME, TARGET_DIR_ARG_NAME
-        ))
+    satellite_file_names = satellite_io.find_many_files(
+        top_directory_name=top_satellite_dir_name,
+        first_date_string=first_date_string,
+        last_date_string=last_date_string,
+        raise_error_if_any_missing=False
+    )
 
-    if top_radar_dir_name is None:
-        input_file_names = example_io.find_many_target_files(
-            top_directory_name=top_target_dir_name,
-            first_date_string=first_date_string,
-            last_date_string=last_date_string,
-            raise_error_if_any_missing=False
-        )
-    else:
-        input_file_names = radar_io.find_many_files(
-            top_directory_name=top_radar_dir_name,
-            first_date_string=first_date_string,
-            last_date_string=last_date_string,
-            with_3d=False, raise_error_if_any_missing=False
-        )
-
-    for i in range(len(input_file_names)):
-        print('Reading data from: "{0:s}"...'.format(input_file_names[i]))
-
-        if top_radar_dir_name is None:
-            target_dict = example_io.read_target_file(
-                netcdf_file_name=input_file_names[i], read_targets=False,
-                read_reflectivities=True
-            )
-
-            radar_dict = {
-                radar_io.COMPOSITE_REFL_KEY:
-                    target_dict[example_io.COMPOSITE_REFL_MATRIX_KEY],
-                radar_io.VALID_TIMES_KEY: target_dict[
-                    example_io.VALID_TIMES_KEY],
-                radar_io.LATITUDES_KEY: target_dict[example_io.LATITUDES_KEY],
-                radar_io.LONGITUDES_KEY: target_dict[example_io.LONGITUDES_KEY]
-            }
-        else:
-            radar_dict = radar_io.read_2d_file(
-                netcdf_file_name=input_file_names[i], fill_nans=False
-            )
-
-        _plot_radar_one_day(
-            radar_dict=radar_dict, daily_times_seconds=daily_times_seconds,
+    for i in range(len(satellite_file_names)):
+        _plot_satellite_one_day(
+            satellite_file_name=satellite_file_names[i],
+            band_numbers=band_numbers,
+            daily_times_seconds=daily_times_seconds,
             plot_random_examples=plot_random_examples,
             num_examples=num_examples_per_day,
             plot_basemap=plot_basemap, output_dir_name=output_dir_name
         )
 
-        if i != len(input_file_names) - 1:
+        if i != len(satellite_file_names) - 1:
             print(SEPARATOR_STRING)
 
 
@@ -392,10 +360,14 @@ if __name__ == '__main__':
     INPUT_ARG_OBJECT = INPUT_ARG_PARSER.parse_args()
 
     _run(
-        top_radar_dir_name=getattr(INPUT_ARG_OBJECT, RADAR_DIR_ARG_NAME),
-        top_target_dir_name=getattr(INPUT_ARG_OBJECT, TARGET_DIR_ARG_NAME),
+        top_satellite_dir_name=getattr(
+            INPUT_ARG_OBJECT, SATELLITE_DIR_ARG_NAME
+        ),
         first_date_string=getattr(INPUT_ARG_OBJECT, FIRST_DATE_ARG_NAME),
         last_date_string=getattr(INPUT_ARG_OBJECT, LAST_DATE_ARG_NAME),
+        band_numbers=numpy.array(
+            getattr(INPUT_ARG_OBJECT, BAND_NUMBERS_ARG_NAME), dtype=int
+        ),
         daily_times_seconds=numpy.array(
             getattr(INPUT_ARG_OBJECT, DAILY_TIMES_ARG_NAME), dtype=int
         ),
