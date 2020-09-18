@@ -167,7 +167,7 @@ def _plot_one_satellite_image(
         valid_time_unix_sec, TIME_FORMAT
     )
     band_number = satellite_dict[satellite_io.BAND_NUMBERS_KEY][band_index]
-    title_string = 'Band-{0:d} brightness temperature at {0:s}'.format(
+    title_string = 'Band-{0:d} brightness temperature at {1:s}'.format(
         band_number, valid_time_string
     )
 
