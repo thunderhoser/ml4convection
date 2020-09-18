@@ -152,6 +152,7 @@ def _run(input_dir_name, first_date_string, last_date_string,
         )
 
         radar_io.compress_file(this_netcdf_file_name)
+        os.remove(this_netcdf_file_name)
 
         if i != len(date_strings) - 1:
             print(SEPARATOR_STRING)
