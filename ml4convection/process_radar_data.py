@@ -85,7 +85,7 @@ def _process_radar_data_one_day(
     input_file_names = twb_radar_io.find_many_files(
         top_directory_name=input_dir_name,
         first_time_unix_sec=first_time_unix_sec,
-        last_time_unix_sec=last_time_unix_sec, with_3d=False,
+        last_time_unix_sec=last_time_unix_sec, with_3d=True,
         raise_error_if_all_missing=not allow_missing_days
     )
 
