@@ -1,6 +1,7 @@
 """Converts radar data to daily NetCDF files."""
 
 import argparse
+import warnings
 from gewittergefahr.gg_utils import time_conversion
 from ml4convection.io import twb_radar_io
 from ml4convection.io import radar_io
@@ -14,8 +15,6 @@ INPUT_DIR_ARG_NAME = 'input_radar_dir_name'
 FIRST_DATE_ARG_NAME = 'first_date_string'
 LAST_DATE_ARG_NAME = 'last_date_string'
 ALLOW_MISSING_DAYS_ARG_NAME = 'allow_missing_days'
-WITH_3D_ARG_NAME = 'with_3d'
-TEMPORARY_DIR_ARG_NAME = 'temporary_dir_name'
 OUTPUT_DIR_ARG_NAME = 'output_radar_dir_name'
 
 INPUT_DIR_HELP_STRING = (
@@ -32,15 +31,10 @@ ALLOW_MISSING_DAYS_HELP_STRING = (
     'Boolean flag.  If 1, will gracefully skip days with no data.  If 0, will '
     'throw an error if this happens.'
 )
-WITH_3D_HELP_STRING = 'Boolean flag.  If 1 (0), will process 3-D (2-D) data.'
-TEMPORARY_DIR_HELP_STRING = (
-    'Name of temporary directory.  Intermediate text files (between input '
-    'binary files and output NetCDF files) will be stored here.'
-)
 OUTPUT_DIR_HELP_STRING = (
     'Name of output directory.  Daily NetCDF files will be written by '
-    '`radar_io.write_2d_file` or `radar_io.write_3d_file`, to locations therein'
-    ' determined by `radar_io.find_file`.'
+    '`radar_io.write_file`, to locations therein determined by '
+    '`radar_io.find_file`.'
 )
 
 INPUT_ARG_PARSER = argparse.ArgumentParser()
@@ -59,28 +53,19 @@ INPUT_ARG_PARSER.add_argument(
     help=ALLOW_MISSING_DAYS_HELP_STRING
 )
 INPUT_ARG_PARSER.add_argument(
-    '--' + WITH_3D_ARG_NAME, type=int, required=False, default=0,
-    help=WITH_3D_HELP_STRING
-)
-INPUT_ARG_PARSER.add_argument(
-    '--' + TEMPORARY_DIR_ARG_NAME, type=str, required=True,
-    help=TEMPORARY_DIR_HELP_STRING
-)
-INPUT_ARG_PARSER.add_argument(
     '--' + OUTPUT_DIR_ARG_NAME, type=str, required=True,
     help=OUTPUT_DIR_HELP_STRING
 )
 
 
-def _process_radar_data_one_day(input_dir_name, date_string, allow_missing_days,
-                                temporary_dir_name, output_dir_name):
+def _process_radar_data_one_day(
+        input_dir_name, date_string, allow_missing_days, output_file_name):
     """Processes radar data for one day.
 
     :param input_dir_name: See documentation at top of file.
     :param date_string: Will process for this day (format "yyyymmdd").
     :param allow_missing_days: See documentation at top of file.
-    :param temporary_dir_name: Same.
-    :param output_dir_name: Same.
+    :param output_file_name: Path to output file.
     """
 
     first_time_unix_sec = (
@@ -95,33 +80,32 @@ def _process_radar_data_one_day(input_dir_name, date_string, allow_missing_days,
         last_time_unix_sec=last_time_unix_sec, with_3d=False,
         raise_error_if_all_missing=not allow_missing_days
     )
-    output_file_name = radar_io.find_file(
-        top_directory_name=output_dir_name, valid_date_string=date_string,
-        with_3d=False, raise_error_if_missing=False
-    )
 
     append = False
 
-    for i in range(len(input_file_names)):
-        print('Reading data from: "{0:s}"...'.format(input_file_names[i]))
-        composite_refl_matrix_dbz, latitudes_deg_n, longitudes_deg_e = (
-            twb_radar_io.read_2d_file(
-                binary_file_name=input_file_names[i],
-                raise_fortran_errors=False,
-                temporary_dir_name=temporary_dir_name
-            )
-        )
+    for this_file_name in input_file_names:
+        print('Reading data from: "{0:s}"...'.format(this_file_name))
 
-        if composite_refl_matrix_dbz is None:
+        try:
+            (
+                reflectivity_matrix_dbz,
+                latitudes_deg_n,
+                longitudes_deg_e,
+                heights_m_asl
+            ) = twb_radar_io.read_file(this_file_name)
+        except Exception as e:
+            warning_string = 'WARNING: {0:s}'.format(str(e))
+            warnings.warn(warning_string)
             continue
 
         print('Writing data to: "{0:s}"...'.format(output_file_name))
-        radar_io.write_2d_file(
+        radar_io.write_file(
             netcdf_file_name=output_file_name,
-            composite_refl_matrix_dbz=composite_refl_matrix_dbz,
-            latitudes_deg_n=latitudes_deg_n, longitudes_deg_e=longitudes_deg_e,
-            valid_time_unix_sec=
-            twb_radar_io.file_name_to_time(input_file_names[i]),
+            reflectivity_matrix_dbz=reflectivity_matrix_dbz,
+            latitudes_deg_n=latitudes_deg_n,
+            longitudes_deg_e=longitudes_deg_e,
+            heights_m_asl=heights_m_asl,
+            valid_time_unix_sec=twb_radar_io.file_name_to_time(this_file_name),
             append=append
         )
 
@@ -129,7 +113,7 @@ def _process_radar_data_one_day(input_dir_name, date_string, allow_missing_days,
 
 
 def _run(input_dir_name, first_date_string, last_date_string,
-         allow_missing_days, with_3d, temporary_dir_name, output_dir_name):
+         allow_missing_days, output_dir_name):
     """Converts radar data to daily NetCDF files.
 
     This is effectively the main method.
@@ -138,27 +122,28 @@ def _run(input_dir_name, first_date_string, last_date_string,
     :param first_date_string: Same.
     :param last_date_string: Same.
     :param allow_missing_days: Same.
-    :param with_3d: Same.
-    :param temporary_dir_name: Same.
     :param output_dir_name: Same.
-    :raises: ValueError: if `with_3d == True`, since I still have not figured
-        out how to read the raw files.
     """
-
-    if with_3d:
-        raise ValueError('Cannot read raw 3-D files yet.')
 
     date_strings = time_conversion.get_spc_dates_in_range(
         first_date_string, last_date_string
     )
 
     for i in range(len(date_strings)):
+        this_netcdf_file_name = radar_io.find_file(
+            top_directory_name=output_dir_name,
+            valid_date_string=date_strings[i],
+            prefer_zipped=False, allow_other_format=False,
+            raise_error_if_missing=False
+        )
+
         _process_radar_data_one_day(
             input_dir_name=input_dir_name, date_string=date_strings[i],
             allow_missing_days=allow_missing_days,
-            temporary_dir_name=temporary_dir_name,
-            output_dir_name=output_dir_name
+            output_file_name=this_netcdf_file_name
         )
+
+        radar_io.compress_file(this_netcdf_file_name)
 
         if i != len(date_strings) - 1:
             print(SEPARATOR_STRING)
@@ -174,7 +159,5 @@ if __name__ == '__main__':
         allow_missing_days=bool(getattr(
             INPUT_ARG_OBJECT, ALLOW_MISSING_DAYS_ARG_NAME
         )),
-        with_3d=bool(getattr(INPUT_ARG_OBJECT, WITH_3D_ARG_NAME)),
-        temporary_dir_name=getattr(INPUT_ARG_OBJECT, TEMPORARY_DIR_ARG_NAME),
         output_dir_name=getattr(INPUT_ARG_OBJECT, OUTPUT_DIR_ARG_NAME)
     )

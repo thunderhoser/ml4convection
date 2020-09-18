@@ -8,7 +8,7 @@ from gewittergefahr.gg_utils import time_periods
 from gewittergefahr.gg_utils import error_checking
 
 TIME_INTERVAL_SEC = 600
-MIN_REFLECTIVITY_DBZ = -5.
+MIN_REFLECTIVITY_DBZ = 0.
 
 VARIABLE_NAMES = [
     'yyyy', 'mm', 'dd', 'hh', 'mn', 'ss', 'nx', 'ny', 'nz', 'proj',

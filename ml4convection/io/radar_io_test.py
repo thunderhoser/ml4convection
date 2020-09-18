@@ -10,29 +10,32 @@ TOLERANCE = 1e-6
 # The following constants are used to test find_file and file_name_to_date.
 TOP_DIRECTORY_NAME = 'stuff'
 VALID_DATE_STRING = '20200820'
-FILE_NAME_3D = 'stuff/2020/3d-radar_20200820.nc'
-FILE_NAME_2D = 'stuff/2020/2d-radar_20200820.nc'
+
+FILE_NAME_UNZIPPED = 'stuff/2020/radar_20200820.nc'
+FILE_NAME_ZIPPED = 'stuff/2020/radar_20200820.nc.gz'
 
 # The following constants are used to test find_many_files.
 FIRST_DATE_STRING = '20200818'
 LAST_DATE_STRING = '20200821'
 
-FILE_NAMES_3D = [
-    'stuff/2020/3d-radar_20200818.nc',
-    'stuff/2020/3d-radar_20200819.nc',
-    'stuff/2020/3d-radar_20200820.nc',
-    'stuff/2020/3d-radar_20200821.nc'
+FILE_NAMES_UNZIPPED = [
+    'stuff/2020/radar_20200818.nc',
+    'stuff/2020/radar_20200819.nc',
+    'stuff/2020/radar_20200820.nc',
+    'stuff/2020/radar_20200821.nc'
 ]
-FILE_NAMES_2D = [
-    'stuff/2020/2d-radar_20200818.nc',
-    'stuff/2020/2d-radar_20200819.nc',
-    'stuff/2020/2d-radar_20200820.nc',
-    'stuff/2020/2d-radar_20200821.nc'
+FILE_NAMES_ZIPPED = [
+    'stuff/2020/radar_20200818.nc.gz',
+    'stuff/2020/radar_20200819.nc.gz',
+    'stuff/2020/radar_20200820.nc.gz',
+    'stuff/2020/radar_20200821.nc.gz'
 ]
 
 # The following constants are used to test subset_by_index and subset_by_time.
 LATITUDES_DEG_N = numpy.array([53, 53.2, 53.4, 53.6, 53.8, 54])
 LONGITUDES_DEG_E = numpy.array([246, 246.5, 247])
+HEIGHTS_M_ASL = numpy.array([1000, 5000, 3000], dtype=float)
+VALID_TIMES_UNIX_SEC = numpy.array([600, 1200, 1800, 2400], dtype=int)
 
 REFL_MATRIX_EXAMPLE1_DBZ = numpy.array([
     [10, 20, 30],
@@ -43,36 +46,42 @@ REFL_MATRIX_EXAMPLE1_DBZ = numpy.array([
     [0, 0, 75]
 ], dtype=float)
 
-COMPOSITE_REFL_MATRIX_DBZ = numpy.stack((
+REFL_MATRIX_HEIGHT1_DBZ = numpy.stack((
     REFL_MATRIX_EXAMPLE1_DBZ, REFL_MATRIX_EXAMPLE1_DBZ + 1,
     REFL_MATRIX_EXAMPLE1_DBZ + 2, REFL_MATRIX_EXAMPLE1_DBZ + 3
 ), axis=0)
 
-VALID_TIMES_UNIX_SEC = numpy.array([600, 1200, 1800, 2400], dtype=int)
+REFLECTIVITY_MATRIX_DBZ = numpy.stack((
+    REFL_MATRIX_HEIGHT1_DBZ, REFL_MATRIX_HEIGHT1_DBZ - 20,
+    REFL_MATRIX_HEIGHT1_DBZ - 10
+), axis=-1)
 
 RADAR_DICT_ALL_EXAMPLES = {
-    radar_io.COMPOSITE_REFL_KEY: COMPOSITE_REFL_MATRIX_DBZ + 0.,
-    radar_io.VALID_TIMES_KEY: VALID_TIMES_UNIX_SEC + 0,
+    radar_io.REFLECTIVITY_KEY: REFLECTIVITY_MATRIX_DBZ + 0.,
     radar_io.LATITUDES_KEY: LATITUDES_DEG_N,
-    radar_io.LONGITUDES_KEY: LONGITUDES_DEG_E
+    radar_io.LONGITUDES_KEY: LONGITUDES_DEG_E,
+    radar_io.VALID_TIMES_KEY: VALID_TIMES_UNIX_SEC + 0,
+    radar_io.HEIGHTS_KEY: HEIGHTS_M_ASL
 }
 
 DESIRED_TIMES_UNIX_SEC = numpy.array([1800, 600], dtype=int)
 
 RADAR_DICT_SUBSET_BY_TIME = {
-    radar_io.COMPOSITE_REFL_KEY: COMPOSITE_REFL_MATRIX_DBZ[[2, 0], ...],
-    radar_io.VALID_TIMES_KEY: VALID_TIMES_UNIX_SEC[[2, 0]],
+    radar_io.REFLECTIVITY_KEY: REFLECTIVITY_MATRIX_DBZ[[2, 0], ...],
     radar_io.LATITUDES_KEY: LATITUDES_DEG_N,
-    radar_io.LONGITUDES_KEY: LONGITUDES_DEG_E
+    radar_io.LONGITUDES_KEY: LONGITUDES_DEG_E,
+    radar_io.VALID_TIMES_KEY: VALID_TIMES_UNIX_SEC[[2, 0]],
+    radar_io.HEIGHTS_KEY: HEIGHTS_M_ASL
 }
 
 DESIRED_INDICES = numpy.array([3, 1], dtype=int)
 
 RADAR_DICT_SUBSET_BY_INDEX = {
-    radar_io.COMPOSITE_REFL_KEY: COMPOSITE_REFL_MATRIX_DBZ[[3, 1], ...],
-    radar_io.VALID_TIMES_KEY: VALID_TIMES_UNIX_SEC[[3, 1]],
+    radar_io.REFLECTIVITY_KEY: REFLECTIVITY_MATRIX_DBZ[[3, 1], ...],
     radar_io.LATITUDES_KEY: LATITUDES_DEG_N,
-    radar_io.LONGITUDES_KEY: LONGITUDES_DEG_E
+    radar_io.LONGITUDES_KEY: LONGITUDES_DEG_E,
+    radar_io.VALID_TIMES_KEY: VALID_TIMES_UNIX_SEC[[3, 1]],
+    radar_io.HEIGHTS_KEY: HEIGHTS_M_ASL
 }
 
 
@@ -90,8 +99,8 @@ def compare_radar_dicts(first_radar_dict, second_radar_dict):
         return False
 
     float_keys = [
-        radar_io.COMPOSITE_REFL_KEY, radar_io.LATITUDES_KEY,
-        radar_io.LONGITUDES_KEY
+        radar_io.REFLECTIVITY_KEY, radar_io.LATITUDES_KEY,
+        radar_io.LONGITUDES_KEY, radar_io.HEIGHTS_KEY
     ]
     integer_keys = [radar_io.VALID_TIMES_KEY]
 
@@ -114,76 +123,148 @@ def compare_radar_dicts(first_radar_dict, second_radar_dict):
 class RadarIoTests(unittest.TestCase):
     """Each method is a unit test for radar_io.py."""
 
-    def test_find_file_3d(self):
-        """Ensures correct output from find_file (looking for 3-D file here)."""
+    def test_find_file_zipped_allow(self):
+        """Ensures correct output from find_file.
+
+        In this case, looking for zipped file but will allow unzipped file.
+        """
 
         this_file_name = radar_io.find_file(
             top_directory_name=TOP_DIRECTORY_NAME,
             valid_date_string=VALID_DATE_STRING,
-            with_3d=True, raise_error_if_missing=False
+            prefer_zipped=True, allow_other_format=True,
+            raise_error_if_missing=False
         )
 
-        self.assertTrue(this_file_name == FILE_NAME_3D)
+        self.assertTrue(this_file_name == FILE_NAME_UNZIPPED)
 
-    def test_find_file_2d(self):
-        """Ensures correct output from find_file (looking for 2-D file here)."""
+    def test_find_file_zipped_no_allow(self):
+        """Ensures correct output from find_file.
+
+        In this case, looking for zipped file and will *not* allow unzipped
+        file.
+        """
 
         this_file_name = radar_io.find_file(
             top_directory_name=TOP_DIRECTORY_NAME,
             valid_date_string=VALID_DATE_STRING,
-            with_3d=False, raise_error_if_missing=False
+            prefer_zipped=True, allow_other_format=False,
+            raise_error_if_missing=False
         )
 
-        self.assertTrue(this_file_name == FILE_NAME_2D)
+        self.assertTrue(this_file_name == FILE_NAME_ZIPPED)
 
-    def test_find_many_files_3d(self):
+    def test_find_file_unzipped_allow(self):
+        """Ensures correct output from find_file.
+
+        In this case, looking for unzipped file but will allow zipped file.
+        """
+
+        this_file_name = radar_io.find_file(
+            top_directory_name=TOP_DIRECTORY_NAME,
+            valid_date_string=VALID_DATE_STRING,
+            prefer_zipped=False, allow_other_format=True,
+            raise_error_if_missing=False
+        )
+
+        self.assertTrue(this_file_name == FILE_NAME_ZIPPED)
+
+    def test_find_file_unzipped_no_allow(self):
+        """Ensures correct output from find_file.
+
+        In this case, looking for unzipped file and will *not* allow zipped
+        file.
+        """
+
+        this_file_name = radar_io.find_file(
+            top_directory_name=TOP_DIRECTORY_NAME,
+            valid_date_string=VALID_DATE_STRING,
+            prefer_zipped=False, allow_other_format=False,
+            raise_error_if_missing=False
+        )
+
+        self.assertTrue(this_file_name == FILE_NAME_UNZIPPED)
+
+    def test_find_many_files_zipped_allow(self):
         """Ensures correct output from find_many_files.
 
-        In this case, looking for 3-D files.
+        In this case, looking for zipped files but will allow unzipped files.
         """
 
         these_file_names = radar_io.find_many_files(
             top_directory_name=TOP_DIRECTORY_NAME,
             first_date_string=FIRST_DATE_STRING,
             last_date_string=LAST_DATE_STRING,
-            with_3d=True, test_mode=True
+            prefer_zipped=True, allow_other_format=True, test_mode=True
         )
 
-        self.assertTrue(these_file_names == FILE_NAMES_3D)
+        self.assertTrue(these_file_names == FILE_NAMES_UNZIPPED)
 
-    def test_find_many_files_2d(self):
+    def test_find_many_files_zipped_no_allow(self):
         """Ensures correct output from find_many_files.
 
-        In this case, looking for 2-D files.
+        In this case, looking for zipped files and will *not* allow unzipped
+        files.
         """
 
         these_file_names = radar_io.find_many_files(
             top_directory_name=TOP_DIRECTORY_NAME,
             first_date_string=FIRST_DATE_STRING,
             last_date_string=LAST_DATE_STRING,
-            with_3d=False, test_mode=True
+            prefer_zipped=True, allow_other_format=False, test_mode=True
         )
 
-        self.assertTrue(these_file_names == FILE_NAMES_2D)
+        self.assertTrue(these_file_names == FILE_NAMES_ZIPPED)
 
-    def test_file_name_to_date_3d(self):
+    def test_find_many_files_unzipped_allow(self):
+        """Ensures correct output from find_many_files.
+
+        In this case, looking for unzipped files but will allow zipped files.
+        """
+
+        these_file_names = radar_io.find_many_files(
+            top_directory_name=TOP_DIRECTORY_NAME,
+            first_date_string=FIRST_DATE_STRING,
+            last_date_string=LAST_DATE_STRING,
+            prefer_zipped=False, allow_other_format=True, test_mode=True
+        )
+
+        self.assertTrue(these_file_names == FILE_NAMES_ZIPPED)
+
+    def test_find_many_files_unzipped_no_allow(self):
+        """Ensures correct output from find_many_files.
+
+        In this case, looking for unzipped files and will *not* allow zipped
+        files.
+        """
+
+        these_file_names = radar_io.find_many_files(
+            top_directory_name=TOP_DIRECTORY_NAME,
+            first_date_string=FIRST_DATE_STRING,
+            last_date_string=LAST_DATE_STRING,
+            prefer_zipped=False, allow_other_format=False, test_mode=True
+        )
+
+        self.assertTrue(these_file_names == FILE_NAMES_UNZIPPED)
+
+    def test_file_name_to_date_zipped(self):
         """Ensures correct output from file_name_to_date.
 
-        In this case, file contains 3-D data.
+        In this case, file is zipped.
         """
 
         self.assertTrue(
-            radar_io.file_name_to_date(FILE_NAME_3D) == VALID_DATE_STRING
+            radar_io.file_name_to_date(FILE_NAME_ZIPPED) == VALID_DATE_STRING
         )
 
-    def test_file_name_to_date_2d(self):
+    def test_file_name_to_date_unzipped(self):
         """Ensures correct output from file_name_to_date.
 
-        In this case, file contains 2-D data.
+        In this case, file is unzipped.
         """
 
         self.assertTrue(
-            radar_io.file_name_to_date(FILE_NAME_2D) == VALID_DATE_STRING
+            radar_io.file_name_to_date(FILE_NAME_UNZIPPED) == VALID_DATE_STRING
         )
 
     def test_subset_by_index(self):
