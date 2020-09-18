@@ -7,7 +7,7 @@
 #SBATCH --ntasks=1
 #SBATCH --nodes=1
 #SBATCH --cpus-per-task=1
-#SBATCH --mem=8G
+#SBATCH --mem=16G
 #SBATCH --time=06:00:00
 #SBATCH --array=1-53
 ##SBATCH --exclude=h31n03,h28n12
@@ -34,7 +34,5 @@ python3 -u "${CODE_DIR_NAME}/process_radar_data.py" \
 --input_radar_dir_name="${INPUT_DIR_NAME}" \
 --first_date_string="${first_date_string}" \
 --last_date_string="${last_date_string}" \
---with_3d=0 \
 --allow_missing_days=1 \
---temporary_dir_name="${OUTPUT_DIR_NAME}/temporary/${first_date_string}-${last_date_string}" \
 --output_radar_dir_name="${OUTPUT_DIR_NAME}"
