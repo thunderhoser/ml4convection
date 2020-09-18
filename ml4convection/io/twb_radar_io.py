@@ -2,49 +2,91 @@
 
 import os
 import gzip
-import copy
-import shutil
-import warnings
-import tempfile
 import numpy
-from gewittergefahr.gg_utils import number_rounding
 from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import time_periods
-from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
-
-THIS_DIRECTORY_NAME = os.path.dirname(os.path.realpath(
-    os.path.join(os.getcwd(), os.path.expanduser(__file__))
-))
 
 TIME_INTERVAL_SEC = 600
 MIN_REFLECTIVITY_DBZ = -5.
 
-ERROR_STRING = (
-    '\nUnix command failed (log messages shown above should explain why).'
-)
+VARIABLE_NAMES = [
+    'yyyy', 'mm', 'dd', 'hh', 'mn', 'ss', 'nx', 'ny', 'nz', 'proj',
+    'mapscale', 'projlat1', 'projlat2', 'projlon', 'alon', 'alat',
+    'xy_scale', 'dx', 'dy', 'dxy_scale'
+]
+VARIABLE_TYPES = [numpy.int32] * len(VARIABLE_NAMES)
+VARIABLE_TYPES[VARIABLE_NAMES.index('proj')] = numpy.uint32
+VARIABLE_TYPE_DICT = numpy.dtype({
+    'names': VARIABLE_NAMES,
+    'formats': VARIABLE_TYPES
+})
 
-DEFAULT_GFORTRAN_COMPILER_NAME = 'gfortran'
-FORTRAN_SCRIPT_NAME = (
-    '{0:s}/read_twb_radar_file.f90'.format(THIS_DIRECTORY_NAME)
-)
-FORTRAN_EXE_NAME = (
-    '{0:s}/read_twb_radar_file.exe'.format(THIS_DIRECTORY_NAME)
-)
+NUM_ROWS_KEY = 'ny'
+NUM_COLUMNS_KEY = 'nx'
+NUM_HEIGHTS_KEY = 'nz'
+REFERENCE_LATITUDE_KEY = 'alat'
+REFERENCE_LONGITUDE_KEY = 'alon'
+LATLNG_SCALE_KEY = 'xy_scale'
+LATITUDE_SPACING_KEY = 'dy'
+LONGITUDE_SPACING_KEY = 'dx'
+LATLNG_SPACING_SCALE_KEY = 'dxy_scale'
 
 TIME_FORMAT_IN_MESSAGES = '%Y-%m-%d-%H%M%S'
 TIME_FORMAT_IN_DIR_NAMES = '%Y%m%d'
 TIME_FORMAT_IN_FILE_NAMES = '%Y%m%d.%H%M'
 
-LATITUDE_COLUMN_INDEX = 0
-LONGITUDE_COLUMN_INDEX = 1
-REFLECTIVITY_COLUMN_INDEX = 2
-LATLNG_PRECISION_DEG = 1e-6
+
+def _read_latlng_from_file(data_object):
+    """Reads lat-long coordinates from file.
+
+    M = number of rows in grid
+    N = number of columns in grid
+
+    :param data_object: Object created by `numpy.frombuffer`.
+    :return: latitudes_deg_n: length-M numpy array of latitudes (deg N).
+    :return: longitudes_deg_e: length-N numpy array of longitudes (deg E).
+    """
+
+    num_grid_rows = data_object[NUM_ROWS_KEY][0]
+    num_grid_columns = data_object[NUM_COLUMNS_KEY][0]
+
+    this_scale_factor = float(data_object[LATLNG_SCALE_KEY][0])
+    reference_latitude_deg_n = (
+        float(data_object[REFERENCE_LATITUDE_KEY][0]) / this_scale_factor
+    )
+    reference_longitude_deg_e = (
+        float(data_object[REFERENCE_LONGITUDE_KEY][0]) / this_scale_factor
+    )
+
+    this_scale_factor = float(data_object[LATLNG_SPACING_SCALE_KEY][0])
+    latitude_spacing_deg = (
+        float(data_object[LATITUDE_SPACING_KEY][0]) / this_scale_factor
+    )
+    longitude_spacing_deg = (
+        float(data_object[LONGITUDE_SPACING_KEY][0]) / this_scale_factor
+    )
+
+    row_indices = numpy.linspace(
+        0, num_grid_rows - 1, num=num_grid_rows, dtype=float
+    )
+    latitudes_deg_n = (
+        reference_latitude_deg_n - row_indices * latitude_spacing_deg
+    )
+    latitudes_deg_n = latitudes_deg_n[::-1]
+
+    column_indices = numpy.linspace(
+        0, num_grid_columns - 1, num=num_grid_columns, dtype=float
+    )
+    longitudes_deg_e = (
+        reference_longitude_deg_e + column_indices * longitude_spacing_deg
+    )
+
+    return latitudes_deg_n, longitudes_deg_e
 
 
 def find_file(
         top_directory_name, valid_time_unix_sec, with_3d=False,
-        prefer_zipped=True, allow_other_format=True,
         raise_error_if_missing=True):
     """Finds binary file with radar data.
 
@@ -53,10 +95,6 @@ def find_file(
     :param valid_time_unix_sec: Valid time.
     :param with_3d: Boolean flag.  If True, will look for file with 3-D data.
         If False, will look for file with 2-D data (composite reflectivity).
-    :param prefer_zipped: Boolean flag.  If True, will look for zipped file
-        first.  If False, will look for unzipped file first.
-    :param allow_other_format: Boolean flag.  If True, will allow opposite of
-        preferred file format (zipped or unzipped).
     :param raise_error_if_missing: Boolean flag.  If file is missing and
         `raise_error_if_missing == True`, will throw error.  If file is missing
         and `raise_error_if_missing == False`, will return *expected* file path.
@@ -67,39 +105,19 @@ def find_file(
 
     error_checking.assert_is_string(top_directory_name)
     error_checking.assert_is_boolean(with_3d)
-    error_checking.assert_is_boolean(prefer_zipped)
-    error_checking.assert_is_boolean(allow_other_format)
     error_checking.assert_is_boolean(raise_error_if_missing)
 
-    directory_name = '{0:s}/{1:s}'.format(
+    radar_file_name = '{0:s}/{1:s}{2:s}/{3:s}.{4:s}.gz'.format(
         top_directory_name,
         time_conversion.unix_sec_to_string(
             valid_time_unix_sec, TIME_FORMAT_IN_DIR_NAMES
-        )
-    )
-
-    if not with_3d:
-        directory_name += '/compref_mosaic'
-
-    radar_file_name = '{0:s}/{1:s}.{2:s}'.format(
-        directory_name,
+        ),
+        '' if with_3d else '/compref_mosaic',
         'MREF3D21L' if with_3d else 'COMPREF',
         time_conversion.unix_sec_to_string(
             valid_time_unix_sec, TIME_FORMAT_IN_FILE_NAMES
         )
     )
-
-    if prefer_zipped:
-        radar_file_name += '.gz'
-
-    if os.path.isfile(radar_file_name):
-        return radar_file_name
-
-    if allow_other_format:
-        if prefer_zipped:
-            radar_file_name = radar_file_name[:-3]
-        else:
-            radar_file_name += '.gz'
 
     if os.path.isfile(radar_file_name) or not raise_error_if_missing:
         return radar_file_name
@@ -120,11 +138,7 @@ def file_name_to_time(radar_file_name):
 
     error_checking.assert_is_string(radar_file_name)
     pathless_file_name = os.path.split(radar_file_name)[-1]
-
-    extensionless_file_name = (
-        pathless_file_name[:-3] if pathless_file_name.endswith('.gz')
-        else pathless_file_name
-    )
+    extensionless_file_name = pathless_file_name[:-3]
 
     valid_time_string = '.'.join(extensionless_file_name.split('.')[-2:])
 
@@ -135,17 +149,14 @@ def file_name_to_time(radar_file_name):
 
 def find_many_files(
         top_directory_name, first_time_unix_sec, last_time_unix_sec,
-        with_3d=False, prefer_zipped=True, allow_other_format=True,
-        raise_error_if_all_missing=True, raise_error_if_any_missing=False,
-        test_mode=False):
+        with_3d=False, raise_error_if_all_missing=True,
+        raise_error_if_any_missing=False, test_mode=False):
     """Finds many binary files with radar data.
 
     :param top_directory_name: See doc for `find_file`.
     :param first_time_unix_sec: First valid time.
     :param last_time_unix_sec: Last valid time.
     :param with_3d: See doc for `find_file`.
-    :param prefer_zipped: Same.
-    :param allow_other_format: Same.
     :param raise_error_if_any_missing: Boolean flag.  If any file is missing and
         `raise_error_if_any_missing == True`, will throw error.
     :param raise_error_if_all_missing: Boolean flag.  If all files are missing
@@ -173,7 +184,6 @@ def find_many_files(
         this_file_name = find_file(
             top_directory_name=top_directory_name,
             valid_time_unix_sec=this_time_unix_sec, with_3d=with_3d,
-            prefer_zipped=prefer_zipped, allow_other_format=allow_other_format,
             raise_error_if_missing=raise_error_if_any_missing
         )
 
@@ -199,112 +209,101 @@ def find_many_files(
     return radar_file_names
 
 
-def read_2d_file(
-        binary_file_name, gfortran_compiler_name=DEFAULT_GFORTRAN_COMPILER_NAME,
-        temporary_dir_name=None, raise_fortran_errors=False):
-    """Reads 2-D radar data (composite reflectivity) from binary file.
+def read_file(gzip_file_name):
+    """Reads radar data from binary file.
 
     M = number of rows in grid
     N = number of columns in grid
+    H = number of heights in grid
 
-    :param binary_file_name: Path to input file.
-    :param gfortran_compiler_name: Path to gfortran compiler.
-    :param temporary_dir_name: Name of temporary directory for text file, which
-        will be deleted as soon as it is read.  If None, temporary directory
-        will be set to default.
-    :param raise_fortran_errors: Boolean flag.  If True, will raise any Fortran
-        error that occurs.  If False and a Fortran error occurs, will just
-        return None for all output variables.
-    :return: composite_refl_matrix_dbz: M-by-N numpy array of composite
-        (column-maximum) reflectivities.
+    :param gzip_file_name: Path to input file.
+    :return: reflectivity_matrix_dbz: M-by-N-by-H numpy array of reflectivities.
     :return: latitudes_deg_n: length-M numpy array of latitudes (deg N).
     :return: longitudes_deg_e: length-N numpy array of longitudes (deg E).
+    :return: heights_m_asl: length-H numpy array of heights (metres above sea
+        level).  If the first output array contains composite reflectivity, this
+        array will be [0].
     """
 
-    error_checking.assert_file_exists(binary_file_name)
-    # error_checking.assert_file_exists(gfortran_compiler_name)
-    error_checking.assert_is_boolean(raise_fortran_errors)
-
-    if not os.path.isfile(FORTRAN_EXE_NAME):
-        command_string = '"{0:s}" "{1:s}" -o "{2:s}"'.format(
-            gfortran_compiler_name, FORTRAN_SCRIPT_NAME, FORTRAN_EXE_NAME
-        )
-
-        exit_code = os.system(command_string)
-        if exit_code != 0:
-            raise ValueError(ERROR_STRING)
-
-    if temporary_dir_name is not None:
-        file_system_utils.mkdir_recursive_if_necessary(
-            directory_name=temporary_dir_name
-        )
-
-    is_file_zipped = binary_file_name.endswith('.gz')
-    input_file_name = copy.deepcopy(binary_file_name)
-
-    if is_file_zipped:
-        gzip_file_object = gzip.open(binary_file_name, 'rb')
-        binary_file_object = tempfile.NamedTemporaryFile(
-            dir=temporary_dir_name, delete=False
-        )
-        binary_file_name = binary_file_object.name
-
-        shutil.copyfileobj(gzip_file_object, binary_file_object)
-        gzip_file_object.close()
-        binary_file_object.close()
-
-    temporary_text_file_name = tempfile.NamedTemporaryFile(
-        dir=temporary_dir_name, delete=False
-    ).name
-
-    print('Reading data from binary file: "{0:s}"...'.format(input_file_name))
-    fortran_exe_dir_name, fortran_exe_pathless_name = (
-        os.path.split(FORTRAN_EXE_NAME)
+    gzip_file_handle = gzip.open(gzip_file_name, 'rb').read()
+    data_object = numpy.frombuffer(
+        gzip_file_handle, dtype=VARIABLE_TYPE_DICT, count=1
     )
-    command_string = 'cd "{0:s}"; ./{1:s} "{2:s}" > "{3:s}"'.format(
-        fortran_exe_dir_name, fortran_exe_pathless_name, binary_file_name,
-        temporary_text_file_name
+    byte_offset = data_object.nbytes
+
+    heights_m_asl = numpy.frombuffer(
+        gzip_file_handle, dtype=numpy.int32,
+        count=data_object[NUM_HEIGHTS_KEY][0], offset=byte_offset
+    )
+    byte_offset += heights_m_asl.nbytes
+
+    z_scale = numpy.frombuffer(
+        gzip_file_handle, dtype=numpy.int32, count=1, offset=byte_offset
+    )
+    byte_offset += z_scale.nbytes
+
+    i_bb_mode = numpy.frombuffer(
+        gzip_file_handle, dtype=numpy.int32, count=1, offset=byte_offset
+    )
+    byte_offset += i_bb_mode.nbytes
+
+    unkn01 = numpy.frombuffer(
+        gzip_file_handle, dtype=numpy.int32, count=9, offset=byte_offset
+    )
+    byte_offset += unkn01.nbytes
+
+    field_name = numpy.frombuffer(
+        gzip_file_handle, dtype=numpy.uint8, count=20, offset=byte_offset
+    )
+    byte_offset += field_name.nbytes
+
+    units = numpy.frombuffer(
+        gzip_file_handle, dtype=numpy.uint8, count=6, offset=byte_offset
+    )
+    byte_offset += units.nbytes
+
+    scale_factor = numpy.frombuffer(
+        gzip_file_handle, dtype=numpy.int32, count=1, offset=byte_offset
+    )
+    byte_offset += scale_factor.nbytes
+
+    sentinel_value = numpy.frombuffer(
+        gzip_file_handle, dtype=numpy.int32, count=1, offset=byte_offset
+    )
+    byte_offset += sentinel_value.nbytes
+
+    nradar = numpy.frombuffer(
+        gzip_file_handle, dtype=numpy.int32, count=1, offset=byte_offset
+    )
+    byte_offset += nradar.nbytes
+
+    mosradar = numpy.frombuffer(
+        gzip_file_handle, dtype=numpy.uint8, count=4 * nradar[0],
+        offset=byte_offset
+    )
+    byte_offset += mosradar.nbytes
+
+    reflectivity_matrix_dbz = numpy.frombuffer(
+        gzip_file_handle, dtype=numpy.int16, offset=byte_offset
+    )
+    reflectivity_matrix_dbz = (
+        reflectivity_matrix_dbz.astype(numpy.float32) / float(scale_factor[0])
+    )
+    reflectivity_matrix_dbz[reflectivity_matrix_dbz < MIN_REFLECTIVITY_DBZ] = (
+        numpy.nan
     )
 
-    exit_code = os.system(command_string)
-    if is_file_zipped:
-        os.remove(binary_file_name)
-    if exit_code != 0:
-        if raise_fortran_errors:
-            raise ValueError(ERROR_STRING)
+    latitudes_deg_n, longitudes_deg_e = _read_latlng_from_file(data_object)
 
-        warnings.warn(ERROR_STRING)
-        return None, None, None
-
-    print('Reading data from temporary text file: "{0:s}"...'.format(
-        temporary_text_file_name
-    ))
-    data_matrix = numpy.loadtxt(temporary_text_file_name)
-    os.remove(temporary_text_file_name)
-
-    all_latitudes_deg_n = number_rounding.round_to_nearest(
-        data_matrix[:, LATITUDE_COLUMN_INDEX], LATLNG_PRECISION_DEG
+    dimensions = (
+        len(heights_m_asl), len(latitudes_deg_n), len(longitudes_deg_e)
     )
-    all_longitudes_deg_e = number_rounding.round_to_nearest(
-        data_matrix[:, LONGITUDE_COLUMN_INDEX], LATLNG_PRECISION_DEG
+    reflectivity_matrix_dbz = numpy.reshape(reflectivity_matrix_dbz, dimensions)
+    reflectivity_matrix_dbz = numpy.swapaxes(reflectivity_matrix_dbz, 0, 2)
+    reflectivity_matrix_dbz = numpy.swapaxes(reflectivity_matrix_dbz, 0, 1)
+    # reflectivity_matrix_dbz = numpy.flip(reflectivity_matrix_dbz, axis=0)
+
+    return (
+        reflectivity_matrix_dbz,
+        latitudes_deg_n, longitudes_deg_e, heights_m_asl
     )
-    num_grid_rows = numpy.sum(all_longitudes_deg_e == all_longitudes_deg_e[0])
-    num_grid_columns = numpy.sum(all_latitudes_deg_n == all_latitudes_deg_n[0])
-
-    composite_refl_matrix_dbz = numpy.reshape(
-        data_matrix[:, REFLECTIVITY_COLUMN_INDEX],
-        (num_grid_rows, num_grid_columns)
-    )
-    composite_refl_matrix_dbz[
-        composite_refl_matrix_dbz < MIN_REFLECTIVITY_DBZ
-    ] = numpy.nan
-
-    latitudes_deg_n = numpy.reshape(
-        all_latitudes_deg_n, (num_grid_rows, num_grid_columns)
-    )[:, 0]
-
-    longitudes_deg_e = numpy.reshape(
-        all_longitudes_deg_e, (num_grid_rows, num_grid_columns)
-    )[0, :]
-
-    return composite_refl_matrix_dbz, latitudes_deg_n, longitudes_deg_e
