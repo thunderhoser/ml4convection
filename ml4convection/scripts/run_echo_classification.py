@@ -1,5 +1,6 @@
 """Runs echo classification to separate convective from non-convective."""
 
+import os
 import argparse
 import numpy
 from gewittergefahr.gg_utils import time_conversion
@@ -206,6 +207,7 @@ def _run_for_one_day(
     )
 
     radar_io.compress_file(output_file_name)
+    os.remove(output_file_name)
 
 
 def _run(top_radar_dir_name, first_date_string, last_date_string,
