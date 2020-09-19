@@ -206,7 +206,9 @@ def _plot_radar_one_example(
     # TODO(thunderhoser): Put this code in a proper method.
     if echo_classifn_dict is not None:
         convective_flag_matrix = (
-            echo_classifn_dict[radar_io.CONVECTIVE_FLAGS_KEY]
+            echo_classifn_dict[radar_io.CONVECTIVE_FLAGS_KEY][
+                example_index, ...
+            ]
         )
         row_indices, column_indices = numpy.where(convective_flag_matrix)
         positive_latitudes_deg_n = latitudes_deg_n[row_indices]
