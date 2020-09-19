@@ -145,7 +145,7 @@ def _process_targets_one_day(input_file_name, spatial_downsampling_factor,
     N = number of columns in grid
 
     :param input_file_name: Path to input file (will be read by
-        `radar_io.read_2d_file`).
+        `radar_io.read_reflectivity_file`).
     :param spatial_downsampling_factor: See doc for `process_targets`.
     :param composite_refl_threshold_dbz: Same.
 
@@ -163,7 +163,7 @@ def _process_targets_one_day(input_file_name, spatial_downsampling_factor,
     """
 
     print('Reading data from: "{0:s}"...'.format(input_file_name))
-    radar_dict = radar_io.read_2d_file(input_file_name)
+    radar_dict = radar_io.read_reflectivity_file(input_file_name)
 
     if spatial_downsampling_factor > 1:
         radar_dict = downsample_data_in_space(
@@ -172,7 +172,9 @@ def _process_targets_one_day(input_file_name, spatial_downsampling_factor,
             change_coordinates=True
         )[1]
 
-    composite_refl_matrix_dbz = radar_dict[radar_io.COMPOSITE_REFL_KEY]
+    composite_refl_matrix_dbz = numpy.max(
+        radar_dict[radar_io.REFLECTIVITY_KEY], axis=-1
+    )
     print('Mean reflectivity = {0:.2f} dBZ'.format(
         numpy.mean(composite_refl_matrix_dbz)
     ))
@@ -190,9 +192,9 @@ def _process_targets_one_day(input_file_name, spatial_downsampling_factor,
     return {
         COMPOSITE_REFL_MATRIX_KEY: composite_refl_matrix_dbz,
         TARGET_MATRIX_KEY: target_matrix,
-        VALID_TIMES_KEY: radar_dict[radar_io.VALID_TIMES_KEY],
-        LATITUDES_KEY: radar_dict[radar_io.LATITUDES_KEY],
-        LONGITUDES_KEY: radar_dict[radar_io.LONGITUDES_KEY],
+        VALID_TIMES_KEY: radar_dict[satellite_io.VALID_TIMES_KEY],
+        LATITUDES_KEY: radar_dict[satellite_io.LATITUDES_KEY],
+        LONGITUDES_KEY: radar_dict[satellite_io.LONGITUDES_KEY],
         COMPOSITE_REFL_THRESHOLD_KEY: composite_refl_threshold_dbz
     }
 
@@ -348,7 +350,8 @@ def downsample_data_in_space(downsampling_factor, change_coordinates=False,
         coordinates in dictionaries to reflect downsampling.
     :param satellite_dict: Dictionary in format returned by
         `satellite_io.read_file`.
-    :param radar_dict: Dictionary in format returned by `radar_io.read_2d_file`.
+    :param radar_dict: Dictionary in format returned by
+        `radar_io.read_reflectivity_file`.
     :return: satellite_dict: Same as input but maybe with coarser spatial
         resolution.
     :return: radar_dict: Same as input but maybe with coarser spatial
@@ -378,15 +381,15 @@ def downsample_data_in_space(downsampling_factor, change_coordinates=False,
         )
 
     if radar_dict is not None:
-        composite_refl_matrix_dbz = numpy.expand_dims(
-            radar_dict[radar_io.COMPOSITE_REFL_KEY], axis=-1
+        composite_refl_matrix_dbz = numpy.max(
+            radar_dict[radar_io.REFLECTIVITY_KEY], axis=-1
         )
-        composite_refl_matrix_dbz = standalone_utils.do_2d_pooling(
+        composite_refl_matrix_dbz = numpy.expand_dims(
+            composite_refl_matrix_dbz, axis=-1
+        )
+        radar_dict[radar_io.REFLECTIVITY_KEY] = standalone_utils.do_2d_pooling(
             feature_matrix=composite_refl_matrix_dbz,
             window_size_px=downsampling_factor, do_max_pooling=True
-        )
-        radar_dict[radar_io.COMPOSITE_REFL_KEY] = (
-            composite_refl_matrix_dbz[..., 0]
         )
 
     if not change_coordinates:
@@ -510,7 +513,7 @@ def process_targets(
 
     :param top_input_dir_name: Name of top-level directory with radar data.
         Files therein will be found by `radar_io.find_file` and read by
-        `radar_io.read_2d_file`.
+        `radar_io.read_reflectivity_file`.
     :param spatial_downsampling_factor: See doc for `process_predictors`.
     :param first_date_string: Same.
     :param last_date_string: Same.
@@ -527,7 +530,8 @@ def process_targets(
     input_file_names = radar_io.find_many_files(
         top_directory_name=top_input_dir_name,
         first_date_string=first_date_string,
-        last_date_string=last_date_string, with_3d=False,
+        last_date_string=last_date_string,
+        file_type_string=radar_io.REFL_TYPE_STRING,
         raise_error_if_all_missing=raise_error_if_all_missing,
         raise_error_if_any_missing=False
     )
