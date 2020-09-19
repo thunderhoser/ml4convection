@@ -41,7 +41,7 @@ ALLOW_MISSING_DAYS_HELP_STRING = (
 )
 OUTPUT_DIR_HELP_STRING = (
     'Name of output directory.  Daily NetCDF files will be written by '
-    '`radar_io.write_file`, to locations therein determined by '
+    '`radar_io.write_reflectivity_file`, to locations therein determined by '
     '`radar_io.find_file`.'
 )
 
@@ -107,7 +107,7 @@ def _process_radar_data_one_day(
             continue
 
         print('Writing data to: "{0:s}"...'.format(output_file_name))
-        radar_io.write_file(
+        radar_io.write_reflectivity_file(
             netcdf_file_name=output_file_name,
             reflectivity_matrix_dbz=reflectivity_matrix_dbz,
             latitudes_deg_n=latitudes_deg_n,
@@ -141,6 +141,7 @@ def _run(input_dir_name, first_date_string, last_date_string,
         this_netcdf_file_name = radar_io.find_file(
             top_directory_name=output_dir_name,
             valid_date_string=date_strings[i],
+            file_type_string=radar_io.REFL_TYPE_STRING,
             prefer_zipped=False, allow_other_format=False,
             raise_error_if_missing=False
         )
