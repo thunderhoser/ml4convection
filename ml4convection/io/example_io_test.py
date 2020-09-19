@@ -60,7 +60,7 @@ COMPOSITE_REFL_MATRIX_DBZ = numpy.stack((
 ), axis=0)
 
 RADAR_DICT = {
-    radar_io.COMPOSITE_REFL_KEY: COMPOSITE_REFL_MATRIX_DBZ + 0.,
+    radar_io.REFLECTIVITY_KEY: COMPOSITE_REFL_MATRIX_DBZ + 0.,
     radar_io.VALID_TIMES_KEY: VALID_TIMES_UNIX_SEC + 0,
     radar_io.LATITUDES_KEY: LATITUDES_DEG_N + 0.,
     radar_io.LONGITUDES_KEY: LONGITUDES_DEG_E + 0.
@@ -106,7 +106,7 @@ COMPOSITE_REFL_MATRIX_DBZ = numpy.stack((
 ), axis=0)
 
 RADAR_DICT_DOWNSAMPLED2 = {
-    radar_io.COMPOSITE_REFL_KEY: COMPOSITE_REFL_MATRIX_DBZ + 0.,
+    radar_io.REFLECTIVITY_KEY: COMPOSITE_REFL_MATRIX_DBZ + 0.,
     radar_io.VALID_TIMES_KEY: VALID_TIMES_UNIX_SEC + 0,
     radar_io.LATITUDES_KEY: LATITUDES_DEG_N + 0.,
     radar_io.LONGITUDES_KEY: LONGITUDES_DEG_E + 0.
@@ -145,7 +145,7 @@ COMPOSITE_REFL_MATRIX_DBZ = numpy.stack((
 ), axis=0)
 
 RADAR_DICT_DOWNSAMPLED4 = {
-    radar_io.COMPOSITE_REFL_KEY: COMPOSITE_REFL_MATRIX_DBZ + 0.,
+    radar_io.REFLECTIVITY_KEY: COMPOSITE_REFL_MATRIX_DBZ + 0.,
     radar_io.VALID_TIMES_KEY: VALID_TIMES_UNIX_SEC + 0,
     radar_io.LATITUDES_KEY: LATITUDES_DEG_N + 0.,
     radar_io.LONGITUDES_KEY: LONGITUDES_DEG_E + 0.
@@ -454,7 +454,7 @@ class ExampleIoTests(unittest.TestCase):
         self.assertTrue(satellite_io_test.compare_satellite_dicts(
             this_satellite_dict, SATELLITE_DICT_DOWNSAMPLED2
         ))
-        self.assertTrue(radar_io_test.compare_radar_dicts(
+        self.assertTrue(radar_io_test.compare_reflectivity_dicts(
             this_radar_dict, RADAR_DICT_DOWNSAMPLED2
         ))
 
@@ -475,7 +475,7 @@ class ExampleIoTests(unittest.TestCase):
         self.assertTrue(satellite_io_test.compare_satellite_dicts(
             this_satellite_dict, SATELLITE_DICT_DOWNSAMPLED4
         ))
-        self.assertTrue(radar_io_test.compare_radar_dicts(
+        self.assertTrue(radar_io_test.compare_reflectivity_dicts(
             this_radar_dict, RADAR_DICT_DOWNSAMPLED4
         ))
 

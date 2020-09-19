@@ -21,13 +21,18 @@ TIME_FORMAT = '%Y-%m-%d-%H%M'
 
 COMPOSITE_REFL_NAME = 'reflectivity_column_max_dbz'
 
+CONVECTIVE_MARKER_SIZE = 4
+CONVECTIVE_MARKER_TYPE = 'o'
+CONVECTIVE_MARKER_COLOUR = numpy.full(3, 0.)
+
 NUM_PARALLELS = 8
 NUM_MERIDIANS = 6
 FIGURE_RESOLUTION_DPI = 300
 FIGURE_WIDTH_INCHES = 15
 FIGURE_HEIGHT_INCHES = 15
 
-RADAR_DIR_ARG_NAME = 'input_radar_dir_name'
+REFLECTIVITY_DIR_ARG_NAME = 'input_reflectivity_dir_name'
+ECHO_CLASSIFN_DIR_ARG_NAME = 'input_echo_classifn_dir_name'
 TARGET_DIR_ARG_NAME = 'input_target_dir_name'
 FIRST_DATE_ARG_NAME = 'first_date_string'
 LAST_DATE_ARG_NAME = 'last_date_string'
@@ -37,15 +42,22 @@ NUM_EXAMPLES_PER_DAY_ARG_NAME = 'num_examples_per_day'
 PLOT_BASEMAP_ARG_NAME = 'plot_basemap'
 OUTPUT_DIR_ARG_NAME = 'output_dir_name'
 
-RADAR_DIR_HELP_STRING = (
-    'Name of directory with radar data.  Files therein will be found by '
-    '`radar_io.find_file` and read by `radar_io.read_2d_file`.'
+REFLECTIVITY_DIR_HELP_STRING = (
+    'Name of directory with reflectivity data.  Files therein will be found by '
+    '`radar_io.find_file` and read by `radar_io.read_reflectivity_file`.'
 )
+ECHO_CLASSIFN_DIR_HELP_STRING = (
+    '[used only if `{0:s}` is specified] Name of directory with echo-'
+    'classification data (files therein will be found by `radar_io.find_file` '
+    'and read by `radar_io.read_echo_classifn_file`).  If specified, will plot '
+    'black dot over each convective pixel.'
+).format(REFLECTIVITY_DIR_ARG_NAME)
+
 TARGET_DIR_HELP_STRING = (
     '[used only if `{0:s}` is left empty] Name of directory with target data.  '
     'Files therein will be found by `example_io.find_target_file` and read by '
     '`example_io.read_target_file`.'
-).format(RADAR_DIR_ARG_NAME)
+).format(REFLECTIVITY_DIR_ARG_NAME)
 
 DATE_HELP_STRING = (
     'Date (format "yyyymmdd").  Will plot radar images for all days in the '
@@ -72,8 +84,12 @@ OUTPUT_DIR_HELP_STRING = 'Name of output directory.  Images will be saved here.'
 
 INPUT_ARG_PARSER = argparse.ArgumentParser()
 INPUT_ARG_PARSER.add_argument(
-    '--' + RADAR_DIR_ARG_NAME, type=str, required=False, default='',
-    help=RADAR_DIR_HELP_STRING
+    '--' + REFLECTIVITY_DIR_ARG_NAME, type=str, required=False, default='',
+    help=REFLECTIVITY_DIR_HELP_STRING
+)
+INPUT_ARG_PARSER.add_argument(
+    '--' + ECHO_CLASSIFN_DIR_ARG_NAME, type=str, required=False, default='',
+    help=ECHO_CLASSIFN_DIR_HELP_STRING
 )
 INPUT_ARG_PARSER.add_argument(
     '--' + TARGET_DIR_ARG_NAME, type=str, required=False, default='',
@@ -108,18 +124,19 @@ INPUT_ARG_PARSER.add_argument(
 
 
 def _plot_radar_one_example(
-        radar_dict, example_index, plot_basemap, output_dir_name):
+        reflectivity_dict, echo_classifn_dict, example_index, plot_basemap,
+        output_dir_name):
     """Plots one radar image.
 
-    :param radar_dict: Dictionary in the format returned by
-        `radar_io.read_2d_file`.
+    :param reflectivity_dict: See doc for `_plot_radar_one_day`.
+    :param echo_classifn_dict: Same.
     :param example_index: Will plot [i]th example, where i = `example_index`.
     :param plot_basemap: See documentation at top of file.
     :param output_dir_name: Same.
     """
 
-    latitudes_deg_n = radar_dict[radar_io.LATITUDES_KEY]
-    longitudes_deg_e = radar_dict[radar_io.LONGITUDES_KEY]
+    latitudes_deg_n = reflectivity_dict[radar_io.LATITUDES_KEY]
+    longitudes_deg_e = reflectivity_dict[radar_io.LONGITUDES_KEY]
 
     if plot_basemap:
         figure_object, axes_object, basemap_object = (
@@ -155,14 +172,18 @@ def _plot_radar_one_example(
             1, 1, figsize=(FIGURE_WIDTH_INCHES, FIGURE_HEIGHT_INCHES)
         )
 
-    valid_time_unix_sec = radar_dict[radar_io.VALID_TIMES_KEY][example_index]
+    valid_time_unix_sec = (
+        reflectivity_dict[radar_io.VALID_TIMES_KEY][example_index]
+    )
     valid_time_string = time_conversion.unix_sec_to_string(
         valid_time_unix_sec, TIME_FORMAT
     )
     title_string = 'Composite reflectivity at {0:s}'.format(valid_time_string)
 
-    composite_refl_matrix_dbz = (
-        radar_dict[radar_io.COMPOSITE_REFL_KEY][example_index, ...]
+    # TODO(thunderhoser): Allow this script to plot reflectivity at any height.
+    composite_refl_matrix_dbz = numpy.max(
+        reflectivity_dict[radar_io.REFLECTIVITY_KEY][example_index, ...],
+        axis=-1
     )
 
     radar_plotting.plot_latlng_grid(
@@ -173,6 +194,23 @@ def _plot_radar_one_example(
         latitude_spacing_deg=numpy.diff(latitudes_deg_n[:2])[0],
         longitude_spacing_deg=numpy.diff(longitudes_deg_e[:2])[0]
     )
+
+    # TODO(thunderhoser): Put this code in a proper method.
+    if echo_classifn_dict is not None:
+        convective_flag_matrix = (
+            echo_classifn_dict[radar_io.CONVECTIVE_FLAGS_KEY]
+        )
+        row_indices, column_indices = numpy.where(convective_flag_matrix)
+        positive_latitudes_deg_n = latitudes_deg_n[row_indices]
+        positive_longitudes_deg_e = longitudes_deg_e[column_indices]
+
+        axes_object.plot(
+            positive_longitudes_deg_e, positive_latitudes_deg_n,
+            linestyle='None', marker=CONVECTIVE_MARKER_TYPE,
+            markersize=CONVECTIVE_MARKER_SIZE, markeredgewidth=0,
+            markerfacecolor=CONVECTIVE_MARKER_COLOUR,
+            markeredgecolor=CONVECTIVE_MARKER_COLOUR
+        )
 
     if not plot_basemap:
         tick_latitudes_deg_n = numpy.unique(numpy.round(latitudes_deg_n))
@@ -227,12 +265,15 @@ def _plot_radar_one_example(
 
 
 def _plot_radar_one_day(
-        radar_dict, daily_times_seconds, plot_random_examples, num_examples,
-        plot_basemap, output_dir_name):
+        reflectivity_dict, echo_classifn_dict, daily_times_seconds,
+        plot_random_examples, num_examples, plot_basemap, output_dir_name):
     """Plots radar images for one day.
 
-    :param radar_dict: Dictionary in the format returned by
-        `radar_io.read_2d_file`.
+    :param reflectivity_dict: Dictionary in the format returned by
+        `radar_io.read_reflectivity_file`.
+    :param echo_classifn_dict: Dictionary in the format returned by
+        `radar_io.read_echo_classifn_file`.  If specified, will plot convective
+        pixels only.  If None, will plot all pixels.
     :param daily_times_seconds: See documentation at top of file.
     :param plot_random_examples: Same.
     :param num_examples: Same.
@@ -241,7 +282,7 @@ def _plot_radar_one_day(
     """
 
     if daily_times_seconds is not None:
-        valid_times_unix_sec = radar_dict[radar_io.VALID_TIMES_KEY]
+        valid_times_unix_sec = reflectivity_dict[radar_io.VALID_TIMES_KEY]
         base_time_unix_sec = number_rounding.floor_to_nearest(
             valid_times_unix_sec[0], DAYS_TO_SECONDS
         )
@@ -257,11 +298,20 @@ def _plot_radar_one_day(
             return
 
         desired_times_unix_sec = desired_times_unix_sec[good_flags]
-        radar_dict = radar_io.subset_by_time(
-            radar_dict=radar_dict, desired_times_unix_sec=desired_times_unix_sec
-        )[0]
+        reflectivity_dict, desired_indices = radar_io.subset_by_time(
+            reflectivity_dict=reflectivity_dict,
+            desired_times_unix_sec=desired_times_unix_sec
+        )
+
+        # TODO(thunderhoser): This is a hack.
+        if echo_classifn_dict is not None:
+            echo_classifn_dict[radar_io.CONVECTIVE_FLAGS_KEY] = (
+                echo_classifn_dict[radar_io.CONVECTIVE_FLAGS_KEY][
+                    desired_indices, ...
+                ]
+            )
     else:
-        num_examples_total = len(radar_dict[radar_io.VALID_TIMES_KEY])
+        num_examples_total = len(reflectivity_dict[radar_io.VALID_TIMES_KEY])
         desired_indices = numpy.linspace(
             0, num_examples_total - 1, num=num_examples_total, dtype=int
         )
@@ -274,27 +324,38 @@ def _plot_radar_one_day(
             else:
                 desired_indices = desired_indices[:num_examples]
 
-        radar_dict = radar_io.subset_by_index(
-            radar_dict=radar_dict, desired_indices=desired_indices
+        reflectivity_dict = radar_io.subset_by_index(
+            reflectivity_dict=reflectivity_dict, desired_indices=desired_indices
         )
 
-    num_examples = len(radar_dict[radar_io.VALID_TIMES_KEY])
+        # TODO(thunderhoser): This is a hack.
+        if echo_classifn_dict is not None:
+            echo_classifn_dict[radar_io.CONVECTIVE_FLAGS_KEY] = (
+                echo_classifn_dict[radar_io.CONVECTIVE_FLAGS_KEY][
+                    desired_indices, ...
+                ]
+            )
+
+    num_examples = len(reflectivity_dict[radar_io.VALID_TIMES_KEY])
 
     for i in range(num_examples):
         _plot_radar_one_example(
-            radar_dict=radar_dict, example_index=i, plot_basemap=plot_basemap,
-            output_dir_name=output_dir_name
+            reflectivity_dict=reflectivity_dict,
+            echo_classifn_dict=echo_classifn_dict, example_index=i,
+            plot_basemap=plot_basemap, output_dir_name=output_dir_name
         )
 
 
-def _run(top_radar_dir_name, top_target_dir_name, first_date_string,
-         last_date_string, daily_times_seconds, plot_random_examples,
-         num_examples_per_day, plot_basemap, output_dir_name):
+def _run(top_reflectivity_dir_name, top_echo_classifn_dir_name,
+         top_target_dir_name, first_date_string, last_date_string,
+         daily_times_seconds, plot_random_examples, num_examples_per_day,
+         plot_basemap, output_dir_name):
     """Plots radar images for the given days.
 
     This is effectively the main method.
 
-    :param top_radar_dir_name: See documentation at top of file.
+    :param top_reflectivity_dir_name: See documentation at top of file.
+    :param top_echo_classifn_dir_name: Same.
     :param top_target_dir_name: Same.
     :param first_date_string: Same.
     :param last_date_string: Same.
@@ -304,15 +365,15 @@ def _run(top_radar_dir_name, top_target_dir_name, first_date_string,
     :param plot_basemap: Same.
     :param output_dir_name: Same.
     :raises: ValueError:
-        if `top_radar_dir_name is None and top_target_dir_name is None`.
+        if `top_reflectivity_dir_name is None and top_target_dir_name is None`.
     """
 
     file_system_utils.mkdir_recursive_if_necessary(
         directory_name=output_dir_name
     )
 
-    if top_radar_dir_name == '':
-        top_radar_dir_name = None
+    if top_reflectivity_dir_name == '':
+        top_reflectivity_dir_name = None
     if top_target_dir_name == '':
         top_target_dir_name = None
     if len(daily_times_seconds) == 1 and daily_times_seconds[0] < 0:
@@ -325,14 +386,16 @@ def _run(top_radar_dir_name, top_target_dir_name, first_date_string,
         )
         plot_random_examples = False
 
-    if top_radar_dir_name is None and top_target_dir_name is None:
+    if top_reflectivity_dir_name is None and top_target_dir_name is None:
         raise ValueError((
             'One of the input args `{0:s}` and `{1:s}` must be specified.'
         ).format(
-            RADAR_DIR_ARG_NAME, TARGET_DIR_ARG_NAME
+            REFLECTIVITY_DIR_ARG_NAME, TARGET_DIR_ARG_NAME
         ))
 
-    if top_radar_dir_name is None:
+    if top_reflectivity_dir_name is None:
+        top_echo_classifn_dir_name = None
+
         input_file_names = example_io.find_many_target_files(
             top_directory_name=top_target_dir_name,
             first_date_string=first_date_string,
@@ -341,36 +404,60 @@ def _run(top_radar_dir_name, top_target_dir_name, first_date_string,
         )
     else:
         input_file_names = radar_io.find_many_files(
-            top_directory_name=top_radar_dir_name,
+            top_directory_name=top_reflectivity_dir_name,
             first_date_string=first_date_string,
             last_date_string=last_date_string,
-            with_3d=False, raise_error_if_any_missing=False
+            file_type_string=radar_io.REFL_TYPE_STRING,
+            raise_error_if_any_missing=False
         )
+
+    if top_echo_classifn_dir_name is None:
+        echo_classifn_file_names = None
+    else:
+        echo_classifn_file_names = [
+            radar_io.find_file(
+                top_directory_name=top_echo_classifn_dir_name,
+                valid_date_string=radar_io.file_name_to_date(f),
+                file_type_string=radar_io.ECHO_CLASSIFN_TYPE_STRING,
+                raise_error_if_missing=True
+            )
+            for f in input_file_names
+        ]
 
     for i in range(len(input_file_names)):
         print('Reading data from: "{0:s}"...'.format(input_file_names[i]))
 
-        if top_radar_dir_name is None:
+        if top_reflectivity_dir_name is None:
             target_dict = example_io.read_target_file(
                 netcdf_file_name=input_file_names[i], read_targets=False,
                 read_reflectivities=True
             )
 
-            radar_dict = {
-                radar_io.COMPOSITE_REFL_KEY:
-                    target_dict[example_io.COMPOSITE_REFL_MATRIX_KEY],
+            reflectivity_dict = {
+                radar_io.REFLECTIVITY_KEY: numpy.expand_dims(
+                    target_dict[example_io.COMPOSITE_REFL_MATRIX_KEY], axis=-1
+                ),
                 radar_io.VALID_TIMES_KEY: target_dict[
                     example_io.VALID_TIMES_KEY],
                 radar_io.LATITUDES_KEY: target_dict[example_io.LATITUDES_KEY],
                 radar_io.LONGITUDES_KEY: target_dict[example_io.LONGITUDES_KEY]
             }
         else:
-            radar_dict = radar_io.read_2d_file(
+            reflectivity_dict = radar_io.read_reflectivity_file(
                 netcdf_file_name=input_file_names[i], fill_nans=False
             )
 
+        if top_echo_classifn_dir_name is None:
+            echo_classifn_dict = None
+        else:
+            echo_classifn_dict = radar_io.read_echo_classifn_file(
+                echo_classifn_file_names[i]
+            )
+
         _plot_radar_one_day(
-            radar_dict=radar_dict, daily_times_seconds=daily_times_seconds,
+            reflectivity_dict=reflectivity_dict,
+            echo_classifn_dict=echo_classifn_dict,
+            daily_times_seconds=daily_times_seconds,
             plot_random_examples=plot_random_examples,
             num_examples=num_examples_per_day,
             plot_basemap=plot_basemap, output_dir_name=output_dir_name
@@ -384,7 +471,12 @@ if __name__ == '__main__':
     INPUT_ARG_OBJECT = INPUT_ARG_PARSER.parse_args()
 
     _run(
-        top_radar_dir_name=getattr(INPUT_ARG_OBJECT, RADAR_DIR_ARG_NAME),
+        top_reflectivity_dir_name=getattr(
+            INPUT_ARG_OBJECT, REFLECTIVITY_DIR_ARG_NAME
+        ),
+        top_echo_classifn_dir_name=getattr(
+            INPUT_ARG_OBJECT, ECHO_CLASSIFN_DIR_ARG_NAME
+        ),
         top_target_dir_name=getattr(INPUT_ARG_OBJECT, TARGET_DIR_ARG_NAME),
         first_date_string=getattr(INPUT_ARG_OBJECT, FIRST_DATE_ARG_NAME),
         last_date_string=getattr(INPUT_ARG_OBJECT, LAST_DATE_ARG_NAME),

@@ -615,6 +615,10 @@ def read_echo_classifn_file(netcdf_file_name):
 
         dataset_object.close()
 
+    echo_classifn_dict[CONVECTIVE_FLAGS_KEY] = (
+        echo_classifn_dict[CONVECTIVE_FLAGS_KEY].astype(bool)
+    )
+
     if numpy.any(numpy.diff(echo_classifn_dict[LATITUDES_KEY]) < 0):
         echo_classifn_dict[LATITUDES_KEY] = (
             echo_classifn_dict[LATITUDES_KEY][::-1]
