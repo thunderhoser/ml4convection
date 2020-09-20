@@ -610,6 +610,7 @@ def find_convective_pixels(reflectivity_matrix_dbz, grid_metadata_dict,
         min_composite_refl_dbz=min_composite_refl_criterion1_dbz,
         grid_metadata_dict=grid_metadata_dict)
 
+    print(reflectivity_matrix_dbz)
     print(convective_flag_matrix)
     print('Number of convective pixels = {0:d}'.format(
         numpy.sum(convective_flag_matrix)
