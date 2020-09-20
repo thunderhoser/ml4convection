@@ -189,7 +189,7 @@ def _plot_radar_one_example(
     title_string = 'Composite reflectivity at {0:s}'.format(valid_time_string)
 
     # TODO(thunderhoser): Allow this script to plot reflectivity at any height.
-    composite_refl_matrix_dbz = numpy.max(
+    composite_refl_matrix_dbz = numpy.nanmax(
         reflectivity_dict[radar_io.REFLECTIVITY_KEY][example_index, ...],
         axis=-1
     )
