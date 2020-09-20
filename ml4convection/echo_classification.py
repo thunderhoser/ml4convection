@@ -369,12 +369,16 @@ def _apply_convective_criterion1(
         this_reflectivity_matrix_dbz)
 
     numerator = numpy.sum(
-        peakedness_matrix_dbz > peakedness_threshold_matrix_dbz, axis=-1)
+        (peakedness_matrix_dbz > peakedness_threshold_matrix_dbz).astype(int),
+        axis=-1
+    )
     denominator = numpy.sum(
-        (this_reflectivity_matrix_dbz > 0).astype(int), axis=-1)
+        (this_reflectivity_matrix_dbz > 0).astype(int),
+        axis=-1
+    )
 
     fractional_exceedance_matrix = numerator.astype(float) / denominator
-    convective_flag_matrix = fractional_exceedance_matrix >= 0.5
+    convective_flag_matrix = (fractional_exceedance_matrix >= 0.5).astype(bool)
 
     if halve_resolution_for_peakedness:
         convective_flag_matrix = _double_class_resolution(
@@ -382,7 +386,8 @@ def _apply_convective_criterion1(
             coarse_grid_point_latitudes_deg=coarse_grid_point_latitudes_deg,
             coarse_grid_point_longitudes_deg=coarse_grid_point_longitudes_deg,
             fine_grid_point_latitudes_deg=grid_metadata_dict[LATITUDES_KEY],
-            fine_grid_point_longitudes_deg=grid_metadata_dict[LONGITUDES_KEY])
+            fine_grid_point_longitudes_deg=grid_metadata_dict[LONGITUDES_KEY]
+        )
 
     if min_composite_refl_dbz is None:
         return convective_flag_matrix
@@ -390,7 +395,8 @@ def _apply_convective_criterion1(
     composite_refl_matrix_dbz = numpy.max(reflectivity_matrix_dbz, axis=-1)
     return numpy.logical_and(
         convective_flag_matrix,
-        composite_refl_matrix_dbz >= min_composite_refl_dbz)
+        (composite_refl_matrix_dbz >= min_composite_refl_dbz).astype(bool)
+    )
 
 
 def _apply_convective_criterion2(
@@ -425,7 +431,10 @@ def _apply_convective_criterion2(
 
     return numpy.logical_or(
         convective_flag_matrix,
-        composite_refl_matrix_aml_dbz >= min_composite_refl_aml_dbz)
+        (composite_refl_matrix_aml_dbz >= min_composite_refl_aml_dbz).astype(
+            bool
+        )
+    )
 
 
 def _apply_convective_criterion3(
@@ -455,7 +464,9 @@ def _apply_convective_criterion3(
         axis=-1)
 
     return numpy.logical_or(
-        convective_flag_matrix, echo_top_matrix_m_asl >= min_echo_top_m_asl)
+        convective_flag_matrix,
+        (echo_top_matrix_m_asl >= min_echo_top_m_asl).astype(bool)
+    )
 
 
 def _apply_convective_criterion4(convective_flag_matrix):
@@ -474,11 +485,13 @@ def _apply_convective_criterion4(convective_flag_matrix):
 
     average_matrix = convolve(
         convective_flag_matrix.astype(float), weights=weight_matrix,
-        mode='constant', cval=0.)
+        mode='constant', cval=0.
+    )
 
     return numpy.logical_and(
         convective_flag_matrix,
-        average_matrix > weight_matrix[0, 0] + TOLERANCE)
+        (average_matrix > weight_matrix[0, 0] + TOLERANCE).astype(bool)
+    )
 
 
 def _apply_convective_criterion5(
@@ -501,12 +514,14 @@ def _apply_convective_criterion5(
 
     average_matrix = convolve(
         convective_flag_matrix.astype(float), weights=weight_matrix,
-        mode='constant', cval=0.)
+        mode='constant', cval=0.
+    )
 
     composite_refl_matrix_dbz = numpy.max(reflectivity_matrix_dbz, axis=-1)
     new_convective_flag_matrix = numpy.logical_and(
-        average_matrix > 0.,
-        composite_refl_matrix_dbz >= min_composite_refl_dbz)
+        (average_matrix > 0.).astype(bool),
+        (composite_refl_matrix_dbz >= min_composite_refl_dbz).astype(bool)
+    )
 
     return numpy.logical_or(convective_flag_matrix, new_convective_flag_matrix)
 
