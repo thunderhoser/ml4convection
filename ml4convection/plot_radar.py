@@ -386,6 +386,8 @@ def _run(top_reflectivity_dir_name, top_echo_classifn_dir_name,
         top_reflectivity_dir_name = None
     if top_target_dir_name == '':
         top_target_dir_name = None
+    if top_echo_classifn_dir_name == '':
+        top_echo_classifn_dir_name = None
     if len(daily_times_seconds) == 1 and daily_times_seconds[0] < 0:
         daily_times_seconds = None
 
