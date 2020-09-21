@@ -36,31 +36,31 @@ PLATEAU_COOLDOWN_EPOCHS = 0
 EARLY_STOPPING_PATIENCE_EPOCHS = 30
 LOSS_PATIENCE = 0.
 
-fss_function_size1 = custom_losses.fractions_skill_score(
+FSS_FUNCTION_SIZE1 = custom_losses.fractions_skill_score(
     half_window_size_px=1, use_as_loss_function=False,
     function_name='fss_3by3'
 )
-fss_function_size2 = custom_losses.fractions_skill_score(
+FSS_FUNCTION_SIZE2 = custom_losses.fractions_skill_score(
     half_window_size_px=2, use_as_loss_function=False,
     function_name='fss_5by5'
 )
-fss_function_size3 = custom_losses.fractions_skill_score(
+FSS_FUNCTION_SIZE3 = custom_losses.fractions_skill_score(
     half_window_size_px=3, use_as_loss_function=False,
     function_name='fss_7by7'
 )
-fss_function_size4 = custom_losses.fractions_skill_score(
+FSS_FUNCTION_SIZE4 = custom_losses.fractions_skill_score(
     half_window_size_px=4, use_as_loss_function=False,
     function_name='fss_9by9'
 )
-fss_function_size5 = custom_losses.fractions_skill_score(
+FSS_FUNCTION_SIZE5 = custom_losses.fractions_skill_score(
     half_window_size_px=5, use_as_loss_function=False,
     function_name='fss_11by11'
 )
-fss_function_size6 = custom_losses.fractions_skill_score(
+FSS_FUNCTION_SIZE6 = custom_losses.fractions_skill_score(
     half_window_size_px=6, use_as_loss_function=False,
     function_name='fss_13by13'
 )
-fss_function_size7 = custom_losses.fractions_skill_score(
+FSS_FUNCTION_SIZE7 = custom_losses.fractions_skill_score(
     half_window_size_px=7, use_as_loss_function=False,
     function_name='fss_15by15'
 )
@@ -71,9 +71,9 @@ METRIC_FUNCTION_LIST = [
     custom_metrics.binary_pod, custom_metrics.binary_pofd,
     custom_metrics.binary_peirce_score, custom_metrics.binary_success_ratio,
     custom_metrics.binary_focn,
-    fss_function_size1, fss_function_size2, fss_function_size3,
-    fss_function_size4, fss_function_size5, fss_function_size6,
-    fss_function_size7
+    FSS_FUNCTION_SIZE1, FSS_FUNCTION_SIZE2, FSS_FUNCTION_SIZE3,
+    FSS_FUNCTION_SIZE4, FSS_FUNCTION_SIZE5, FSS_FUNCTION_SIZE6,
+    FSS_FUNCTION_SIZE7
 ]
 
 METRIC_FUNCTION_DICT = {
@@ -86,23 +86,22 @@ METRIC_FUNCTION_DICT = {
     'binary_peirce_score': custom_metrics.binary_peirce_score,
     'binary_success_ratio': custom_metrics.binary_success_ratio,
     'binary_focn': custom_metrics.binary_focn,
-    'fss_3by3': fss_function_size1,
-    'fss_5by5': fss_function_size2,
-    'fss_7by7': fss_function_size3,
-    'fss_9by9': fss_function_size4,
-    'fss_11by11': fss_function_size5,
-    'fss_13by13': fss_function_size6,
-    'fss_15by15': fss_function_size7
+    'fss_3by3': FSS_FUNCTION_SIZE1,
+    'fss_5by5': FSS_FUNCTION_SIZE2,
+    'fss_7by7': FSS_FUNCTION_SIZE3,
+    'fss_9by9': FSS_FUNCTION_SIZE4,
+    'fss_11by11': FSS_FUNCTION_SIZE5,
+    'fss_13by13': FSS_FUNCTION_SIZE6,
+    'fss_15by15': FSS_FUNCTION_SIZE7
 }
 
 SATELLITE_DIRECTORY_KEY = 'top_satellite_dir_name'
-RADAR_DIRECTORY_KEY = 'top_radar_dir_name'
+ECHO_CLASSIFN_DIR_KEY = 'top_echo_classifn_dir_name'
 SPATIAL_DS_FACTOR_KEY = 'spatial_downsampling_factor'
 BATCH_SIZE_KEY = 'num_examples_per_batch'
 MAX_DAILY_EXAMPLES_KEY = 'max_examples_per_day_in_batch'
 BAND_NUMBERS_KEY = 'band_numbers'
 LEAD_TIME_KEY = 'lead_time_seconds'
-REFL_THRESHOLD_KEY = 'reflectivity_threshold_dbz'
 FIRST_VALID_DATE_KEY = 'first_valid_date_string'
 LAST_VALID_DATE_KEY = 'last_valid_date_string'
 NORMALIZATION_FILE_KEY = 'normalization_file_name'
@@ -116,7 +115,6 @@ DEFAULT_GENERATOR_OPTION_DICT = {
     BATCH_SIZE_KEY: 256,
     MAX_DAILY_EXAMPLES_KEY: 64,
     BAND_NUMBERS_KEY: satellite_io.BAND_NUMBERS,
-    REFL_THRESHOLD_KEY: 35.,
     NORMALIZE_FLAG_KEY: True,
     UNIFORMIZE_FLAG_KEY: True
 }
@@ -175,7 +173,6 @@ def _check_generator_args(option_dict):
     error_checking.assert_is_less_than(
         option_dict[LEAD_TIME_KEY], DAYS_TO_SECONDS
     )
-    error_checking.assert_is_greater(option_dict[REFL_THRESHOLD_KEY], 0.)
 
     return option_dict
 
@@ -208,10 +205,10 @@ def _check_inference_args(predictor_matrix, num_examples_per_batch, verbose):
 
 def _read_raw_inputs_one_day(
         valid_date_string, satellite_file_names, band_numbers,
-        norm_dict_for_count, uniformize, radar_file_names, lead_time_seconds,
-        reflectivity_threshold_dbz, spatial_downsampling_factor,
-        num_examples_to_read, return_coords):
-    """Reads raw inputs (satellite and radar files) for one day.
+        norm_dict_for_count, uniformize, echo_classifn_file_names,
+        lead_time_seconds, spatial_downsampling_factor, num_examples_to_read,
+        return_coords):
+    """Reads raw inputs (satellite and echo-classification files) for one day.
 
     E = number of examples
     M = number of rows in grid
@@ -225,10 +222,9 @@ def _read_raw_inputs_one_day(
         `normalization.read_file`.  Will use this to normalize satellite data.
         If None, will not normalize.
     :param uniformize: See doc for `generator_from_raw_files`.
-    :param radar_file_names: 1-D list of paths to radar files (readable by
-        `radar_io.read_2d_file`).
+    :param echo_classifn_file_names: 1-D list of paths to echo-classification
+        files (readable by `radar_io.read_echo_classifn_file`).
     :param lead_time_seconds: See doc for `generator_from_raw_files`.
-    :param reflectivity_threshold_dbz: Same.
     :param spatial_downsampling_factor: Same.
     :param num_examples_to_read: Number of examples to read.
     :param return_coords: Boolean flag.  If True, will return latitudes and
@@ -244,11 +240,11 @@ def _read_raw_inputs_one_day(
         If `return_coords == False`, this is None.
     """
 
-    radar_date_strings = [
-        radar_io.file_name_to_date(f) for f in radar_file_names
+    ec_date_strings = [
+        radar_io.file_name_to_date(f) for f in echo_classifn_file_names
     ]
-    index = radar_date_strings.index(valid_date_string)
-    desired_radar_file_name = radar_file_names[index]
+    index = ec_date_strings.index(valid_date_string)
+    desired_ec_file_name = echo_classifn_file_names[index]
 
     satellite_date_strings = [
         satellite_io.file_name_to_date(f) for f in satellite_file_names
@@ -259,8 +255,8 @@ def _read_raw_inputs_one_day(
     if lead_time_seconds > 0:
         desired_satellite_file_names.insert(0, satellite_file_names[index - 1])
 
-    print('Reading data from: "{0:s}"...'.format(desired_radar_file_name))
-    radar_dict = radar_io.read_2d_file(desired_radar_file_name)
+    print('Reading data from: "{0:s}"...'.format(desired_ec_file_name))
+    echo_classifn_dict = radar_io.read_echo_classifn_file(desired_ec_file_name)
 
     satellite_dicts = []
 
@@ -278,18 +274,18 @@ def _read_raw_inputs_one_day(
     satellite_dict = satellite_io.concat_data(satellite_dicts)
 
     assert numpy.allclose(
-        radar_dict[radar_io.LATITUDES_KEY],
+        echo_classifn_dict[radar_io.LATITUDES_KEY],
         satellite_dict[satellite_io.LATITUDES_KEY],
         atol=TOLERANCE
     )
 
     assert numpy.allclose(
-        radar_dict[radar_io.LONGITUDES_KEY],
+        echo_classifn_dict[radar_io.LONGITUDES_KEY],
         satellite_dict[satellite_io.LONGITUDES_KEY],
         atol=TOLERANCE
     )
 
-    valid_times_unix_sec = radar_dict[radar_io.VALID_TIMES_KEY]
+    valid_times_unix_sec = echo_classifn_dict[radar_io.VALID_TIMES_KEY]
     init_times_unix_sec = valid_times_unix_sec - lead_time_seconds
 
     good_flags = numpy.array([
@@ -304,8 +300,9 @@ def _read_raw_inputs_one_day(
     valid_times_unix_sec = valid_times_unix_sec[good_indices]
     init_times_unix_sec = init_times_unix_sec[good_indices]
 
-    radar_dict = radar_io.subset_by_time(
-        radar_dict=radar_dict, desired_times_unix_sec=valid_times_unix_sec
+    echo_classifn_dict = radar_io.subset_by_time(
+        refl_or_echo_classifn_dict=echo_classifn_dict,
+        desired_times_unix_sec=valid_times_unix_sec
     )[0]
     satellite_dict = satellite_io.subset_by_time(
         satellite_dict=satellite_dict,
@@ -321,18 +318,22 @@ def _read_raw_inputs_one_day(
             desired_indices, size=num_examples_to_read, replace=False
         )
 
-        radar_dict = radar_io.subset_by_index(
-            radar_dict=radar_dict, desired_indices=desired_indices
+        echo_classifn_dict = radar_io.subset_by_index(
+            refl_or_echo_classifn_dict=echo_classifn_dict,
+            desired_indices=desired_indices
         )
         satellite_dict = satellite_io.subset_by_index(
             satellite_dict=satellite_dict, desired_indices=desired_indices
         )
 
     if spatial_downsampling_factor > 1:
-        satellite_dict, radar_dict = example_io.downsample_data_in_space(
-            satellite_dict=satellite_dict, radar_dict=radar_dict,
-            downsampling_factor=spatial_downsampling_factor,
-            change_coordinates=return_coords
+        satellite_dict, echo_classifn_dict = (
+            example_io.downsample_data_in_space(
+                satellite_dict=satellite_dict,
+                echo_classifn_dict=echo_classifn_dict,
+                downsampling_factor=spatial_downsampling_factor,
+                change_coordinates=return_coords
+            )
         )
 
     if norm_dict_for_count is not None:
@@ -342,15 +343,9 @@ def _read_raw_inputs_one_day(
         )
 
     predictor_matrix = satellite_dict[satellite_io.BRIGHTNESS_COUNT_KEY]
-    print('Mean reflectivity = {0:.2f} dBZ'.format(
-        numpy.mean(radar_dict[radar_io.COMPOSITE_REFL_KEY])
-    ))
-    print('Threshold = {0:.2f} dBZ'.format(reflectivity_threshold_dbz))
-
     target_matrix = (
-        radar_dict[radar_io.COMPOSITE_REFL_KEY] >= reflectivity_threshold_dbz
-    ).astype(int)
-
+        echo_classifn_dict[radar_io.CONVECTIVE_FLAGS_KEY].astype(int)
+    )
     print('Number of target values in batch = {0:d} ... mean = {1:.3g}'.format(
         target_matrix.size, numpy.mean(target_matrix)
     ))
@@ -364,8 +359,8 @@ def _read_raw_inputs_one_day(
     }
 
     if return_coords:
-        data_dict[LATITUDES_KEY] = radar_dict[radar_io.LATITUDES_KEY]
-        data_dict[LONGITUDES_KEY] = radar_dict[radar_io.LONGITUDES_KEY]
+        data_dict[LATITUDES_KEY] = echo_classifn_dict[radar_io.LATITUDES_KEY]
+        data_dict[LONGITUDES_KEY] = echo_classifn_dict[radar_io.LONGITUDES_KEY]
 
     return data_dict
 
@@ -410,8 +405,7 @@ def _read_preprocessed_inputs_one_day(
 
     print('Reading data from: "{0:s}"...'.format(desired_target_file_name))
     target_dict = example_io.read_target_file(
-        netcdf_file_name=desired_target_file_name,
-        read_targets=True, read_reflectivities=False
+        netcdf_file_name=desired_target_file_name
     )
 
     predictor_dicts = []
@@ -553,36 +547,37 @@ def _write_metafile(
 
 
 def _find_days_with_raw_inputs(
-        satellite_file_names, radar_file_names, lead_time_seconds):
-    """Finds days with raw inputs (both radar and satellite file).
+        satellite_file_names, echo_classifn_file_names, lead_time_seconds):
+    """Finds days with raw inputs (both echo-classifn and satellite file).
 
     :param satellite_file_names: See doc for `_read_raw_inputs_one_day`.
-    :param radar_file_names: Same.
+    :param echo_classifn_file_names: Same.
     :param lead_time_seconds: Same.
-    :return: valid_date_strings: List of valid dates (radar dates) for which
-        both satellite and radar data exist, in format "yyyymmdd".
+    :return: valid_date_strings: List of valid dates (echo-classification dates)
+        for which both satellite and echo-classification data exist, in format
+        "yyyymmdd".
     """
 
     satellite_date_strings = [
         satellite_io.file_name_to_date(f) for f in satellite_file_names
     ]
-    radar_date_strings = [
-        radar_io.file_name_to_date(f) for f in radar_file_names
+    ec_date_strings = [
+        radar_io.file_name_to_date(f) for f in echo_classifn_file_names
     ]
     valid_date_strings = []
 
-    for this_radar_date_string in radar_date_strings:
-        if this_radar_date_string not in satellite_date_strings:
+    for this_ec_date_string in ec_date_strings:
+        if this_ec_date_string not in satellite_date_strings:
             continue
 
         if lead_time_seconds > 0:
             if (
-                    general_utils.get_previous_date(this_radar_date_string)
+                    general_utils.get_previous_date(this_ec_date_string)
                     not in satellite_date_strings
             ):
                 continue
 
-        valid_date_strings.append(this_radar_date_string)
+        valid_date_strings.append(this_ec_date_string)
 
     return valid_date_strings
 
@@ -638,7 +633,7 @@ def check_class_weights(class_weights):
 
 
 def create_data_from_raw_files(option_dict, return_coords=False):
-    """Creates input data from raw (satellite and radar) files.
+    """Creates input data from raw (satellite and echo-classifn) files.
 
     This method is the same as `generator_from_raw_files`, except that it
     returns all the data at once, rather than generating batches on the fly.
@@ -646,13 +641,12 @@ def create_data_from_raw_files(option_dict, return_coords=False):
     :param option_dict: Dictionary with the following keys.
     option_dict['top_satellite_dir_name']: See doc for
         `generator_from_raw_files`.
-    option_dict['top_radar_dir_name']: Same.
+    option_dict['top_echo_classifn_dir_name']: Same.
     option_dict['spatial_downsampling_factor']: Same.
     option_dict['band_numbers']: Same.
     option_dict['lead_time_seconds']: Same.
-    option_dict['reflectivity_threshold_dbz']: Same.
     option_dict['valid_date_string']: Valid date (format "yyyymmdd").  Will
-        create examples with radar data valid on this day.
+        create examples with echo-classification data valid on this day.
     option_dict['norm_dict_for_count']: See doc for `_read_raw_inputs_one_day`.
     option_dict['uniformize']: See doc for `generator_from_raw_files`.
 
@@ -664,11 +658,10 @@ def create_data_from_raw_files(option_dict, return_coords=False):
     error_checking.assert_is_boolean(return_coords)
 
     top_satellite_dir_name = option_dict[SATELLITE_DIRECTORY_KEY]
-    top_radar_dir_name = option_dict[RADAR_DIRECTORY_KEY]
+    top_echo_classifn_dir_name = option_dict[ECHO_CLASSIFN_DIR_KEY]
     spatial_downsampling_factor = option_dict[SPATIAL_DS_FACTOR_KEY]
     band_numbers = option_dict[BAND_NUMBERS_KEY]
     lead_time_seconds = option_dict[LEAD_TIME_KEY]
-    reflectivity_threshold_dbz = option_dict[REFL_THRESHOLD_KEY]
     valid_date_string = option_dict[VALID_DATE_KEY]
     norm_dict_for_count = option_dict[NORMALIZATION_DICT_KEY]
     uniformize = option_dict[UNIFORMIZE_FLAG_KEY]
@@ -687,21 +680,25 @@ def create_data_from_raw_files(option_dict, return_coords=False):
         top_directory_name=top_satellite_dir_name,
         first_date_string=first_init_date_string,
         last_date_string=valid_date_string,
+        prefer_zipped=True, allow_other_format=True,
         raise_error_if_all_missing=False,
         raise_error_if_any_missing=False
     )
 
-    radar_file_names = radar_io.find_many_files(
-        top_directory_name=top_radar_dir_name,
+    echo_classifn_file_names = radar_io.find_many_files(
+        top_directory_name=top_echo_classifn_dir_name,
         first_date_string=valid_date_string,
-        last_date_string=valid_date_string, with_3d=False,
+        last_date_string=valid_date_string,
+        file_type_string=radar_io.ECHO_CLASSIFN_TYPE_STRING,
+        prefer_zipped=True, allow_other_format=True,
         raise_error_if_all_missing=False,
         raise_error_if_any_missing=False
     )
 
     valid_date_strings = _find_days_with_raw_inputs(
         satellite_file_names=satellite_file_names,
-        radar_file_names=radar_file_names, lead_time_seconds=lead_time_seconds
+        echo_classifn_file_names=echo_classifn_file_names,
+        lead_time_seconds=lead_time_seconds
     )
 
     if len(valid_date_strings) == 0:
@@ -712,9 +709,8 @@ def create_data_from_raw_files(option_dict, return_coords=False):
         satellite_file_names=satellite_file_names,
         band_numbers=band_numbers,
         norm_dict_for_count=norm_dict_for_count, uniformize=uniformize,
-        radar_file_names=radar_file_names,
+        echo_classifn_file_names=echo_classifn_file_names,
         lead_time_seconds=lead_time_seconds,
-        reflectivity_threshold_dbz=reflectivity_threshold_dbz,
         spatial_downsampling_factor=spatial_downsampling_factor,
         num_examples_to_read=int(1e6), return_coords=return_coords
     )
@@ -797,7 +793,7 @@ def create_data_from_preprocessed_files(option_dict, return_coords=False):
 
 
 def generator_from_raw_files(option_dict):
-    """Generates training data from raw (satellite and radar) files.
+    """Generates training data from raw (satellite and echo-classifn) files.
 
     E = number of examples per batch
     M = number of rows in grid
@@ -808,9 +804,9 @@ def generator_from_raw_files(option_dict):
     option_dict['top_satellite_dir_name']: Name of top-level directory with
         satellite data (predictors).  Files therein will be found by
         `satellite_io.find_file` and read by `satellite_io.read_file`.
-    option_dict['top_radar_dir_name']: Name of top-level directory with radar
-        data (targets).  Files therein will be found by `radar_io.find_file` and
-        read by `radar_io.read_2d_file`.
+    option_dict['top_echo_classifn_dir_name']: Name of top-level directory with
+        echo-classification data (targets).  Files therein will be found by
+        `radar_io.find_file` and read by `radar_io.read_echo_classifn_file`.
     option_dict['spatial_downsampling_factor']: Downsampling factor (integer),
         used to coarsen spatial resolution.  If you do not want to coarsen
         spatial resolution, make this 1.
@@ -820,14 +816,11 @@ def generator_from_raw_files(option_dict):
     option_dict['band_numbers']: 1-D numpy array of band numbers (integers) for
         satellite data.  Will use only these spectral bands as predictors.
     option_dict['lead_time_seconds']: Lead time for prediction.
-    option_dict['reflectivity_threshold_dbz']: Reflectivity threshold for
-       convection.  Only grid cells with composite (column-max) reflectivity >=
-       threshold will be called convective.
     option_dict['first_valid_date_string']: First valid date (format
-        "yyyymmdd").  Will not generate examples with radar data before this
-        day.
+        "yyyymmdd").  Will not generate examples with echo-classification data
+        before this day.
     option_dict['last_valid_date_string']: Last valid date (format "yyyymmdd").
-        Will not generate examples with radar data after this day.
+        Will not generate examples with echo-classification data after this day.
     option_dict['normalization_file_name']: File with normalization parameters
         (will be read by `normalization.read_file`).  If you do not want to
         normalize, make this None.
@@ -840,8 +833,8 @@ def generator_from_raw_files(option_dict):
     :return: target_matrix: E-by-M-by-N-by-1 numpy array of target values
         (integers in 0...1, indicating whether or not convection occurs at
         the given lead time).
-    :raises: ValueError: if no valid date can be found for which radar and
-        satellite data are available.
+    :raises: ValueError: if no valid date can be found for which
+        echo-classification and satellite data are available.
     """
 
     # TODO(thunderhoser): Allow generator to read brightness temperatures
@@ -850,13 +843,12 @@ def generator_from_raw_files(option_dict):
     option_dict = _check_generator_args(option_dict)
 
     top_satellite_dir_name = option_dict[SATELLITE_DIRECTORY_KEY]
-    top_radar_dir_name = option_dict[RADAR_DIRECTORY_KEY]
+    top_echo_classifn_dir_name = option_dict[ECHO_CLASSIFN_DIR_KEY]
     spatial_downsampling_factor = option_dict[SPATIAL_DS_FACTOR_KEY]
     num_examples_per_batch = option_dict[BATCH_SIZE_KEY]
     max_examples_per_day_in_batch = option_dict[MAX_DAILY_EXAMPLES_KEY]
     band_numbers = option_dict[BAND_NUMBERS_KEY]
     lead_time_seconds = option_dict[LEAD_TIME_KEY]
-    reflectivity_threshold_dbz = option_dict[REFL_THRESHOLD_KEY]
     first_valid_date_string = option_dict[FIRST_VALID_DATE_KEY]
     last_valid_date_string = option_dict[LAST_VALID_DATE_KEY]
     normalization_file_name = option_dict[NORMALIZATION_FILE_KEY]
@@ -883,25 +875,29 @@ def generator_from_raw_files(option_dict):
         top_directory_name=top_satellite_dir_name,
         first_date_string=first_init_date_string,
         last_date_string=last_valid_date_string,
+        prefer_zipped=True, allow_other_format=True,
         raise_error_if_any_missing=False
     )
 
-    radar_file_names = radar_io.find_many_files(
-        top_directory_name=top_radar_dir_name,
+    echo_classifn_file_names = radar_io.find_many_files(
+        top_directory_name=top_echo_classifn_dir_name,
         first_date_string=first_valid_date_string,
         last_date_string=last_valid_date_string,
-        with_3d=False, raise_error_if_any_missing=False
+        file_type_string=radar_io.ECHO_CLASSIFN_TYPE_STRING,
+        prefer_zipped=True, allow_other_format=True,
+        raise_error_if_any_missing=False
     )
 
     valid_date_strings = _find_days_with_raw_inputs(
         satellite_file_names=satellite_file_names,
-        radar_file_names=radar_file_names, lead_time_seconds=lead_time_seconds
+        echo_classifn_file_names=echo_classifn_file_names,
+        lead_time_seconds=lead_time_seconds
     )
 
     if len(valid_date_strings) == 0:
         raise ValueError(
-            'Cannot find any valid date for which both radar and satellite data'
-            ' are available.'
+            'Cannot find any valid date for which both echo-classification and '
+            'satellite data are available.'
         )
 
     random.shuffle(valid_date_strings)
@@ -926,9 +922,8 @@ def generator_from_raw_files(option_dict):
                 satellite_file_names=satellite_file_names,
                 band_numbers=band_numbers,
                 norm_dict_for_count=norm_dict_for_count, uniformize=uniformize,
-                radar_file_names=radar_file_names,
+                echo_classifn_file_names=echo_classifn_file_names,
                 lead_time_seconds=lead_time_seconds,
-                reflectivity_threshold_dbz=reflectivity_threshold_dbz,
                 spatial_downsampling_factor=spatial_downsampling_factor,
                 num_examples_to_read=num_examples_to_read, return_coords=False
             )
@@ -1095,7 +1090,7 @@ def train_model_from_raw_files(
         do_early_stopping=True,
         plateau_lr_multiplier=DEFAULT_LEARNING_RATE_MULTIPLIER,
         class_weights=None, fss_half_window_size_px=None):
-    """Trains neural net from raw (satellite and radar) files.
+    """Trains neural net from raw (satellite and echo-classification) files.
 
     :param model_object: Untrained neural net (instance of `keras.models.Model`
         or `keras.models.Sequential`).
@@ -1111,7 +1106,7 @@ def train_model_from_raw_files(
         validation only, the following values will replace corresponding values
         in `training_option_dict`:
     validation_option_dict['top_satellite_dir_name']
-    validation_option_dict['top_radar_dir_name']
+    validation_option_dict['top_echo_classifn_dir_name']
     validation_option_dict['first_valid_date_string']
     validation_option_dict['last_valid_date_string']
 
@@ -1154,7 +1149,7 @@ def train_model_from_raw_files(
     training_option_dict = _check_generator_args(training_option_dict)
 
     validation_keys_to_keep = [
-        SATELLITE_DIRECTORY_KEY, RADAR_DIRECTORY_KEY,
+        SATELLITE_DIRECTORY_KEY, ECHO_CLASSIFN_DIR_KEY,
         FIRST_VALID_DATE_KEY, LAST_VALID_DATE_KEY
     ]
 

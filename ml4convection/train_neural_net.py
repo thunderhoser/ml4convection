@@ -24,8 +24,7 @@ def _run(use_preprocessed_files,
          training_predictor_dir_name, training_target_dir_name,
          validn_predictor_dir_name, validn_target_dir_name,
          input_model_file_name, output_model_dir_name,
-         spatial_downsampling_factor, band_numbers,
-         reflectivity_threshold_dbz, lead_time_seconds,
+         spatial_downsampling_factor, band_numbers, lead_time_seconds,
          first_training_date_string, last_training_date_string,
          first_validn_date_string, last_validn_date_string,
          normalization_file_name, normalize, uniformize,
@@ -45,7 +44,6 @@ def _run(use_preprocessed_files,
     :param output_model_dir_name: Same.
     :param spatial_downsampling_factor: Same.
     :param band_numbers: Same.
-    :param reflectivity_threshold_dbz: Same.
     :param lead_time_seconds: Same.
     :param first_training_date_string: Same.
     :param last_training_date_string: Same.
@@ -88,13 +86,12 @@ def _run(use_preprocessed_files,
     else:
         training_option_dict = {
             neural_net.SATELLITE_DIRECTORY_KEY: training_predictor_dir_name,
-            neural_net.RADAR_DIRECTORY_KEY: training_target_dir_name,
+            neural_net.ECHO_CLASSIFN_DIR_KEY: training_target_dir_name,
             neural_net.SPATIAL_DS_FACTOR_KEY: spatial_downsampling_factor,
             neural_net.BATCH_SIZE_KEY: num_examples_per_batch,
             neural_net.MAX_DAILY_EXAMPLES_KEY: max_examples_per_day_in_batch,
             neural_net.BAND_NUMBERS_KEY: band_numbers,
             neural_net.LEAD_TIME_KEY: lead_time_seconds,
-            neural_net.REFL_THRESHOLD_KEY: reflectivity_threshold_dbz,
             neural_net.FIRST_VALID_DATE_KEY: first_training_date_string,
             neural_net.LAST_VALID_DATE_KEY: last_training_date_string,
             neural_net.NORMALIZATION_FILE_KEY: normalization_file_name,
@@ -103,7 +100,7 @@ def _run(use_preprocessed_files,
 
         validation_option_dict = {
             neural_net.SATELLITE_DIRECTORY_KEY: validn_predictor_dir_name,
-            neural_net.RADAR_DIRECTORY_KEY: validn_target_dir_name,
+            neural_net.ECHO_CLASSIFN_DIR_KEY: validn_target_dir_name,
             neural_net.FIRST_VALID_DATE_KEY: first_validn_date_string,
             neural_net.LAST_VALID_DATE_KEY: last_validn_date_string
         }
@@ -180,9 +177,6 @@ if __name__ == '__main__':
         band_numbers=numpy.array(
             getattr(INPUT_ARG_OBJECT, training_args.BAND_NUMBERS_ARG_NAME),
             dtype=int
-        ),
-        reflectivity_threshold_dbz=getattr(
-            INPUT_ARG_OBJECT, training_args.REFL_THRESHOLD_ARG_NAME
         ),
         lead_time_seconds=getattr(
             INPUT_ARG_OBJECT, training_args.LEAD_TIME_ARG_NAME

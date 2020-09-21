@@ -39,7 +39,7 @@ LONGITUDES_KEY = 'longitudes_deg_e'
 HEIGHTS_KEY = 'heights_m_asl'
 REFLECTIVITY_KEY = 'reflectivity_matrix_dbz'
 
-ONE_PER_EXAMPLE_KEYS = [VALID_TIMES_KEY, REFLECTIVITY_KEY]
+ONE_PER_REFL_EXAMPLE_KEYS = [VALID_TIMES_KEY, REFLECTIVITY_KEY]
 
 CONVECTIVE_FLAGS_KEY = 'convective_flag_matrix'
 PEAKEDNESS_NEIGH_KEY = echo_classifn.PEAKEDNESS_NEIGH_KEY
@@ -49,6 +49,8 @@ ECHO_TOP_LEVEL_KEY = echo_classifn.ECHO_TOP_LEVEL_KEY
 MIN_REFL_CRITERION1_KEY = echo_classifn.MIN_COMPOSITE_REFL_CRITERION1_KEY
 MIN_REFL_CRITERION5_KEY = echo_classifn.MIN_COMPOSITE_REFL_CRITERION5_KEY
 MIN_REFLECTIVITY_AML_KEY = echo_classifn.MIN_COMPOSITE_REFL_AML_KEY
+
+ONE_PER_EC_EXAMPLE_KEYS = [CONVECTIVE_FLAGS_KEY, REFLECTIVITY_KEY]
 
 MAIN_ECHO_CLASSIFN_KEYS = [
     CONVECTIVE_FLAGS_KEY, VALID_TIMES_KEY, LATITUDES_KEY, LONGITUDES_KEY
@@ -639,46 +641,46 @@ def read_echo_classifn_file(netcdf_file_name):
     return echo_classifn_dict
 
 
-def subset_by_index(reflectivity_dict, desired_indices):
+def subset_by_index(refl_or_echo_classifn_dict, desired_indices):
     """Subsets examples (time steps) by index.
 
-    :param reflectivity_dict: See doc for `read_reflectivity_file`.
+    :param refl_or_echo_classifn_dict: Dictionary in format specified by
+        `read_reflectivity_file` or `read_echo_classifn_file`.
     :param desired_indices: 1-D numpy array of desired indices.
-    :return: reflectivity_dict: Same as input but with fewer examples.
+    :return: refl_or_echo_classifn_dict: Same as input but with fewer examples.
     """
-
-    # TODO(thunderhoser): Maybe make this work for echo classifications.
 
     error_checking.assert_is_numpy_array(desired_indices, num_dimensions=1)
     error_checking.assert_is_integer_numpy_array(desired_indices)
     error_checking.assert_is_geq_numpy_array(desired_indices, 0)
     error_checking.assert_is_less_than_numpy_array(
-        desired_indices, len(reflectivity_dict[VALID_TIMES_KEY])
+        desired_indices, len(refl_or_echo_classifn_dict[VALID_TIMES_KEY])
     )
 
-    for this_key in ONE_PER_EXAMPLE_KEYS:
-        if reflectivity_dict[this_key] is None:
-            continue
+    if REFLECTIVITY_KEY in refl_or_echo_classifn_dict:
+        keys_to_change = ONE_PER_REFL_EXAMPLE_KEYS
+    else:
+        keys_to_change = ONE_PER_EC_EXAMPLE_KEYS
 
-        reflectivity_dict[this_key] = (
-            reflectivity_dict[this_key][desired_indices, ...]
+    for this_key in keys_to_change:
+        refl_or_echo_classifn_dict[this_key] = (
+            refl_or_echo_classifn_dict[this_key][desired_indices, ...]
         )
 
-    return reflectivity_dict
+    return refl_or_echo_classifn_dict
 
 
-def subset_by_time(reflectivity_dict, desired_times_unix_sec):
+def subset_by_time(refl_or_echo_classifn_dict, desired_times_unix_sec):
     """Subsets data by time.
 
     T = number of desired times
 
-    :param reflectivity_dict: See doc for `read_reflectivity_file`.
+    :param refl_or_echo_classifn_dict: Dictionary in format specified by
+        `read_reflectivity_file` or `read_echo_classifn_file`.
     :param desired_times_unix_sec: length-T numpy array of desired times.
-    :return: reflectivity_dict: Same as input but with fewer examples.
+    :return: refl_or_echo_classifn_dict: Same as input but with fewer examples.
     :return: desired_indices: length-T numpy array of corresponding indices.
     """
-
-    # TODO(thunderhoser): Maybe make this work for echo classifications.
 
     error_checking.assert_is_numpy_array(
         desired_times_unix_sec, num_dimensions=1
@@ -686,12 +688,13 @@ def subset_by_time(reflectivity_dict, desired_times_unix_sec):
     error_checking.assert_is_integer_numpy_array(desired_times_unix_sec)
 
     desired_indices = numpy.array([
-        numpy.where(reflectivity_dict[VALID_TIMES_KEY] == t)[0][0]
+        numpy.where(refl_or_echo_classifn_dict[VALID_TIMES_KEY] == t)[0][0]
         for t in desired_times_unix_sec
     ], dtype=int)
 
-    reflectivity_dict = subset_by_index(
-        reflectivity_dict=reflectivity_dict, desired_indices=desired_indices
+    refl_or_echo_classifn_dict = subset_by_index(
+        refl_or_echo_classifn_dict=refl_or_echo_classifn_dict,
+        desired_indices=desired_indices
     )
 
-    return reflectivity_dict, desired_indices
+    return refl_or_echo_classifn_dict, desired_indices

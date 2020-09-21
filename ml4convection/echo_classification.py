@@ -12,7 +12,6 @@ H = number of depths (unique grid-point heights)
 import os
 import sys
 import numpy
-from scipy.interpolate import RectBivariateSpline
 from scipy.ndimage.filters import median_filter, convolve
 
 THIS_DIRECTORY_NAME = os.path.dirname(os.path.realpath(

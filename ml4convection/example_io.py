@@ -41,12 +41,7 @@ ONE_PER_BAND_NUMBER_KEYS = [
 ]
 
 TARGET_MATRIX_KEY = 'target_matrix'
-COMPOSITE_REFL_MATRIX_KEY = 'composite_refl_matrix_dbz'
-COMPOSITE_REFL_THRESHOLD_KEY = 'composite_refl_threshold_dbz'
-
-ONE_PER_TARGET_TIME_KEYS = [
-    TARGET_MATRIX_KEY, COMPOSITE_REFL_MATRIX_KEY, VALID_TIMES_KEY
-]
+ONE_PER_TARGET_TIME_KEYS = [TARGET_MATRIX_KEY, VALID_TIMES_KEY]
 
 TIME_DIMENSION_KEY = 'time'
 ROW_DIMENSION_KEY = 'row'
@@ -136,8 +131,7 @@ def _process_predictors_one_day(
     }
 
 
-def _process_targets_one_day(input_file_name, spatial_downsampling_factor,
-                             composite_refl_threshold_dbz):
+def _process_targets_one_day(input_file_name, spatial_downsampling_factor):
     """Processes targets (radar data) for one day.
 
     E = number of examples per batch
@@ -145,13 +139,10 @@ def _process_targets_one_day(input_file_name, spatial_downsampling_factor,
     N = number of columns in grid
 
     :param input_file_name: Path to input file (will be read by
-        `radar_io.read_reflectivity_file`).
+        `radar_io.read_echo_classifn_file`).
     :param spatial_downsampling_factor: See doc for `process_targets`.
-    :param composite_refl_threshold_dbz: Same.
 
     :return: target_dict: Dictionary with the following keys.
-    target_dict['composite_refl_matrix_dbz']: E-by-M-by-N numpy array of
-        composite reflectivities.
     target_dict['target_matrix']: E-by-M-by-N numpy array of target values
         (0 or 1), indicating when and where convection occurs.
     target_dict['valid_times_unix_sec']: length-E numpy array of valid times.
@@ -159,29 +150,21 @@ def _process_targets_one_day(input_file_name, spatial_downsampling_factor,
         (deg N).
     target_dict['longitudes_deg_e']: length-N numpy array of longitudes
         (deg E).
-    target_dict['composite_refl_threshold_dbz']: Same as input (metadata).
     """
 
     print('Reading data from: "{0:s}"...'.format(input_file_name))
-    radar_dict = radar_io.read_reflectivity_file(input_file_name)
+    echo_classifn_dict = radar_io.read_echo_classifn_file(input_file_name)
 
     if spatial_downsampling_factor > 1:
-        radar_dict = downsample_data_in_space(
-            radar_dict=radar_dict,
+        echo_classifn_dict = downsample_data_in_space(
+            echo_classifn_dict=echo_classifn_dict,
             downsampling_factor=spatial_downsampling_factor,
             change_coordinates=True
         )[1]
 
-    composite_refl_matrix_dbz = numpy.max(
-        radar_dict[radar_io.REFLECTIVITY_KEY], axis=-1
-    )
-    print('Mean reflectivity = {0:.2f} dBZ'.format(
-        numpy.mean(composite_refl_matrix_dbz)
-    ))
-
     target_matrix = (
-        composite_refl_matrix_dbz >= composite_refl_threshold_dbz
-    ).astype(int)
+        echo_classifn_dict[radar_io.CONVECTIVE_FLAGS_KEY].astype(int)
+    )
 
     print((
         'Number of target values = {0:d} ... event frequency = {1:.2g}'
@@ -190,12 +173,10 @@ def _process_targets_one_day(input_file_name, spatial_downsampling_factor,
     ))
 
     return {
-        COMPOSITE_REFL_MATRIX_KEY: composite_refl_matrix_dbz,
         TARGET_MATRIX_KEY: target_matrix,
-        VALID_TIMES_KEY: radar_dict[satellite_io.VALID_TIMES_KEY],
-        LATITUDES_KEY: radar_dict[satellite_io.LATITUDES_KEY],
-        LONGITUDES_KEY: radar_dict[satellite_io.LONGITUDES_KEY],
-        COMPOSITE_REFL_THRESHOLD_KEY: composite_refl_threshold_dbz
+        VALID_TIMES_KEY: echo_classifn_dict[satellite_io.VALID_TIMES_KEY],
+        LATITUDES_KEY: echo_classifn_dict[satellite_io.LATITUDES_KEY],
+        LONGITUDES_KEY: echo_classifn_dict[satellite_io.LONGITUDES_KEY]
     }
 
 
@@ -297,10 +278,6 @@ def _write_target_file(target_dict, netcdf_file_name):
     num_grid_rows = target_matrix.shape[1]
     num_grid_columns = target_matrix.shape[2]
 
-    dataset_object.setncattr(
-        COMPOSITE_REFL_THRESHOLD_KEY, target_dict[COMPOSITE_REFL_THRESHOLD_KEY]
-    )
-
     dataset_object.createDimension(TIME_DIMENSION_KEY, num_times)
     dataset_object.createDimension(ROW_DIMENSION_KEY, num_grid_rows)
     dataset_object.createDimension(COLUMN_DIMENSION_KEY, num_grid_columns)
@@ -322,13 +299,6 @@ def _write_target_file(target_dict, netcdf_file_name):
 
     these_dim = (TIME_DIMENSION_KEY, ROW_DIMENSION_KEY, COLUMN_DIMENSION_KEY)
     dataset_object.createVariable(
-        COMPOSITE_REFL_MATRIX_KEY, datatype=numpy.float32, dimensions=these_dim
-    )
-    dataset_object.variables[COMPOSITE_REFL_MATRIX_KEY][:] = (
-        target_dict[COMPOSITE_REFL_MATRIX_KEY]
-    )
-
-    dataset_object.createVariable(
         TARGET_MATRIX_KEY, datatype=numpy.int32, dimensions=these_dim
     )
     dataset_object.variables[TARGET_MATRIX_KEY][:] = (
@@ -339,10 +309,10 @@ def _write_target_file(target_dict, netcdf_file_name):
 
 
 def downsample_data_in_space(downsampling_factor, change_coordinates=False,
-                             satellite_dict=None, radar_dict=None):
+                             satellite_dict=None, echo_classifn_dict=None):
     """Downsamples satellite and/or radar data in space.
 
-    At least one of `satellite_dict` and `radar_dict` must be specified
+    At least one of `satellite_dict` and `echo_classifn_dict` must be specified
     (not None).
 
     :param downsampling_factor: Downsampling factor (integer).
@@ -350,23 +320,24 @@ def downsample_data_in_space(downsampling_factor, change_coordinates=False,
         coordinates in dictionaries to reflect downsampling.
     :param satellite_dict: Dictionary in format returned by
         `satellite_io.read_file`.
-    :param radar_dict: Dictionary in format returned by
-        `radar_io.read_reflectivity_file`.
+    :param echo_classifn_dict: Dictionary in format returned by
+        `radar_io.read_echo_classifn_file`.
     :return: satellite_dict: Same as input but maybe with coarser spatial
         resolution.
-    :return: radar_dict: Same as input but maybe with coarser spatial
+    :return: echo_classifn_dict: Same as input but maybe with coarser spatial
         resolution.
-    :raises: ValueError: if `satellite_dict is None and radar_dict is None`.
+    :raises: ValueError: if
+        `satellite_dict is None and echo_classifn_dict is None`.
     """
 
     error_checking.assert_is_integer(downsampling_factor)
     error_checking.assert_is_greater(downsampling_factor, 1)
     error_checking.assert_is_boolean(change_coordinates)
 
-    if satellite_dict is None and radar_dict is None:
+    if satellite_dict is None and echo_classifn_dict is None:
         raise ValueError(
-            'At least one of satellite_dict and radar_dict must be specified '
-            '(not None).'
+            'At least one of satellite_dict and echo_classifn_dict must be '
+            'specified (not None).'
         )
 
     if satellite_dict is not None:
@@ -380,24 +351,25 @@ def downsample_data_in_space(downsampling_factor, change_coordinates=False,
             window_size_px=downsampling_factor, do_max_pooling=False
         )
 
-    if radar_dict is not None:
-        composite_refl_matrix_dbz = numpy.max(
-            radar_dict[radar_io.REFLECTIVITY_KEY], axis=-1
+    if echo_classifn_dict is not None:
+        convective_flag_matrix = numpy.expand_dims(
+            echo_classifn_dict[radar_io.CONVECTIVE_FLAGS_KEY].astype(float),
+            axis=-1
         )
-        composite_refl_matrix_dbz = numpy.expand_dims(
-            composite_refl_matrix_dbz, axis=-1
-        )
-        radar_dict[radar_io.REFLECTIVITY_KEY] = standalone_utils.do_2d_pooling(
-            feature_matrix=composite_refl_matrix_dbz,
+        convective_flag_matrix = standalone_utils.do_2d_pooling(
+            feature_matrix=convective_flag_matrix,
             window_size_px=downsampling_factor, do_max_pooling=True
+        )
+        echo_classifn_dict[radar_io.CONVECTIVE_FLAGS_KEY] = (
+            convective_flag_matrix[..., 0] >= 0.99
         )
 
     if not change_coordinates:
-        return satellite_dict, radar_dict
+        return satellite_dict, echo_classifn_dict
 
     if satellite_dict is None:
         latitude_matrix_deg_n = numpy.expand_dims(
-            radar_dict[radar_io.LATITUDES_KEY], axis=0
+            echo_classifn_dict[radar_io.LATITUDES_KEY], axis=0
         )
     else:
         latitude_matrix_deg_n = numpy.expand_dims(
@@ -413,12 +385,12 @@ def downsample_data_in_space(downsampling_factor, change_coordinates=False,
 
     if satellite_dict is not None:
         satellite_dict[satellite_io.LATITUDES_KEY] = latitudes_deg_n + 0.
-    if radar_dict is not None:
-        radar_dict[radar_io.LATITUDES_KEY] = latitudes_deg_n + 0.
+    if echo_classifn_dict is not None:
+        echo_classifn_dict[radar_io.LATITUDES_KEY] = latitudes_deg_n + 0.
 
     if satellite_dict is None:
         longitude_matrix_deg_e = numpy.expand_dims(
-            radar_dict[radar_io.LONGITUDES_KEY], axis=0
+            echo_classifn_dict[radar_io.LONGITUDES_KEY], axis=0
         )
     else:
         longitude_matrix_deg_e = numpy.expand_dims(
@@ -436,10 +408,10 @@ def downsample_data_in_space(downsampling_factor, change_coordinates=False,
 
     if satellite_dict is not None:
         satellite_dict[satellite_io.LONGITUDES_KEY] = longitudes_deg_e + 0.
-    if radar_dict is not None:
-        radar_dict[radar_io.LONGITUDES_KEY] = longitudes_deg_e + 0.
+    if echo_classifn_dict is not None:
+        echo_classifn_dict[radar_io.LONGITUDES_KEY] = longitudes_deg_e + 0.
 
-    return satellite_dict, radar_dict
+    return satellite_dict, echo_classifn_dict
 
 
 def process_predictors(
@@ -506,20 +478,16 @@ def process_predictors(
 
 
 def process_targets(
-        top_input_dir_name, spatial_downsampling_factor,
-        first_date_string, last_date_string, composite_refl_threshold_dbz,
-        top_output_dir_name, raise_error_if_all_missing=True):
+        top_input_dir_name, spatial_downsampling_factor, first_date_string,
+        last_date_string, top_output_dir_name, raise_error_if_all_missing=True):
     """Processes targets (radar data).
 
     :param top_input_dir_name: Name of top-level directory with radar data.
         Files therein will be found by `radar_io.find_file` and read by
-        `radar_io.read_reflectivity_file`.
+        `radar_io.read_echo_classifn_file`.
     :param spatial_downsampling_factor: See doc for `process_predictors`.
     :param first_date_string: Same.
     :param last_date_string: Same.
-    :param composite_refl_threshold_dbz: Composite-reflectivity threshold.  Grid
-        cells with composite (column-max) reflectivity >= threshold will be
-        considered convective.
     :param raise_error_if_all_missing: Boolean flag.  If all input files are
         missing and `raise_error_if_all_missing == True`, will throw error.
     """
@@ -531,7 +499,7 @@ def process_targets(
         top_directory_name=top_input_dir_name,
         first_date_string=first_date_string,
         last_date_string=last_date_string,
-        file_type_string=radar_io.REFL_TYPE_STRING,
+        file_type_string=radar_io.ECHO_CLASSIFN_TYPE_STRING,
         raise_error_if_all_missing=raise_error_if_all_missing,
         raise_error_if_any_missing=False
     )
@@ -539,8 +507,7 @@ def process_targets(
     for i in range(len(input_file_names)):
         this_target_dict = _process_targets_one_day(
             input_file_name=input_file_names[i],
-            spatial_downsampling_factor=spatial_downsampling_factor,
-            composite_refl_threshold_dbz=composite_refl_threshold_dbz
+            spatial_downsampling_factor=spatial_downsampling_factor
         )
 
         this_output_file_name = find_target_file(
@@ -817,60 +784,31 @@ def find_many_target_files(
     return target_file_names
 
 
-def read_target_file(netcdf_file_name, read_targets=True,
-                     read_reflectivities=False):
+def read_target_file(netcdf_file_name):
     """Reads targets from NetCDF file.
 
     :param netcdf_file_name: Path to input file.
-    :param read_targets: Boolean flag.  If True, will read target values.
-        If False, key `target_matrix` in the output dictionary will be None.
-    :param read_reflectivities: Boolean flag.  If True, will read reflectivity
-        values.  If False, key `composite_refl_matrix_dbz` in the output
-        dictionary will be None.
     :return: target_dict: Dictionary in format returned by
         `_process_targets_one_day`.
     """
 
-    error_checking.assert_is_boolean(read_targets)
-    error_checking.assert_is_boolean(read_reflectivities)
-
     dataset_object = netCDF4.Dataset(netcdf_file_name)
 
-    predictor_dict = {
-        TARGET_MATRIX_KEY: None,
-        COMPOSITE_REFL_MATRIX_KEY: None,
+    target_dict = {
+        TARGET_MATRIX_KEY: dataset_object.variables[TARGET_MATRIX_KEY][:],
         VALID_TIMES_KEY: dataset_object.variables[VALID_TIMES_KEY][:],
         LATITUDES_KEY: dataset_object.variables[LATITUDES_KEY][:],
-        LONGITUDES_KEY: dataset_object.variables[LONGITUDES_KEY][:],
-        COMPOSITE_REFL_THRESHOLD_KEY:
-            str(getattr(dataset_object, COMPOSITE_REFL_THRESHOLD_KEY))
+        LONGITUDES_KEY: dataset_object.variables[LONGITUDES_KEY][:]
     }
 
-    if read_targets:
-        predictor_dict[TARGET_MATRIX_KEY] = (
-            dataset_object.variables[TARGET_MATRIX_KEY][:]
+    if numpy.any(numpy.diff(target_dict[LATITUDES_KEY]) < 0):
+        target_dict[LATITUDES_KEY] = target_dict[LATITUDES_KEY][::-1]
+        target_dict[TARGET_MATRIX_KEY] = numpy.flip(
+            target_dict[TARGET_MATRIX_KEY], axis=1
         )
-
-    if read_reflectivities:
-        predictor_dict[COMPOSITE_REFL_MATRIX_KEY] = (
-            dataset_object.variables[COMPOSITE_REFL_MATRIX_KEY][:]
-        )
-
-    if numpy.any(numpy.diff(predictor_dict[LATITUDES_KEY]) < 0):
-        predictor_dict[LATITUDES_KEY] = predictor_dict[LATITUDES_KEY][::-1]
-
-        if predictor_dict[TARGET_MATRIX_KEY] is not None:
-            predictor_dict[TARGET_MATRIX_KEY] = numpy.flip(
-                predictor_dict[TARGET_MATRIX_KEY], axis=1
-            )
-
-        if predictor_dict[COMPOSITE_REFL_MATRIX_KEY] is not None:
-            predictor_dict[COMPOSITE_REFL_MATRIX_KEY] = numpy.flip(
-                predictor_dict[COMPOSITE_REFL_MATRIX_KEY], axis=1
-            )
 
     dataset_object.close()
-    return predictor_dict
+    return target_dict
 
 
 def subset_predictors_by_band(predictor_dict, band_numbers):
@@ -987,9 +925,6 @@ def subset_by_index(desired_indices, predictor_dict=None, target_dict=None):
         )
 
         for this_key in ONE_PER_TARGET_TIME_KEYS:
-            if target_dict[this_key] is None:
-                continue
-
             target_dict[this_key] = target_dict[this_key][desired_indices, ...]
 
     return predictor_dict, target_dict
