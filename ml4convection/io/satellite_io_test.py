@@ -10,17 +10,25 @@ TOLERANCE = 1e-6
 # The following constants are used to test find_file and file_name_to_date.
 TOP_DIRECTORY_NAME = 'stuff'
 VALID_DATE_STRING = '20200820'
-FILE_NAME = 'stuff/2020/satellite_20200820.nc'
+
+FILE_NAME_UNZIPPED = 'stuff/2020/satellite_20200820.nc'
+FILE_NAME_ZIPPED = 'stuff/2020/satellite_20200820.nc.gz'
 
 # The following constants are used to test find_many_files.
 FIRST_DATE_STRING = '20200818'
 LAST_DATE_STRING = '20200821'
 
-FILE_NAMES = [
+FILE_NAMES_UNZIPPED = [
     'stuff/2020/satellite_20200818.nc',
     'stuff/2020/satellite_20200819.nc',
     'stuff/2020/satellite_20200820.nc',
     'stuff/2020/satellite_20200821.nc'
+]
+FILE_NAMES_ZIPPED = [
+    'stuff/2020/satellite_20200818.nc.gz',
+    'stuff/2020/satellite_20200819.nc.gz',
+    'stuff/2020/satellite_20200820.nc.gz',
+    'stuff/2020/satellite_20200821.nc.gz'
 ]
 
 # The following constants are used to test subset_by_band, subset_by_index,
@@ -157,33 +165,88 @@ def compare_satellite_dicts(first_satellite_dict, second_satellite_dict):
 class SatelliteIoTests(unittest.TestCase):
     """Each method is a unit test for satellite_io.py."""
 
-    def test_find_file(self):
-        """Ensures correct output from find_file."""
+    def test_find_file_zipped_allow(self):
+        """Ensures correct output from find_file.
+
+        In this case, looking for zipped file but will allow unzipped file.
+        """
 
         this_file_name = satellite_io.find_file(
             top_directory_name=TOP_DIRECTORY_NAME,
             valid_date_string=VALID_DATE_STRING,
+            prefer_zipped=True, allow_other_format=True,
             raise_error_if_missing=False
         )
 
-        self.assertTrue(this_file_name == FILE_NAME)
+        self.assertTrue(this_file_name == FILE_NAME_UNZIPPED)
 
-    def test_find_many_files(self):
-        """Ensures correct output from find_many_files."""
+    def test_find_file_zipped_no_allow(self):
+        """Ensures correct output from find_file.
+
+        In this case, looking for zipped file and will *not* allow unzipped
+        file.
+        """
+
+        this_file_name = satellite_io.find_file(
+            top_directory_name=TOP_DIRECTORY_NAME,
+            valid_date_string=VALID_DATE_STRING,
+            prefer_zipped=True, allow_other_format=False,
+            raise_error_if_missing=False
+        )
+
+        self.assertTrue(this_file_name == FILE_NAME_ZIPPED)
+
+    def test_find_many_files_zipped_allow(self):
+        """Ensures correct output from find_many_files.
+
+        In this case, looking for zipped files but will allow unzipped files.
+        """
 
         these_file_names = satellite_io.find_many_files(
             top_directory_name=TOP_DIRECTORY_NAME,
             first_date_string=FIRST_DATE_STRING,
-            last_date_string=LAST_DATE_STRING, test_mode=True
+            last_date_string=LAST_DATE_STRING,
+            prefer_zipped=True, allow_other_format=True, test_mode=True
         )
 
-        self.assertTrue(these_file_names == FILE_NAMES)
+        self.assertTrue(these_file_names == FILE_NAMES_UNZIPPED)
 
-    def test_file_name_to_date(self):
-        """Ensures correct output from file_name_to_date."""
+    def test_find_many_files_zipped_no_allow(self):
+        """Ensures correct output from find_many_files.
+
+        In this case, looking for zipped files and will *not* allow unzipped
+        files.
+        """
+
+        these_file_names = satellite_io.find_many_files(
+            top_directory_name=TOP_DIRECTORY_NAME,
+            first_date_string=FIRST_DATE_STRING,
+            last_date_string=LAST_DATE_STRING,
+            prefer_zipped=True, allow_other_format=False, test_mode=True
+        )
+
+        self.assertTrue(these_file_names == FILE_NAMES_ZIPPED)
+
+    def test_file_name_to_date_zipped(self):
+        """Ensures correct output from file_name_to_date.
+
+        In this case, file is zipped.
+        """
 
         self.assertTrue(
-            satellite_io.file_name_to_date(FILE_NAME) == VALID_DATE_STRING
+            satellite_io.file_name_to_date(FILE_NAME_ZIPPED) ==
+            VALID_DATE_STRING
+        )
+
+    def test_file_name_to_date_unzipped(self):
+        """Ensures correct output from file_name_to_date.
+
+        In this case, file is unzipped.
+        """
+
+        self.assertTrue(
+            satellite_io.file_name_to_date(FILE_NAME_ZIPPED) ==
+            VALID_DATE_STRING
         )
 
     def test_subset_by_band(self):

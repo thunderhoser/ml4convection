@@ -21,10 +21,6 @@ TIME_FORMAT = '%Y-%m-%d-%H%M'
 
 COMPOSITE_REFL_NAME = 'reflectivity_column_max_dbz'
 
-CONVECTIVE_MARKER_SIZE = 4
-CONVECTIVE_MARKER_TYPE = 'o'
-CONVECTIVE_MARKER_COLOUR = numpy.full(3, 0.)
-
 NUM_PARALLELS = 8
 NUM_MERIDIANS = 6
 FIGURE_RESOLUTION_DPI = 300
@@ -124,12 +120,17 @@ INPUT_ARG_PARSER.add_argument(
 
 
 def _plot_radar_one_example(
-        reflectivity_dict, echo_classifn_dict, example_index, plot_basemap,
+        reflectivity_dict, convective_flag_matrix, example_index, plot_basemap,
         output_dir_name):
     """Plots one radar image.
 
+    M = number of rows in grid
+    N = number of columns in grid
+
     :param reflectivity_dict: See doc for `_plot_radar_one_day`.
-    :param echo_classifn_dict: Same.
+    :param convective_flag_matrix: M-by-N numpy array of Boolean flags.  If
+        specified, will plot convective pixels only.  If None, will plot all
+        pixels.
     :param example_index: Will plot [i]th example, where i = `example_index`.
     :param plot_basemap: See documentation at top of file.
     :param output_dir_name: Same.
@@ -181,10 +182,13 @@ def _plot_radar_one_example(
     title_string = 'Composite reflectivity at {0:s}'.format(valid_time_string)
 
     # TODO(thunderhoser): Allow this script to plot reflectivity at any height.
-    composite_refl_matrix_dbz = numpy.max(
+    composite_refl_matrix_dbz = numpy.nanmax(
         reflectivity_dict[radar_io.REFLECTIVITY_KEY][example_index, ...],
         axis=-1
     )
+
+    if convective_flag_matrix is not None:
+        composite_refl_matrix_dbz[convective_flag_matrix == False] = 0.
 
     radar_plotting.plot_latlng_grid(
         field_matrix=composite_refl_matrix_dbz, field_name=COMPOSITE_REFL_NAME,
@@ -194,23 +198,6 @@ def _plot_radar_one_example(
         latitude_spacing_deg=numpy.diff(latitudes_deg_n[:2])[0],
         longitude_spacing_deg=numpy.diff(longitudes_deg_e[:2])[0]
     )
-
-    # TODO(thunderhoser): Put this code in a proper method.
-    if echo_classifn_dict is not None:
-        convective_flag_matrix = (
-            echo_classifn_dict[radar_io.CONVECTIVE_FLAGS_KEY]
-        )
-        row_indices, column_indices = numpy.where(convective_flag_matrix)
-        positive_latitudes_deg_n = latitudes_deg_n[row_indices]
-        positive_longitudes_deg_e = longitudes_deg_e[column_indices]
-
-        axes_object.plot(
-            positive_longitudes_deg_e, positive_latitudes_deg_n,
-            linestyle='None', marker=CONVECTIVE_MARKER_TYPE,
-            markersize=CONVECTIVE_MARKER_SIZE, markeredgewidth=0,
-            markerfacecolor=CONVECTIVE_MARKER_COLOUR,
-            markeredgecolor=CONVECTIVE_MARKER_COLOUR
-        )
 
     if not plot_basemap:
         tick_latitudes_deg_n = numpy.unique(numpy.round(latitudes_deg_n))
@@ -281,6 +268,17 @@ def _plot_radar_one_day(
     :param output_dir_name: Same.
     """
 
+    if echo_classifn_dict is None:
+        convective_flag_matrix = None
+    else:
+        assert numpy.array_equal(
+            reflectivity_dict[radar_io.VALID_TIMES_KEY],
+            echo_classifn_dict[radar_io.VALID_TIMES_KEY]
+        )
+        convective_flag_matrix = (
+            echo_classifn_dict[radar_io.CONVECTIVE_FLAGS_KEY]
+        )
+
     if daily_times_seconds is not None:
         valid_times_unix_sec = reflectivity_dict[radar_io.VALID_TIMES_KEY]
         base_time_unix_sec = number_rounding.floor_to_nearest(
@@ -303,12 +301,9 @@ def _plot_radar_one_day(
             desired_times_unix_sec=desired_times_unix_sec
         )
 
-        # TODO(thunderhoser): This is a hack.
-        if echo_classifn_dict is not None:
-            echo_classifn_dict[radar_io.CONVECTIVE_FLAGS_KEY] = (
-                echo_classifn_dict[radar_io.CONVECTIVE_FLAGS_KEY][
-                    desired_indices, ...
-                ]
+        if convective_flag_matrix is not None:
+            convective_flag_matrix = (
+                convective_flag_matrix[desired_indices, ...]
             )
     else:
         num_examples_total = len(reflectivity_dict[radar_io.VALID_TIMES_KEY])
@@ -328,12 +323,9 @@ def _plot_radar_one_day(
             reflectivity_dict=reflectivity_dict, desired_indices=desired_indices
         )
 
-        # TODO(thunderhoser): This is a hack.
-        if echo_classifn_dict is not None:
-            echo_classifn_dict[radar_io.CONVECTIVE_FLAGS_KEY] = (
-                echo_classifn_dict[radar_io.CONVECTIVE_FLAGS_KEY][
-                    desired_indices, ...
-                ]
+        if convective_flag_matrix is not None:
+            convective_flag_matrix = (
+                convective_flag_matrix[desired_indices, ...]
             )
 
     num_examples = len(reflectivity_dict[radar_io.VALID_TIMES_KEY])
@@ -341,8 +333,9 @@ def _plot_radar_one_day(
     for i in range(num_examples):
         _plot_radar_one_example(
             reflectivity_dict=reflectivity_dict,
-            echo_classifn_dict=echo_classifn_dict, example_index=i,
-            plot_basemap=plot_basemap, output_dir_name=output_dir_name
+            convective_flag_matrix=convective_flag_matrix[i, ...],
+            example_index=i, plot_basemap=plot_basemap,
+            output_dir_name=output_dir_name
         )
 
 
@@ -376,6 +369,8 @@ def _run(top_reflectivity_dir_name, top_echo_classifn_dir_name,
         top_reflectivity_dir_name = None
     if top_target_dir_name == '':
         top_target_dir_name = None
+    if top_echo_classifn_dir_name == '':
+        top_echo_classifn_dir_name = None
     if len(daily_times_seconds) == 1 and daily_times_seconds[0] < 0:
         daily_times_seconds = None
 

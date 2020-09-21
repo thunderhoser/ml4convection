@@ -1,6 +1,7 @@
 """IO methods for processed satellite data."""
 
 import os
+import gzip
 import copy
 import numpy
 import netCDF4
@@ -9,8 +10,10 @@ from gewittergefahr.gg_utils import longitude_conversion as lng_conversion
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
 from ml4convection.io import twb_satellite_io
+from ml4convection.io import radar_io
 
 TOLERANCE = 1e-6
+GZIP_FILE_EXTENSION = '.gz'
 
 DATE_FORMAT = '%Y%m%d'
 DAYS_TO_SECONDS = 86400
@@ -37,28 +40,47 @@ ONE_PER_EXAMPLE_KEYS = [
 ]
 
 
-def find_file(top_directory_name, valid_date_string,
-              raise_error_if_missing=True):
+def find_file(
+        top_directory_name, valid_date_string, prefer_zipped=True,
+        allow_other_format=True, raise_error_if_missing=True):
     """Finds NetCDF file with satellite data.
 
     :param top_directory_name: Name of top-level directory where file is
         expected.
     :param valid_date_string: Valid date (format "yyyymmdd").
+    :param prefer_zipped: Boolean flag.  If True, will look for zipped file
+        first.  If False, will look for unzipped file first.
+    :param allow_other_format: Boolean flag.  If True, will allow opposite of
+        preferred file format (zipped or unzipped).
     :param raise_error_if_missing: Boolean flag.  If file is missing and
         `raise_error_if_missing == True`, will throw error.  If file is missing
         and `raise_error_if_missing == False`, will return *expected* file path.
     :return: satellite_file_name: File path.
-    :raises: ValueError: if file is missing
-        and `raise_error_if_missing == True`.
+    :raises: ValueError: if file is missing and
+        `raise_error_if_missing == True`.
     """
 
     error_checking.assert_is_string(top_directory_name)
-    error_checking.assert_is_boolean(raise_error_if_missing)
     _ = time_conversion.string_to_unix_sec(valid_date_string, DATE_FORMAT)
+    error_checking.assert_is_boolean(prefer_zipped)
+    error_checking.assert_is_boolean(allow_other_format)
+    error_checking.assert_is_boolean(raise_error_if_missing)
 
-    satellite_file_name = '{0:s}/{1:s}/satellite_{2:s}.nc'.format(
-        top_directory_name, valid_date_string[:4], valid_date_string
+    satellite_file_name = '{0:s}/{1:s}/satellite_{2:s}.nc{3:s}'.format(
+        top_directory_name, valid_date_string[:4], valid_date_string,
+        GZIP_FILE_EXTENSION if prefer_zipped else ''
     )
+
+    if os.path.isfile(satellite_file_name):
+        return satellite_file_name
+
+    if allow_other_format:
+        if prefer_zipped:
+            satellite_file_name = (
+                satellite_file_name[:-len(GZIP_FILE_EXTENSION)]
+            )
+        else:
+            satellite_file_name += GZIP_FILE_EXTENSION
 
     if os.path.isfile(satellite_file_name) or not raise_error_if_missing:
         return satellite_file_name
@@ -79,9 +101,8 @@ def file_name_to_date(satellite_file_name):
 
     error_checking.assert_is_string(satellite_file_name)
     pathless_file_name = os.path.split(satellite_file_name)[-1]
-    extensionless_file_name = os.path.splitext(pathless_file_name)[0]
 
-    valid_date_string = extensionless_file_name.split('_')[-1]
+    valid_date_string = pathless_file_name.split('.')[0].split('_')[-1]
     _ = time_conversion.string_to_unix_sec(valid_date_string, DATE_FORMAT)
 
     return valid_date_string
@@ -89,6 +110,7 @@ def file_name_to_date(satellite_file_name):
 
 def find_many_files(
         top_directory_name, first_date_string, last_date_string,
+        prefer_zipped=True, allow_other_format=True,
         raise_error_if_all_missing=True, raise_error_if_any_missing=False,
         test_mode=False):
     """Finds many NetCDF files with satellite data.
@@ -96,6 +118,9 @@ def find_many_files(
     :param top_directory_name: See doc for `find_file`.
     :param first_date_string: First valid date (format "yyyymmdd").
     :param last_date_string: Last valid date (format "yyyymmdd").
+    :param file_type_string: See doc for `find_file`.
+    :param prefer_zipped: Same.
+    :param allow_other_format: Same.
     :param raise_error_if_any_missing: Boolean flag.  If any file is missing and
         `raise_error_if_any_missing == True`, will throw error.
     :param raise_error_if_all_missing: Boolean flag.  If all files are missing
@@ -121,6 +146,8 @@ def find_many_files(
         this_file_name = find_file(
             top_directory_name=top_directory_name,
             valid_date_string=this_date_string,
+            prefer_zipped=prefer_zipped,
+            allow_other_format=allow_other_format,
             raise_error_if_missing=raise_error_if_any_missing
         )
 
@@ -162,7 +189,11 @@ def write_file(
         temperatures.
     :param brightness_count_matrix: M-by-N-by-C numpy array of brightness
         counts.
+    :raises: ValueError: if output file is a gzip file.
     """
+
+    if netcdf_file_name.endswith(GZIP_FILE_EXTENSION):
+        raise ValueError('Output file must not be gzip file.')
 
     # Check input args.
     valid_date_string = file_name_to_date(netcdf_file_name)
@@ -353,40 +384,60 @@ def read_file(netcdf_file_name, read_temperatures, read_counts, fill_nans=True):
     error_checking.assert_is_boolean(read_counts)
     error_checking.assert_is_boolean(fill_nans)
 
-    dataset_object = netCDF4.Dataset(netcdf_file_name)
-
     satellite_dict = {
         BRIGHTNESS_TEMP_KEY: None,
-        BRIGHTNESS_COUNT_KEY: None,
-        VALID_TIMES_KEY: dataset_object.variables[VALID_TIMES_KEY][:],
-        LATITUDES_KEY: dataset_object.variables[LATITUDES_KEY][:],
-        LONGITUDES_KEY: dataset_object.variables[LONGITUDES_KEY][:],
-        BAND_NUMBERS_KEY: dataset_object.variables[BAND_NUMBERS_KEY][:]
+        BRIGHTNESS_COUNT_KEY: None
     }
 
+    keys_to_read = [
+        VALID_TIMES_KEY, LATITUDES_KEY, LONGITUDES_KEY, BAND_NUMBERS_KEY
+    ]
     if read_temperatures:
-        satellite_dict[BRIGHTNESS_TEMP_KEY] = (
-            dataset_object.variables[BRIGHTNESS_TEMP_KEY][:]
-        )
+        keys_to_read.append(BRIGHTNESS_TEMP_KEY)
+    if read_counts:
+        keys_to_read.append(BRIGHTNESS_COUNT_KEY)
 
+    if netcdf_file_name.endswith(GZIP_FILE_EXTENSION):
+        with gzip.open(netcdf_file_name) as gzip_handle:
+            with netCDF4.Dataset(
+                    'dummy', mode='r', memory=gzip_handle.read()
+            ) as dataset_object:
+                for this_key in keys_to_read:
+                    satellite_dict[this_key] = (
+                        dataset_object.variables[this_key][:]
+                    )
+    else:
+        dataset_object = netCDF4.Dataset(netcdf_file_name)
+
+        for this_key in keys_to_read:
+            satellite_dict[this_key] = (
+                dataset_object.variables[this_key][:]
+            )
+
+        dataset_object.close()
+
+    if read_temperatures and fill_nans:
         # TODO(thunderhoser): Find smarter way to deal with this.
         satellite_dict[BRIGHTNESS_TEMP_KEY][
             numpy.isnan(satellite_dict[BRIGHTNESS_TEMP_KEY])
         ] = 300.
 
-    if read_counts:
-        satellite_dict[BRIGHTNESS_COUNT_KEY] = (
-            dataset_object.variables[BRIGHTNESS_COUNT_KEY][:]
-        )
+    if read_counts and fill_nans:
+        satellite_dict[BRIGHTNESS_COUNT_KEY][
+            numpy.isnan(satellite_dict[BRIGHTNESS_COUNT_KEY])
+        ] = 0.
 
-        if fill_nans:
-            satellite_dict[BRIGHTNESS_COUNT_KEY][
-                numpy.isnan(satellite_dict[BRIGHTNESS_COUNT_KEY])
-            ] = 0.
-
-
-    dataset_object.close()
     return satellite_dict
+
+
+def compress_file(netcdf_file_name):
+    """Compresses NetCDF file with satellite data (turns it into a gzip file).
+
+    :param netcdf_file_name: Path to NetCDF file.
+    :raises: ValueError: if file is already gzipped.
+    """
+
+    radar_io.compress_file(netcdf_file_name)
 
 
 def subset_by_band(satellite_dict, band_numbers):
