@@ -102,9 +102,10 @@ def _increment_counts_one_day(
             atol=TOLERANCE
         )
 
-    new_count_matrix = numpy.invert(
-        numpy.isnan(reflectivity_dict[radar_io.REFLECTIVITY_KEY])
-    ).astype(int)
+    new_count_matrix = numpy.sum(
+        numpy.invert(numpy.isnan(reflectivity_dict[radar_io.REFLECTIVITY_KEY])),
+        axis=0
+    )
 
     if count_matrix is None:
         count_matrix = new_count_matrix + 0
@@ -121,7 +122,7 @@ def _increment_counts_one_day(
 
 def _write_count_file(netcdf_file_name, count_matrix, latitudes_deg_n,
                       longitudes_deg_e, heights_m_asl):
-    """Writes gridded observation counts to file.
+    """Writes gridded observation counts to NetCDF file.
 
     :param netcdf_file_name: Path to output file.
     :param count_matrix: See doc for `_increment_counts_one_day`.
@@ -162,6 +163,31 @@ def _write_count_file(netcdf_file_name, count_matrix, latitudes_deg_n,
     dataset_object.variables[OBSERVATION_COUNT_KEY][:] = count_matrix
 
     dataset_object.close()
+
+
+def read_count_file(netcdf_file_name):
+    """Reads gridded observation counts from NetCDF file.
+
+    :param netcdf_file_name: Path to input file.
+    :return: count_dict: Dictionary with the following keys.
+    count_dict['count_matrix']: See doc for `_write_count_file`.
+    count_dict['latitudes_deg_n']: Same.
+    count_dict['longitudes_deg_e']: Same.
+    count_dict['heights_m_asl']: Same.
+    """
+
+    dataset_object = netCDF4.Dataset(netcdf_file_name)
+
+    count_dict = {
+        OBSERVATION_COUNT_KEY:
+            dataset_object.variables[OBSERVATION_COUNT_KEY][:],
+        LATITUDES_KEY: dataset_object.variables[LATITUDES_KEY][:],
+        LONGITUDES_KEY: dataset_object.variables[LONGITUDES_KEY][:],
+        HEIGHTS_KEY: dataset_object.variables[HEIGHTS_KEY][:]
+    }
+
+    dataset_object.close()
+    return count_dict
 
 
 def _run(top_reflectivity_dir_name, first_date_string, last_date_string,
