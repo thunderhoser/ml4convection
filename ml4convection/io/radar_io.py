@@ -54,6 +54,11 @@ ECHO_CLASSIFN_METADATA_KEYS = [
     MIN_REFLECTIVITY_AML_KEY
 ]
 
+MASK_MATRIX_KEY = 'mask_matrix'
+MAX_MASK_HEIGHT_KEY = 'max_mask_height_m_asl'
+MIN_OBSERVATIONS_KEY = 'min_num_observations'
+MIN_HEIGHT_FRACTION_KEY = 'min_height_fraction'
+
 
 def _check_file_type(file_type_string):
     """Error-checks file type.
@@ -71,6 +76,25 @@ def _check_file_type(file_type_string):
             file_type_string, str(VALID_FILE_TYPE_STRINGS)
         )
         raise ValueError(error_string)
+
+
+def check_mask_options(option_dict):
+    """Checks options for mask.
+
+    :param option_dict: Dictionary with the following keys.
+    option_dict['max_mask_height_m_asl']: Max height (metres above sea level).
+        Radar observations above this height will not be considered.
+    option_dict['min_observations']: Minimum number of observations.  Each grid
+        column (horizontal location) will be included if it contains >= N
+        observations at >= fraction f of heights up to `max_mask_height_m_asl`,
+        where N = `min_num_observations` and f = `min_height_fraction`.
+    option_dict['max_mask_height_m_asl']: See above.
+    """
+
+    error_checking.assert_is_geq(option_dict[MAX_MASK_HEIGHT_KEY], 5000.)
+    error_checking.assert_is_geq(option_dict[MIN_OBSERVATIONS_KEY], 1)
+    error_checking.assert_is_greater(option_dict[MIN_HEIGHT_FRACTION_KEY], 0.)
+    error_checking.assert_is_leq(option_dict[MIN_HEIGHT_FRACTION_KEY], 1.)
 
 
 def find_file(
@@ -691,3 +715,105 @@ def subset_by_time(refl_or_echo_classifn_dict, desired_times_unix_sec):
     )
 
     return refl_or_echo_classifn_dict, desired_indices
+
+
+def read_mask_file(netcdf_file_name):
+    """Reads mask from NetCDF file.
+
+    :param netcdf_file_name: Path to input file.
+    :return: mask_dict: Dictionary with the following keys, plus keys
+        in `option_dict` (input arg to `write_mask_file`).
+    mask_dict['mask_matrix']: See doc for `write_mask_file`.
+    mask_dict['latitudes_deg_n']: Same.
+    mask_dict['longitudes_deg_e']: Same.
+    """
+
+    dataset_object = netCDF4.Dataset(netcdf_file_name)
+
+    mask_dict = {
+        MASK_MATRIX_KEY:
+            dataset_object.variables[MASK_MATRIX_KEY][:].astype(bool),
+        LATITUDES_KEY: dataset_object.variables[LATITUDES_KEY][:],
+        LONGITUDES_KEY: dataset_object.variables[LONGITUDES_KEY][:],
+        MAX_MASK_HEIGHT_KEY: getattr(dataset_object, MAX_MASK_HEIGHT_KEY),
+        MIN_OBSERVATIONS_KEY: getattr(dataset_object, MIN_OBSERVATIONS_KEY),
+        MIN_HEIGHT_FRACTION_KEY: getattr(dataset_object, MIN_HEIGHT_FRACTION_KEY)
+    }
+
+    dataset_object.close()
+    return mask_dict
+
+
+def write_mask_file(
+        netcdf_file_name, mask_matrix, latitudes_deg_n, longitudes_deg_e,
+        option_dict):
+    """Writes mask to NetCDF file.
+
+    M = number of rows in grid
+    N = number of columns in grid
+
+    :param netcdf_file_name: Path to output file.
+    :param mask_matrix: M-by-N numpy array of Boolean flags.  Grid cells marked
+        False will be censored out.
+    :param latitudes_deg_n: length-M numpy array of latitudes (deg N).
+    :param longitudes_deg_e: length-N numpy array of longitudes (deg E).
+    :param option_dict: See doc for `check_mask_options`.
+    :raises: ValueError: if output file is a gzip file.
+    """
+
+    # Check input args.
+    check_mask_options(option_dict)
+
+    error_checking.assert_is_numpy_array(latitudes_deg_n, num_dimensions=1)
+    error_checking.assert_is_valid_lat_numpy_array(latitudes_deg_n)
+
+    error_checking.assert_is_numpy_array(longitudes_deg_e, num_dimensions=1)
+    longitudes_deg_e = (
+        lng_conversion.convert_lng_positive_in_west(longitudes_deg_e)
+    )
+
+    num_grid_rows = len(latitudes_deg_n)
+    num_grid_columns = len(longitudes_deg_e)
+    expected_dim = numpy.array([num_grid_rows, num_grid_columns], dtype=int)
+
+    error_checking.assert_is_boolean_numpy_array(mask_matrix)
+    error_checking.assert_is_numpy_array(
+        mask_matrix, exact_dimensions=expected_dim
+    )
+
+    # Do actual stuff.
+    file_system_utils.mkdir_recursive_if_necessary(file_name=netcdf_file_name)
+    dataset_object = netCDF4.Dataset(
+        netcdf_file_name, 'w', format='NETCDF3_64BIT_OFFSET'
+    )
+
+    dataset_object.setncattr(
+        MAX_MASK_HEIGHT_KEY, option_dict[MAX_MASK_HEIGHT_KEY]
+    )
+    dataset_object.setncattr(
+        MIN_OBSERVATIONS_KEY, option_dict[MIN_OBSERVATIONS_KEY]
+    )
+    dataset_object.setncattr(
+        MIN_HEIGHT_FRACTION_KEY, option_dict[MIN_HEIGHT_FRACTION_KEY]
+    )
+
+    dataset_object.createDimension(ROW_DIMENSION_KEY, num_grid_rows)
+    dataset_object.createDimension(COLUMN_DIMENSION_KEY, num_grid_columns)
+
+    dataset_object.createVariable(
+        LATITUDES_KEY, datatype=numpy.float32, dimensions=ROW_DIMENSION_KEY
+    )
+    dataset_object.variables[LATITUDES_KEY][:] = latitudes_deg_n
+
+    dataset_object.createVariable(
+        LONGITUDES_KEY, datatype=numpy.float32, dimensions=COLUMN_DIMENSION_KEY
+    )
+    dataset_object.variables[LONGITUDES_KEY][:] = longitudes_deg_e
+
+    dataset_object.createVariable(
+        MASK_MATRIX_KEY, datatype=numpy.int8,
+        dimensions=(ROW_DIMENSION_KEY, COLUMN_DIMENSION_KEY)
+    )
+    dataset_object.variables[MASK_MATRIX_KEY][:] = mask_matrix.astype(int)
+
+    dataset_object.close()

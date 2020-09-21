@@ -289,8 +289,11 @@ def read_file(gzip_file_name):
     reflectivity_matrix_dbz = (
         reflectivity_matrix_dbz.astype(numpy.float32) / float(scale_factor[0])
     )
-    reflectivity_matrix_dbz[reflectivity_matrix_dbz < MIN_REFLECTIVITY_DBZ] = (
+    reflectivity_matrix_dbz[reflectivity_matrix_dbz < sentinel_value + 1] = (
         numpy.nan
+    )
+    reflectivity_matrix_dbz[reflectivity_matrix_dbz < MIN_REFLECTIVITY_DBZ] = (
+        MIN_REFLECTIVITY_DBZ
     )
 
     latitudes_deg_n, longitudes_deg_e = _read_latlng_from_file(data_object)

@@ -7,7 +7,7 @@ import copy
 import glob
 import argparse
 import numpy
-from gewittergefahr.gg_utils import error_checking
+from ml4convection.io import radar_io
 from ml4convection.scripts import count_radar_observations as count_obs
 
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
@@ -63,6 +63,53 @@ INPUT_ARG_PARSER.add_argument(
 )
 
 
+def _increment_counts_one_file(count_file_name, count_matrix, max_height_m_asl):
+    """Increments counts, based on one count file.
+
+    M = number of rows in grid
+    N = number of columns in grid
+    H = number of heights in grid
+
+    :param count_file_name: Path to input file (will be read by
+        `count_radar_observations.read_count_file`).
+    :param count_matrix: M-by-N-by-H numpy array of observation counts.
+        If None, will be created on the fly.
+    :param max_height_m_asl: [used only if `count_matrix is None`]
+        See documentation at top of file.
+    :return: count_matrix: Same as input but with new (incremented) values.
+    :return: metadata_dict: Dictionary returned by
+        `count_radar_observations.read_count_file`, excluding counts.
+    """
+
+    print('Reading data from: "{0:s}"...'.format(count_file_name))
+    count_dict = count_obs.read_count_file(count_file_name)
+
+    new_count_matrix = count_dict[count_obs.OBSERVATION_COUNT_KEY]
+    del count_dict[count_obs.OBSERVATION_COUNT_KEY]
+    metadata_dict = copy.deepcopy(count_dict)
+
+    if count_matrix is None:
+        these_indices = numpy.where(
+            metadata_dict[count_obs.HEIGHTS_KEY] >= max_height_m_asl
+        )[0]
+
+        if len(these_indices) == 0:
+            max_height_index = len(metadata_dict[count_obs.HEIGHTS_KEY]) - 1
+        else:
+            max_height_index = these_indices[0]
+    else:
+        max_height_index = count_matrix.shape[-1] - 1
+
+    new_count_matrix = new_count_matrix[..., :(max_height_index + 1)]
+
+    if count_matrix is None:
+        count_matrix = new_count_matrix + 0
+    else:
+        count_matrix += new_count_matrix
+
+    return count_matrix, metadata_dict
+
+
 def _run(count_dir_name, max_height_m_asl, min_observations,
          min_height_fraction, output_file_name):
     """Creates mask for radar data.
@@ -76,46 +123,27 @@ def _run(count_dir_name, max_height_m_asl, min_observations,
     :param output_file_name: Same.
     """
 
-    error_checking.assert_is_geq(max_height_m_asl, 5000.)
-    error_checking.assert_is_geq(min_observations, 1)
-    error_checking.assert_is_greater(min_height_fraction, 0.)
-    error_checking.assert_is_leq(min_height_fraction, 1.)
+    option_dict = {
+        radar_io.MAX_MASK_HEIGHT_KEY: max_height_m_asl,
+        radar_io.MIN_OBSERVATIONS_KEY: min_observations,
+        radar_io.MIN_HEIGHT_FRACTION_KEY: min_height_fraction
+    }
+    radar_io.check_mask_options(option_dict)
 
     count_file_names = glob.glob('{0:s}/counts*.nc'.format(count_dir_name))
+    count_file_names.sort()
 
     count_matrix = None
     metadata_dict = None
-    max_height_index = None
 
     for this_file_name in count_file_names:
-        print('Reading data from: "{0:s}"...'.format(this_file_name))
-        this_count_dict = count_obs.read_count_file(this_file_name)
-
-        if count_matrix is None:
-            count_matrix = this_count_dict[count_obs.OBSERVATION_COUNT_KEY] + 0
-            del this_count_dict[count_obs.OBSERVATION_COUNT_KEY]
-            metadata_dict = copy.deepcopy(this_count_dict)
-
-            all_heights_m_asl = metadata_dict[count_obs.HEIGHTS_KEY]
-            these_indices = numpy.where(
-                all_heights_m_asl >= max_height_m_asl
-            )[0]
-
-            if len(these_indices) == 0:
-                max_height_index = len(all_heights_m_asl) - 1
-            else:
-                max_height_index = these_indices[0]
-
-            metadata_dict[count_obs.HEIGHTS_KEY] = (
-                all_heights_m_asl[:(max_height_index + 1)]
-            )
-            count_matrix = count_matrix[..., :(max_height_index + 1)]
-        else:
-            count_matrix += this_count_dict[count_obs.OBSERVATION_COUNT_KEY][
-                ..., :(max_height_index + 1)
-            ]
+        count_matrix, metadata_dict = _increment_counts_one_file(
+            count_file_name=this_file_name, count_matrix=count_matrix,
+            max_height_m_asl=max_height_m_asl
+        )
 
     print(SEPARATOR_STRING)
+    num_heights = count_matrix.shape[2]
 
     print('Finding grid cells with >= {0:d} observations...'.format(
         min_observations
@@ -123,8 +151,6 @@ def _run(count_dir_name, max_height_m_asl, min_observations,
     fractional_exceedance_matrix = numpy.mean(
         count_matrix >= min_observations, axis=-1
     )
-
-    num_heights = count_matrix.shape[2]
 
     print((
         'Finding grid columns with >= {0:d} observations at >= {1:f} of {2:d} '
@@ -137,6 +163,14 @@ def _run(count_dir_name, max_height_m_asl, min_observations,
     print('{0:d} of {1:d} grid columns are unmasked!'.format(
         numpy.sum(mask_matrix), mask_matrix.size
     ))
+
+    print('Writing results to: "{0:s}"...'.format(output_file_name))
+    radar_io.write_mask_file(
+        netcdf_file_name=output_file_name, mask_matrix=mask_matrix,
+        latitudes_deg_n=metadata_dict[count_obs.LATITUDES_KEY],
+        longitudes_deg_e=metadata_dict[count_obs.LONGITUDES_KEY],
+        option_dict=option_dict
+    )
 
 
 if __name__ == '__main__':
