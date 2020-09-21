@@ -375,18 +375,25 @@ def _apply_convective_criterion1(
     )
     print(peakedness_threshold_matrix_dbz)
 
-    numerator = numpy.sum(
+    numerator_matrix = numpy.sum(
         (peakedness_matrix_dbz > peakedness_threshold_matrix_dbz).astype(int),
         axis=-1
     )
-    print(numerator)
-    denominator = numpy.sum(
-        (this_reflectivity_matrix_dbz > 0).astype(int),
+    print(numerator_matrix)
+    denominator_matrix = numpy.sum(
+        numpy.invert(numpy.isnan(this_reflectivity_matrix_dbz)).astype(int),
         axis=-1
     )
-    print(denominator)
+    print(denominator_matrix)
 
-    fractional_exceedance_matrix = numerator.astype(float) / denominator
+    this_flag_matrix = numpy.logical_and(
+        numerator_matrix == 0, denominator_matrix == 0
+    )
+    denominator_matrix[this_flag_matrix] = 1.
+
+    fractional_exceedance_matrix = (
+        numerator_matrix.astype(float) / denominator_matrix
+    )
     print(fractional_exceedance_matrix)
     convective_flag_matrix = (fractional_exceedance_matrix >= 0.5).astype(bool)
 
