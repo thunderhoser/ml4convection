@@ -225,96 +225,10 @@ def _get_peakedness_thresholds(reflectivity_matrix_dbz):
     return this_matrix
 
 
-def _halve_refl_resolution(
-        fine_reflectivity_matrix_dbz, fine_grid_point_latitudes_deg,
-        fine_grid_point_longitudes_deg):
-    """Halves horizontal resolution of reflectivity grid.
-
-    M = number of rows in fine-scale grid
-    N = number of columns in fine-scale grid
-    m = number of rows in coarse grid
-    n = number of rows in coarse grid
-
-    :param fine_reflectivity_matrix_dbz: M-by-N-by-H numpy array of reflectivity
-        values, with latitude increasing along the first axis and longitude
-        increasing along the second axis.
-    :param fine_grid_point_latitudes_deg: length-M numpy array of latitudes
-        (deg N), in increasing order.
-    :param fine_grid_point_longitudes_deg: length-N numpy array of longitudes
-        (deg E), in increasing order.
-
-    :return: coarse_reflectivity_matrix_dbz: Same as input, except dimensions
-        are m x n x H.
-    :return: coarse_grid_point_latitudes_deg: Same as input, except length is m.
-    :return: coarse_grid_point_longitudes_deg: Same as input, except length is
-        n.
-    """
-
-    coarse_grid_point_latitudes_deg = fine_grid_point_latitudes_deg[::2]
-    coarse_grid_point_longitudes_deg = fine_grid_point_longitudes_deg[::2]
-
-    num_coarse_latitudes = len(coarse_grid_point_latitudes_deg)
-    num_coarse_longitudes = len(coarse_grid_point_longitudes_deg)
-    num_heights = fine_reflectivity_matrix_dbz.shape[-1]
-    coarse_reflectivity_matrix_dbz = numpy.full(
-        (num_coarse_latitudes, num_coarse_longitudes, num_heights), numpy.nan
-    )
-
-    for k in range(num_heights):
-        this_interp_object = RectBivariateSpline(
-            fine_grid_point_latitudes_deg, fine_grid_point_longitudes_deg,
-            fine_reflectivity_matrix_dbz[..., k], kx=1, ky=1, s=0
-        )
-        coarse_reflectivity_matrix_dbz[..., k] = this_interp_object(
-            coarse_grid_point_latitudes_deg, coarse_grid_point_longitudes_deg,
-            grid=True
-        )
-
-    return (
-        coarse_reflectivity_matrix_dbz,
-        coarse_grid_point_latitudes_deg, coarse_grid_point_longitudes_deg
-    )
-
-
-def _double_class_resolution(
-        coarse_convective_flag_matrix, coarse_grid_point_latitudes_deg,
-        coarse_grid_point_longitudes_deg, fine_grid_point_latitudes_deg,
-        fine_grid_point_longitudes_deg):
-    """Doubles resolution of 2-D echo-classification grid.
-
-    M = number of rows in fine-scale grid
-    N = number of columns in fine-scale grid
-    m = number of rows in coarse grid
-    n = number of rows in coarse grid
-
-    :param coarse_convective_flag_matrix: m-by-n numpy array of Boolean flags
-        (True if convective, False if not).
-    :param coarse_grid_point_latitudes_deg: See doc for
-        `_halve_refl_resolution`.
-    :param coarse_grid_point_longitudes_deg: Same.
-    :param fine_grid_point_latitudes_deg: Same.
-    :param fine_grid_point_longitudes_deg: Same.
-    :return: fine_convective_flag_matrix: Same as input, except dimensions are
-        M x N.
-    """
-
-    interp_object = RectBivariateSpline(
-        coarse_grid_point_latitudes_deg, coarse_grid_point_longitudes_deg,
-        coarse_convective_flag_matrix.astype(float), kx=1, ky=1, s=0
-    )
-
-    fine_convective_flag_matrix = interp_object(
-        fine_grid_point_latitudes_deg, fine_grid_point_longitudes_deg,
-        grid=True
-    )
-
-    return numpy.round(fine_convective_flag_matrix).astype(bool)
-
-
 def _apply_convective_criterion1(
         reflectivity_matrix_dbz, peakedness_neigh_metres,
-        max_peakedness_height_m_asl, halve_resolution_for_peakedness,
-        min_composite_refl_dbz, grid_metadata_dict):
+        max_peakedness_height_m_asl, min_composite_refl_dbz,
+        grid_metadata_dict):
     """Applies criterion 1 for convective classification.
 
     Criterion 1 states: the pixel is convective if >= 50% of values in the
@@ -324,7 +238,6 @@ def _apply_convective_criterion1(
     :param reflectivity_matrix_dbz: See doc for `find_convective_pixels`.
     :param peakedness_neigh_metres: Same.
     :param max_peakedness_height_m_asl: Same.
-    :param halve_resolution_for_peakedness: Same.
     :param min_composite_refl_dbz: Same.  Keep in mind that this may be None.
     :param grid_metadata_dict: Dictionary with keys listed in doc for
         `find_convective_pixels`, plus the following extras.
@@ -346,58 +259,33 @@ def _apply_convective_criterion1(
     else:
         max_height_index = aloft_indices[0]
 
-    if halve_resolution_for_peakedness:
-        (coarse_reflectivity_matrix_dbz, coarse_grid_point_latitudes_deg,
-         coarse_grid_point_longitudes_deg
-        ) = _halve_refl_resolution(
-            fine_reflectivity_matrix_dbz=reflectivity_matrix_dbz,
-            fine_grid_point_latitudes_deg=grid_metadata_dict[LATITUDES_KEY],
-            fine_grid_point_longitudes_deg=grid_metadata_dict[LONGITUDES_KEY]
-        )
+    this_reflectivity_matrix_dbz = (
+        reflectivity_matrix_dbz[..., :(max_height_index + 1)] + 0.
+    )
+    this_nan_matrix = numpy.isnan(this_reflectivity_matrix_dbz)
+    this_reflectivity_matrix_dbz[this_nan_matrix] = 0.
 
-        coarse_grid_metadata_dict = {
-            MIN_LATITUDE_KEY: numpy.min(coarse_grid_point_latitudes_deg),
-            LATITUDE_SPACING_KEY:
-                numpy.diff(coarse_grid_point_latitudes_deg[:2])[0],
-            LATITUDES_KEY: coarse_grid_point_latitudes_deg,
-            MIN_LONGITUDE_KEY: numpy.min(coarse_grid_point_longitudes_deg),
-            LONGITUDE_SPACING_KEY:
-                numpy.diff(coarse_grid_point_longitudes_deg[:2])[0],
-            LONGITUDES_KEY: coarse_grid_point_longitudes_deg
-        }
-
-        this_reflectivity_matrix_dbz = (
-            coarse_reflectivity_matrix_dbz[..., :(max_height_index + 1)]
-        )
-
-        num_rows_in_neigh, num_columns_in_neigh = _neigh_metres_to_rowcol(
-            neigh_radius_metres=peakedness_neigh_metres,
-            grid_metadata_dict=coarse_grid_metadata_dict
-        )
-    else:
-        this_reflectivity_matrix_dbz = (
-            reflectivity_matrix_dbz[..., :(max_height_index + 1)]
-        )
-
-        num_rows_in_neigh, num_columns_in_neigh = _neigh_metres_to_rowcol(
-            neigh_radius_metres=peakedness_neigh_metres,
-            grid_metadata_dict=grid_metadata_dict
-        )
-
+    num_rows_in_neigh, num_columns_in_neigh = _neigh_metres_to_rowcol(
+        neigh_radius_metres=peakedness_neigh_metres,
+        grid_metadata_dict=grid_metadata_dict
+    )
     peakedness_matrix_dbz = _get_peakedness(
         reflectivity_matrix_dbz=this_reflectivity_matrix_dbz,
         num_rows_in_neigh=num_rows_in_neigh,
         num_columns_in_neigh=num_columns_in_neigh
     )
-
     peakedness_threshold_matrix_dbz = _get_peakedness_thresholds(
         this_reflectivity_matrix_dbz
     )
 
+    this_reflectivity_matrix_dbz[this_nan_matrix] = numpy.nan
+
     numerator_matrix = numpy.sum(
         peakedness_matrix_dbz > peakedness_threshold_matrix_dbz, axis=-1
     )
-    denominator_matrix = numpy.sum(this_reflectivity_matrix_dbz > 0, axis=-1)
+    denominator_matrix = numpy.sum(
+        numpy.invert(numpy.isnan(this_reflectivity_matrix_dbz)), axis=-1
+    )
     this_flag_matrix = numpy.logical_and(
         numerator_matrix == 0, denominator_matrix == 0
     )
@@ -407,15 +295,6 @@ def _apply_convective_criterion1(
         numerator_matrix.astype(float) / denominator_matrix
     )
     convective_flag_matrix = fractional_exceedance_matrix >= 0.5
-
-    if halve_resolution_for_peakedness:
-        convective_flag_matrix = _double_class_resolution(
-            coarse_convective_flag_matrix=convective_flag_matrix,
-            coarse_grid_point_latitudes_deg=coarse_grid_point_latitudes_deg,
-            coarse_grid_point_longitudes_deg=coarse_grid_point_longitudes_deg,
-            fine_grid_point_latitudes_deg=grid_metadata_dict[LATITUDES_KEY],
-            fine_grid_point_longitudes_deg=grid_metadata_dict[LONGITUDES_KEY]
-        )
 
     if min_composite_refl_dbz is None:
         return convective_flag_matrix
@@ -584,8 +463,6 @@ def find_convective_pixels(reflectivity_matrix_dbz, grid_metadata_dict,
         calculations (metres), used for criterion 1.
     option_dict['max_peakedness_height_m_asl'] Max height (metres above sea
         level) for peakedness calculations, used in criterion 1.
-    option_dict['halve_resolution_for_peakedness'] Boolean flag.  If True,
-        horizontal grid resolution will be halved for peakedness calculations.
     option_dict['min_echo_top_m_asl'] Minimum echo top (metres above sea level),
         used for criterion 3.
     option_dict['echo_top_level_dbz'] Critical reflectivity (used to compute
@@ -612,7 +489,6 @@ def find_convective_pixels(reflectivity_matrix_dbz, grid_metadata_dict,
 
     peakedness_neigh_metres = option_dict[PEAKEDNESS_NEIGH_KEY]
     max_peakedness_height_m_asl = option_dict[MAX_PEAKEDNESS_HEIGHT_KEY]
-    halve_resolution_for_peakedness = option_dict[HALVE_RESOLUTION_KEY]
     min_echo_top_m_asl = option_dict[MIN_ECHO_TOP_KEY]
     echo_top_level_dbz = option_dict[ECHO_TOP_LEVEL_KEY]
     min_composite_refl_criterion1_dbz = (
@@ -651,14 +527,12 @@ def find_convective_pixels(reflectivity_matrix_dbz, grid_metadata_dict,
 
     grid_metadata_dict[LATITUDES_KEY] = grid_point_latitudes_deg
     grid_metadata_dict[LONGITUDES_KEY] = grid_point_longitudes_deg
-    reflectivity_matrix_dbz[numpy.isnan(reflectivity_matrix_dbz)] = 0.
 
     print('Applying criterion 1 for convective classification...')
     convective_flag_matrix = _apply_convective_criterion1(
         reflectivity_matrix_dbz=reflectivity_matrix_dbz,
         peakedness_neigh_metres=peakedness_neigh_metres,
         max_peakedness_height_m_asl=max_peakedness_height_m_asl,
-        halve_resolution_for_peakedness=halve_resolution_for_peakedness,
         min_composite_refl_dbz=min_composite_refl_criterion1_dbz,
         grid_metadata_dict=grid_metadata_dict
     )
@@ -666,6 +540,8 @@ def find_convective_pixels(reflectivity_matrix_dbz, grid_metadata_dict,
     print('Number of convective pixels = {0:d}'.format(
         numpy.sum(convective_flag_matrix)
     ))
+
+    reflectivity_matrix_dbz[numpy.isnan(reflectivity_matrix_dbz)] = 0.
 
     print('Applying criterion 2 for convective classification...')
     convective_flag_matrix = _apply_convective_criterion2(
