@@ -1,16 +1,23 @@
 """IO methods for processed satellite data."""
 
 import os
+import sys
 import gzip
 import copy
 import numpy
 import netCDF4
-from gewittergefahr.gg_utils import time_conversion
-from gewittergefahr.gg_utils import longitude_conversion as lng_conversion
-from gewittergefahr.gg_utils import file_system_utils
-from gewittergefahr.gg_utils import error_checking
-from ml4convection.io import twb_satellite_io
-from ml4convection.io import radar_io
+
+THIS_DIRECTORY_NAME = os.path.dirname(os.path.realpath(
+    os.path.join(os.getcwd(), os.path.expanduser(__file__))
+))
+sys.path.append(os.path.normpath(os.path.join(THIS_DIRECTORY_NAME, '..')))
+
+import time_conversion
+import longitude_conversion as lng_conversion
+import file_system_utils
+import error_checking
+import twb_satellite_io
+import radar_io
 
 TOLERANCE = 1e-6
 GZIP_FILE_EXTENSION = '.gz'
