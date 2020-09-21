@@ -391,6 +391,7 @@ def get_normalization_params(
         top_directory_name=top_satellite_dir_name,
         first_date_string=first_date_string,
         last_date_string=last_date_string,
+        prefer_zipped=True, allow_other_format=True,
         raise_error_if_all_missing=True, raise_error_if_any_missing=True
     )
 

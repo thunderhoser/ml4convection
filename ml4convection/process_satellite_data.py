@@ -152,14 +152,14 @@ def _process_satellite_data_one_time(
 
 def _process_satellite_data_one_day(
         input_dir_name, date_string, allow_missing_days, temporary_dir_name,
-        output_dir_name):
+        output_file_name):
     """Processes satellite data for one day.
 
     :param input_dir_name: See documentation at top of file.
     :param date_string: Will process for this day (format "yyyymmdd").
     :param allow_missing_days: See documentation at top of file.
     :param temporary_dir_name: Same.
-    :param output_dir_name: Same.
+    :param output_file_name: Path to output file.
     """
 
     first_time_unix_sec = (
@@ -194,15 +194,7 @@ def _process_satellite_data_one_day(
     valid_times_unix_sec = numpy.array(list(valid_times_unix_sec), dtype=int)
     valid_times_unix_sec = numpy.sort(valid_times_unix_sec)
 
-    output_file_name = satellite_io.find_file(
-        top_directory_name=output_dir_name, valid_date_string=date_string,
-        raise_error_if_missing=False
-    )
-
-    if os.path.isfile(output_file_name):
-        os.remove(output_file_name)
     num_times = len(valid_times_unix_sec)
-
     append = False
 
     for i in range(num_times):
@@ -238,12 +230,22 @@ def _run(input_dir_name, first_date_string, last_date_string,
     )
 
     for i in range(len(date_strings)):
+        this_netcdf_file_name = satellite_io.find_file(
+            top_directory_name=output_dir_name,
+            valid_date_string=date_strings[i],
+            prefer_zipped=False, allow_other_format=False,
+            raise_error_if_missing=False
+        )
+
         _process_satellite_data_one_day(
             input_dir_name=input_dir_name, date_string=date_strings[i],
             allow_missing_days=allow_missing_days,
             temporary_dir_name=temporary_dir_name,
-            output_dir_name=output_dir_name
+            output_file_name=this_netcdf_file_name
         )
+
+        satellite_io.compress_file(this_netcdf_file_name)
+        os.remove(this_netcdf_file_name)
 
         if i != len(date_strings) - 1:
             print(SEPARATOR_STRING)

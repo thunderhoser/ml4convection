@@ -441,6 +441,8 @@ def compress_file(netcdf_file_name):
     :raises: ValueError: if file is already gzipped.
     """
 
+    # TODO(thunderhoser): Put this method somewhere more general.
+
     error_checking.assert_is_string(netcdf_file_name)
     if netcdf_file_name.endswith(GZIP_FILE_EXTENSION):
         raise ValueError('File must not already be gzipped.')
