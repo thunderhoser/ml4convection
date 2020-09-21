@@ -11,7 +11,6 @@ INPUT_MODEL_FILE_ARG_NAME = 'input_model_file_name'
 OUTPUT_MODEL_DIR_ARG_NAME = 'output_model_dir_name'
 SPATIAL_DS_FACTOR_ARG_NAME = 'spatial_downsampling_factor'
 BAND_NUMBERS_ARG_NAME = 'band_numbers'
-REFL_THRESHOLD_ARG_NAME = 'reflectivity_threshold_dbz'
 LEAD_TIME_ARG_NAME = 'lead_time_seconds'
 FIRST_TRAIN_DATE_ARG_NAME = 'first_training_date_string'
 LAST_TRAIN_DATE_ARG_NAME = 'last_training_date_string'
@@ -70,11 +69,6 @@ BAND_NUMBERS_HELP_STRING = (
     'List of band numbers (integers) for satellite data.  Will use only these '
     'spectral bands as predictors.'
 )
-REFL_THRESHOLD_HELP_STRING = (
-    '[used only if `{0:s} == 0`] '
-    'Reflectivity threshold for convection.  Only grid cells with composite '
-    '(column-max) reflectivity >= threshold will be called convective.'
-).format(USE_PREPROCESSED_FILES_ARG_NAME)
 
 LEAD_TIME_HELP_STRING = 'Lead time for prediction.'
 
@@ -163,10 +157,6 @@ def add_input_args(parser_object):
     parser_object.add_argument(
         '--' + BAND_NUMBERS_ARG_NAME, type=int, nargs='+', required=False,
         default=satellite_io.BAND_NUMBERS, help=BAND_NUMBERS_HELP_STRING
-    )
-    parser_object.add_argument(
-        '--' + REFL_THRESHOLD_ARG_NAME, type=float, required=False,
-        default=35., help=REFL_THRESHOLD_HELP_STRING
     )
     parser_object.add_argument(
         '--' + LEAD_TIME_ARG_NAME, type=int, required=True,

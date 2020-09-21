@@ -4,7 +4,6 @@ import copy
 import unittest
 import numpy
 from ml4convection.io import radar_io
-from ml4convection.io import radar_io_test
 from ml4convection.io import satellite_io
 from ml4convection.io import satellite_io_test
 from ml4convection.io import example_io
@@ -45,22 +44,30 @@ SATELLITE_DICT = {
     satellite_io.BAND_NUMBERS_KEY: BAND_NUMBERS + 0
 }
 
-REFL_MATRIX_EXAMPLE1_DBZ = numpy.array([
-    [10, 20, 30, 40],
-    [20, 30, 40, 50],
-    [30, 40, 50, 60],
-    [40, 50, 60, 70],
-    [50, 60, 70, 80],
-    [60, 40, 20, 0]
-], dtype=float)
+CONV_FLAG_MATRIX_EXAMPLE1 = numpy.array([
+    [0, 0, 0, 1],
+    [0, 0, 1, 1],
+    [0, 1, 1, 1],
+    [1, 1, 1, 1],
+    [0, 1, 1, 1],
+    [0, 0, 1, 1]
+], dtype=bool)
 
-COMPOSITE_REFL_MATRIX_DBZ = numpy.stack((
-    REFL_MATRIX_EXAMPLE1_DBZ, REFL_MATRIX_EXAMPLE1_DBZ + 1,
-    REFL_MATRIX_EXAMPLE1_DBZ + 2, REFL_MATRIX_EXAMPLE1_DBZ + 3
+CONV_FLAG_MATRIX_EXAMPLE2 = numpy.invert(CONV_FLAG_MATRIX_EXAMPLE1)
+CONV_FLAG_MATRIX_EXAMPLE3 = numpy.full(
+    CONV_FLAG_MATRIX_EXAMPLE1.shape, False, dtype=bool
+)
+CONV_FLAG_MATRIX_EXAMPLE4 = numpy.full(
+    CONV_FLAG_MATRIX_EXAMPLE1.shape, True, dtype=bool
+)
+
+CONVECTIVE_FLAG_MATRIX = numpy.stack((
+    CONV_FLAG_MATRIX_EXAMPLE1, CONV_FLAG_MATRIX_EXAMPLE2,
+    CONV_FLAG_MATRIX_EXAMPLE3, CONV_FLAG_MATRIX_EXAMPLE4,
 ), axis=0)
 
-RADAR_DICT = {
-    radar_io.REFLECTIVITY_KEY: COMPOSITE_REFL_MATRIX_DBZ + 0.,
+ECHO_CLASSIFN_DICT = {
+    radar_io.CONVECTIVE_FLAGS_KEY: copy.deepcopy(CONVECTIVE_FLAG_MATRIX),
     radar_io.VALID_TIMES_KEY: VALID_TIMES_UNIX_SEC + 0,
     radar_io.LATITUDES_KEY: LATITUDES_DEG_N + 0.,
     radar_io.LONGITUDES_KEY: LONGITUDES_DEG_E + 0.
@@ -94,19 +101,32 @@ SATELLITE_DICT_DOWNSAMPLED2 = {
     satellite_io.BAND_NUMBERS_KEY: BAND_NUMBERS + 0
 }
 
-REFL_MATRIX_EXAMPLE1_DBZ = numpy.array([
-    [30, 50],
-    [50, 70],
-    [60, 80]
-], dtype=float)
+CONV_FLAG_MATRIX_EXAMPLE1 = numpy.array([
+    [0, 1],
+    [1, 1],
+    [1, 1]
+], dtype=bool)
 
-COMPOSITE_REFL_MATRIX_DBZ = numpy.stack((
-    REFL_MATRIX_EXAMPLE1_DBZ, REFL_MATRIX_EXAMPLE1_DBZ + 1,
-    REFL_MATRIX_EXAMPLE1_DBZ + 2, REFL_MATRIX_EXAMPLE1_DBZ + 3
+CONV_FLAG_MATRIX_EXAMPLE2 = numpy.array([
+    [1, 1],
+    [1, 0],
+    [1, 0]
+], dtype=bool)
+
+CONV_FLAG_MATRIX_EXAMPLE3 = numpy.full(
+    CONV_FLAG_MATRIX_EXAMPLE1.shape, False, dtype=bool
+)
+CONV_FLAG_MATRIX_EXAMPLE4 = numpy.full(
+    CONV_FLAG_MATRIX_EXAMPLE1.shape, True, dtype=bool
+)
+
+CONVECTIVE_FLAG_MATRIX = numpy.stack((
+    CONV_FLAG_MATRIX_EXAMPLE1, CONV_FLAG_MATRIX_EXAMPLE2,
+    CONV_FLAG_MATRIX_EXAMPLE3, CONV_FLAG_MATRIX_EXAMPLE4,
 ), axis=0)
 
-RADAR_DICT_DOWNSAMPLED2 = {
-    radar_io.REFLECTIVITY_KEY: COMPOSITE_REFL_MATRIX_DBZ + 0.,
+ECHO_CLASSIFN_DICT_DOWNSAMPLED2 = {
+    radar_io.CONVECTIVE_FLAGS_KEY: copy.deepcopy(CONVECTIVE_FLAG_MATRIX),
     radar_io.VALID_TIMES_KEY: VALID_TIMES_UNIX_SEC + 0,
     radar_io.LATITUDES_KEY: LATITUDES_DEG_N + 0.,
     radar_io.LONGITUDES_KEY: LONGITUDES_DEG_E + 0.
@@ -135,17 +155,28 @@ SATELLITE_DICT_DOWNSAMPLED4 = {
     satellite_io.BAND_NUMBERS_KEY: BAND_NUMBERS + 0
 }
 
-REFL_MATRIX_EXAMPLE1_DBZ = numpy.array([
-    [70]
-], dtype=float)
+CONV_FLAG_MATRIX_EXAMPLE1 = numpy.array([
+    [1]
+], dtype=bool)
 
-COMPOSITE_REFL_MATRIX_DBZ = numpy.stack((
-    REFL_MATRIX_EXAMPLE1_DBZ, REFL_MATRIX_EXAMPLE1_DBZ + 1,
-    REFL_MATRIX_EXAMPLE1_DBZ + 2, REFL_MATRIX_EXAMPLE1_DBZ + 3
+CONV_FLAG_MATRIX_EXAMPLE2 = numpy.array([
+    [1]
+], dtype=bool)
+
+CONV_FLAG_MATRIX_EXAMPLE3 = numpy.full(
+    CONV_FLAG_MATRIX_EXAMPLE1.shape, False, dtype=bool
+)
+CONV_FLAG_MATRIX_EXAMPLE4 = numpy.full(
+    CONV_FLAG_MATRIX_EXAMPLE1.shape, True, dtype=bool
+)
+
+CONVECTIVE_FLAG_MATRIX = numpy.stack((
+    CONV_FLAG_MATRIX_EXAMPLE1, CONV_FLAG_MATRIX_EXAMPLE2,
+    CONV_FLAG_MATRIX_EXAMPLE3, CONV_FLAG_MATRIX_EXAMPLE4,
 ), axis=0)
 
-RADAR_DICT_DOWNSAMPLED4 = {
-    radar_io.REFLECTIVITY_KEY: COMPOSITE_REFL_MATRIX_DBZ + 0.,
+ECHO_CLASSIFN_DICT_DOWNSAMPLED4 = {
+    radar_io.CONVECTIVE_FLAGS_KEY: copy.deepcopy(CONVECTIVE_FLAG_MATRIX),
     radar_io.VALID_TIMES_KEY: VALID_TIMES_UNIX_SEC + 0,
     radar_io.LATITUDES_KEY: LATITUDES_DEG_N + 0.,
     radar_io.LONGITUDES_KEY: LONGITUDES_DEG_E + 0.
@@ -253,12 +284,10 @@ TARGET_MATRIX = (
 ).astype(int)
 
 TARGET_DICT_ALL_EXAMPLES = {
-    example_io.COMPOSITE_REFL_MATRIX_KEY: None,
     example_io.TARGET_MATRIX_KEY: TARGET_MATRIX + 0,
     example_io.LATITUDES_KEY: LATITUDES_DEG_N,
     example_io.LONGITUDES_KEY: LONGITUDES_DEG_E,
-    example_io.VALID_TIMES_KEY: VALID_TIMES_UNIX_SEC + 0,
-    example_io.COMPOSITE_REFL_THRESHOLD_KEY: COMPOSITE_REFL_THRESHOLD_DBZ
+    example_io.VALID_TIMES_KEY: VALID_TIMES_UNIX_SEC + 0
 }
 
 DESIRED_INDICES = numpy.array([1, 7, 5, 3], dtype=int)
@@ -276,12 +305,10 @@ PREDICTOR_DICT_SUBSET_BY_INDEX = {
 }
 
 TARGET_DICT_SUBSET_BY_INDEX = {
-    example_io.COMPOSITE_REFL_MATRIX_KEY: None,
     example_io.TARGET_MATRIX_KEY: TARGET_MATRIX[[1, 7, 5, 3], ...],
     example_io.LATITUDES_KEY: LATITUDES_DEG_N,
     example_io.LONGITUDES_KEY: LONGITUDES_DEG_E,
-    example_io.VALID_TIMES_KEY: VALID_TIMES_UNIX_SEC[[1, 7, 5, 3]],
-    example_io.COMPOSITE_REFL_THRESHOLD_KEY: COMPOSITE_REFL_THRESHOLD_DBZ
+    example_io.VALID_TIMES_KEY: VALID_TIMES_UNIX_SEC[[1, 7, 5, 3]]
 }
 
 DESIRED_TIMES_UNIX_SEC = numpy.array([2, 6, 0, 4], dtype=int)
@@ -299,12 +326,10 @@ PREDICTOR_DICT_SUBSET_BY_TIME = {
 }
 
 TARGET_DICT_SUBSET_BY_TIME = {
-    example_io.COMPOSITE_REFL_MATRIX_KEY: None,
     example_io.TARGET_MATRIX_KEY: TARGET_MATRIX[[2, 6, 0, 4], ...],
     example_io.LATITUDES_KEY: LATITUDES_DEG_N,
     example_io.LONGITUDES_KEY: LONGITUDES_DEG_E,
-    example_io.VALID_TIMES_KEY: VALID_TIMES_UNIX_SEC[[2, 6, 0, 4]],
-    example_io.COMPOSITE_REFL_THRESHOLD_KEY: COMPOSITE_REFL_THRESHOLD_DBZ
+    example_io.VALID_TIMES_KEY: VALID_TIMES_UNIX_SEC[[2, 6, 0, 4]]
 }
 
 PREDICTOR_DICT_CONCAT = {
@@ -372,6 +397,42 @@ def _compare_predictor_dicts(first_predictor_dict, second_predictor_dict):
     return True
 
 
+def _compare_echo_classifn_dicts(first_echo_classifn_dict,
+                                 second_echo_classifn_dict):
+    """Compares two dictionaries with echo-classification data.
+
+    :param first_echo_classifn_dict: See doc for
+        `radar_io.read_echo_classifn_file`.
+    :param second_echo_classifn_dict: Same.
+    :return: are_dicts_equal: Boolean flag.
+    """
+
+    first_keys = list(first_echo_classifn_dict.keys())
+    second_keys = list(second_echo_classifn_dict.keys())
+    if set(first_keys) != set(second_keys):
+        return False
+
+    float_keys = [radar_io.LATITUDES_KEY, radar_io.LONGITUDES_KEY]
+    exact_keys = [radar_io.CONVECTIVE_FLAGS_KEY, radar_io.VALID_TIMES_KEY]
+
+    for this_key in float_keys:
+        if not numpy.allclose(
+                first_echo_classifn_dict[this_key],
+                second_echo_classifn_dict[this_key],
+                atol=TOLERANCE
+        ):
+            return False
+
+    for this_key in exact_keys:
+        if not numpy.array_equal(
+                first_echo_classifn_dict[this_key],
+                second_echo_classifn_dict[this_key]
+        ):
+            return False
+
+    return True
+
+
 def _compare_target_dicts(first_target_dict, second_target_dict):
     """Compares two dictionaries with target data.
 
@@ -385,49 +446,19 @@ def _compare_target_dicts(first_target_dict, second_target_dict):
     if set(first_keys) != set(second_keys):
         return False
 
-    maybe_none_keys = [
-        example_io.COMPOSITE_REFL_MATRIX_KEY, example_io.TARGET_MATRIX_KEY
-    ]
-    float_array_keys = [
-        example_io.COMPOSITE_REFL_MATRIX_KEY,
-        example_io.LATITUDES_KEY, example_io.LONGITUDES_KEY
-    ]
-    integer_array_keys = [
-        example_io.TARGET_MATRIX_KEY, example_io.VALID_TIMES_KEY
-    ]
-    float_keys = [example_io.COMPOSITE_REFL_THRESHOLD_KEY]
+    float_keys = [example_io.LATITUDES_KEY, example_io.LONGITUDES_KEY]
+    integer_keys = [example_io.TARGET_MATRIX_KEY, example_io.VALID_TIMES_KEY]
 
-    for this_key in float_array_keys:
-        if (
-                this_key in maybe_none_keys
-                and first_target_dict[this_key] is None
-                and second_target_dict[this_key] is None
-        ):
-            continue
-
+    for this_key in float_keys:
         if not numpy.allclose(
                 first_target_dict[this_key], second_target_dict[this_key],
                 atol=TOLERANCE
         ):
             return False
 
-    for this_key in integer_array_keys:
-        if (
-                this_key in maybe_none_keys
-                and first_target_dict[this_key] is None
-                and second_target_dict[this_key] is None
-        ):
-            continue
-
+    for this_key in integer_keys:
         if not numpy.array_equal(
                 first_target_dict[this_key], second_target_dict[this_key]
-        ):
-            return False
-
-    for this_key in float_keys:
-        if not numpy.isclose(
-                first_target_dict[this_key], second_target_dict[this_key],
-                atol=TOLERANCE
         ):
             return False
 
@@ -443,10 +474,10 @@ class ExampleIoTests(unittest.TestCase):
         In this case, downsampling factor is 2.
         """
 
-        this_satellite_dict, this_radar_dict = (
+        this_satellite_dict, this_echo_classifn_dict = (
             example_io.downsample_data_in_space(
                 satellite_dict=copy.deepcopy(SATELLITE_DICT),
-                radar_dict=copy.deepcopy(RADAR_DICT),
+                echo_classifn_dict=copy.deepcopy(ECHO_CLASSIFN_DICT),
                 downsampling_factor=2, change_coordinates=True
             )
         )
@@ -454,8 +485,8 @@ class ExampleIoTests(unittest.TestCase):
         self.assertTrue(satellite_io_test.compare_satellite_dicts(
             this_satellite_dict, SATELLITE_DICT_DOWNSAMPLED2
         ))
-        self.assertTrue(radar_io_test.compare_reflectivity_dicts(
-            this_radar_dict, RADAR_DICT_DOWNSAMPLED2
+        self.assertTrue(_compare_echo_classifn_dicts(
+            this_echo_classifn_dict, ECHO_CLASSIFN_DICT_DOWNSAMPLED2
         ))
 
     def test_downsample_data_in_space_factor4(self):
@@ -464,10 +495,10 @@ class ExampleIoTests(unittest.TestCase):
         In this case, downsampling factor is 4.
         """
 
-        this_satellite_dict, this_radar_dict = (
+        this_satellite_dict, this_echo_classifn_dict = (
             example_io.downsample_data_in_space(
                 satellite_dict=copy.deepcopy(SATELLITE_DICT),
-                radar_dict=copy.deepcopy(RADAR_DICT),
+                echo_classifn_dict=copy.deepcopy(ECHO_CLASSIFN_DICT),
                 downsampling_factor=4, change_coordinates=True
             )
         )
@@ -475,8 +506,8 @@ class ExampleIoTests(unittest.TestCase):
         self.assertTrue(satellite_io_test.compare_satellite_dicts(
             this_satellite_dict, SATELLITE_DICT_DOWNSAMPLED4
         ))
-        self.assertTrue(radar_io_test.compare_reflectivity_dicts(
-            this_radar_dict, RADAR_DICT_DOWNSAMPLED4
+        self.assertTrue(_compare_echo_classifn_dicts(
+            this_echo_classifn_dict, ECHO_CLASSIFN_DICT_DOWNSAMPLED4
         ))
 
     def test_find_predictor_file(self):

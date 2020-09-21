@@ -347,7 +347,8 @@ class RadarIoTests(unittest.TestCase):
         """Ensures correct output from subset_by_index."""
 
         this_reflectivity_dict = radar_io.subset_by_index(
-            reflectivity_dict=copy.deepcopy(REFLECTIVITY_DICT_ALL_EXAMPLES),
+            refl_or_echo_classifn_dict=
+            copy.deepcopy(REFLECTIVITY_DICT_ALL_EXAMPLES),
             desired_indices=DESIRED_INDICES
         )
 
@@ -359,7 +360,8 @@ class RadarIoTests(unittest.TestCase):
         """Ensures correct output from subset_by_time."""
 
         this_reflectivity_dict = radar_io.subset_by_time(
-            reflectivity_dict=copy.deepcopy(REFLECTIVITY_DICT_ALL_EXAMPLES),
+            refl_or_echo_classifn_dict=
+            copy.deepcopy(REFLECTIVITY_DICT_ALL_EXAMPLES),
             desired_times_unix_sec=DESIRED_TIMES_UNIX_SEC
         )[0]
 

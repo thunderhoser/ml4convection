@@ -7,13 +7,13 @@ from ml4convection.machine_learning import neural_net
 
 # The following constants are used to test _find_days_with_raw_inputs.
 TOP_SATELLITE_DIR_NAME = 'foo'
-TOP_RADAR_DIR_NAME = 'bar'
+TOP_ECHO_CLASSIFN_DIR_NAME = 'bar'
 
 SATELLITE_DATE_STRINGS = [
     '20200105', '20200103', '20200110', '20200115', '20200109', '20200104',
     '20200112', '20200113', '20200102', '20200106'
 ]
-RADAR_DATE_STRINGS = [
+ECHO_CLASSIFN_DATE_STRINGS = [
     '20200109', '20200107', '20200111', '20200108', '20200113', '20200103',
     '20200112', '20200101', '20200110', '20200115'
 ]
@@ -25,11 +25,12 @@ SATELLITE_FILE_NAMES = [
     ) for d in SATELLITE_DATE_STRINGS
 ]
 
-RADAR_FILE_NAMES = [
+ECHO_CLASSIFN_FILE_NAMES = [
     radar_io.find_file(
-        top_directory_name=TOP_RADAR_DIR_NAME, valid_date_string=d,
-        with_3d=False, raise_error_if_missing=False
-    ) for d in RADAR_DATE_STRINGS
+        top_directory_name=TOP_ECHO_CLASSIFN_DIR_NAME, valid_date_string=d,
+        file_type_string=radar_io.ECHO_CLASSIFN_TYPE_STRING,
+        raise_error_if_missing=False
+    ) for d in ECHO_CLASSIFN_DATE_STRINGS
 ]
 
 VALID_DATE_STRINGS_ZERO_LEAD = [
@@ -49,7 +50,8 @@ class NeuralNetTests(unittest.TestCase):
 
         these_date_strings = neural_net._find_days_with_raw_inputs(
             satellite_file_names=SATELLITE_FILE_NAMES,
-            radar_file_names=RADAR_FILE_NAMES, lead_time_seconds=0
+            echo_classifn_file_names=ECHO_CLASSIFN_FILE_NAMES,
+            lead_time_seconds=0
         )
 
         self.assertTrue(these_date_strings == VALID_DATE_STRINGS_ZERO_LEAD)
@@ -62,7 +64,8 @@ class NeuralNetTests(unittest.TestCase):
 
         these_date_strings = neural_net._find_days_with_raw_inputs(
             satellite_file_names=SATELLITE_FILE_NAMES,
-            radar_file_names=RADAR_FILE_NAMES, lead_time_seconds=600
+            echo_classifn_file_names=ECHO_CLASSIFN_FILE_NAMES,
+            lead_time_seconds=600
         )
 
         self.assertTrue(these_date_strings == VALID_DATE_STRINGS_NONZERO_LEAD)

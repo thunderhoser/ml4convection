@@ -186,16 +186,14 @@ def _run(model_file_name, top_predictor_dir_name, top_target_dir_name,
             )
 
         base_option_dict = {
-            neural_net.PREDICTOR_DIRECTORY_KEY: top_predictor_dir_name,
-            neural_net.TARGET_DIRECTORY_KEY: top_target_dir_name,
+            neural_net.SATELLITE_DIRECTORY_KEY: top_predictor_dir_name,
+            neural_net.ECHO_CLASSIFN_DIR_KEY: top_target_dir_name,
             neural_net.SPATIAL_DS_FACTOR_KEY:
                 training_option_dict[neural_net.SPATIAL_DS_FACTOR_KEY],
             neural_net.BAND_NUMBERS_KEY:
                 training_option_dict[neural_net.BAND_NUMBERS_KEY],
             neural_net.LEAD_TIME_KEY:
                 training_option_dict[neural_net.LEAD_TIME_KEY],
-            neural_net.REFL_THRESHOLD_KEY:
-                training_option_dict[neural_net.REFL_THRESHOLD_KEY],
             neural_net.NORMALIZATION_DICT_KEY: norm_dict_for_count,
             neural_net.UNIFORMIZE_FLAG_KEY:
                 training_option_dict[neural_net.UNIFORMIZE_FLAG_KEY]
