@@ -1,0 +1,30 @@
+#!/bin/tcsh
+
+#SBATCH --job-name="create_radar_mask"
+#SBATCH --partition="fge"
+#SBATCH --account="rda-ghpcs"
+#SBATCH --qos="batch"
+#SBATCH --ntasks=1
+#SBATCH --nodes=1
+#SBATCH --cpus-per-task=1
+#SBATCH --mem=16G
+#SBATCH --time=06:00:00
+##SBATCH --exclude=h31n03,h28n12
+##SBATCH --exclude=h29n01,h26n05,h28n06,h29n07,h30n03,h30n15
+#SBATCH --mail-type=BEGIN,END,FAIL
+#SBATCH --mail-user=ryan.lagerquist@noaa.gov
+#SBATCH --output=create_radar_mask_%A.out
+
+module load cuda/10.1
+source /scratch2/BMC/gsd-hpcs/Jebb.Q.Stewart/conda3.7/etc/profile.d/conda.csh
+conda activate base
+
+set CODE_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_standalone/ml4convection"
+set COUNT_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_project/radar_data/counts"
+
+python3 -u "${CODE_DIR_NAME}/create_radar_mask.py" \
+--input_count_dir_name="${COUNT_DIR_NAME}" \
+--max_height_m_asl=9000 \
+--min_observations=10000 \
+--min_height_fraction=0.5 \
+--output_file_name="${COUNT_DIR_NAME}/mask_max-height-m-asl=09000_min-observations=010000_min-height-fraction=0.500000.nc"
