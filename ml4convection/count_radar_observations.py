@@ -110,9 +110,10 @@ def _increment_counts_one_day(
             atol=TOLERANCE
         )
 
-    new_count_matrix = numpy.invert(
-        numpy.isnan(reflectivity_dict[radar_io.REFLECTIVITY_KEY])
-    ).astype(int)
+    new_count_matrix = numpy.sum(
+        numpy.invert(numpy.isnan(reflectivity_dict[radar_io.REFLECTIVITY_KEY])),
+        axis=0
+    )
 
     if count_matrix is None:
         count_matrix = new_count_matrix + 0
