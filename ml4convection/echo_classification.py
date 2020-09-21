@@ -381,7 +381,7 @@ def _apply_convective_criterion1(
     )
     print(numerator_matrix)
     denominator_matrix = numpy.sum(
-        numpy.invert(numpy.isnan(this_reflectivity_matrix_dbz)).astype(int),
+        (this_reflectivity_matrix_dbz > 0).astype(int),
         axis=-1
     )
     print(denominator_matrix)
