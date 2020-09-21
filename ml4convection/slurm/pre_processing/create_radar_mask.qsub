@@ -25,6 +25,6 @@ set COUNT_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_pro
 python3 -u "${CODE_DIR_NAME}/create_radar_mask.py" \
 --input_count_dir_name="${COUNT_DIR_NAME}" \
 --max_height_m_asl=9000 \
---min_observations=10000 \
+--min_observations=1000 \
 --min_height_fraction=0.5 \
---output_file_name="${COUNT_DIR_NAME}/mask_max-height-m-asl=09000_min-observations=010000_min-height-fraction=0.500000.nc"
+--output_file_name="${COUNT_DIR_NAME}/mask_max-height-m-asl=09000_min-observations=001000_min-height-fraction=0.500000.nc"
