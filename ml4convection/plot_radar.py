@@ -328,9 +328,14 @@ def _plot_radar_one_day(
     num_examples = len(reflectivity_dict[radar_io.VALID_TIMES_KEY])
 
     for i in range(num_examples):
+        this_convective_flag_matrix = (
+            None if convective_flag_matrix is None
+            else convective_flag_matrix[i, ...]
+        )
+
         _plot_radar_one_example(
             reflectivity_dict=reflectivity_dict,
-            convective_flag_matrix=convective_flag_matrix[i, ...],
+            convective_flag_matrix=this_convective_flag_matrix,
             example_index=i, plot_basemap=plot_basemap,
             output_dir_name=output_dir_name
         )
