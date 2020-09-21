@@ -201,11 +201,14 @@ def _run_for_one_day(
         this_time_string = time_conversion.unix_sec_to_string(
             valid_times_unix_sec[i], TIME_FORMAT_FOR_MESSAGES
         )
-        print('Number of convective pixels at {0:s} = {1:d} of {2:d}'.format(
+        print((
+            '\nNumber of convective pixels at {0:s} = {1:d} of {2:d}\n'
+        ).format(
             this_time_string, numpy.sum(convective_flag_matrix[i, ...]),
             convective_flag_matrix[i, ...].size
         ))
 
+    print('Writing results to: "{0:s}"...'.format(output_file_name))
     radar_io.write_echo_classifn_file(
         netcdf_file_name=output_file_name,
         convective_flag_matrix=convective_flag_matrix,
@@ -270,6 +273,8 @@ def _run(top_radar_dir_name, first_date_string, last_date_string,
             min_reflectivity_aml_dbz=min_reflectivity_aml_dbz,
             output_file_name=this_output_file_name
         )
+
+        print(SEPARATOR_STRING)
 
 
 if __name__ == '__main__':
