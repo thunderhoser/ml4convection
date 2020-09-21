@@ -283,11 +283,13 @@ def _double_class_resolution(
 
     interp_object = RectBivariateSpline(
         coarse_grid_point_latitudes_deg, coarse_grid_point_longitudes_deg,
-        coarse_convective_flag_matrix.astype(float), kx=1, ky=1, s=0)
+        coarse_convective_flag_matrix.astype(float), kx=1, ky=1, s=0
+    )
 
     fine_convective_flag_matrix = interp_object(
         fine_grid_point_latitudes_deg, fine_grid_point_longitudes_deg,
-        grid=True)
+        grid=True
+    )
 
     return numpy.round(fine_convective_flag_matrix).astype(bool)
 
@@ -363,21 +365,29 @@ def _apply_convective_criterion1(
     peakedness_matrix_dbz = _get_peakedness(
         reflectivity_matrix_dbz=this_reflectivity_matrix_dbz,
         num_rows_in_neigh=num_rows_in_neigh,
-        num_columns_in_neigh=num_columns_in_neigh)
+        num_columns_in_neigh=num_columns_in_neigh
+    )
+    print(numpy.any(numpy.isnan(this_reflectivity_matrix_dbz)))
+    print(peakedness_matrix_dbz)
 
     peakedness_threshold_matrix_dbz = _get_peakedness_thresholds(
-        this_reflectivity_matrix_dbz)
+        this_reflectivity_matrix_dbz
+    )
+    print(peakedness_threshold_matrix_dbz)
 
     numerator = numpy.sum(
         (peakedness_matrix_dbz > peakedness_threshold_matrix_dbz).astype(int),
         axis=-1
     )
+    print(numerator)
     denominator = numpy.sum(
         (this_reflectivity_matrix_dbz > 0).astype(int),
         axis=-1
     )
+    print(denominator)
 
     fractional_exceedance_matrix = numerator.astype(float) / denominator
+    print(fractional_exceedance_matrix)
     convective_flag_matrix = (fractional_exceedance_matrix >= 0.5).astype(bool)
 
     if halve_resolution_for_peakedness:
@@ -625,8 +635,6 @@ def find_convective_pixels(reflectivity_matrix_dbz, grid_metadata_dict,
         min_composite_refl_dbz=min_composite_refl_criterion1_dbz,
         grid_metadata_dict=grid_metadata_dict)
 
-    print(reflectivity_matrix_dbz)
-    print(convective_flag_matrix)
     print('Number of convective pixels = {0:d}'.format(
         numpy.sum(convective_flag_matrix)
     ))
