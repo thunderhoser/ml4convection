@@ -16,7 +16,6 @@ import time_conversion
 import longitude_conversion as lng_conversion
 import file_system_utils
 import error_checking
-import twb_satellite_io
 import radar_io
 
 TOLERANCE = 1e-6
@@ -27,24 +26,18 @@ DAYS_TO_SECONDS = 86400
 
 BAND_NUMBERS = numpy.array([8, 9, 10, 11, 13, 14, 16], dtype=int)
 
-MIN_BRIGHTNESS_COUNT = 0
-MAX_BRIGHTNESS_COUNT = 255
-
 TIME_DIMENSION_KEY = 'time'
 ROW_DIMENSION_KEY = 'row'
 COLUMN_DIMENSION_KEY = 'column'
 BAND_DIMENSION_KEY = 'band'
 
+BRIGHTNESS_TEMP_KEY = 'brightness_temp_matrix_kelvins'
 VALID_TIMES_KEY = 'valid_times_unix_sec'
 LATITUDES_KEY = 'latitudes_deg_n'
 LONGITUDES_KEY = 'longitudes_deg_e'
 BAND_NUMBERS_KEY = 'band_numbers'
-BRIGHTNESS_TEMP_KEY = 'brightness_temp_matrix_kelvins'
-BRIGHTNESS_COUNT_KEY = 'brightness_count_matrix'
 
-ONE_PER_EXAMPLE_KEYS = [
-    VALID_TIMES_KEY, BRIGHTNESS_TEMP_KEY, BRIGHTNESS_COUNT_KEY
-]
+ONE_PER_EXAMPLE_KEYS = [VALID_TIMES_KEY, BRIGHTNESS_TEMP_KEY]
 
 
 def find_file(
@@ -174,28 +167,23 @@ def find_many_files(
 
 
 def write_file(
-        netcdf_file_name, latitudes_deg_n, longitudes_deg_e, band_numbers,
-        valid_time_unix_sec, append, brightness_temp_matrix_kelvins=None,
-        brightness_count_matrix=None):
+        netcdf_file_name, brightness_temp_matrix_kelvins, latitudes_deg_n,
+        longitudes_deg_e, band_numbers, valid_time_unix_sec, append):
     """Writes satellite data to NetCDF file.
 
     M = number of rows in grid
     N = number of columns in grid
     C = number of channels (spectral bands)
 
-    At least one of the last two arguments must be specified.
-
     :param netcdf_file_name: Path to output file.
+    :param brightness_temp_matrix_kelvins: M-by-N-by-C numpy array of brightness
+        temperatures.
     :param latitudes_deg_n: length-M numpy array of latitudes (deg N).
     :param longitudes_deg_e: length-N numpy array of longitudes (deg E).
     :param band_numbers: length-C numpy array of band numbers (integers).
     :param valid_time_unix_sec: Valid time.
     :param append: Boolean flag.  If True, will append to file if file already
         exists.  If False, will create new file, overwriting if necessary.
-    :param brightness_temp_matrix_kelvins: M-by-N-by-C numpy array of brightness
-        temperatures.
-    :param brightness_count_matrix: M-by-N-by-C numpy array of brightness
-        counts.
     :raises: ValueError: if output file is a gzip file.
     """
 
@@ -232,33 +220,17 @@ def write_file(
         [num_grid_rows, num_grid_columns, num_channels], dtype=int
     )
 
-    if brightness_temp_matrix_kelvins is not None:
-        error_checking.assert_is_numpy_array(
-            brightness_temp_matrix_kelvins, exact_dimensions=expected_dim
-        )
-        error_checking.assert_is_greater_numpy_array(
-            brightness_temp_matrix_kelvins, 0., allow_nan=True
-        )
-
-    if brightness_count_matrix is not None:
-        error_checking.assert_is_numpy_array(
-            brightness_count_matrix, exact_dimensions=expected_dim
-        )
-        error_checking.assert_is_geq_numpy_array(
-            brightness_count_matrix, MIN_BRIGHTNESS_COUNT, allow_nan=True
-        )
-        error_checking.assert_is_leq_numpy_array(
-            brightness_count_matrix, MAX_BRIGHTNESS_COUNT, allow_nan=True
-        )
-
-    assert not (
-        brightness_temp_matrix_kelvins is None
-        and brightness_count_matrix is None
+    error_checking.assert_is_numpy_array(
+        brightness_temp_matrix_kelvins, exact_dimensions=expected_dim
+    )
+    error_checking.assert_is_greater_numpy_array(
+        brightness_temp_matrix_kelvins, 0., allow_nan=True
     )
 
     error_checking.assert_is_boolean(append)
-    append = append and os.path.isfile(netcdf_file_name)
 
+    # Do actual stuff.
+    append = append and os.path.isfile(netcdf_file_name)
     file_system_utils.mkdir_recursive_if_necessary(file_name=netcdf_file_name)
 
     if append:
@@ -287,16 +259,9 @@ def write_file(
         dataset_object.variables[VALID_TIMES_KEY][num_times_orig, ...] = (
             valid_time_unix_sec
         )
-
-        if brightness_temp_matrix_kelvins is not None:
-            dataset_object.variables[BRIGHTNESS_TEMP_KEY][
-                num_times_orig, ...
-            ] = brightness_temp_matrix_kelvins
-
-        if brightness_count_matrix is not None:
-            dataset_object.variables[BRIGHTNESS_COUNT_KEY][
-                num_times_orig, ...
-            ] = brightness_count_matrix
+        dataset_object.variables[BRIGHTNESS_TEMP_KEY][num_times_orig, ...] = (
+            brightness_temp_matrix_kelvins
+        )
 
         dataset_object.close()
         return
@@ -337,27 +302,17 @@ def write_file(
         TIME_DIMENSION_KEY, ROW_DIMENSION_KEY, COLUMN_DIMENSION_KEY,
         BAND_DIMENSION_KEY
     )
-
-    if brightness_temp_matrix_kelvins is not None:
-        dataset_object.createVariable(
-            BRIGHTNESS_TEMP_KEY, datatype=numpy.float32, dimensions=these_dim
-        )
-        dataset_object.variables[BRIGHTNESS_TEMP_KEY][:] = (
-            numpy.expand_dims(brightness_temp_matrix_kelvins, axis=0)
-        )
-
-    if brightness_count_matrix is not None:
-        dataset_object.createVariable(
-            BRIGHTNESS_COUNT_KEY, datatype=numpy.float32, dimensions=these_dim
-        )
-        dataset_object.variables[BRIGHTNESS_COUNT_KEY][:] = (
-            numpy.expand_dims(brightness_count_matrix, axis=0)
-        )
+    dataset_object.createVariable(
+        BRIGHTNESS_TEMP_KEY, datatype=numpy.float32, dimensions=these_dim
+    )
+    dataset_object.variables[BRIGHTNESS_TEMP_KEY][:] = (
+        numpy.expand_dims(brightness_temp_matrix_kelvins, axis=0)
+    )
 
     dataset_object.close()
 
 
-def read_file(netcdf_file_name, read_temperatures, read_counts, fill_nans=True):
+def read_file(netcdf_file_name, fill_nans=True):
     """Reads satellite data from NetCDF file.
 
     T = number of time steps
@@ -366,18 +321,11 @@ def read_file(netcdf_file_name, read_temperatures, read_counts, fill_nans=True):
     C = number of channels (spectral bands)
 
     :param netcdf_file_name: Path to input file.
-    :param read_temperatures: Boolean flag.  If True, will read brightness
-        temperatures.
-    :param read_counts: Boolean flag.  If True, will read brightness counts.
     :param fill_nans: Boolean flag.  If True, will use interpolation to fill NaN
         values.
     :return: satellite_dict: Dictionary with the following keys.
     satellite_dict['brightness_temp_matrix_kelvins']: T-by-M-by-N-by-C numpy
-        array of brightness temperatures.  If `read_temperatures == False`,
-        this will be None.
-    satellite_dict['brightness_count_matrix']: T-by-M-by-N-by-C numpy
-        array of brightness counts.  If `read_counts == False`,
-        this will be None.
+        array of brightness temperatures.
     satellite_dict['valid_times_unix_sec']: length-T numpy array of valid times.
     satellite_dict['latitudes_deg_n']: length-M numpy array of latitudes
         (deg N).
@@ -387,22 +335,13 @@ def read_file(netcdf_file_name, read_temperatures, read_counts, fill_nans=True):
         (integers).
     """
 
-    error_checking.assert_is_boolean(read_temperatures)
-    error_checking.assert_is_boolean(read_counts)
     error_checking.assert_is_boolean(fill_nans)
 
-    satellite_dict = {
-        BRIGHTNESS_TEMP_KEY: None,
-        BRIGHTNESS_COUNT_KEY: None
-    }
-
     keys_to_read = [
-        VALID_TIMES_KEY, LATITUDES_KEY, LONGITUDES_KEY, BAND_NUMBERS_KEY
+        BRIGHTNESS_TEMP_KEY, VALID_TIMES_KEY, LATITUDES_KEY, LONGITUDES_KEY,
+        BAND_NUMBERS_KEY
     ]
-    if read_temperatures:
-        keys_to_read.append(BRIGHTNESS_TEMP_KEY)
-    if read_counts:
-        keys_to_read.append(BRIGHTNESS_COUNT_KEY)
+    satellite_dict = dict()
 
     if netcdf_file_name.endswith(GZIP_FILE_EXTENSION):
         with gzip.open(netcdf_file_name) as gzip_handle:
@@ -423,16 +362,8 @@ def read_file(netcdf_file_name, read_temperatures, read_counts, fill_nans=True):
 
         dataset_object.close()
 
-    if read_temperatures and fill_nans:
-        # TODO(thunderhoser): Find smarter way to deal with this.
-        satellite_dict[BRIGHTNESS_TEMP_KEY][
-            numpy.isnan(satellite_dict[BRIGHTNESS_TEMP_KEY])
-        ] = 300.
-
-    if read_counts and fill_nans:
-        satellite_dict[BRIGHTNESS_COUNT_KEY][
-            numpy.isnan(satellite_dict[BRIGHTNESS_COUNT_KEY])
-        ] = 0.
+    if fill_nans:
+        pass
 
     return satellite_dict
 
@@ -466,16 +397,9 @@ def subset_by_band(satellite_dict, band_numbers):
     satellite_dict[BAND_NUMBERS_KEY] = (
         satellite_dict[BAND_NUMBERS_KEY][indices_to_keep]
     )
-
-    if satellite_dict[BRIGHTNESS_TEMP_KEY] is not None:
-        satellite_dict[BRIGHTNESS_TEMP_KEY] = (
-            satellite_dict[BRIGHTNESS_TEMP_KEY][..., indices_to_keep]
-        )
-
-    if satellite_dict[BRIGHTNESS_COUNT_KEY] is not None:
-        satellite_dict[BRIGHTNESS_COUNT_KEY] = (
-            satellite_dict[BRIGHTNESS_COUNT_KEY][..., indices_to_keep]
-        )
+    satellite_dict[BRIGHTNESS_TEMP_KEY] = (
+        satellite_dict[BRIGHTNESS_TEMP_KEY][..., indices_to_keep]
+    )
 
     return satellite_dict
 
@@ -496,9 +420,6 @@ def subset_by_index(satellite_dict, desired_indices):
     )
 
     for this_key in ONE_PER_EXAMPLE_KEYS:
-        if satellite_dict[this_key] is None:
-            continue
-
         satellite_dict[this_key] = (
             satellite_dict[this_key][desired_indices, ...]
         )
@@ -541,8 +462,6 @@ def concat_data(satellite_dicts):
         `read_file`.
     :return: satellite_dict: Single dictionary, also in the format returned by
         `read_file`.
-    :raises: ValueError: if any two dictionaries have different band numbers,
-        latitudes, longitudes, or variables.
     """
 
     satellite_dict = copy.deepcopy(satellite_dicts[0])
@@ -574,72 +493,10 @@ def concat_data(satellite_dicts):
 
             raise ValueError(error_string)
 
-    have_temperatures_by_dict = numpy.array([
-        d[BRIGHTNESS_TEMP_KEY] is not None for d in satellite_dicts
-    ], dtype=bool)
-
-    have_counts_by_dict = numpy.array([
-        d[BRIGHTNESS_COUNT_KEY] is not None for d in satellite_dicts
-    ], dtype=bool)
-
-    if len(numpy.unique(have_temperatures_by_dict)) > 1:
-        error_string = (
-            '{0:d} dictionaries have brightness temperatures, and {1:d} do not.'
-            '  Either all or none should have brightness temperatures.'
-        ).format(
-            numpy.sum(have_temperatures_by_dict),
-            numpy.sum(numpy.invert(have_temperatures_by_dict))
-        )
-
-        raise ValueError(error_string)
-
-    if len(numpy.unique(have_counts_by_dict)) > 1:
-        error_string = (
-            '{0:d} dictionaries have brightness counts, and {1:d} do not.'
-            '  Either all or none should have brightness counts.'
-        ).format(
-            numpy.sum(have_counts_by_dict),
-            numpy.sum(numpy.invert(have_counts_by_dict))
-        )
-
-        raise ValueError(error_string)
-
     for i in range(1, len(satellite_dicts)):
         for this_key in ONE_PER_EXAMPLE_KEYS:
-            if satellite_dict[this_key] is None:
-                continue
-
             satellite_dict[this_key] = numpy.concatenate((
                 satellite_dict[this_key], satellite_dicts[i][this_key]
             ), axis=0)
 
-    return satellite_dict
-
-
-def counts_to_temperatures(satellite_dict):
-    """Converts raw counts to brightness temperatures.
-
-    :param satellite_dict: List of dictionaries, each in the format returned by
-        `read_file`.
-    :return: satellite_dict: Same but with brightness temperatures, not just
-        counts.
-    """
-
-    band_numbers = satellite_dict[BAND_NUMBERS_KEY]
-    brightness_count_matrix = satellite_dict[BRIGHTNESS_COUNT_KEY]
-    brightness_temp_matrix_kelvins = numpy.full(
-        brightness_count_matrix.shape, numpy.nan
-    )
-
-    num_bands = len(band_numbers)
-
-    for j in range(num_bands):
-        brightness_temp_matrix_kelvins[..., j] = (
-            twb_satellite_io.count_to_temperature(
-                brightness_counts=brightness_count_matrix[..., j],
-                band_number=band_numbers[j]
-            )
-        )
-
-    satellite_dict[BRIGHTNESS_TEMP_KEY] = brightness_temp_matrix_kelvins
     return satellite_dict

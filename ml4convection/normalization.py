@@ -192,167 +192,95 @@ def _denorm_one_variable(normalized_values_new, actual_values_training=None,
     )
 
 
-def normalize_data(satellite_dict, uniformize=False,
-                   norm_dict_for_temperature=None, norm_dict_for_count=None):
+def normalize_data(satellite_dict, normalization_dict, uniformize=False):
     """Normalizes all predictor variables.
 
-    At least one of `norm_dict_for_temperature` and `norm_dict_for_count` must
-    be specified.
-
     :param satellite_dict: See doc for `satellite_io.read_file`.
+    :param normalization_dict: See doc for `get_normalization_params`.
     :param uniformize: Boolean flag.  If True, will convert predictor values to
         uniform distribution, then normal distribution.  If False, will convert
         directly to normal distribution.
-    :param norm_dict_for_temperature: See doc for `get_normalization_params`.
-    :param norm_dict_for_count: Same.
     :return: satellite_dict: Same but with normalized predictor values.
     """
-
-    do_temperatures = norm_dict_for_temperature is not None
-    do_counts = norm_dict_for_count is not None
-    error_checking.assert_is_greater(int(do_temperatures) + int(do_counts), 0)
 
     error_checking.assert_is_boolean(uniformize)
     band_numbers_new = satellite_dict[satellite_io.BAND_NUMBERS_KEY]
 
     for j in range(len(band_numbers_new)):
         print((
-            'Normalizing brightness {0:s} in band {1:d}, '
-            '{2:s} uniformization...'
+            'Normalizing brightness temperatures in band {0:d}, {1:s} '
+            'uniformization...'
         ).format(
-            'temperatures and counts' if do_temperatures and do_counts
-            else 'temperatures' if do_temperatures
-            else 'counts',
             band_numbers_new[j],
             'with' if uniformize else 'without'
         ))
 
-        if do_temperatures:
-            main_key = satellite_io.BRIGHTNESS_TEMP_KEY
-            k = numpy.where(
-                norm_dict_for_temperature[BAND_NUMBERS_KEY] ==
-                band_numbers_new[j]
-            )[0][0]
+        main_key = satellite_io.BRIGHTNESS_TEMP_KEY
+        k = numpy.where(
+            normalization_dict[BAND_NUMBERS_KEY] == band_numbers_new[j]
+        )[0][0]
 
-            if uniformize:
-                satellite_dict[main_key][..., j] = _normalize_one_variable(
-                    actual_values_new=satellite_dict[main_key][..., j],
-                    actual_values_training=
-                    norm_dict_for_temperature[SAMPLED_VALUES_KEY][:, k]
-                )
-            else:
-                satellite_dict[main_key][..., j] = _normalize_one_variable(
-                    actual_values_new=satellite_dict[main_key][..., j],
-                    mean_value_training=
-                    norm_dict_for_temperature[MEAN_VALUES_KEY][k],
-                    stdev_training=
-                    norm_dict_for_temperature[STANDARD_DEVIATIONS_KEY][k]
-                )
-
-        if do_counts:
-            main_key = satellite_io.BRIGHTNESS_COUNT_KEY
-            k = numpy.where(
-                norm_dict_for_count[BAND_NUMBERS_KEY] == band_numbers_new[j]
-            )[0][0]
-
-            if uniformize:
-                satellite_dict[main_key][..., j] = _normalize_one_variable(
-                    actual_values_new=satellite_dict[main_key][..., j],
-                    actual_values_training=
-                    norm_dict_for_count[SAMPLED_VALUES_KEY][:, k]
-                )
-            else:
-                satellite_dict[main_key][..., j] = _normalize_one_variable(
-                    actual_values_new=satellite_dict[main_key][..., j],
-                    mean_value_training=norm_dict_for_count[MEAN_VALUES_KEY][k],
-                    stdev_training=
-                    norm_dict_for_count[STANDARD_DEVIATIONS_KEY][k]
-                )
+        if uniformize:
+            satellite_dict[main_key][..., j] = _normalize_one_variable(
+                actual_values_new=satellite_dict[main_key][..., j],
+                actual_values_training=
+                normalization_dict[SAMPLED_VALUES_KEY][:, k]
+            )
+        else:
+            satellite_dict[main_key][..., j] = _normalize_one_variable(
+                actual_values_new=satellite_dict[main_key][..., j],
+                mean_value_training=normalization_dict[MEAN_VALUES_KEY][k],
+                stdev_training=normalization_dict[STANDARD_DEVIATIONS_KEY][k]
+            )
 
     return satellite_dict
 
 
-def denormalize_data(satellite_dict, uniformize=False,
-                     norm_dict_for_temperature=None, norm_dict_for_count=None):
+def denormalize_data(satellite_dict, normalization_dict, uniformize=False):
     """Denormalizes all predictor variables.
 
-    At least one of `norm_dict_for_temperature` and `norm_dict_for_count` must
-    be specified.
-
     :param satellite_dict: See doc for `normalize_data`.
+    :param normalization_dict: Same.
     :param uniformize: Same.
-    :param norm_dict_for_temperature: Same.
-    :param norm_dict_for_count: Same.
     :return: satellite_dict: Same.
     """
-
-    do_temperatures = norm_dict_for_temperature is not None
-    do_counts = norm_dict_for_count is not None
-    error_checking.assert_is_greater(int(do_temperatures) + int(do_counts), 0)
 
     error_checking.assert_is_boolean(uniformize)
     band_numbers_new = satellite_dict[satellite_io.BAND_NUMBERS_KEY]
 
     for j in range(len(band_numbers_new)):
         print((
-            'Denormalizing brightness {0:s} in band {1:d}, '
-            '{2:s} uniformization...'
+            'Denormalizing brightness temperatures in band {0:d}, {1:s} '
+            'uniformization...'
         ).format(
-            'temperatures and counts' if do_temperatures and do_counts
-            else 'temperatures' if do_temperatures
-            else 'counts',
             band_numbers_new[j],
             'with' if uniformize else 'without'
         ))
 
-        if do_temperatures:
-            main_key = satellite_io.BRIGHTNESS_TEMP_KEY
-            k = numpy.where(
-                norm_dict_for_temperature[BAND_NUMBERS_KEY] ==
-                band_numbers_new[j]
-            )[0][0]
+        main_key = satellite_io.BRIGHTNESS_TEMP_KEY
+        k = numpy.where(
+            normalization_dict[BAND_NUMBERS_KEY] == band_numbers_new[j]
+        )[0][0]
 
-            if uniformize:
-                satellite_dict[main_key][..., j] = _denorm_one_variable(
-                    normalized_values_new=satellite_dict[main_key][..., j],
-                    actual_values_training=
-                    norm_dict_for_temperature[SAMPLED_VALUES_KEY][:, k]
-                )
-            else:
-                satellite_dict[main_key][..., j] = _denorm_one_variable(
-                    normalized_values_new=satellite_dict[main_key][..., j],
-                    mean_value_training=
-                    norm_dict_for_temperature[MEAN_VALUES_KEY][k],
-                    stdev_training=
-                    norm_dict_for_temperature[STANDARD_DEVIATIONS_KEY][k]
-                )
-
-        if do_counts:
-            main_key = satellite_io.BRIGHTNESS_COUNT_KEY
-            k = numpy.where(
-                norm_dict_for_count[BAND_NUMBERS_KEY] == band_numbers_new[j]
-            )[0][0]
-
-            if uniformize:
-                satellite_dict[main_key][..., j] = _denorm_one_variable(
-                    normalized_values_new=satellite_dict[main_key][..., j],
-                    actual_values_training=
-                    norm_dict_for_count[SAMPLED_VALUES_KEY][:, k]
-                )
-            else:
-                satellite_dict[main_key][..., j] = _denorm_one_variable(
-                    normalized_values_new=satellite_dict[main_key][..., j],
-                    mean_value_training=norm_dict_for_count[MEAN_VALUES_KEY][k],
-                    stdev_training=
-                    norm_dict_for_count[STANDARD_DEVIATIONS_KEY][k]
-                )
+        if uniformize:
+            satellite_dict[main_key][..., j] = _denorm_one_variable(
+                normalized_values_new=satellite_dict[main_key][..., j],
+                actual_values_training=
+                normalization_dict[SAMPLED_VALUES_KEY][:, k]
+            )
+        else:
+            satellite_dict[main_key][..., j] = _denorm_one_variable(
+                normalized_values_new=satellite_dict[main_key][..., j],
+                mean_value_training=normalization_dict[MEAN_VALUES_KEY][k],
+                stdev_training=normalization_dict[STANDARD_DEVIATIONS_KEY][k]
+            )
 
     return satellite_dict
 
 
 def get_normalization_params(
         top_satellite_dir_name, first_date_string, last_date_string,
-        num_values_per_band, do_temperatures, do_counts):
+        num_values_per_band):
     """Computes normalization parameters (mean and stdev for each band).
 
     C = number of spectral bands
@@ -363,29 +291,18 @@ def get_normalization_params(
     :param last_date_string: Same.
     :param num_values_per_band: Number of values to save from each band (will be
         used for uniformization).  These values will be randomly sampled.
-    :param do_temperatures: Boolean flag.  If True, will find normalization
-        params for brightness temperatures.
-    :param do_counts: Boolean flag.  If True, will find normalization params for
-        brightness counts.
-    :return: norm_dict_for_temperature: Dictionary with the following keys.
-        If `do_temperatures == False`, this will be None.
-    norm_dict_for_temperature['band_numbers']: length-C numpy array of band
-        numbers (integers).
-    norm_dict_for_temperature['sampled_value_matrix']: T-by-C numpy array of
-        values randomly sampled from files.
-    norm_dict_for_temperature['mean_values']: length-C numpy array of means.
-    norm_dict_for_temperature['standard_deviations']: length-C numpy array of
-        standard deviations.
-
-    :return: norm_dict_for_count: Same but for brightness counts
-        instead of temperatures.  If `do_counts == False`, this will be None.
+    :return: normalization_dict: Dictionary with the following keys.
+    normalization_dict['band_numbers']: length-C numpy array of band numbers
+        (integers).
+    normalization_dict['sampled_value_matrix']: T-by-C numpy array of values
+        randomly sampled from files.
+    normalization_dict['mean_values']: length-C numpy array of means.
+    normalization_dict['standard_deviations']: length-C numpy array of standard
+        deviations.
     """
 
     error_checking.assert_is_integer(num_values_per_band)
     error_checking.assert_is_geq(num_values_per_band, 10000)
-    error_checking.assert_is_boolean(do_temperatures)
-    error_checking.assert_is_boolean(do_counts)
-    error_checking.assert_is_greater(int(do_temperatures) + int(do_counts), 0)
 
     satellite_file_names = satellite_io.find_many_files(
         top_directory_name=top_satellite_dir_name,
@@ -404,41 +321,24 @@ def get_normalization_params(
     band_numbers = satellite_io.BAND_NUMBERS
     num_bands = len(band_numbers)
 
-    if do_temperatures:
-        param_dicts_for_temperature = [dict()] * num_bands
+    parameter_dicts = [dict()] * num_bands
 
-        for j in range(num_bands):
-            param_dicts_for_temperature[j] = {
-                NUM_VALUES_KEY: 0,
-                MEAN_VALUE_KEY: 0.,
-                MEAN_OF_SQUARES_KEY: 0.
-            }
+    for j in range(num_bands):
+        parameter_dicts[j] = {
+            NUM_VALUES_KEY: 0,
+            MEAN_VALUE_KEY: 0.,
+            MEAN_OF_SQUARES_KEY: 0.
+        }
 
-        sampled_temperature_matrix_kelvins = numpy.full(
-            (num_values_per_band, num_bands), numpy.nan
-        )
-
-    if do_counts:
-        param_dicts_for_count = [dict()] * num_bands
-
-        for j in range(num_bands):
-            param_dicts_for_count[j] = {
-                NUM_VALUES_KEY: 0,
-                MEAN_VALUE_KEY: 0.,
-                MEAN_OF_SQUARES_KEY: 0.
-            }
-
-        sampled_count_matrix = numpy.full(
-            (num_values_per_band, num_bands), numpy.nan
-        )
+    sampled_temperature_matrix_kelvins = numpy.full(
+        (num_values_per_band, num_bands), numpy.nan
+    )
 
     for i in range(num_files):
         print('Reading data from: "{0:s}"...'.format(satellite_file_names[i]))
         this_satellite_dict = satellite_io.read_file(
-            netcdf_file_name=satellite_file_names[i],
-            read_temperatures=do_temperatures, read_counts=do_counts
+            netcdf_file_name=satellite_file_names[i], fill_nans=False
         )
-
         this_satellite_dict = satellite_io.subset_by_band(
             satellite_dict=this_satellite_dict, band_numbers=band_numbers
         )
@@ -447,130 +347,66 @@ def get_normalization_params(
         this_last_index = this_first_index + num_values_per_band_per_file
 
         for j in range(num_bands):
-            if do_temperatures:
-                these_temperatures_kelvins = numpy.ravel(
-                    this_satellite_dict[satellite_io.BRIGHTNESS_TEMP_KEY][
-                        ..., j
-                    ]
-                )
-                these_temperatures_kelvins = these_temperatures_kelvins[
-                    numpy.isfinite(these_temperatures_kelvins)
-                ]
+            these_temperatures_kelvins = numpy.ravel(
+                this_satellite_dict[satellite_io.BRIGHTNESS_TEMP_KEY][..., j]
+            )
+            these_temperatures_kelvins = these_temperatures_kelvins[
+                numpy.isfinite(these_temperatures_kelvins)
+            ]
 
-                sampled_temperature_matrix_kelvins[
-                    this_first_index:this_last_index, j
-                ] = numpy.random.choice(
-                    these_temperatures_kelvins,
-                    size=num_values_per_band_per_file, replace=False
-                )
+            sampled_temperature_matrix_kelvins[
+                this_first_index:this_last_index, j
+            ] = numpy.random.choice(
+                these_temperatures_kelvins,
+                size=num_values_per_band_per_file, replace=False
+            )
 
-                param_dicts_for_temperature[j] = _update_normalization_params(
-                    normalization_param_dict=param_dicts_for_temperature[j],
-                    new_data_matrix=these_temperatures_kelvins
-                )
+            parameter_dicts[j] = _update_normalization_params(
+                normalization_param_dict=parameter_dicts[j],
+                new_data_matrix=these_temperatures_kelvins
+            )
 
-            if do_counts:
-                these_counts = numpy.ravel(
-                    this_satellite_dict[satellite_io.BRIGHTNESS_COUNT_KEY][
-                        ..., j
-                    ]
-                )
-                these_counts = these_counts[numpy.isfinite(these_counts)]
+    error_checking.assert_is_numpy_array_without_nan(
+        sampled_temperature_matrix_kelvins
+    )
 
-                sampled_count_matrix[this_first_index:this_last_index, j] = (
-                    numpy.random.choice(
-                        these_counts,
-                        size=num_values_per_band_per_file, replace=False
-                    )
-                )
+    normalization_dict = {
+        BAND_NUMBERS_KEY: band_numbers,
+        SAMPLED_VALUES_KEY: sampled_temperature_matrix_kelvins,
+        MEAN_VALUES_KEY: numpy.array([
+            d[MEAN_VALUE_KEY] for d in parameter_dicts
+        ]),
+        STANDARD_DEVIATIONS_KEY: numpy.array([
+            _get_standard_deviation(d) for d in parameter_dicts
+        ])
+    }
 
-                param_dicts_for_count[j] = _update_normalization_params(
-                    normalization_param_dict=param_dicts_for_count[j],
-                    new_data_matrix=these_counts
-                )
-                print(param_dicts_for_count[j])
+    print(SEPARATOR_STRING)
 
-    if do_temperatures:
-        error_checking.assert_is_numpy_array_without_nan(
-            sampled_temperature_matrix_kelvins
-        )
+    for j in range(num_bands):
+        print((
+            'Band number = {0:d} ... mean temperature = {1:.2f} K ... '
+            'standard deviation = {2:.3f} K'
+        ).format(
+            normalization_dict[BAND_NUMBERS_KEY][j],
+            normalization_dict[MEAN_VALUES_KEY][j],
+            normalization_dict[STANDARD_DEVIATIONS_KEY][j]
+        ))
 
-        norm_dict_for_temperature = {
-            BAND_NUMBERS_KEY: band_numbers,
-            SAMPLED_VALUES_KEY: sampled_temperature_matrix_kelvins,
-            MEAN_VALUES_KEY: numpy.array([
-                d[MEAN_VALUE_KEY] for d in param_dicts_for_temperature
-            ]),
-            STANDARD_DEVIATIONS_KEY: numpy.array([
-                _get_standard_deviation(d) for d in param_dicts_for_temperature
-            ])
-        }
-
-        print(SEPARATOR_STRING)
-
-        for j in range(num_bands):
-            print((
-                'Band number = {0:d} ... mean temperature = {1:.2f} K ... '
-                'standard deviation = {2:.3f} K'
-            ).format(
-                norm_dict_for_temperature['band_numbers'][j],
-                norm_dict_for_temperature['mean_values'][j],
-                norm_dict_for_temperature['standard_deviations'][j]
-            ))
-    else:
-        norm_dict_for_temperature = None
-
-    if do_counts:
-        error_checking.assert_is_numpy_array_without_nan(sampled_count_matrix)
-
-        norm_dict_for_count = {
-            BAND_NUMBERS_KEY: band_numbers,
-            SAMPLED_VALUES_KEY: sampled_count_matrix,
-            MEAN_VALUES_KEY: numpy.array([
-                d[MEAN_VALUE_KEY] for d in param_dicts_for_count
-            ]),
-            STANDARD_DEVIATIONS_KEY: numpy.array([
-                _get_standard_deviation(d) for d in param_dicts_for_count
-            ])
-        }
-
-        print(SEPARATOR_STRING)
-
-        for j in range(num_bands):
-            print((
-                'Band number = {0:d} ... mean count = {1:.2f} ... '
-                'standard deviation = {2:.3f}'
-            ).format(
-                norm_dict_for_count['band_numbers'][j],
-                norm_dict_for_count['mean_values'][j],
-                norm_dict_for_count['standard_deviations'][j]
-            ))
-    else:
-        norm_dict_for_count = None
-
-    return norm_dict_for_temperature, norm_dict_for_count
+    return normalization_dict
 
 
-def write_file(pickle_file_name, norm_dict_for_temperature,
-               norm_dict_for_count):
+def write_file(pickle_file_name, normalization_dict):
     """Writes normalization parameters to Pickle file.
 
     :param pickle_file_name: Path to output file.
-    :param norm_dict_for_temperature: See doc for `get_normalization_params`.
-    :param norm_dict_for_count: Same.
+    :param normalization_dict: See doc for `get_normalization_params`.
     """
-
-    have_temperatures = norm_dict_for_temperature is not None
-    have_counts = norm_dict_for_count is not None
-    error_checking.assert_is_greater(
-        int(have_temperatures) + int(have_counts), 0
-    )
 
     file_system_utils.mkdir_recursive_if_necessary(file_name=pickle_file_name)
 
     pickle_file_handle = open(pickle_file_name, 'wb')
-    pickle.dump(norm_dict_for_temperature, pickle_file_handle)
-    pickle.dump(norm_dict_for_count, pickle_file_handle)
+    pickle.dump(normalization_dict, pickle_file_handle)
     pickle_file_handle.close()
 
 
@@ -578,15 +414,13 @@ def read_file(pickle_file_name):
     """Reads normalization parameters from Pickle file.
 
     :param pickle_file_name: Path to input file.
-    :return: norm_dict_for_temperature: See doc for `get_normalization_params`.
-    :return: norm_dict_for_count: Same.
+    :return: normalization_dict: See doc for `get_normalization_params`.
     """
 
     error_checking.assert_file_exists(pickle_file_name)
 
     pickle_file_handle = open(pickle_file_name, 'rb')
-    norm_dict_for_temperature = pickle.load(pickle_file_handle)
-    norm_dict_for_count = pickle.load(pickle_file_handle)
+    normalization_dict = pickle.load(pickle_file_handle)
     pickle_file_handle.close()
 
-    return norm_dict_for_temperature, norm_dict_for_count
+    return normalization_dict

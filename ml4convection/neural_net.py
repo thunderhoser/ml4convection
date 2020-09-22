@@ -113,7 +113,6 @@ DEFAULT_GENERATOR_OPTION_DICT = {
 }
 
 VALID_DATE_KEY = 'valid_date_string'
-NORMALIZATION_DICT_KEY = 'norm_dict_for_count'
 
 NUM_EPOCHS_KEY = 'num_epochs'
 NUM_TRAINING_BATCHES_KEY = 'num_training_batches_per_epoch'
@@ -530,9 +529,6 @@ def generator_from_preprocessed_files(option_dict):
     :raises: ValueError: if no valid date can be found for which predictors and
         targets are available.
     """
-
-    # TODO(thunderhoser): Allow generator to read brightness temperatures
-    # instead of counts.
 
     option_dict = _check_generator_args(option_dict)
 

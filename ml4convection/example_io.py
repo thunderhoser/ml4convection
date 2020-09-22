@@ -51,7 +51,7 @@ BAND_DIMENSION_KEY = 'band'
 
 
 def _create_predictors_one_day(
-        input_file_name, spatial_downsampling_factor, norm_dict_for_count,
+        input_file_name, spatial_downsampling_factor, normalization_dict,
         normalization_file_name):
     """Creates predictor values (from satellite data) for one day.
 
@@ -63,8 +63,8 @@ def _create_predictors_one_day(
     :param input_file_name: Path to input file (will be read by
         `satellite_io.read_file`).
     :param spatial_downsampling_factor: See doc for `create_predictors`.
-    :param norm_dict_for_count: Dictionary returned by
-        `normalization.read_file`.  Will use this to normalize data.
+    :param normalization_dict: Dictionary returned by `normalization.read_file`.
+        Will use this to normalize data.
     :param normalization_file_name: See doc for `create_predictors`.
 
     :return: predictor_dict: Dictionary with the following keys.
@@ -86,8 +86,7 @@ def _create_predictors_one_day(
 
     print('Reading data from: "{0:s}"...'.format(input_file_name))
     satellite_dict = satellite_io.read_file(
-        netcdf_file_name=input_file_name, read_temperatures=False,
-        read_counts=True
+        netcdf_file_name=input_file_name, fill_nans=True
     )
 
     if spatial_downsampling_factor > 1:
@@ -98,26 +97,26 @@ def _create_predictors_one_day(
         )[0]
 
     predictor_matrix_unnorm = (
-        satellite_dict[satellite_io.BRIGHTNESS_COUNT_KEY] + 0.
+        satellite_dict[satellite_io.BRIGHTNESS_TEMP_KEY] + 0.
     )
 
     satellite_dict = normalization.normalize_data(
-        satellite_dict=satellite_dict, uniformize=False,
-        norm_dict_for_count=norm_dict_for_count
+        satellite_dict=satellite_dict, normalization_dict=normalization_dict,
+        uniformize=False
     )
     predictor_matrix_norm = (
-        satellite_dict[satellite_io.BRIGHTNESS_COUNT_KEY] + 0.
+        satellite_dict[satellite_io.BRIGHTNESS_TEMP_KEY] + 0.
     )
-    satellite_dict[satellite_io.BRIGHTNESS_COUNT_KEY] = (
+    satellite_dict[satellite_io.BRIGHTNESS_TEMP_KEY] = (
         predictor_matrix_unnorm + 0.
     )
 
     satellite_dict = normalization.normalize_data(
-        satellite_dict=satellite_dict, uniformize=True,
-        norm_dict_for_count=norm_dict_for_count
+        satellite_dict=satellite_dict, normalization_dict=normalization_dict,
+        uniformize=True
     )
     predictor_matrix_unif_norm = (
-        satellite_dict[satellite_io.BRIGHTNESS_COUNT_KEY] + 0.
+        satellite_dict[satellite_io.BRIGHTNESS_TEMP_KEY] + 0.
     )
 
     return {
@@ -205,9 +204,9 @@ def _create_targets_one_day(
 
     return {
         TARGET_MATRIX_KEY: target_matrix,
-        VALID_TIMES_KEY: echo_classifn_dict[satellite_io.VALID_TIMES_KEY],
-        LATITUDES_KEY: echo_classifn_dict[satellite_io.LATITUDES_KEY],
-        LONGITUDES_KEY: echo_classifn_dict[satellite_io.LONGITUDES_KEY],
+        VALID_TIMES_KEY: echo_classifn_dict[radar_io.VALID_TIMES_KEY],
+        LATITUDES_KEY: echo_classifn_dict[radar_io.LATITUDES_KEY],
+        LONGITUDES_KEY: echo_classifn_dict[radar_io.LONGITUDES_KEY],
         MASK_FILE_KEY: mask_file_name
     }
 
@@ -375,14 +374,11 @@ def downsample_data_in_space(downsampling_factor, change_coordinates=False,
         )
 
     if satellite_dict is not None:
-        this_key = (
-            satellite_io.BRIGHTNESS_COUNT_KEY
-            if satellite_dict[satellite_io.BRIGHTNESS_TEMP_KEY] is None
-            else satellite_io.BRIGHTNESS_TEMP_KEY
-        )
-        satellite_dict[this_key] = standalone_utils.do_2d_pooling(
-            feature_matrix=satellite_dict[this_key],
-            window_size_px=downsampling_factor, do_max_pooling=False
+        satellite_dict[satellite_io.BRIGHTNESS_TEMP_KEY] = (
+            standalone_utils.do_2d_pooling(
+                feature_matrix=satellite_dict[satellite_io.BRIGHTNESS_TEMP_KEY],
+                window_size_px=downsampling_factor, do_max_pooling=False
+            )
         )
 
     if echo_classifn_dict is not None:
@@ -484,7 +480,7 @@ def create_predictors(
     print('Reading normalization params from: "{0:s}"...'.format(
         normalization_file_name
     ))
-    norm_dict_for_count = normalization.read_file(normalization_file_name)[1]
+    normalization_dict = normalization.read_file(normalization_file_name)
 
     for this_input_file_name in input_file_names:
         print('\n')
@@ -492,7 +488,7 @@ def create_predictors(
         this_predictor_dict = _create_predictors_one_day(
             input_file_name=this_input_file_name,
             spatial_downsampling_factor=spatial_downsampling_factor,
-            norm_dict_for_count=norm_dict_for_count,
+            normalization_dict=normalization_dict,
             normalization_file_name=normalization_file_name
         )
 

@@ -1,3 +1,1 @@
 include ml4convection/io/*.LUT
-include ml4convection/io/*.f90
-include ml4convection/io/Proj_NOAA.GSD

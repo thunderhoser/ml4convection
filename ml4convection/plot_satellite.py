@@ -245,8 +245,7 @@ def _plot_satellite_one_day(
 
     print('Reading data from: "{0:s}"...'.format(satellite_file_name))
     satellite_dict = satellite_io.read_file(
-        netcdf_file_name=satellite_file_name,
-        read_counts=True, read_temperatures=False, fill_nans=False
+        netcdf_file_name=satellite_file_name, fill_nans=False
     )
     satellite_dict = satellite_io.subset_by_band(
         satellite_dict=satellite_dict, band_numbers=band_numbers
@@ -291,7 +290,6 @@ def _plot_satellite_one_day(
             satellite_dict=satellite_dict, desired_indices=desired_indices
         )
 
-    satellite_dict = satellite_io.counts_to_temperatures(satellite_dict)
     num_times = len(satellite_dict[satellite_io.VALID_TIMES_KEY])
     num_bands = len(satellite_dict[satellite_io.BAND_NUMBERS_KEY])
 

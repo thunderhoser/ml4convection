@@ -2,8 +2,6 @@
 
 import os
 import sys
-import warnings
-import tempfile
 import numpy
 
 THIS_DIRECTORY_NAME = os.path.dirname(os.path.realpath(
@@ -11,10 +9,8 @@ THIS_DIRECTORY_NAME = os.path.dirname(os.path.realpath(
 ))
 sys.path.append(os.path.normpath(os.path.join(THIS_DIRECTORY_NAME, '..')))
 
-import number_rounding
 import time_conversion
 import time_periods
-import file_system_utils
 import error_checking
 
 THIS_DIRECTORY_NAME = os.path.dirname(os.path.realpath(
@@ -23,17 +19,8 @@ THIS_DIRECTORY_NAME = os.path.dirname(os.path.realpath(
 
 TIME_INTERVAL_SEC = 600
 
-ERROR_STRING = (
-    '\nUnix command failed (log messages shown above should explain why).'
-)
-
-DEFAULT_GFORTRAN_COMPILER_NAME = 'gfortran'
-FORTRAN_SCRIPT_NAME = (
-    '{0:s}/read_twb_satellite_file.f90'.format(THIS_DIRECTORY_NAME)
-)
-FORTRAN_EXE_NAME = (
-    '{0:s}/read_twb_satellite_file.exe'.format(THIS_DIRECTORY_NAME)
-)
+GRID_LATITUDES_DEG_N = numpy.linspace(18, 29, num=881, dtype=float)
+GRID_LONGITUDES_DEG_E = numpy.linspace(115, 126.5, num=921)
 
 TIME_FORMAT_IN_MESSAGES = '%Y-%m-%d-%H%M%S'
 TIME_FORMAT_IN_DIR_NAMES = '%Y-%m'
@@ -48,11 +35,6 @@ BAND_NUMBER_TO_FILE_NAME_PART = {
     14: 'GDS',
     16: 'GSD'
 }
-
-LATITUDE_COLUMN_INDEX = 0
-LONGITUDE_COLUMN_INDEX = 1
-BRIGHTNESS_COUNT_INDEX = 2
-LATLNG_PRECISION_DEG = 1e-6
 
 MIN_BRIGHTNESS_COUNT = 0
 MAX_BRIGHTNESS_COUNT = 255
@@ -103,7 +85,7 @@ def _read_lookup_table(band_number):
     return count_to_temperature_dict_kelvins
 
 
-def count_to_temperature(brightness_counts, band_number):
+def _count_to_temperature(brightness_counts, band_number):
     """Converts raw counts to brightness temperatures.
 
     :param brightness_counts: numpy array of counts.
@@ -274,112 +256,36 @@ def find_many_files(
     return satellite_file_names
 
 
-def read_file(
-        binary_file_name, return_brightness_temps=True,
-        gfortran_compiler_name=DEFAULT_GFORTRAN_COMPILER_NAME,
-        temporary_dir_name=None, raise_fortran_errors=False):
+def read_file(binary_file_name):
     """Reads satellite data (brightness temperatures) from binary file.
 
     M = number of rows in grid
     N = number of columns in grid
 
     :param binary_file_name: Path to input file.
-    :param return_brightness_temps: Boolean flag.  If True (False), will return
-        brightness temperatures (raw counts).
-    :param gfortran_compiler_name: Path to gfortran compiler.
-    :param temporary_dir_name: Name of temporary directory for text file, which
-        will be deleted as soon as it is read.  If None, temporary directory
-        will be set to default.
-    :param raise_fortran_errors: Boolean flag.  If True, will raise any Fortran
-        error that occurs.  If False and a Fortran error occurs, will just
-        return None for all output variables.
-    :return: data_matrix: M-by-N matrix of data values.  If
-        `return_brightness_temps == True`, these are brightness temperatures in
-        Kelvins.  Otherwise, these are raw counts.
+    :return: brightness_temp_matrix_kelvins: M-by-N matrix of brightness
+        temperatures.
     :return: latitudes_deg_n: length-M numpy array of latitudes (deg N).
     :return: longitudes_deg_e: length-N numpy array of longitudes (deg E).
     """
 
-    error_checking.assert_file_exists(binary_file_name)
-    error_checking.assert_is_boolean(return_brightness_temps)
-    error_checking.assert_is_boolean(raise_fortran_errors)
-    # error_checking.assert_file_exists(gfortran_compiler_name)
+    brightness_counts = numpy.fromfile(binary_file_name, dtype=numpy.uint8)
 
-    if not os.path.isfile(FORTRAN_EXE_NAME):
-        command_string = '"{0:s}" "{1:s}" -o "{2:s}"'.format(
-            gfortran_compiler_name, FORTRAN_SCRIPT_NAME, FORTRAN_EXE_NAME
-        )
-
-        exit_code = os.system(command_string)
-        if exit_code != 0:
-            raise ValueError(ERROR_STRING)
-
-    if temporary_dir_name is not None:
-        file_system_utils.mkdir_recursive_if_necessary(
-            directory_name=temporary_dir_name
-        )
-
-    temporary_text_file_name = tempfile.NamedTemporaryFile(
-        dir=temporary_dir_name, delete=False
-    ).name
-
-    print('Reading data from binary file: "{0:s}"...'.format(binary_file_name))
-    fortran_exe_dir_name, fortran_exe_pathless_name = (
-        os.path.split(FORTRAN_EXE_NAME)
-    )
-    command_string = 'cd "{0:s}"; ./{1:s} "{2:s}" > "{3:s}"'.format(
-        fortran_exe_dir_name, fortran_exe_pathless_name, binary_file_name,
-        temporary_text_file_name
+    brightness_temp_matrix_kelvins = _count_to_temperature(
+        brightness_counts=brightness_counts,
+        band_number=file_name_to_band_number(binary_file_name)
     )
 
-    exit_code = os.system(command_string)
-    if exit_code != 0:
-        if raise_fortran_errors:
-            raise ValueError(ERROR_STRING)
-
-        warnings.warn(ERROR_STRING)
-        return None, None, None
-
-    print('Reading data from temporary text file: "{0:s}"...'.format(
-        temporary_text_file_name
-    ))
-    data_matrix = numpy.loadtxt(temporary_text_file_name)
-    os.remove(temporary_text_file_name)
-
-    all_latitudes_deg_n = number_rounding.round_to_nearest(
-        data_matrix[:, LATITUDE_COLUMN_INDEX], LATLNG_PRECISION_DEG
+    num_rows = len(GRID_LATITUDES_DEG_N)
+    num_columns = len(GRID_LONGITUDES_DEG_E)
+    brightness_temp_matrix_kelvins = numpy.reshape(
+        brightness_temp_matrix_kelvins, (num_rows, num_columns)
     )
-    all_longitudes_deg_e = number_rounding.round_to_nearest(
-        data_matrix[:, LONGITUDE_COLUMN_INDEX], LATLNG_PRECISION_DEG
+    brightness_temp_matrix_kelvins = numpy.flipud(
+        brightness_temp_matrix_kelvins
     )
-    num_grid_rows = numpy.sum(all_longitudes_deg_e == all_longitudes_deg_e[0])
-    num_grid_columns = numpy.sum(all_latitudes_deg_n == all_latitudes_deg_n[0])
 
-    if return_brightness_temps:
-        brightness_counts = (
-            numpy.round(data_matrix[:, BRIGHTNESS_COUNT_INDEX]).astype(int)
-        )
-
-        data_values = count_to_temperature(
-            brightness_counts=brightness_counts,
-            band_number=file_name_to_band_number(binary_file_name)
-        )
-    else:
-        brightness_counts = data_matrix[:, BRIGHTNESS_COUNT_INDEX]
-        brightness_counts[brightness_counts < MIN_BRIGHTNESS_COUNT] = numpy.nan
-        brightness_counts[brightness_counts > MAX_BRIGHTNESS_COUNT] = numpy.nan
-        data_values = brightness_counts
-
-    data_matrix = numpy.reshape(data_values, (num_grid_rows, num_grid_columns))
-    data_matrix = numpy.flipud(data_matrix)
-
-    latitudes_deg_n = numpy.reshape(
-        all_latitudes_deg_n, (num_grid_rows, num_grid_columns)
-    )[:, 0]
-    latitudes_deg_n = latitudes_deg_n[::-1]
-
-    longitudes_deg_e = numpy.reshape(
-        all_longitudes_deg_e, (num_grid_rows, num_grid_columns)
-    )[0, :]
-
-    return data_matrix, latitudes_deg_n, longitudes_deg_e
+    return (
+        brightness_temp_matrix_kelvins,
+        GRID_LATITUDES_DEG_N, GRID_LONGITUDES_DEG_E
+    )
