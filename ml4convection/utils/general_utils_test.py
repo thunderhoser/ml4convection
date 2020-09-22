@@ -36,6 +36,28 @@ SECOND_WEIGHT_MATRIX = numpy.full((5, 5), 1. / 25)
 SECOND_WEIGHT_MATRIX = numpy.expand_dims(SECOND_WEIGHT_MATRIX, axis=-1)
 SECOND_WEIGHT_MATRIX = numpy.expand_dims(SECOND_WEIGHT_MATRIX, axis=-1)
 
+# The following constants are used to test fill_nans.
+MATRIX_WITH_NANS_1D = numpy.array([1, 2, 3, numpy.nan])
+MATRIX_WITHOUT_NANS_1D = numpy.array([1, 2, 3, 3], dtype=float)
+
+MATRIX_WITH_NANS_2D = numpy.array([
+    [1, 2, 3, 4, 5],
+    [6, 7, numpy.nan, numpy.nan, 10],
+    [numpy.nan, 12, numpy.nan, numpy.nan, 15]
+])
+MATRIX_WITHOUT_NANS_2D = numpy.array([
+    [1, 2, 3, 4, 5],
+    [6, 7, 7, 4, 10],
+    [6, 12, 12, 15, 15]
+])
+
+MATRIX_WITH_NANS_3D = numpy.stack(
+    (MATRIX_WITH_NANS_2D, MATRIX_WITH_NANS_2D), axis=0
+)
+MATRIX_WITHOUT_NANS_3D = numpy.stack(
+    (MATRIX_WITHOUT_NANS_2D, MATRIX_WITHOUT_NANS_2D), axis=0
+)
+
 
 class GeneralUtilsTests(unittest.TestCase):
     """Each method is a unit test for general_utils.py."""
@@ -86,6 +108,30 @@ class GeneralUtilsTests(unittest.TestCase):
 
         self.assertTrue(numpy.allclose(
             this_weight_matrix, SECOND_WEIGHT_MATRIX, atol=TOLERANCE
+        ))
+
+    def test_fill_nans_1d(self):
+        """Ensures correct output from fill_nans (with 1-D array)."""
+
+        this_matrix_without_nans = general_utils.fill_nans(MATRIX_WITH_NANS_1D)
+        self.assertTrue(numpy.allclose(
+            this_matrix_without_nans, MATRIX_WITHOUT_NANS_1D, atol=TOLERANCE
+        ))
+
+    def test_fill_nans_2d(self):
+        """Ensures correct output from fill_nans (with 2-D matrix)."""
+
+        this_matrix_without_nans = general_utils.fill_nans(MATRIX_WITH_NANS_2D)
+        self.assertTrue(numpy.allclose(
+            this_matrix_without_nans, MATRIX_WITHOUT_NANS_2D, atol=TOLERANCE
+        ))
+
+    def test_fill_nans_3d(self):
+        """Ensures correct output from fill_nans (with 3-D matrix)."""
+
+        this_matrix_without_nans = general_utils.fill_nans(MATRIX_WITH_NANS_3D)
+        self.assertTrue(numpy.allclose(
+            this_matrix_without_nans, MATRIX_WITHOUT_NANS_3D, atol=TOLERANCE
         ))
 
 

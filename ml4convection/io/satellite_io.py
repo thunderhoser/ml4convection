@@ -10,6 +10,7 @@ from gewittergefahr.gg_utils import longitude_conversion as lng_conversion
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
 from ml4convection.io import radar_io
+from ml4convection.utils import general_utils
 
 TOLERANCE = 1e-6
 GZIP_FILE_EXTENSION = '.gz'
@@ -355,9 +356,25 @@ def read_file(netcdf_file_name, fill_nans=True):
 
         dataset_object.close()
 
-    if fill_nans:
-        pass
+    print('Number of missing brightness temperatures = {0:d} of {1:d}'.format(
+        numpy.sum(numpy.isnan(satellite_dict[BRIGHTNESS_TEMP_KEY])),
+        satellite_dict[BRIGHTNESS_TEMP_KEY].size
+    ))
 
+    if not fill_nans:
+        return satellite_dict
+
+    brightness_temp_matrix_kelvins = satellite_dict[BRIGHTNESS_TEMP_KEY]
+    num_examples = brightness_temp_matrix_kelvins.shape[0]
+    num_bands = brightness_temp_matrix_kelvins.shape[-1]
+
+    for i in range(num_examples):
+        for j in range(num_bands):
+            brightness_temp_matrix_kelvins[i, ..., j] = general_utils.fill_nans(
+                brightness_temp_matrix_kelvins[i, ..., j]
+            )
+
+    satellite_dict[BRIGHTNESS_TEMP_KEY] = brightness_temp_matrix_kelvins
     return satellite_dict
 
 
