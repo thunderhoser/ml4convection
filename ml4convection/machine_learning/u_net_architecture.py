@@ -2,6 +2,7 @@
 
 import numpy
 import keras
+from keras import backend as K
 from gewittergefahr.gg_utils import error_checking
 from gewittergefahr.deep_learning import architecture_utils
 from ml4convection.machine_learning import neural_net
@@ -140,7 +141,31 @@ def _check_architecture_args(option_dict):
     return option_dict
 
 
-def create_model(option_dict, loss_function):
+def _zero_masked_areas_function(mask_tensor):
+    """Returns function that zeroes out convection probs for masked grid cells.
+
+    M = number of rows in grid
+    N = number of columns in grid
+
+    :param mask_tensor: 1-by-M-by-N-by-1 tensor of floats (0 for masked, 1 for
+        unmasked).
+    :return: zeroing_function: Function handle (see below).
+    """
+
+    def zeroing_function(prediction_tensor):
+        """Zeroes out convection probabilities for masked grid cells.
+
+        :param prediction_tensor: Keras tensor with model predictions.
+        :return: prediction_tensor: Same as input but with predictions zeroed
+            out at masked grid cells.
+        """
+
+        return mask_tensor * prediction_tensor
+
+    return zeroing_function
+
+
+def create_model(option_dict, loss_function, mask_matrix=None):
     """Creates U-net.
 
     This method sets up the architecture, loss function, and optimizer -- and
@@ -151,11 +176,17 @@ def create_model(option_dict, loss_function):
 
     :param option_dict: See doc for `_check_architecture_args`.
     :param loss_function: Loss function.
+    :param mask_matrix: M-by-N numpy array of Boolean flags (False for masked
+        grid cells).
     :return: model_object: Instance of `keras.models.Model`, with the
         aforementioned architecture.
     """
 
     option_dict = _check_architecture_args(option_dict)
+
+    if mask_matrix is not None:
+        error_checking.assert_is_boolean_numpy_array(mask_matrix)
+        error_checking.assert_is_numpy_array(mask_matrix, num_dimensions=2)
 
     input_dimensions = option_dict[INPUT_DIMENSIONS_KEY]
     num_levels = option_dict[NUM_LEVELS_KEY]
@@ -386,6 +417,16 @@ def create_model(option_dict, loss_function):
         alpha_for_relu=output_activ_function_alpha,
         alpha_for_elu=output_activ_function_alpha
     )(skip_layer_by_level[0])
+
+    if mask_matrix is not None:
+        mask_tensor = K.variable(mask_matrix.astype(float))
+        mask_tensor = K.expand_dims(mask_tensor, axis=0)
+        mask_tensor = K.expand_dims(mask_tensor, axis=-1)
+
+        this_function = _zero_masked_areas_function(mask_tensor)
+        skip_layer_by_level[0] = keras.layers.Lambda(
+            this_function
+        )(skip_layer_by_level[0])
 
     model_object = keras.models.Model(
         inputs=input_layer_object, outputs=skip_layer_by_level[0]

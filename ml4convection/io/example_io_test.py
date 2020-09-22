@@ -183,7 +183,7 @@ ECHO_CLASSIFN_DICT_DOWNSAMPLED4 = {
 }
 
 # The following constants are used to test find_predictor_file,
-# predictor_file_name_to_date, find_target_file, and target_file_name_to_date.
+# find_target_file, and file_name_to_date.
 TOP_PREDICTOR_DIR_NAME = 'predictors'
 PREDICTOR_DATE_STRING = '20200820'
 PREDICTOR_FILE_NAME = 'predictors/2020/predictors_20200820.nc'
@@ -520,11 +520,14 @@ class ExampleIoTests(unittest.TestCase):
 
         self.assertTrue(this_file_name == PREDICTOR_FILE_NAME)
 
-    def test_predictor_file_name_to_date(self):
-        """Ensures correct output from predictor_file_name_to_date."""
+    def test_file_name_to_date_predictors(self):
+        """Ensures correct output from file_name_to_date.
+
+        In this case, for predictor file.
+        """
 
         self.assertTrue(
-            example_io.predictor_file_name_to_date(PREDICTOR_FILE_NAME) ==
+            example_io.file_name_to_date(PREDICTOR_FILE_NAME) ==
             PREDICTOR_DATE_STRING
         )
 
@@ -549,12 +552,14 @@ class ExampleIoTests(unittest.TestCase):
 
         self.assertTrue(this_file_name == TARGET_FILE_NAME)
 
-    def test_target_file_name_to_date(self):
-        """Ensures correct output from target_file_name_to_date."""
+    def test_file_name_to_date_targets(self):
+        """Ensures correct output from file_name_to_date.
+
+        In this case, for target file.
+        """
 
         self.assertTrue(
-            example_io.target_file_name_to_date(TARGET_FILE_NAME) ==
-            TARGET_DATE_STRING
+            example_io.file_name_to_date(TARGET_FILE_NAME) == TARGET_DATE_STRING
         )
 
     def test_find_many_target_files(self):

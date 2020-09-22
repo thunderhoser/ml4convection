@@ -86,6 +86,37 @@ REFLECTIVITY_DICT_SUBSET_BY_INDEX = {
     radar_io.HEIGHTS_KEY: HEIGHTS_M_ASL
 }
 
+# The following constants are used to test downsample_mask_in_space.
+THIS_MASK_MATRIX = numpy.array([
+    [1, 0, 1],
+    [1, 0, 1],
+    [0, 0, 0],
+    [1, 0, 1],
+    [0, 1, 1],
+    [1, 1, 1]
+], dtype=bool)
+
+MASK_DICT = {
+    radar_io.MASK_MATRIX_KEY: copy.deepcopy(THIS_MASK_MATRIX),
+    radar_io.LATITUDES_KEY: LATITUDES_DEG_N + 0.,
+    radar_io.LONGITUDES_KEY: LONGITUDES_DEG_E + 0.
+}
+
+THIS_MASK_MATRIX = numpy.array([
+    [1],
+    [0],
+    [1]
+], dtype=bool)
+
+THESE_LATITUDES_DEG_N = numpy.array([53.1, 53.5, 53.9])
+THESE_LONGITUDES_DEG_E = numpy.array([246.25])
+
+MASK_DICT_DOWNSAMPLED2 = {
+    radar_io.MASK_MATRIX_KEY: copy.deepcopy(THIS_MASK_MATRIX),
+    radar_io.LATITUDES_KEY: THESE_LATITUDES_DEG_N + 0.,
+    radar_io.LONGITUDES_KEY: THESE_LONGITUDES_DEG_E + 0.
+}
+
 
 def compare_reflectivity_dicts(first_reflectivity_dict,
                                second_reflectivity_dict):
@@ -120,6 +151,38 @@ def compare_reflectivity_dicts(first_reflectivity_dict,
         if not numpy.array_equal(
                 first_reflectivity_dict[this_key],
                 second_reflectivity_dict[this_key]
+        ):
+            return False
+
+    return True
+
+
+def compare_mask_dicts(first_mask_dict, second_mask_dict):
+    """Compares two dictionaries with mask data.
+
+    :param first_mask_dict: See doc for `radar_io.read_mask_file`.
+    :param second_mask_dict: Same.
+    :return: are_dicts_equal: Boolean flag.
+    """
+
+    first_keys = list(first_mask_dict.keys())
+    second_keys = list(second_mask_dict.keys())
+    if set(first_keys) != set(second_keys):
+        return False
+
+    float_keys = [radar_io.LATITUDES_KEY, radar_io.LONGITUDES_KEY]
+    exact_keys = [radar_io.MASK_MATRIX_KEY]
+
+    for this_key in float_keys:
+        if not numpy.allclose(
+                first_mask_dict[this_key], second_mask_dict[this_key],
+                atol=TOLERANCE
+        ):
+            return False
+
+    for this_key in exact_keys:
+        if not numpy.array_equal(
+                first_mask_dict[this_key], second_mask_dict[this_key]
         ):
             return False
 
@@ -367,6 +430,19 @@ class RadarIoTests(unittest.TestCase):
 
         self.assertTrue(compare_reflectivity_dicts(
             this_reflectivity_dict, REFLECTIVITY_DICT_SUBSET_BY_TIME
+        ))
+
+    def test_downsample_mask_in_space_factor2(self):
+        """Ensures correct output from downsample_mask_in_space.
+
+        In this case, downsampling factor is 2.
+        """
+
+        this_mask_dict = radar_io.downsample_mask_in_space(
+            mask_dict=copy.deepcopy(MASK_DICT), downsampling_factor=2
+        )
+        self.assertTrue(compare_mask_dicts(
+            this_mask_dict, MASK_DICT_DOWNSAMPLED2
         ))
 
 
