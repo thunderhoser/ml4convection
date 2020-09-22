@@ -50,6 +50,7 @@ def _run():
 
     print('Reading mask from: "{0:s}"...'.format(MASK_FILE_NAME))
     mask_dict = radar_io.read_mask_file(MASK_FILE_NAME)
+    mask_dict = radar_io.expand_to_satellite_grid(any_radar_dict=mask_dict)
     mask_dict = radar_io.downsample_mask_in_space(
         mask_dict=mask_dict, downsampling_factor=4
     )

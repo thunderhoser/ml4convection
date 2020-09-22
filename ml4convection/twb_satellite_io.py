@@ -2,6 +2,7 @@
 
 import os
 import sys
+import warnings
 import numpy
 
 THIS_DIRECTORY_NAME = os.path.dirname(os.path.realpath(
@@ -12,10 +13,6 @@ sys.path.append(os.path.normpath(os.path.join(THIS_DIRECTORY_NAME, '..')))
 import time_conversion
 import time_periods
 import error_checking
-
-THIS_DIRECTORY_NAME = os.path.dirname(os.path.realpath(
-    os.path.join(os.getcwd(), os.path.expanduser(__file__))
-))
 
 TIME_INTERVAL_SEC = 600
 
@@ -278,9 +275,24 @@ def read_file(binary_file_name):
 
     num_rows = len(GRID_LATITUDES_DEG_N)
     num_columns = len(GRID_LONGITUDES_DEG_E)
-    brightness_temp_matrix_kelvins = numpy.reshape(
-        brightness_temp_matrix_kelvins, (num_rows, num_columns)
-    )
+
+    try:
+        brightness_temp_matrix_kelvins = numpy.reshape(
+            brightness_temp_matrix_kelvins, (num_rows, num_columns)
+        )
+    except ValueError:
+        warning_string = (
+            'File "{0:s}" appears to be corrupt.  Expected {1:d} grid cells, '
+            'found {2:d}.'
+        ).format(
+            binary_file_name,
+            num_rows * num_columns,
+            brightness_temp_matrix_kelvins.size
+        )
+
+        warnings.warn(warning_string)
+        return None, None, None
+
     brightness_temp_matrix_kelvins = numpy.flipud(
         brightness_temp_matrix_kelvins
     )
