@@ -44,25 +44,12 @@ SAMPLED_TEMP_MATRIX_KELVINS = numpy.transpose(numpy.vstack((
 
 THESE_BAND_NUMBERS = numpy.array([9, 8], dtype=int)
 
-NORM_DICT_FOR_TEMPERATURE = {
+NORMALIZATION_DICT = {
     normalization.BAND_NUMBERS_KEY: THESE_BAND_NUMBERS,
     normalization.SAMPLED_VALUES_KEY: SAMPLED_TEMP_MATRIX_KELVINS,
     normalization.MEAN_VALUES_KEY: numpy.array([230, 280], dtype=float),
     normalization.STANDARD_DEVIATIONS_KEY: numpy.array([15, 10], dtype=float)
 }
-
-# THESE_COUNTS_BAND9 = numpy.linspace(0, 500, num=11, dtype=float)
-# THESE_COUNTS_BAND8 = numpy.linspace(600, 1100, num=11, dtype=float)
-# SAMPLED_COUNT_MATRIX = numpy.transpose(numpy.vstack((
-#     THESE_COUNTS_BAND9, THESE_COUNTS_BAND8
-# )))
-#
-# NORM_DICT_FOR_COUNT = {
-#     normalization.BAND_NUMBERS_KEY: THESE_BAND_NUMBERS + 0,
-#     normalization.SAMPLED_VALUES_KEY: SAMPLED_COUNT_MATRIX,
-#     normalization.MEAN_VALUES_KEY: numpy.array([300, 800], dtype=float),
-#     normalization.STANDARD_DEVIATIONS_KEY: numpy.array([75, 50], dtype=float)
-# }
 
 LATITUDES_DEG_N = numpy.linspace(53, 54, num=11, dtype=float)
 LONGITUDES_DEG_E = numpy.linspace(246, 247, num=6, dtype=float)
@@ -90,7 +77,6 @@ ACTUAL_TEMP_MATRIX_KELVINS = numpy.repeat(
 
 SATELLITE_DICT_ACTUAL = {
     satellite_io.BRIGHTNESS_TEMP_KEY: ACTUAL_TEMP_MATRIX_KELVINS + 0.,
-    satellite_io.BRIGHTNESS_COUNT_KEY: None,
     satellite_io.LATITUDES_KEY: LATITUDES_DEG_N,
     satellite_io.LONGITUDES_KEY: LONGITUDES_DEG_E,
     satellite_io.VALID_TIMES_KEY: VALID_TIMES_UNIX_SEC,
@@ -156,13 +142,6 @@ SATELLITE_DICT_SIMPLE_NORM[satellite_io.BRIGHTNESS_TEMP_KEY] = (
     SIMPLE_NORM_TEMP_MATRIX_KELVINS + 0.
 )
 
-# THESE_TEMPS_BAND9_KELVINS = numpy.array([
-#     235, 235, 220, 240, 207.5, 235, 235, 230
-# ])
-# THESE_TEMPS_BAND8_KELVINS = numpy.array([
-#     307.5, 262.5, 307.5, 307.5, 290, 267.5, 280, 305
-# ])
-
 THESE_TEMPS_BAND9_KELVINS = numpy.array(
     [235, 235, 220, 240, 205, 235, 235, 230], dtype=float
 )
@@ -224,19 +203,9 @@ def _compare_satellite_dicts(first_satellite_dict, second_satellite_dict):
     if set(first_keys) != set(second_keys):
         return False
 
-    possibly_none_keys = [
-        satellite_io.BRIGHTNESS_TEMP_KEY, satellite_io.BRIGHTNESS_COUNT_KEY
-    ]
     integer_keys = [satellite_io.VALID_TIMES_KEY, satellite_io.BAND_NUMBERS_KEY]
 
     for this_key in first_keys:
-        if (
-                this_key in possibly_none_keys
-                and first_satellite_dict[this_key] is None
-                and second_satellite_dict[this_key] is None
-        ):
-            continue
-
         if this_key in integer_keys:
             if numpy.array_equal(
                     first_satellite_dict[this_key],
@@ -299,8 +268,7 @@ class NormalizationTests(unittest.TestCase):
 
         this_satellite_dict = normalization.normalize_data(
             satellite_dict=copy.deepcopy(SATELLITE_DICT_ACTUAL),
-            uniformize=True,
-            norm_dict_for_temperature=NORM_DICT_FOR_TEMPERATURE
+            normalization_dict=NORMALIZATION_DICT, uniformize=True
         )
 
         self.assertTrue(_compare_satellite_dicts(
@@ -316,8 +284,7 @@ class NormalizationTests(unittest.TestCase):
 
         this_satellite_dict = normalization.normalize_data(
             satellite_dict=copy.deepcopy(SATELLITE_DICT_ACTUAL),
-            uniformize=False,
-            norm_dict_for_temperature=NORM_DICT_FOR_TEMPERATURE
+            normalization_dict=NORMALIZATION_DICT, uniformize=False
         )
 
         self.assertTrue(_compare_satellite_dicts(
@@ -333,8 +300,7 @@ class NormalizationTests(unittest.TestCase):
 
         this_satellite_dict = normalization.denormalize_data(
             satellite_dict=copy.deepcopy(SATELLITE_DICT_UNIFORM_NORM),
-            uniformize=True,
-            norm_dict_for_temperature=NORM_DICT_FOR_TEMPERATURE
+            normalization_dict=NORMALIZATION_DICT, uniformize=True
         )
 
         self.assertTrue(_compare_satellite_dicts(
@@ -350,8 +316,7 @@ class NormalizationTests(unittest.TestCase):
 
         this_satellite_dict = normalization.denormalize_data(
             satellite_dict=copy.deepcopy(SATELLITE_DICT_SIMPLE_NORM),
-            uniformize=False,
-            norm_dict_for_temperature=NORM_DICT_FOR_TEMPERATURE
+            normalization_dict=NORMALIZATION_DICT, uniformize=False
         )
 
         self.assertTrue(_compare_satellite_dicts(

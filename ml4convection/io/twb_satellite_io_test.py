@@ -32,7 +32,7 @@ FILE_NAMES = [
     'stuff/2020-08/2020-08-21_0020.B08.GSD.Cnt'
 ]
 
-# The following constants are used to test count_to_temperature.
+# The following constants are used to test _count_to_temperature.
 MISSING_COUNT = twb_satellite_io.MISSING_COUNT
 
 BRIGHTNESS_COUNT_MATRIX = numpy.array([
@@ -100,12 +100,12 @@ class TwbSatelliteIoTests(unittest.TestCase):
         )
 
     def test_count_to_temperature_band8(self):
-        """Ensures correct output from count_to_temperature.
+        """Ensures correct output from _count_to_temperature.
 
         In this case, band number is 8.
         """
 
-        this_temp_matrix_kelvins = twb_satellite_io.count_to_temperature(
+        this_temp_matrix_kelvins = twb_satellite_io._count_to_temperature(
             brightness_counts=BRIGHTNESS_COUNT_MATRIX, band_number=8
         )
 
@@ -115,12 +115,12 @@ class TwbSatelliteIoTests(unittest.TestCase):
         ))
 
     def test_count_to_temperature_band13(self):
-        """Ensures correct output from count_to_temperature.
+        """Ensures correct output from _count_to_temperature.
 
         In this case, band number is 13.
         """
 
-        this_temp_matrix_kelvins = twb_satellite_io.count_to_temperature(
+        this_temp_matrix_kelvins = twb_satellite_io._count_to_temperature(
             brightness_counts=BRIGHTNESS_COUNT_MATRIX, band_number=13
         )
 

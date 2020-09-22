@@ -13,6 +13,7 @@ dist/
 *.iml
 
 # Code that I don't intend to commit.
+ml4convection/*.jpg
 ml4convection/*.py
 ml4convection/io/*.exe
 ml4convection/dead_scratch_code/

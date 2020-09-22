@@ -37,7 +37,6 @@ BAND_NUMBERS = numpy.array([8, 9], dtype=int)
 
 SATELLITE_DICT = {
     satellite_io.BRIGHTNESS_TEMP_KEY: TEMPERATURE_MATRIX_KELVINS + 0.,
-    satellite_io.BRIGHTNESS_COUNT_KEY: None,
     satellite_io.LATITUDES_KEY: LATITUDES_DEG_N + 0.,
     satellite_io.LONGITUDES_KEY: LONGITUDES_DEG_E + 0.,
     satellite_io.VALID_TIMES_KEY: VALID_TIMES_UNIX_SEC + 0,
@@ -94,7 +93,6 @@ LONGITUDES_DEG_E = numpy.array([246.25, 247.25])
 
 SATELLITE_DICT_DOWNSAMPLED2 = {
     satellite_io.BRIGHTNESS_TEMP_KEY: TEMPERATURE_MATRIX_KELVINS + 0.,
-    satellite_io.BRIGHTNESS_COUNT_KEY: None,
     satellite_io.LATITUDES_KEY: LATITUDES_DEG_N + 0.,
     satellite_io.LONGITUDES_KEY: LONGITUDES_DEG_E + 0.,
     satellite_io.VALID_TIMES_KEY: VALID_TIMES_UNIX_SEC + 0,
@@ -148,7 +146,6 @@ LONGITUDES_DEG_E = numpy.array([246.75])
 
 SATELLITE_DICT_DOWNSAMPLED4 = {
     satellite_io.BRIGHTNESS_TEMP_KEY: TEMPERATURE_MATRIX_KELVINS + 0.,
-    satellite_io.BRIGHTNESS_COUNT_KEY: None,
     satellite_io.LATITUDES_KEY: LATITUDES_DEG_N + 0.,
     satellite_io.LONGITUDES_KEY: LONGITUDES_DEG_E + 0.,
     satellite_io.VALID_TIMES_KEY: VALID_TIMES_UNIX_SEC + 0,

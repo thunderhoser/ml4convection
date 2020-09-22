@@ -61,11 +61,8 @@ TEMPERATURE_MATRIX_KELVINS = numpy.repeat(
     TEMPERATURE_MATRIX_KELVINS, repeats=len(LONGITUDES_DEG_E), axis=2
 )
 
-COUNT_MATRIX = numpy.round(TEMPERATURE_MATRIX_KELVINS - 100)
-
 SATELLITE_DICT_ALL_EXAMPLES = {
     satellite_io.BRIGHTNESS_TEMP_KEY: TEMPERATURE_MATRIX_KELVINS + 0.,
-    satellite_io.BRIGHTNESS_COUNT_KEY: COUNT_MATRIX + 0.,
     satellite_io.LATITUDES_KEY: LATITUDES_DEG_N,
     satellite_io.LONGITUDES_KEY: LONGITUDES_DEG_E,
     satellite_io.VALID_TIMES_KEY: VALID_TIMES_UNIX_SEC + 0,
@@ -76,7 +73,6 @@ DESIRED_BAND_NUMBERS = numpy.array([10, 8], dtype=int)
 
 SATELLITE_DICT_SUBSET_BY_BAND = {
     satellite_io.BRIGHTNESS_TEMP_KEY: TEMPERATURE_MATRIX_KELVINS[..., [2, 0]],
-    satellite_io.BRIGHTNESS_COUNT_KEY: COUNT_MATRIX[..., [2, 0]],
     satellite_io.LATITUDES_KEY: LATITUDES_DEG_N,
     satellite_io.LONGITUDES_KEY: LONGITUDES_DEG_E,
     satellite_io.VALID_TIMES_KEY: VALID_TIMES_UNIX_SEC + 0,
@@ -88,7 +84,6 @@ DESIRED_INDICES = numpy.array([3, 7, 1, 4], dtype=int)
 SATELLITE_DICT_SUBSET_BY_INDEX = {
     satellite_io.BRIGHTNESS_TEMP_KEY:
         TEMPERATURE_MATRIX_KELVINS[[3, 7, 1, 4], ...],
-    satellite_io.BRIGHTNESS_COUNT_KEY: COUNT_MATRIX[[3, 7, 1, 4], ...],
     satellite_io.LATITUDES_KEY: LATITUDES_DEG_N,
     satellite_io.LONGITUDES_KEY: LONGITUDES_DEG_E,
     satellite_io.VALID_TIMES_KEY: VALID_TIMES_UNIX_SEC[[3, 7, 1, 4]],
@@ -100,7 +95,6 @@ DESIRED_TIMES_UNIX_SEC = numpy.array([2, 6, 0, 3], dtype=int)
 SATELLITE_DICT_SUBSET_BY_TIME = {
     satellite_io.BRIGHTNESS_TEMP_KEY:
         TEMPERATURE_MATRIX_KELVINS[[2, 6, 0, 3], ...],
-    satellite_io.BRIGHTNESS_COUNT_KEY: COUNT_MATRIX[[2, 6, 0, 3], ...],
     satellite_io.LATITUDES_KEY: LATITUDES_DEG_N,
     satellite_io.LONGITUDES_KEY: LONGITUDES_DEG_E,
     satellite_io.VALID_TIMES_KEY: VALID_TIMES_UNIX_SEC[[2, 6, 0, 3]],
@@ -112,7 +106,6 @@ THESE_INDICES = numpy.array([3, 7, 1, 4, 2, 6, 0, 3], dtype=int)
 SATELLITE_DICT_CONCAT = {
     satellite_io.BRIGHTNESS_TEMP_KEY:
         TEMPERATURE_MATRIX_KELVINS[THESE_INDICES, ...],
-    satellite_io.BRIGHTNESS_COUNT_KEY: COUNT_MATRIX[THESE_INDICES, ...],
     satellite_io.LATITUDES_KEY: LATITUDES_DEG_N,
     satellite_io.LONGITUDES_KEY: LONGITUDES_DEG_E,
     satellite_io.VALID_TIMES_KEY: VALID_TIMES_UNIX_SEC[THESE_INDICES],
@@ -134,19 +127,12 @@ def compare_satellite_dicts(first_satellite_dict, second_satellite_dict):
         return False
 
     float_keys = [
-        satellite_io.BRIGHTNESS_TEMP_KEY, satellite_io.BRIGHTNESS_COUNT_KEY,
+        satellite_io.BRIGHTNESS_TEMP_KEY,
         satellite_io.LATITUDES_KEY, satellite_io.LONGITUDES_KEY
     ]
     integer_keys = [satellite_io.VALID_TIMES_KEY, satellite_io.BAND_NUMBERS_KEY]
 
     for this_key in float_keys:
-        if (
-                this_key == satellite_io.BRIGHTNESS_COUNT_KEY
-                and first_satellite_dict[this_key] is None
-                and second_satellite_dict[this_key] is None
-        ):
-            continue
-
         if not numpy.allclose(
                 first_satellite_dict[this_key], second_satellite_dict[this_key],
                 atol=TOLERANCE
