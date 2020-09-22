@@ -58,7 +58,7 @@ REFLECTIVITY_MATRIX_DBZ = numpy.stack((
     REFL_MATRIX_HEIGHT1_DBZ - 10
 ), axis=-1)
 
-REFLECTIVITY_DICT_ALL_EXAMPLES = {
+REFLECTIVITY_DICT = {
     radar_io.REFLECTIVITY_KEY: REFLECTIVITY_MATRIX_DBZ + 0.,
     radar_io.LATITUDES_KEY: LATITUDES_DEG_N,
     radar_io.LONGITUDES_KEY: LONGITUDES_DEG_E,
@@ -83,6 +83,54 @@ REFLECTIVITY_DICT_SUBSET_BY_INDEX = {
     radar_io.LATITUDES_KEY: LATITUDES_DEG_N,
     radar_io.LONGITUDES_KEY: LONGITUDES_DEG_E,
     radar_io.VALID_TIMES_KEY: VALID_TIMES_UNIX_SEC[[3, 1]],
+    radar_io.HEIGHTS_KEY: HEIGHTS_M_ASL
+}
+
+# The following constants are used to test expand_to_satellite_grid.
+SATELLITE_LATITUDES_DEG_N = numpy.array([
+    52.6, 52.8, 53, 53.2, 53.4, 53.6, 53.8, 54, 54.2
+])
+SATELLITE_LONGITUDES_DEG_E = numpy.array([
+    245.5, 246, 246.5, 247, 247.5, 248, 248.5
+])
+
+REFL_MATRIX_EXAMPLE1_DBZ = numpy.array([
+    [numpy.nan, numpy.nan, numpy.nan, numpy.nan, numpy.nan, numpy.nan, numpy.nan],
+    [numpy.nan, numpy.nan, numpy.nan, numpy.nan, numpy.nan, numpy.nan, numpy.nan],
+    [numpy.nan, 10, 20, 30, numpy.nan, numpy.nan, numpy.nan],
+    [numpy.nan, 20, 30, 40, numpy.nan, numpy.nan, numpy.nan],
+    [numpy.nan, 30, 40, 50, numpy.nan, numpy.nan, numpy.nan],
+    [numpy.nan, 40, 50, 60, numpy.nan, numpy.nan, numpy.nan],
+    [numpy.nan, 50, 60, 70, numpy.nan, numpy.nan, numpy.nan],
+    [numpy.nan, 0, 0, 75, numpy.nan, numpy.nan, numpy.nan],
+    [numpy.nan, numpy.nan, numpy.nan, numpy.nan, numpy.nan, numpy.nan, numpy.nan]
+], dtype=float)
+
+REFL_MATRIX_HEIGHT1_DBZ = numpy.stack((
+    REFL_MATRIX_EXAMPLE1_DBZ, REFL_MATRIX_EXAMPLE1_DBZ + 1,
+    REFL_MATRIX_EXAMPLE1_DBZ + 2, REFL_MATRIX_EXAMPLE1_DBZ + 3
+), axis=0)
+
+THIS_REFL_MATRIX_DBZ = numpy.stack((
+    REFL_MATRIX_HEIGHT1_DBZ, REFL_MATRIX_HEIGHT1_DBZ - 20,
+    REFL_MATRIX_HEIGHT1_DBZ - 10
+), axis=-1)
+
+REFLECTIVITY_DICT_EXPANDED_WITH_NANS = {
+    radar_io.REFLECTIVITY_KEY: THIS_REFL_MATRIX_DBZ + 0.,
+    radar_io.LATITUDES_KEY: SATELLITE_LATITUDES_DEG_N + 0.,
+    radar_io.LONGITUDES_KEY: SATELLITE_LONGITUDES_DEG_E + 0.,
+    radar_io.VALID_TIMES_KEY: VALID_TIMES_UNIX_SEC + 0,
+    radar_io.HEIGHTS_KEY: HEIGHTS_M_ASL
+}
+
+THIS_REFL_MATRIX_DBZ[numpy.isnan(THIS_REFL_MATRIX_DBZ)] = 0.
+
+REFLECTIVITY_DICT_EXPANDED_WITH_ZEROS = {
+    radar_io.REFLECTIVITY_KEY: THIS_REFL_MATRIX_DBZ + 0.,
+    radar_io.LATITUDES_KEY: SATELLITE_LATITUDES_DEG_N + 0.,
+    radar_io.LONGITUDES_KEY: SATELLITE_LONGITUDES_DEG_E + 0.,
+    radar_io.VALID_TIMES_KEY: VALID_TIMES_UNIX_SEC + 0,
     radar_io.HEIGHTS_KEY: HEIGHTS_M_ASL
 }
 
@@ -117,6 +165,25 @@ MASK_DICT_DOWNSAMPLED2 = {
     radar_io.LONGITUDES_KEY: THESE_LONGITUDES_DEG_E + 0.
 }
 
+# The following constants are used to test expand_to_satellite_grid.
+THIS_MASK_MATRIX = numpy.array([
+    [0, 0, 0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0, 0, 0],
+    [0, 1, 0, 1, 0, 0, 0],
+    [0, 1, 0, 1, 0, 0, 0],
+    [0, 0, 0, 0, 0, 0, 0],
+    [0, 1, 0, 1, 0, 0, 0],
+    [0, 0, 1, 1, 0, 0, 0],
+    [0, 1, 1, 1, 0, 0, 0],
+    [0, 0, 0, 0, 0, 0, 0]
+], dtype=bool)
+
+MASK_DICT_EXPANDED = {
+    radar_io.MASK_MATRIX_KEY: copy.deepcopy(THIS_MASK_MATRIX),
+    radar_io.LATITUDES_KEY: SATELLITE_LATITUDES_DEG_N + 0.,
+    radar_io.LONGITUDES_KEY: SATELLITE_LONGITUDES_DEG_E + 0.
+}
+
 
 def compare_reflectivity_dicts(first_reflectivity_dict,
                                second_reflectivity_dict):
@@ -143,7 +210,7 @@ def compare_reflectivity_dicts(first_reflectivity_dict,
         if not numpy.allclose(
                 first_reflectivity_dict[this_key],
                 second_reflectivity_dict[this_key],
-                atol=TOLERANCE
+                atol=TOLERANCE, equal_nan=True
         ):
             return False
 
@@ -411,7 +478,7 @@ class RadarIoTests(unittest.TestCase):
 
         this_reflectivity_dict = radar_io.subset_by_index(
             refl_or_echo_classifn_dict=
-            copy.deepcopy(REFLECTIVITY_DICT_ALL_EXAMPLES),
+            copy.deepcopy(REFLECTIVITY_DICT),
             desired_indices=DESIRED_INDICES
         )
 
@@ -424,13 +491,64 @@ class RadarIoTests(unittest.TestCase):
 
         this_reflectivity_dict = radar_io.subset_by_time(
             refl_or_echo_classifn_dict=
-            copy.deepcopy(REFLECTIVITY_DICT_ALL_EXAMPLES),
+            copy.deepcopy(REFLECTIVITY_DICT),
             desired_times_unix_sec=DESIRED_TIMES_UNIX_SEC
         )[0]
 
         self.assertTrue(compare_reflectivity_dicts(
             this_reflectivity_dict, REFLECTIVITY_DICT_SUBSET_BY_TIME
         ))
+
+    def test_expand_to_satellite_grid_refl_nans(self):
+        """Ensures correct output from expand_to_satellite_grid.
+
+        In this case, expanding reflectivity data and filling extra grid cells
+        with NaN.
+        """
+
+        this_reflectivity_dict = radar_io.expand_to_satellite_grid(
+            any_radar_dict=copy.deepcopy(REFLECTIVITY_DICT),
+            fill_nans=False, test_mode=True,
+            satellite_latitudes_deg_n=SATELLITE_LATITUDES_DEG_N,
+            satellite_longitudes_deg_e=SATELLITE_LONGITUDES_DEG_E
+        )
+
+        self.assertTrue(compare_reflectivity_dicts(
+            this_reflectivity_dict, REFLECTIVITY_DICT_EXPANDED_WITH_NANS
+        ))
+
+    def test_expand_to_satellite_grid_refl_zeros(self):
+        """Ensures correct output from expand_to_satellite_grid.
+
+        In this case, expanding reflectivity data and filling extra grid cells
+        with zero.
+        """
+
+        this_reflectivity_dict = radar_io.expand_to_satellite_grid(
+            any_radar_dict=copy.deepcopy(REFLECTIVITY_DICT),
+            fill_nans=True, test_mode=True,
+            satellite_latitudes_deg_n=SATELLITE_LATITUDES_DEG_N,
+            satellite_longitudes_deg_e=SATELLITE_LONGITUDES_DEG_E
+        )
+
+        self.assertTrue(compare_reflectivity_dicts(
+            this_reflectivity_dict, REFLECTIVITY_DICT_EXPANDED_WITH_ZEROS
+        ))
+
+    def test_expand_to_satellite_grid_mask(self):
+        """Ensures correct output from expand_to_satellite_grid.
+
+        In this case, expanding mask.
+        """
+
+        this_mask_dict = radar_io.expand_to_satellite_grid(
+            any_radar_dict=copy.deepcopy(MASK_DICT),
+            fill_nans=True, test_mode=True,
+            satellite_latitudes_deg_n=SATELLITE_LATITUDES_DEG_N,
+            satellite_longitudes_deg_e=SATELLITE_LONGITUDES_DEG_E
+        )
+
+        self.assertTrue(compare_mask_dicts(this_mask_dict, MASK_DICT_EXPANDED))
 
     def test_downsample_mask_in_space_factor2(self):
         """Ensures correct output from downsample_mask_in_space.

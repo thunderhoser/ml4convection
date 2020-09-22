@@ -10,6 +10,7 @@ from gewittergefahr.gg_utils import longitude_conversion as lng_conversion
 from gewittergefahr.gg_utils import echo_classification as echo_classifn
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
+from ml4convection.io import twb_satellite_io
 from ml4convection.machine_learning import standalone_utils
 
 TOLERANCE = 1e-6
@@ -716,6 +717,110 @@ def subset_by_time(refl_or_echo_classifn_dict, desired_times_unix_sec):
     )
 
     return refl_or_echo_classifn_dict, desired_indices
+
+
+def expand_to_satellite_grid(
+        any_radar_dict, fill_nans=None, test_mode=False,
+        satellite_latitudes_deg_n=None, satellite_longitudes_deg_e=None):
+    """Expands radar grid to satellite grid.
+
+    :param any_radar_dict: Dictionary in format specified by
+        `read_reflectivity_file`, `read_echo_classifn_file`, or
+        `read_mask_file`.
+    :param fill_nans:
+        [used only if `any_radar_dict` contains reflectivity]
+        Boolean flag.  If True (False), values added to grid will be zero (NaN).
+    :param test_mode: Leave this alone.
+    :param satellite_latitudes_deg_n: Leave this alone.
+    :param satellite_longitudes_deg_e: Leave this alone.
+    :return: any_radar_dict: Same as input but with more grid cells.
+    """
+
+    error_checking.assert_is_boolean(test_mode)
+
+    # Verify latitudes.
+    radar_latitudes_deg_n = any_radar_dict[LATITUDES_KEY]
+    if not test_mode:
+        satellite_latitudes_deg_n = twb_satellite_io.GRID_LATITUDES_DEG_N + 0.
+
+    first_common_lat_index = numpy.argmin(numpy.absolute(
+        radar_latitudes_deg_n[0] - satellite_latitudes_deg_n
+    ))
+    last_common_lat_index = numpy.argmin(numpy.absolute(
+        radar_latitudes_deg_n[-1] - satellite_latitudes_deg_n
+    ))
+    assert numpy.allclose(
+        radar_latitudes_deg_n,
+        satellite_latitudes_deg_n[
+            first_common_lat_index:(last_common_lat_index + 1)
+        ],
+        atol=TOLERANCE
+    )
+
+    # Verify longitudes.
+    radar_longitudes_deg_e = any_radar_dict[LONGITUDES_KEY]
+    if not test_mode:
+        satellite_longitudes_deg_e = twb_satellite_io.GRID_LONGITUDES_DEG_E + 0.
+
+    first_common_lng_index = numpy.argmin(numpy.absolute(
+        radar_longitudes_deg_e[0] - satellite_longitudes_deg_e
+    ))
+    last_common_lng_index = numpy.argmin(numpy.absolute(
+        radar_longitudes_deg_e[-1] - satellite_longitudes_deg_e
+    ))
+    assert numpy.allclose(
+        radar_longitudes_deg_e,
+        satellite_longitudes_deg_e[
+            first_common_lng_index:(last_common_lng_index + 1)
+        ],
+        atol=TOLERANCE
+    )
+
+    # Do actual stuff.
+    if REFLECTIVITY_KEY in any_radar_dict:
+        main_key = REFLECTIVITY_KEY
+    elif CONVECTIVE_FLAGS_KEY in any_radar_dict:
+        main_key = CONVECTIVE_FLAGS_KEY
+    else:
+        main_key = MASK_MATRIX_KEY
+
+    num_satellite_rows = len(satellite_latitudes_deg_n)
+    num_satellite_columns = len(satellite_longitudes_deg_e)
+    dimensions = (num_satellite_rows, num_satellite_columns)
+    num_dimensions = len(any_radar_dict[main_key].shape)
+
+    if num_dimensions >= 3:
+        num_examples = any_radar_dict[main_key].shape[0]
+        dimensions = (num_examples,) + dimensions
+
+    if num_dimensions == 4:
+        num_heights = any_radar_dict[main_key].shape[-1]
+        dimensions += (num_heights,)
+
+    if main_key == REFLECTIVITY_KEY:
+        error_checking.assert_is_boolean(fill_nans)
+        new_data_matrix = numpy.full(dimensions, 0. if fill_nans else numpy.nan)
+    else:
+        new_data_matrix = numpy.full(dimensions, False, dtype=bool)
+
+    if num_dimensions >= 3:
+        new_data_matrix[
+            :,
+            first_common_lat_index:(last_common_lat_index + 1),
+            first_common_lng_index:(last_common_lng_index + 1),
+            ...
+        ] = any_radar_dict[main_key]
+    else:
+        new_data_matrix[
+            first_common_lat_index:(last_common_lat_index + 1),
+            first_common_lng_index:(last_common_lng_index + 1)
+        ] = any_radar_dict[main_key]
+
+    any_radar_dict[main_key] = new_data_matrix
+    any_radar_dict[LATITUDES_KEY] = satellite_latitudes_deg_n
+    any_radar_dict[LONGITUDES_KEY] = satellite_longitudes_deg_e
+
+    return any_radar_dict
 
 
 def read_mask_file(netcdf_file_name):

@@ -73,6 +73,8 @@ def _process_satellite_data_one_time(
     :param valid_time_unix_sec: Valid time.
     :param output_file_name: Path to output file.
     :param append: See documentation for `satellite_io.write_file`.
+    :return: success: Boolean flag (True if this method wrote to the output
+        file).
     """
 
     num_grid_rows = len(GRID_LATITUDES_DEG_N)
@@ -91,9 +93,12 @@ def _process_satellite_data_one_time(
         )
 
         print('Reading data from: "{0:s}"...'.format(this_file_name))
-        brightness_temp_matrix_kelvins[..., k] = (
-            twb_satellite_io.read_file(this_file_name)[0]
-        )
+        this_temp_matrix_kelvins = twb_satellite_io.read_file(this_file_name)[0]
+
+        if this_temp_matrix_kelvins is None:
+            return False
+
+        brightness_temp_matrix_kelvins[..., k] = this_temp_matrix_kelvins
 
     print('Writing data to: "{0:s}"...'.format(output_file_name))
     satellite_io.write_file(
@@ -104,6 +109,8 @@ def _process_satellite_data_one_time(
         band_numbers=BAND_NUMBERS,
         valid_time_unix_sec=valid_time_unix_sec, append=append
     )
+
+    return True
 
 
 def _process_satellite_data_one_day(
@@ -152,13 +159,13 @@ def _process_satellite_data_one_day(
     append = False
 
     for i in range(num_times):
-        _process_satellite_data_one_time(
+        success = _process_satellite_data_one_time(
             input_dir_name=input_dir_name,
             valid_time_unix_sec=valid_times_unix_sec[i],
             output_file_name=output_file_name, append=append
         )
 
-        append = True
+        append = append or success
 
         if i != num_times - 1:
             print('\n')
@@ -195,8 +202,9 @@ def _run(input_dir_name, first_date_string, last_date_string,
             output_file_name=this_netcdf_file_name
         )
 
-        satellite_io.compress_file(this_netcdf_file_name)
-        os.remove(this_netcdf_file_name)
+        if os.path.isfile(this_netcdf_file_name):
+            satellite_io.compress_file(this_netcdf_file_name)
+            os.remove(this_netcdf_file_name)
 
         if i != len(date_strings) - 1:
             print(SEPARATOR_STRING)
