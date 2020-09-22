@@ -8,7 +8,7 @@ MASK_FILE_ARG_NAME = 'input_mask_file_name'
 SPATIAL_DS_FACTOR_ARG_NAME = 'spatial_downsampling_factor'
 FIRST_DATE_ARG_NAME = 'first_date_string'
 LAST_DATE_ARG_NAME = 'last_date_string'
-OUTPUT_DIR_ARG_NAME = 'output_predictor_dir_name'
+OUTPUT_DIR_ARG_NAME = 'output_target_dir_name'
 
 INPUT_DIR_HELP_STRING = (
     'Name of top-level directory with echo-classification data.  Files therein '
@@ -30,7 +30,7 @@ DATE_HELP_STRING = (
 ).format(FIRST_DATE_ARG_NAME, LAST_DATE_ARG_NAME)
 
 OUTPUT_DIR_HELP_STRING = (
-    'Name of top-level output directory.  Predictor files will be written by '
+    'Name of top-level output directory.  Target files will be written by '
     '`example_io._write_target_file`, to exact locations therein determined '
     'by `example_io.find_target_file`.'
 )
