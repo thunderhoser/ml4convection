@@ -28,6 +28,4 @@ python3 -u "${CODE_DIR_NAME}/get_normalization_params.py" \
 --first_date_string="20160101" \
 --last_date_string="20161224" \
 --num_values_per_band=200000 \
---do_temperatures=0 \
---do_counts=1 \
 --output_file_name="${OUTPUT_FILE_NAME}"

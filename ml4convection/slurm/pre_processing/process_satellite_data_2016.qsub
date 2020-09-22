@@ -35,5 +35,4 @@ python3 -u "${CODE_DIR_NAME}/process_satellite_data.py" \
 --first_date_string="${first_date_string}" \
 --last_date_string="${last_date_string}" \
 --allow_missing_days=1 \
---temporary_dir_name="${OUTPUT_DIR_NAME}/temporary/${first_date_string}-${last_date_string}" \
 --output_satellite_dir_name="${OUTPUT_DIR_NAME}"
