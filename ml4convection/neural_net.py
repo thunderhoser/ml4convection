@@ -19,9 +19,7 @@ import file_system_utils
 import error_checking
 import custom_metrics
 import satellite_io
-import radar_io
 import example_io
-import normalization
 import general_utils
 import custom_losses
 
@@ -95,23 +93,18 @@ METRIC_FUNCTION_DICT = {
     'fss_15by15': FSS_FUNCTION_SIZE7
 }
 
-SATELLITE_DIRECTORY_KEY = 'top_satellite_dir_name'
-ECHO_CLASSIFN_DIR_KEY = 'top_echo_classifn_dir_name'
-SPATIAL_DS_FACTOR_KEY = 'spatial_downsampling_factor'
 BATCH_SIZE_KEY = 'num_examples_per_batch'
 MAX_DAILY_EXAMPLES_KEY = 'max_examples_per_day_in_batch'
 BAND_NUMBERS_KEY = 'band_numbers'
 LEAD_TIME_KEY = 'lead_time_seconds'
 FIRST_VALID_DATE_KEY = 'first_valid_date_string'
 LAST_VALID_DATE_KEY = 'last_valid_date_string'
-NORMALIZATION_FILE_KEY = 'normalization_file_name'
+NORMALIZE_FLAG_KEY = 'normalize'
 UNIFORMIZE_FLAG_KEY = 'uniformize'
 PREDICTOR_DIRECTORY_KEY = 'top_predictor_dir_name'
 TARGET_DIRECTORY_KEY = 'top_target_dir_name'
-NORMALIZE_FLAG_KEY = 'normalize'
 
 DEFAULT_GENERATOR_OPTION_DICT = {
-    SPATIAL_DS_FACTOR_KEY: 1,
     BATCH_SIZE_KEY: 256,
     MAX_DAILY_EXAMPLES_KEY: 64,
     BAND_NUMBERS_KEY: satellite_io.BAND_NUMBERS,
@@ -164,8 +157,6 @@ def _check_generator_args(option_dict):
 
     error_checking.assert_is_integer(option_dict[BATCH_SIZE_KEY])
     error_checking.assert_is_geq(option_dict[BATCH_SIZE_KEY], 2)
-    error_checking.assert_is_integer(option_dict[SPATIAL_DS_FACTOR_KEY])
-    error_checking.assert_is_geq(option_dict[SPATIAL_DS_FACTOR_KEY], 1)
     error_checking.assert_is_integer(option_dict[MAX_DAILY_EXAMPLES_KEY])
     error_checking.assert_is_geq(option_dict[MAX_DAILY_EXAMPLES_KEY], 2)
     error_checking.assert_is_integer(option_dict[LEAD_TIME_KEY])
@@ -203,168 +194,6 @@ def _check_inference_args(predictor_matrix, num_examples_per_batch, verbose):
     return num_examples_per_batch
 
 
-def _read_raw_inputs_one_day(
-        valid_date_string, satellite_file_names, band_numbers,
-        norm_dict_for_count, uniformize, echo_classifn_file_names,
-        lead_time_seconds, spatial_downsampling_factor, num_examples_to_read,
-        return_coords):
-    """Reads raw inputs (satellite and echo-classification files) for one day.
-
-    E = number of examples
-    M = number of rows in grid
-    N = number of columns in grid
-
-    :param valid_date_string: Valid date (format "yyyymmdd").
-    :param satellite_file_names: 1-D list of paths to satellite files (readable
-        by `satellite_io.read_file`).
-    :param band_numbers: See doc for `generator_from_raw_files`.
-    :param norm_dict_for_count: Dictionary returned by
-        `normalization.read_file`.  Will use this to normalize satellite data.
-        If None, will not normalize.
-    :param uniformize: See doc for `generator_from_raw_files`.
-    :param echo_classifn_file_names: 1-D list of paths to echo-classification
-        files (readable by `radar_io.read_echo_classifn_file`).
-    :param lead_time_seconds: See doc for `generator_from_raw_files`.
-    :param spatial_downsampling_factor: Same.
-    :param num_examples_to_read: Number of examples to read.
-    :param return_coords: Boolean flag.  If True, will return latitudes and
-        longitudes for grid points.
-
-    :return: data_dict: Dictionary with the following keys.
-    data_dict['predictor_matrix']: See doc for `generator_from_raw_files`.
-    data_dict['target_matrix']: Same.
-    data_dict['valid_times_unix_sec']: length-E numpy array of valid times.
-    data_dict['latitudes_deg_n']: length-M numpy array of latitudes (deg N).
-        If `return_coords == False`, this is None.
-    data_dict['longitudes_deg_e']: length-N numpy array of longitudes (deg E).
-        If `return_coords == False`, this is None.
-    """
-
-    ec_date_strings = [
-        radar_io.file_name_to_date(f) for f in echo_classifn_file_names
-    ]
-    index = ec_date_strings.index(valid_date_string)
-    desired_ec_file_name = echo_classifn_file_names[index]
-
-    satellite_date_strings = [
-        satellite_io.file_name_to_date(f) for f in satellite_file_names
-    ]
-    index = satellite_date_strings.index(valid_date_string)
-    desired_satellite_file_names = [satellite_file_names[index]]
-
-    if lead_time_seconds > 0:
-        desired_satellite_file_names.insert(0, satellite_file_names[index - 1])
-
-    print('Reading data from: "{0:s}"...'.format(desired_ec_file_name))
-    echo_classifn_dict = radar_io.read_echo_classifn_file(desired_ec_file_name)
-
-    satellite_dicts = []
-
-    for this_file_name in desired_satellite_file_names:
-        print('Reading data from: "{0:s}"...'.format(this_file_name))
-        this_satellite_dict = satellite_io.read_file(
-            netcdf_file_name=this_file_name, read_temperatures=False,
-            read_counts=True
-        )
-        this_satellite_dict = satellite_io.subset_by_band(
-            satellite_dict=this_satellite_dict, band_numbers=band_numbers
-        )
-        satellite_dicts.append(this_satellite_dict)
-
-    satellite_dict = satellite_io.concat_data(satellite_dicts)
-
-    assert numpy.allclose(
-        echo_classifn_dict[radar_io.LATITUDES_KEY],
-        satellite_dict[satellite_io.LATITUDES_KEY],
-        atol=TOLERANCE
-    )
-
-    assert numpy.allclose(
-        echo_classifn_dict[radar_io.LONGITUDES_KEY],
-        satellite_dict[satellite_io.LONGITUDES_KEY],
-        atol=TOLERANCE
-    )
-
-    valid_times_unix_sec = echo_classifn_dict[radar_io.VALID_TIMES_KEY]
-    init_times_unix_sec = valid_times_unix_sec - lead_time_seconds
-
-    good_flags = numpy.array([
-        t in satellite_dict[satellite_io.VALID_TIMES_KEY]
-        for t in init_times_unix_sec
-    ], dtype=bool)
-
-    if not numpy.any(good_flags):
-        return None
-
-    good_indices = numpy.where(good_flags)[0]
-    valid_times_unix_sec = valid_times_unix_sec[good_indices]
-    init_times_unix_sec = init_times_unix_sec[good_indices]
-
-    echo_classifn_dict = radar_io.subset_by_time(
-        refl_or_echo_classifn_dict=echo_classifn_dict,
-        desired_times_unix_sec=valid_times_unix_sec
-    )[0]
-    satellite_dict = satellite_io.subset_by_time(
-        satellite_dict=satellite_dict,
-        desired_times_unix_sec=init_times_unix_sec
-    )[0]
-    num_examples = len(good_indices)
-
-    if num_examples >= num_examples_to_read:
-        desired_indices = numpy.linspace(
-            0, num_examples - 1, num=num_examples, dtype=int
-        )
-        desired_indices = numpy.random.choice(
-            desired_indices, size=num_examples_to_read, replace=False
-        )
-
-        echo_classifn_dict = radar_io.subset_by_index(
-            refl_or_echo_classifn_dict=echo_classifn_dict,
-            desired_indices=desired_indices
-        )
-        satellite_dict = satellite_io.subset_by_index(
-            satellite_dict=satellite_dict, desired_indices=desired_indices
-        )
-
-    if spatial_downsampling_factor > 1:
-        satellite_dict, echo_classifn_dict = (
-            example_io.downsample_data_in_space(
-                satellite_dict=satellite_dict,
-                echo_classifn_dict=echo_classifn_dict,
-                downsampling_factor=spatial_downsampling_factor,
-                change_coordinates=return_coords
-            )
-        )
-
-    if norm_dict_for_count is not None:
-        satellite_dict = normalization.normalize_data(
-            satellite_dict=satellite_dict, uniformize=uniformize,
-            norm_dict_for_count=norm_dict_for_count
-        )
-
-    predictor_matrix = satellite_dict[satellite_io.BRIGHTNESS_COUNT_KEY]
-    target_matrix = (
-        echo_classifn_dict[radar_io.CONVECTIVE_FLAGS_KEY].astype(int)
-    )
-    print('Number of target values in batch = {0:d} ... mean = {1:.3g}'.format(
-        target_matrix.size, numpy.mean(target_matrix)
-    ))
-
-    data_dict = {
-        PREDICTOR_MATRIX_KEY: predictor_matrix,
-        TARGET_MATRIX_KEY: numpy.expand_dims(target_matrix, axis=-1),
-        VALID_TIMES_KEY: valid_times_unix_sec,
-        LATITUDES_KEY: None,
-        LONGITUDES_KEY: None
-    }
-
-    if return_coords:
-        data_dict[LATITUDES_KEY] = echo_classifn_dict[radar_io.LATITUDES_KEY]
-        data_dict[LONGITUDES_KEY] = echo_classifn_dict[radar_io.LONGITUDES_KEY]
-
-    return data_dict
-
-
 def _read_preprocessed_inputs_one_day(
         valid_date_string, predictor_file_names, band_numbers,
         normalize, uniformize, target_file_names, lead_time_seconds,
@@ -389,13 +218,13 @@ def _read_preprocessed_inputs_one_day(
     uniformize = uniformize and normalize
 
     target_date_strings = [
-        example_io.target_file_name_to_date(f) for f in target_file_names
+        example_io.file_name_to_date(f) for f in target_file_names
     ]
     index = target_date_strings.index(valid_date_string)
     desired_target_file_name = target_file_names[index]
 
     predictor_date_strings = [
-        example_io.predictor_file_name_to_date(f) for f in predictor_file_names
+        example_io.file_name_to_date(f) for f in predictor_file_names
     ]
     index = predictor_date_strings.index(valid_date_string)
     desired_predictor_file_names = [predictor_file_names[index]]
@@ -546,42 +375,6 @@ def _write_metafile(
     dill_file_handle.close()
 
 
-def _find_days_with_raw_inputs(
-        satellite_file_names, echo_classifn_file_names, lead_time_seconds):
-    """Finds days with raw inputs (both echo-classifn and satellite file).
-
-    :param satellite_file_names: See doc for `_read_raw_inputs_one_day`.
-    :param echo_classifn_file_names: Same.
-    :param lead_time_seconds: Same.
-    :return: valid_date_strings: List of valid dates (echo-classification dates)
-        for which both satellite and echo-classification data exist, in format
-        "yyyymmdd".
-    """
-
-    satellite_date_strings = [
-        satellite_io.file_name_to_date(f) for f in satellite_file_names
-    ]
-    ec_date_strings = [
-        radar_io.file_name_to_date(f) for f in echo_classifn_file_names
-    ]
-    valid_date_strings = []
-
-    for this_ec_date_string in ec_date_strings:
-        if this_ec_date_string not in satellite_date_strings:
-            continue
-
-        if lead_time_seconds > 0:
-            if (
-                    general_utils.get_previous_date(this_ec_date_string)
-                    not in satellite_date_strings
-            ):
-                continue
-
-        valid_date_strings.append(this_ec_date_string)
-
-    return valid_date_strings
-
-
 def _find_days_with_preprocessed_inputs(
         predictor_file_names, target_file_names, lead_time_seconds):
     """Finds days with pre-processed inputs (both predictor and target file).
@@ -595,10 +388,10 @@ def _find_days_with_preprocessed_inputs(
     """
 
     predictor_date_strings = [
-        example_io.predictor_file_name_to_date(f) for f in predictor_file_names
+        example_io.file_name_to_date(f) for f in predictor_file_names
     ]
     target_date_strings = [
-        example_io.target_file_name_to_date(f) for f in target_file_names
+        example_io.file_name_to_date(f) for f in target_file_names
     ]
     valid_date_strings = []
 
@@ -630,90 +423,6 @@ def check_class_weights(class_weights):
         class_weights, exact_dimensions=numpy.array([2], dtype=int)
     )
     error_checking.assert_is_greater_numpy_array(class_weights, 0.)
-
-
-def create_data_from_raw_files(option_dict, return_coords=False):
-    """Creates input data from raw (satellite and echo-classifn) files.
-
-    This method is the same as `generator_from_raw_files`, except that it
-    returns all the data at once, rather than generating batches on the fly.
-
-    :param option_dict: Dictionary with the following keys.
-    option_dict['top_satellite_dir_name']: See doc for
-        `generator_from_raw_files`.
-    option_dict['top_echo_classifn_dir_name']: Same.
-    option_dict['spatial_downsampling_factor']: Same.
-    option_dict['band_numbers']: Same.
-    option_dict['lead_time_seconds']: Same.
-    option_dict['valid_date_string']: Valid date (format "yyyymmdd").  Will
-        create examples with echo-classification data valid on this day.
-    option_dict['norm_dict_for_count']: See doc for `_read_raw_inputs_one_day`.
-    option_dict['uniformize']: See doc for `generator_from_raw_files`.
-
-    :param return_coords: See doc for `_read_raw_inputs_one_day`.
-    :return: data_dict: Same.
-    """
-
-    option_dict = _check_generator_args(option_dict)
-    error_checking.assert_is_boolean(return_coords)
-
-    top_satellite_dir_name = option_dict[SATELLITE_DIRECTORY_KEY]
-    top_echo_classifn_dir_name = option_dict[ECHO_CLASSIFN_DIR_KEY]
-    spatial_downsampling_factor = option_dict[SPATIAL_DS_FACTOR_KEY]
-    band_numbers = option_dict[BAND_NUMBERS_KEY]
-    lead_time_seconds = option_dict[LEAD_TIME_KEY]
-    valid_date_string = option_dict[VALID_DATE_KEY]
-    norm_dict_for_count = option_dict[NORMALIZATION_DICT_KEY]
-    uniformize = option_dict[UNIFORMIZE_FLAG_KEY]
-
-    if lead_time_seconds == 0:
-        first_init_date_string = copy.deepcopy(valid_date_string)
-    else:
-        valid_date_unix_sec = time_conversion.string_to_unix_sec(
-            valid_date_string, DATE_FORMAT
-        )
-        first_init_date_string = time_conversion.unix_sec_to_string(
-            valid_date_unix_sec - DAYS_TO_SECONDS, DATE_FORMAT
-        )
-
-    satellite_file_names = satellite_io.find_many_files(
-        top_directory_name=top_satellite_dir_name,
-        first_date_string=first_init_date_string,
-        last_date_string=valid_date_string,
-        prefer_zipped=True, allow_other_format=True,
-        raise_error_if_all_missing=False,
-        raise_error_if_any_missing=False
-    )
-
-    echo_classifn_file_names = radar_io.find_many_files(
-        top_directory_name=top_echo_classifn_dir_name,
-        first_date_string=valid_date_string,
-        last_date_string=valid_date_string,
-        file_type_string=radar_io.ECHO_CLASSIFN_TYPE_STRING,
-        prefer_zipped=True, allow_other_format=True,
-        raise_error_if_all_missing=False,
-        raise_error_if_any_missing=False
-    )
-
-    valid_date_strings = _find_days_with_raw_inputs(
-        satellite_file_names=satellite_file_names,
-        echo_classifn_file_names=echo_classifn_file_names,
-        lead_time_seconds=lead_time_seconds
-    )
-
-    if len(valid_date_strings) == 0:
-        return None
-
-    return _read_raw_inputs_one_day(
-        valid_date_string=valid_date_string,
-        satellite_file_names=satellite_file_names,
-        band_numbers=band_numbers,
-        norm_dict_for_count=norm_dict_for_count, uniformize=uniformize,
-        echo_classifn_file_names=echo_classifn_file_names,
-        lead_time_seconds=lead_time_seconds,
-        spatial_downsampling_factor=spatial_downsampling_factor,
-        num_examples_to_read=int(1e6), return_coords=return_coords
-    )
 
 
 def create_data_from_preprocessed_files(option_dict, return_coords=False):
@@ -790,167 +499,6 @@ def create_data_from_preprocessed_files(option_dict, return_coords=False):
         lead_time_seconds=lead_time_seconds,
         num_examples_to_read=int(1e6), return_coords=return_coords
     )
-
-
-def generator_from_raw_files(option_dict):
-    """Generates training data from raw (satellite and echo-classifn) files.
-
-    E = number of examples per batch
-    M = number of rows in grid
-    N = number of columns in grid
-    C = number of channels (spectral bands)
-
-    :param option_dict: Dictionary with the following keys.
-    option_dict['top_satellite_dir_name']: Name of top-level directory with
-        satellite data (predictors).  Files therein will be found by
-        `satellite_io.find_file` and read by `satellite_io.read_file`.
-    option_dict['top_echo_classifn_dir_name']: Name of top-level directory with
-        echo-classification data (targets).  Files therein will be found by
-        `radar_io.find_file` and read by `radar_io.read_echo_classifn_file`.
-    option_dict['spatial_downsampling_factor']: Downsampling factor (integer),
-        used to coarsen spatial resolution.  If you do not want to coarsen
-        spatial resolution, make this 1.
-    option_dict['num_examples_per_batch']: Batch size.
-    option_dict['max_examples_per_day_in_batch']: Max number of examples from
-        the same day in one batch.
-    option_dict['band_numbers']: 1-D numpy array of band numbers (integers) for
-        satellite data.  Will use only these spectral bands as predictors.
-    option_dict['lead_time_seconds']: Lead time for prediction.
-    option_dict['first_valid_date_string']: First valid date (format
-        "yyyymmdd").  Will not generate examples with echo-classification data
-        before this day.
-    option_dict['last_valid_date_string']: Last valid date (format "yyyymmdd").
-        Will not generate examples with echo-classification data after this day.
-    option_dict['normalization_file_name']: File with normalization parameters
-        (will be read by `normalization.read_file`).  If you do not want to
-        normalize, make this None.
-    option_dict['uniformize']: Boolean flag.  If True, will convert satellite
-        values to uniform distribution before normal distribution.  If False,
-        will go directly to normal distribution.
-
-    :return: predictor_matrix: E-by-M-by-N-by-C numpy array of predictor values,
-        based on satellite data.
-    :return: target_matrix: E-by-M-by-N-by-1 numpy array of target values
-        (integers in 0...1, indicating whether or not convection occurs at
-        the given lead time).
-    :raises: ValueError: if no valid date can be found for which
-        echo-classification and satellite data are available.
-    """
-
-    # TODO(thunderhoser): Allow generator to read brightness temperatures
-    # instead of counts.
-
-    option_dict = _check_generator_args(option_dict)
-
-    top_satellite_dir_name = option_dict[SATELLITE_DIRECTORY_KEY]
-    top_echo_classifn_dir_name = option_dict[ECHO_CLASSIFN_DIR_KEY]
-    spatial_downsampling_factor = option_dict[SPATIAL_DS_FACTOR_KEY]
-    num_examples_per_batch = option_dict[BATCH_SIZE_KEY]
-    max_examples_per_day_in_batch = option_dict[MAX_DAILY_EXAMPLES_KEY]
-    band_numbers = option_dict[BAND_NUMBERS_KEY]
-    lead_time_seconds = option_dict[LEAD_TIME_KEY]
-    first_valid_date_string = option_dict[FIRST_VALID_DATE_KEY]
-    last_valid_date_string = option_dict[LAST_VALID_DATE_KEY]
-    normalization_file_name = option_dict[NORMALIZATION_FILE_KEY]
-    uniformize = option_dict[UNIFORMIZE_FLAG_KEY]
-
-    if lead_time_seconds == 0:
-        first_init_date_string = copy.deepcopy(first_valid_date_string)
-    else:
-        first_init_date_string = general_utils.get_previous_date(
-            first_valid_date_string
-        )
-
-    if normalization_file_name is None:
-        norm_dict_for_count = None
-    else:
-        print('Reading normalization parameters from: "{0:s}"...'.format(
-            normalization_file_name
-        ))
-        norm_dict_for_count = (
-            normalization.read_file(normalization_file_name)[1]
-        )
-
-    satellite_file_names = satellite_io.find_many_files(
-        top_directory_name=top_satellite_dir_name,
-        first_date_string=first_init_date_string,
-        last_date_string=last_valid_date_string,
-        prefer_zipped=True, allow_other_format=True,
-        raise_error_if_any_missing=False
-    )
-
-    echo_classifn_file_names = radar_io.find_many_files(
-        top_directory_name=top_echo_classifn_dir_name,
-        first_date_string=first_valid_date_string,
-        last_date_string=last_valid_date_string,
-        file_type_string=radar_io.ECHO_CLASSIFN_TYPE_STRING,
-        prefer_zipped=True, allow_other_format=True,
-        raise_error_if_any_missing=False
-    )
-
-    valid_date_strings = _find_days_with_raw_inputs(
-        satellite_file_names=satellite_file_names,
-        echo_classifn_file_names=echo_classifn_file_names,
-        lead_time_seconds=lead_time_seconds
-    )
-
-    if len(valid_date_strings) == 0:
-        raise ValueError(
-            'Cannot find any valid date for which both echo-classification and '
-            'satellite data are available.'
-        )
-
-    random.shuffle(valid_date_strings)
-    date_index = 0
-
-    while True:
-        predictor_matrix = None
-        target_matrix = None
-        num_examples_in_memory = 0
-
-        while num_examples_in_memory < num_examples_per_batch:
-            if date_index == len(valid_date_strings):
-                date_index = 0
-
-            num_examples_to_read = min([
-                max_examples_per_day_in_batch,
-                num_examples_per_batch - num_examples_in_memory
-            ])
-
-            this_data_dict = _read_raw_inputs_one_day(
-                valid_date_string=valid_date_strings[date_index],
-                satellite_file_names=satellite_file_names,
-                band_numbers=band_numbers,
-                norm_dict_for_count=norm_dict_for_count, uniformize=uniformize,
-                echo_classifn_file_names=echo_classifn_file_names,
-                lead_time_seconds=lead_time_seconds,
-                spatial_downsampling_factor=spatial_downsampling_factor,
-                num_examples_to_read=num_examples_to_read, return_coords=False
-            )
-
-            date_index += 1
-            if this_data_dict is None:
-                continue
-
-            this_predictor_matrix = this_data_dict[PREDICTOR_MATRIX_KEY]
-            this_target_matrix = this_data_dict[TARGET_MATRIX_KEY]
-
-            if predictor_matrix is None:
-                predictor_matrix = this_predictor_matrix + 0.
-                target_matrix = this_target_matrix + 0
-            else:
-                predictor_matrix = numpy.concatenate(
-                    (predictor_matrix, this_predictor_matrix), axis=0
-                )
-                target_matrix = numpy.concatenate(
-                    (target_matrix, this_target_matrix), axis=0
-                )
-
-            num_examples_in_memory = predictor_matrix.shape[0]
-
-        predictor_matrix = predictor_matrix.astype('float32')
-        target_matrix = target_matrix.astype('float32')
-        yield predictor_matrix, target_matrix
 
 
 def generator_from_preprocessed_files(option_dict):
@@ -1081,143 +629,6 @@ def generator_from_preprocessed_files(option_dict):
         predictor_matrix = predictor_matrix.astype('float32')
         target_matrix = target_matrix.astype('float32')
         yield predictor_matrix, target_matrix
-
-
-def train_model_from_raw_files(
-        model_object, output_dir_name, num_epochs,
-        num_training_batches_per_epoch, training_option_dict,
-        num_validation_batches_per_epoch, validation_option_dict,
-        do_early_stopping=True,
-        plateau_lr_multiplier=DEFAULT_LEARNING_RATE_MULTIPLIER,
-        class_weights=None, fss_half_window_size_px=None):
-    """Trains neural net from raw (satellite and echo-classification) files.
-
-    :param model_object: Untrained neural net (instance of `keras.models.Model`
-        or `keras.models.Sequential`).
-    :param output_dir_name: Path to output directory (model and training history
-        will be saved here).
-    :param num_epochs: Number of training epochs.
-    :param num_training_batches_per_epoch: Number of training batches per epoch.
-    :param training_option_dict: See doc for `generator_from_raw_files`.  This
-        dictionary will be used to generate training data.
-    :param num_validation_batches_per_epoch: Number of validation batches per
-        epoch.
-    :param validation_option_dict: See doc for `generator_from_raw_files`.  For
-        validation only, the following values will replace corresponding values
-        in `training_option_dict`:
-    validation_option_dict['top_satellite_dir_name']
-    validation_option_dict['top_echo_classifn_dir_name']
-    validation_option_dict['first_valid_date_string']
-    validation_option_dict['last_valid_date_string']
-
-    :param do_early_stopping: Boolean flag.  If True, will stop training early
-        if validation loss has not improved over last several epochs (see
-        constants at top of file for what exactly this means).
-    :param plateau_lr_multiplier: Multiplier for learning rate.  Learning
-        rate will be multiplied by this factor upon plateau in validation
-        performance.
-    :param class_weights: See doc for `check_class_weights`.  If weighted cross-
-        entropy is not the loss function, leave this alone.
-    :param fss_half_window_size_px: Number of pixels (grid cells) in half of
-        smoothing window for fractions skill score (FSS).  If FSS is not the
-        loss function, leave this alone.
-    """
-
-    file_system_utils.mkdir_recursive_if_necessary(
-        directory_name=output_dir_name
-    )
-
-    error_checking.assert_is_integer(num_epochs)
-    error_checking.assert_is_geq(num_epochs, 2)
-    error_checking.assert_is_integer(num_training_batches_per_epoch)
-    error_checking.assert_is_geq(num_training_batches_per_epoch, 10)
-    error_checking.assert_is_integer(num_validation_batches_per_epoch)
-    error_checking.assert_is_geq(num_validation_batches_per_epoch, 10)
-    error_checking.assert_is_boolean(do_early_stopping)
-
-    if do_early_stopping:
-        error_checking.assert_is_greater(plateau_lr_multiplier, 0.)
-        error_checking.assert_is_less_than(plateau_lr_multiplier, 1.)
-
-    if class_weights is not None:
-        check_class_weights(class_weights)
-
-    if fss_half_window_size_px is not None:
-        error_checking.assert_is_integer(fss_half_window_size_px)
-        error_checking.assert_is_geq(fss_half_window_size_px, 0)
-
-    training_option_dict = _check_generator_args(training_option_dict)
-
-    validation_keys_to_keep = [
-        SATELLITE_DIRECTORY_KEY, ECHO_CLASSIFN_DIR_KEY,
-        FIRST_VALID_DATE_KEY, LAST_VALID_DATE_KEY
-    ]
-
-    for this_key in list(training_option_dict.keys()):
-        if this_key in validation_keys_to_keep:
-            continue
-
-        validation_option_dict[this_key] = training_option_dict[this_key]
-
-    validation_option_dict = _check_generator_args(validation_option_dict)
-
-    # model_file_name = (
-    #     output_dir_name + '/model_epoch={epoch:03d}_val-loss={val_loss:.6f}.h5'
-    # )
-    model_file_name = '{0:s}/model.h5'.format(output_dir_name)
-
-    history_object = keras.callbacks.CSVLogger(
-        filename='{0:s}/history.csv'.format(output_dir_name),
-        separator=',', append=False
-    )
-    checkpoint_object = keras.callbacks.ModelCheckpoint(
-        filepath=model_file_name, monitor='val_loss', verbose=1,
-        save_best_only=do_early_stopping, save_weights_only=False, mode='min',
-        period=1
-    )
-    list_of_callback_objects = [history_object, checkpoint_object]
-
-    if do_early_stopping:
-        early_stopping_object = keras.callbacks.EarlyStopping(
-            monitor='val_loss', min_delta=LOSS_PATIENCE,
-            patience=EARLY_STOPPING_PATIENCE_EPOCHS, verbose=1, mode='min'
-        )
-        list_of_callback_objects.append(early_stopping_object)
-
-        plateau_object = keras.callbacks.ReduceLROnPlateau(
-            monitor='val_loss', factor=plateau_lr_multiplier,
-            patience=PLATEAU_PATIENCE_EPOCHS, verbose=1, mode='min',
-            min_delta=LOSS_PATIENCE, cooldown=PLATEAU_COOLDOWN_EPOCHS
-        )
-        list_of_callback_objects.append(plateau_object)
-
-    metafile_name = find_metafile(
-        model_file_name=model_file_name, raise_error_if_missing=False
-    )
-    print('Writing metadata to: "{0:s}"...'.format(metafile_name))
-
-    _write_metafile(
-        dill_file_name=metafile_name, num_epochs=num_epochs,
-        num_training_batches_per_epoch=num_training_batches_per_epoch,
-        training_option_dict=training_option_dict,
-        num_validation_batches_per_epoch=num_validation_batches_per_epoch,
-        validation_option_dict=validation_option_dict,
-        do_early_stopping=do_early_stopping,
-        plateau_lr_multiplier=plateau_lr_multiplier,
-        class_weights=class_weights,
-        fss_half_window_size_px=fss_half_window_size_px
-    )
-
-    training_generator = generator_from_raw_files(training_option_dict)
-    validation_generator = generator_from_raw_files(validation_option_dict)
-
-    model_object.fit_generator(
-        generator=training_generator,
-        steps_per_epoch=num_training_batches_per_epoch,
-        epochs=num_epochs, verbose=1, callbacks=list_of_callback_objects,
-        validation_data=validation_generator,
-        validation_steps=num_validation_batches_per_epoch
-    )
 
 
 def train_model_from_preprocessed_files(

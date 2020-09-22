@@ -13,7 +13,6 @@ sys.path.append(os.path.normpath(os.path.join(THIS_DIRECTORY_NAME, '..')))
 
 import time_conversion
 import prediction_io
-import normalization
 import neural_net
 
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
@@ -95,18 +94,10 @@ def _apply_net_one_day(model_object, base_option_dict, valid_date_string,
 
     option_dict = copy.deepcopy(base_option_dict)
     option_dict[neural_net.VALID_DATE_KEY] = valid_date_string
-    use_preprocessed_files = (
-        neural_net.NORMALIZATION_DICT_KEY not in base_option_dict
-    )
 
-    if use_preprocessed_files:
-        data_dict = neural_net.create_data_from_preprocessed_files(
-            option_dict=option_dict, return_coords=True
-        )
-    else:
-        data_dict = neural_net.create_data_from_raw_files(
-            option_dict=option_dict, return_coords=True
-        )
+    data_dict = neural_net.create_data_from_preprocessed_files(
+        option_dict=option_dict, return_coords=True
+    )
 
     if data_dict is None:
         return
@@ -161,51 +152,18 @@ def _run(model_file_name, top_predictor_dir_name, top_target_dir_name,
     metadata_dict = neural_net.read_metafile(metafile_name)
     training_option_dict = metadata_dict[neural_net.TRAINING_OPTIONS_KEY]
 
-    use_preprocessed_files = (
-        neural_net.NORMALIZATION_FILE_KEY not in training_option_dict
-    )
-
-    if use_preprocessed_files:
-        base_option_dict = {
-            neural_net.PREDICTOR_DIRECTORY_KEY: top_predictor_dir_name,
-            neural_net.TARGET_DIRECTORY_KEY: top_target_dir_name,
-            neural_net.BAND_NUMBERS_KEY:
-                training_option_dict[neural_net.BAND_NUMBERS_KEY],
-            neural_net.LEAD_TIME_KEY:
-                training_option_dict[neural_net.LEAD_TIME_KEY],
-            neural_net.NORMALIZE_FLAG_KEY:
-                training_option_dict[neural_net.NORMALIZE_FLAG_KEY],
-            neural_net.UNIFORMIZE_FLAG_KEY:
-                training_option_dict[neural_net.UNIFORMIZE_FLAG_KEY]
-        }
-    else:
-        normalization_file_name = (
-            training_option_dict[neural_net.NORMALIZATION_FILE_KEY]
-        )
-
-        if normalization_file_name is None:
-            norm_dict_for_count = None
-        else:
-            print('Reading normalization params from: "{0:s}"...'.format(
-                normalization_file_name
-            ))
-            norm_dict_for_count = (
-                normalization.read_file(normalization_file_name)[1]
-            )
-
-        base_option_dict = {
-            neural_net.SATELLITE_DIRECTORY_KEY: top_predictor_dir_name,
-            neural_net.ECHO_CLASSIFN_DIR_KEY: top_target_dir_name,
-            neural_net.SPATIAL_DS_FACTOR_KEY:
-                training_option_dict[neural_net.SPATIAL_DS_FACTOR_KEY],
-            neural_net.BAND_NUMBERS_KEY:
-                training_option_dict[neural_net.BAND_NUMBERS_KEY],
-            neural_net.LEAD_TIME_KEY:
-                training_option_dict[neural_net.LEAD_TIME_KEY],
-            neural_net.NORMALIZATION_DICT_KEY: norm_dict_for_count,
-            neural_net.UNIFORMIZE_FLAG_KEY:
-                training_option_dict[neural_net.UNIFORMIZE_FLAG_KEY]
-        }
+    base_option_dict = {
+        neural_net.PREDICTOR_DIRECTORY_KEY: top_predictor_dir_name,
+        neural_net.TARGET_DIRECTORY_KEY: top_target_dir_name,
+        neural_net.BAND_NUMBERS_KEY:
+            training_option_dict[neural_net.BAND_NUMBERS_KEY],
+        neural_net.LEAD_TIME_KEY:
+            training_option_dict[neural_net.LEAD_TIME_KEY],
+        neural_net.NORMALIZE_FLAG_KEY:
+            training_option_dict[neural_net.NORMALIZE_FLAG_KEY],
+        neural_net.UNIFORMIZE_FLAG_KEY:
+            training_option_dict[neural_net.UNIFORMIZE_FLAG_KEY]
+    }
 
     valid_date_strings = time_conversion.get_spc_dates_in_range(
         first_valid_date_string, last_valid_date_string

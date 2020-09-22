@@ -10,21 +10,18 @@ sys.path.append(os.path.normpath(os.path.join(THIS_DIRECTORY_NAME, '..')))
 
 import satellite_io
 
-USE_PREPROCESSED_FILES_ARG_NAME = 'use_preprocessed_files'
 TRAINING_PREDICTOR_DIR_ARG_NAME = 'training_predictor_dir_name'
 TRAINING_TARGET_DIR_ARG_NAME = 'training_target_dir_name'
 VALIDN_PREDICTOR_DIR_ARG_NAME = 'validn_predictor_dir_name'
 VALIDN_TARGET_DIR_ARG_NAME = 'validn_target_dir_name'
 INPUT_MODEL_FILE_ARG_NAME = 'input_model_file_name'
 OUTPUT_MODEL_DIR_ARG_NAME = 'output_model_dir_name'
-SPATIAL_DS_FACTOR_ARG_NAME = 'spatial_downsampling_factor'
 BAND_NUMBERS_ARG_NAME = 'band_numbers'
 LEAD_TIME_ARG_NAME = 'lead_time_seconds'
 FIRST_TRAIN_DATE_ARG_NAME = 'first_training_date_string'
 LAST_TRAIN_DATE_ARG_NAME = 'last_training_date_string'
 FIRST_VALIDN_DATE_ARG_NAME = 'first_validn_date_string'
 LAST_VALIDN_DATE_ARG_NAME = 'last_validn_date_string'
-NORMALIZATION_FILE_ARG_NAME = 'input_normalization_file_name'
 NORMALIZE_ARG_NAME = 'normalize'
 UNIFORMIZE_ARG_NAME = 'uniformize'
 BATCH_SIZE_ARG_NAME = 'num_examples_per_batch'
@@ -34,31 +31,24 @@ NUM_TRAINING_BATCHES_ARG_NAME = 'num_training_batches_per_epoch'
 NUM_VALIDN_BATCHES_ARG_NAME = 'num_validn_batches_per_epoch'
 PLATEAU_LR_MULTIPLIER_ARG_NAME = 'plateau_lr_multiplier'
 
-USE_PREPROCESSED_FILES_HELP_STRING = (
-    'Boolean flag.  If 1, will use pre-processed files, readable by '
-    '`example_io.read_predictor_file` and `example_io.read_target_file`.  If 0,'
-    ' will use raw files, readable by `satellite_io.read_file` and '
-    '`radar_io.read_2d_file`.'
-)
 TRAINING_PREDICTOR_DIR_HELP_STRING = (
-    'Name of top-level directory with predictors for training.  For more '
-    'details, see doc for argument `{0:s}`.'
-).format(USE_PREPROCESSED_FILES_ARG_NAME)
-
+    'Name of top-level directory with predictors for training.  Files therein '
+    'will be found by `example_io.find_predictor_file` and read by '
+    '`example_io.read_predictor_file`.'
+)
 TRAINING_TARGET_DIR_HELP_STRING = (
-    'Name of top-level directory with targets for training.  For more details, '
-    'see doc for argument `{0:s}`.'
-).format(USE_PREPROCESSED_FILES_ARG_NAME)
+    'Name of top-level directory with targets for training.  Files therein will'
+    ' be found by `example_io.find_target_file` and read by '
+    '`example_io.read_target_file`.'
+)
 
 VALIDN_PREDICTOR_DIR_HELP_STRING = (
-    'Name of top-level directory with predictors for validation (monitoring).  '
-    'For more details, see doc for argument `{0:s}`.'
-).format(USE_PREPROCESSED_FILES_ARG_NAME)
+    'Same as `{0:s}` but for validation (monitoring).'
+).format(TRAINING_PREDICTOR_DIR_ARG_NAME)
 
 VALIDN_TARGET_DIR_HELP_STRING = (
-    'Name of top-level directory with targets for validation (monitoring).  For'
-    ' more details, see doc for argument `{0:s}`.'
-).format(USE_PREPROCESSED_FILES_ARG_NAME)
+    'Same as `{0:s}` but for validation (monitoring).'
+).format(TRAINING_TARGET_DIR_ARG_NAME)
 
 INPUT_MODEL_FILE_HELP_STRING = (
     'Path to file with untrained model (defining architecture, optimizer, and '
@@ -67,11 +57,6 @@ INPUT_MODEL_FILE_HELP_STRING = (
 OUTPUT_MODEL_DIR_HELP_STRING = (
     'Name of output directory.  Model will be saved here.'
 )
-SPATIAL_DS_FACTOR_HELP_STRING = (
-    '[used only if `{0:s} == 0`] '
-    'Downsampling factor, used to coarsen spatial resolution.  If you do not '
-    'want to coarsen spatial resolution, make this 1.'
-).format(USE_PREPROCESSED_FILES_ARG_NAME)
 
 BAND_NUMBERS_HELP_STRING = (
     'List of band numbers (integers) for satellite data.  Will use only these '
@@ -90,16 +75,9 @@ VALIDN_DATE_HELP_STRING = (
     'times (radar times) from `{0:s}`...`{1:s}`.'
 ).format(FIRST_VALIDN_DATE_ARG_NAME, LAST_VALIDN_DATE_ARG_NAME)
 
-NORMALIZATION_FILE_HELP_STRING = (
-    '[used only if `{0:s} == 0`] '
-    'Path to normalization file.  Will be read by `normalization.read_file`.'
-).format(USE_PREPROCESSED_FILES_ARG_NAME)
-
 NORMALIZE_HELP_STRING = (
-    '[used only if `{0:s} == 1`] '
     'Boolean flag.  If 1 (0), will use normalized (unnormalized) predictors.'
-).format(USE_PREPROCESSED_FILES_ARG_NAME)
-
+)
 UNIFORMIZE_HELP_STRING = (
     'Boolean flag.  If True, will convert satellite values to uniform '
     'distribution before normal distribution.  If False, will go directly to '
@@ -131,10 +109,6 @@ def add_input_args(parser_object):
     """
 
     parser_object.add_argument(
-        '--' + USE_PREPROCESSED_FILES_ARG_NAME, type=int, required=False,
-        default=1, help=USE_PREPROCESSED_FILES_HELP_STRING
-    )
-    parser_object.add_argument(
         '--' + TRAINING_PREDICTOR_DIR_ARG_NAME, type=str, required=True,
         help=TRAINING_PREDICTOR_DIR_HELP_STRING
     )
@@ -159,10 +133,6 @@ def add_input_args(parser_object):
         help=OUTPUT_MODEL_DIR_HELP_STRING
     )
     parser_object.add_argument(
-        '--' + SPATIAL_DS_FACTOR_ARG_NAME, type=int, required=False, default=1,
-        help=SPATIAL_DS_FACTOR_HELP_STRING
-    )
-    parser_object.add_argument(
         '--' + BAND_NUMBERS_ARG_NAME, type=int, nargs='+', required=False,
         default=satellite_io.BAND_NUMBERS, help=BAND_NUMBERS_HELP_STRING
     )
@@ -185,10 +155,6 @@ def add_input_args(parser_object):
     parser_object.add_argument(
         '--' + LAST_VALIDN_DATE_ARG_NAME, type=str, required=False,
         default='20171224', help=VALIDN_DATE_HELP_STRING
-    )
-    parser_object.add_argument(
-        '--' + NORMALIZATION_FILE_ARG_NAME, type=str, required=False,
-        default='', help=NORMALIZATION_FILE_HELP_STRING
     )
     parser_object.add_argument(
         '--' + NORMALIZE_ARG_NAME, type=int, required=False, default=1,
