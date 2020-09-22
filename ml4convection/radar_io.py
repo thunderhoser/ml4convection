@@ -17,6 +17,7 @@ import longitude_conversion as lng_conversion
 import echo_classification as echo_classifn
 import file_system_utils
 import error_checking
+import standalone_utils
 
 TOLERANCE = 1e-6
 GZIP_FILE_EXTENSION = '.gz'
@@ -824,3 +825,48 @@ def write_mask_file(
     dataset_object.variables[MASK_MATRIX_KEY][:] = mask_matrix.astype(int)
 
     dataset_object.close()
+
+
+def downsample_mask_in_space(mask_dict, downsampling_factor):
+    """Downsamples mask in space.
+
+    :param mask_dict: Dictionary returned by `read_mask_file`.
+    :param downsampling_factor: Downsampling factor (integer).
+    :return: mask_dict: Same but with coarser spatial resolution.
+    """
+
+    error_checking.assert_is_integer(downsampling_factor)
+    error_checking.assert_is_greater(downsampling_factor, 1)
+
+    mask_matrix = numpy.expand_dims(
+        mask_dict[MASK_MATRIX_KEY].astype(float), axis=(0, -1)
+    )
+    mask_matrix = standalone_utils.do_2d_pooling(
+        feature_matrix=mask_matrix, window_size_px=downsampling_factor,
+        do_max_pooling=False
+    )
+    mask_dict[MASK_MATRIX_KEY] = numpy.round(
+        mask_matrix[0, ..., 0] + TOLERANCE
+    ).astype(bool)
+
+    latitude_matrix_deg_n = numpy.expand_dims(
+        mask_dict[LATITUDES_KEY], axis=(0, -1)
+    )
+    latitude_matrix_deg_n = standalone_utils.do_1d_pooling(
+        feature_matrix=latitude_matrix_deg_n,
+        window_size_px=downsampling_factor, do_max_pooling=False
+    )
+    mask_dict[LATITUDES_KEY] = latitude_matrix_deg_n[0, :, 0]
+
+    # TODO(thunderhoser): Careful: this will not work with wrap-around at the
+    # date line.
+    longitude_matrix_deg_e = numpy.expand_dims(
+        mask_dict[LONGITUDES_KEY], axis=(0, -1)
+    )
+    longitude_matrix_deg_e = standalone_utils.do_1d_pooling(
+        feature_matrix=longitude_matrix_deg_e,
+        window_size_px=downsampling_factor, do_max_pooling=False
+    )
+    mask_dict[LONGITUDES_KEY] = longitude_matrix_deg_e[0, :, 0]
+
+    return mask_dict

@@ -1,20 +1,20 @@
 #!/bin/tcsh
 
-#SBATCH --job-name="process_predictors_2018"
+#SBATCH --job-name="create_predictors_2018"
 #SBATCH --partition="fge"
 #SBATCH --account="rda-ghpcs"
 #SBATCH --qos="batch"
 #SBATCH --ntasks=1
 #SBATCH --nodes=1
 #SBATCH --cpus-per-task=1
-#SBATCH --mem=16G
+#SBATCH --mem=8G
 #SBATCH --time=08:00:00
-#SBATCH --array=2,53
+#SBATCH --array=1-53
 ##SBATCH --exclude=h31n03,h28n12
 ##SBATCH --exclude=h29n01,h26n05,h28n06,h29n07,h30n03,h30n15
 #SBATCH --mail-type=BEGIN,END,FAIL
 #SBATCH --mail-user=ryan.lagerquist@noaa.gov
-#SBATCH --output=process_predictors_2018_%A_%a.out
+#SBATCH --output=create_predictors_2018_%A_%a.out
 
 module load cuda/10.1
 source /scratch2/BMC/gsd-hpcs/Jebb.Q.Stewart/conda3.7/etc/profile.d/conda.csh
@@ -31,7 +31,7 @@ set LAST_DATE_STRINGS=("20180107" "20180114" "20180121" "20180128" "20180204" "2
 set first_date_string=${FIRST_DATE_STRINGS[$SLURM_ARRAY_TASK_ID]}
 set last_date_string=${LAST_DATE_STRINGS[$SLURM_ARRAY_TASK_ID]}
 
-python3 -u "${CODE_DIR_NAME}/process_predictors.py" \
+python3 -u "${CODE_DIR_NAME}/create_predictors.py" \
 --input_satellite_dir_name="${TOP_SATELLITE_DIR_NAME}" \
 --spatial_downsampling_factor=4 \
 --first_date_string="${first_date_string}" \

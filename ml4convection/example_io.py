@@ -30,6 +30,7 @@ BAND_NUMBERS_KEY = 'band_numbers'
 LATITUDES_KEY = 'latitudes_deg_n'
 LONGITUDES_KEY = 'longitudes_deg_e'
 NORMALIZATION_FILE_KEY = 'normalization_file_name'
+MASK_FILE_KEY = 'mask_file_name'
 
 ONE_PER_PREDICTOR_TIME_KEYS = [
     PREDICTOR_MATRIX_UNNORM_KEY, PREDICTOR_MATRIX_NORM_KEY,
@@ -49,10 +50,10 @@ COLUMN_DIMENSION_KEY = 'column'
 BAND_DIMENSION_KEY = 'band'
 
 
-def _process_predictors_one_day(
+def _create_predictors_one_day(
         input_file_name, spatial_downsampling_factor, norm_dict_for_count,
         normalization_file_name):
-    """Processes predictors (satellite data) for one day.
+    """Creates predictor values (from satellite data) for one day.
 
     E = number of examples per batch
     M = number of rows in grid
@@ -61,10 +62,10 @@ def _process_predictors_one_day(
 
     :param input_file_name: Path to input file (will be read by
         `satellite_io.read_file`).
-    :param spatial_downsampling_factor: See doc for `process_predictors`.
+    :param spatial_downsampling_factor: See doc for `create_predictors`.
     :param norm_dict_for_count: Dictionary returned by
         `normalization.read_file`.  Will use this to normalize data.
-    :param normalization_file_name: See doc for `process_predictors`.
+    :param normalization_file_name: See doc for `create_predictors`.
 
     :return: predictor_dict: Dictionary with the following keys.
     predictor_dict['predictor_matrix_unnorm']: E-by-M-by-N-by-C numpy array of
@@ -131,16 +132,23 @@ def _process_predictors_one_day(
     }
 
 
-def _process_targets_one_day(input_file_name, spatial_downsampling_factor):
-    """Processes targets (radar data) for one day.
+def _create_targets_one_day(
+        echo_classifn_file_name, spatial_downsampling_factor, mask_dict,
+        mask_file_name):
+    """Creates target values for one day.
 
     E = number of examples per batch
     M = number of rows in grid
     N = number of columns in grid
 
-    :param input_file_name: Path to input file (will be read by
-        `radar_io.read_echo_classifn_file`).
-    :param spatial_downsampling_factor: See doc for `process_targets`.
+    :param echo_classifn_file_name: Path to echo-classification file (will be
+        read by `radar_io.read_echo_classifn_file`).
+    :param spatial_downsampling_factor: See doc for `create_targets`.
+    :param mask_dict: Dictionary in format returned by
+        `radar_io.read_mask_file`, used to censor locations with bad radar
+        coverage.  If you do not want a mask, leave this alone.
+    :param mask_file_name: [used only if `mask_dict is not None`]
+        Path to file containing mask.
 
     :return: target_dict: Dictionary with the following keys.
     target_dict['target_matrix']: E-by-M-by-N numpy array of target values
@@ -150,10 +158,13 @@ def _process_targets_one_day(input_file_name, spatial_downsampling_factor):
         (deg N).
     target_dict['longitudes_deg_e']: length-N numpy array of longitudes
         (deg E).
+    target_dict['mask_file_name']: Same as input (metadata).
     """
 
-    print('Reading data from: "{0:s}"...'.format(input_file_name))
-    echo_classifn_dict = radar_io.read_echo_classifn_file(input_file_name)
+    print('Reading data from: "{0:s}"...'.format(echo_classifn_file_name))
+    echo_classifn_dict = radar_io.read_echo_classifn_file(
+        echo_classifn_file_name
+    )
 
     if spatial_downsampling_factor > 1:
         echo_classifn_dict = downsample_data_in_space(
@@ -162,9 +173,29 @@ def _process_targets_one_day(input_file_name, spatial_downsampling_factor):
             change_coordinates=True
         )[1]
 
-    target_matrix = (
-        echo_classifn_dict[radar_io.CONVECTIVE_FLAGS_KEY].astype(int)
-    )
+    target_matrix = echo_classifn_dict[radar_io.CONVECTIVE_FLAGS_KEY]
+
+    if mask_dict is not None:
+        assert numpy.allclose(
+            echo_classifn_dict[radar_io.LATITUDES_KEY],
+            mask_dict[radar_io.LATITUDES_KEY],
+            atol=TOLERANCE
+        )
+
+        assert numpy.allclose(
+            echo_classifn_dict[radar_io.LONGITUDES_KEY],
+            mask_dict[radar_io.LONGITUDES_KEY],
+            atol=TOLERANCE
+        )
+
+        num_times = len(echo_classifn_dict[radar_io.VALID_TIMES_KEY])
+
+        for i in range(num_times):
+            target_matrix[i, ...] = numpy.logical_and(
+                target_matrix[i, ...], mask_dict[radar_io.MASK_MATRIX_KEY]
+            )
+
+    target_matrix = target_matrix.astype(int)
 
     print((
         'Number of target values = {0:d} ... event frequency = {1:.2g}'
@@ -176,14 +207,15 @@ def _process_targets_one_day(input_file_name, spatial_downsampling_factor):
         TARGET_MATRIX_KEY: target_matrix,
         VALID_TIMES_KEY: echo_classifn_dict[satellite_io.VALID_TIMES_KEY],
         LATITUDES_KEY: echo_classifn_dict[satellite_io.LATITUDES_KEY],
-        LONGITUDES_KEY: echo_classifn_dict[satellite_io.LONGITUDES_KEY]
+        LONGITUDES_KEY: echo_classifn_dict[satellite_io.LONGITUDES_KEY],
+        MASK_FILE_KEY: mask_file_name
     }
 
 
 def _write_predictor_file(predictor_dict, netcdf_file_name):
     """Writes predictors to NetCDF file.
 
-    :param predictor_dict: Dictionary created by `_process_predictors_one_day`.
+    :param predictor_dict: Dictionary created by `_create_predictors_one_day`.
     :param netcdf_file_name: Path to output file.
     """
 
@@ -264,7 +296,7 @@ def _write_predictor_file(predictor_dict, netcdf_file_name):
 def _write_target_file(target_dict, netcdf_file_name):
     """Writes targets to NetCDF file.
 
-    :param target_dict: Dictionary created by `_process_targets_one_day`.
+    :param target_dict: Dictionary created by `_create_targets_one_day`.
     :param netcdf_file_name: Path to output file.
     """
 
@@ -272,6 +304,8 @@ def _write_target_file(target_dict, netcdf_file_name):
     dataset_object = netCDF4.Dataset(
         netcdf_file_name, 'w', format='NETCDF3_64BIT_OFFSET'
     )
+
+    dataset_object.setncattr(MASK_FILE_KEY, target_dict[MASK_FILE_KEY])
 
     target_matrix = target_dict[TARGET_MATRIX_KEY]
     num_times = target_matrix.shape[0]
@@ -414,11 +448,11 @@ def downsample_data_in_space(downsampling_factor, change_coordinates=False,
     return satellite_dict, echo_classifn_dict
 
 
-def process_predictors(
+def create_predictors(
         top_input_dir_name, spatial_downsampling_factor,
         first_date_string, last_date_string, normalization_file_name,
         top_output_dir_name, raise_error_if_all_missing=True):
-    """Processes predictors (satellite data).
+    """Creates predictor values from satellite data.
 
     :param top_input_dir_name: Name of top-level directory with satellite
         data.  Files therein will be found by `satellite_io.find_file` and read
@@ -426,7 +460,7 @@ def process_predictors(
     :param spatial_downsampling_factor: Downsampling factor (integer), used to
         coarsen spatial resolution.  If you do not want to coarsen spatial
         resolution, make this 1.
-    :param first_date_string: First day (format "yyyymmdd").  Will process
+    :param first_date_string: First day (format "yyyymmdd").  Will create
         predictors for all days in `first_date_string`...`last_date_string`.
     :param last_date_string: See above.
     :param normalization_file_name: Path to file with normalization parameters
@@ -455,7 +489,7 @@ def process_predictors(
     for this_input_file_name in input_file_names:
         print('\n')
 
-        this_predictor_dict = _process_predictors_one_day(
+        this_predictor_dict = _create_predictors_one_day(
             input_file_name=this_input_file_name,
             spatial_downsampling_factor=spatial_downsampling_factor,
             norm_dict_for_count=norm_dict_for_count,
@@ -468,26 +502,31 @@ def process_predictors(
             raise_error_if_missing=False
         )
 
-        print('Writing processed predictors to: "{0:s}"...'.format(
-            this_output_file_name
-        ))
+        print('Writing predictors to: "{0:s}"...'.format(this_output_file_name))
         _write_predictor_file(
             predictor_dict=this_predictor_dict,
             netcdf_file_name=this_output_file_name
         )
 
 
-def process_targets(
-        top_input_dir_name, spatial_downsampling_factor, first_date_string,
-        last_date_string, top_output_dir_name, raise_error_if_all_missing=True):
-    """Processes targets (radar data).
+def create_targets(
+        top_echo_classifn_dir_name, spatial_downsampling_factor,
+        first_date_string, last_date_string, top_output_dir_name,
+        mask_file_name=None, raise_error_if_all_missing=True):
+    """Creates target values.
 
-    :param top_input_dir_name: Name of top-level directory with radar data.
-        Files therein will be found by `radar_io.find_file` and read by
-        `radar_io.read_echo_classifn_file`.
-    :param spatial_downsampling_factor: See doc for `process_predictors`.
+    :param top_echo_classifn_dir_name: Name of top-level directory with
+        echo-classification data.  Files therein will be found by
+        `radar_io.find_file` and read by `radar_io.read_echo_classifn_file`.
+    :param spatial_downsampling_factor: See doc for `create_predictors`.
     :param first_date_string: Same.
     :param last_date_string: Same.
+    :param top_output_dir_name: Name of top-level output directory.  Files will
+        be written by `_write_target_file`, to locations therein determined by
+        `find_target_file`.
+    :param mask_file_name: Path to file with mask (used to censor locations with
+        bad radar coverage).  Will be read by `radar_io.read_mask_file`.  If you
+        do not want a mask, leave this alone.
     :param raise_error_if_all_missing: Boolean flag.  If all input files are
         missing and `raise_error_if_all_missing == True`, will throw error.
     """
@@ -495,8 +534,8 @@ def process_targets(
     error_checking.assert_is_integer(spatial_downsampling_factor)
     error_checking.assert_is_geq(spatial_downsampling_factor, 1)
 
-    input_file_names = radar_io.find_many_files(
-        top_directory_name=top_input_dir_name,
+    echo_classifn_file_names = radar_io.find_many_files(
+        top_directory_name=top_echo_classifn_dir_name,
         first_date_string=first_date_string,
         last_date_string=last_date_string,
         file_type_string=radar_io.ECHO_CLASSIFN_TYPE_STRING,
@@ -504,26 +543,37 @@ def process_targets(
         raise_error_if_any_missing=False
     )
 
-    for i in range(len(input_file_names)):
-        this_target_dict = _process_targets_one_day(
-            input_file_name=input_file_names[i],
-            spatial_downsampling_factor=spatial_downsampling_factor
+    if mask_file_name is None:
+        mask_dict = None
+    else:
+        print('Reading mask from: "{0:s}"...'.format(mask_file_name))
+        mask_dict = radar_io.read_mask_file(mask_file_name)
+
+        if spatial_downsampling_factor > 1:
+            mask_dict = radar_io.downsample_mask_in_space(
+                mask_dict=mask_dict,
+                downsampling_factor=spatial_downsampling_factor
+            )
+
+    for i in range(len(echo_classifn_file_names)):
+        this_target_dict = _create_targets_one_day(
+            echo_classifn_file_name=echo_classifn_file_names[i],
+            spatial_downsampling_factor=spatial_downsampling_factor,
+            mask_dict=mask_dict, mask_file_name=mask_file_name
         )
 
         this_output_file_name = find_target_file(
             top_directory_name=top_output_dir_name,
-            date_string=radar_io.file_name_to_date(input_file_names[i]),
+            date_string=radar_io.file_name_to_date(echo_classifn_file_names[i]),
             raise_error_if_missing=False
         )
 
-        print('Writing processed targets to: "{0:s}"...'.format(
-            this_output_file_name
-        ))
+        print('Writing targets to: "{0:s}"...'.format(this_output_file_name))
         _write_target_file(
             target_dict=this_target_dict, netcdf_file_name=this_output_file_name
         )
 
-        if i != len(input_file_names) - 1:
+        if i != len(echo_classifn_file_names) - 1:
             print('\n')
 
 
@@ -559,11 +609,11 @@ def find_predictor_file(top_directory_name, date_string,
     raise ValueError(error_string)
 
 
-def predictor_file_name_to_date(predictor_file_name):
-    """Parses date from name of predictor file.
+def file_name_to_date(predictor_file_name):
+    """Parses date from name of predictor or target file.
 
-    :param predictor_file_name: Path to predictor file (see
-        `find_predictor_file` for naming convention).
+    :param predictor_file_name: Path to predictor or target file (see
+        `find_predictor_file` or `find_target_file` for naming convention).
     :return: valid_date_string: Valid date (format "yyyymmdd").
     """
 
@@ -643,7 +693,7 @@ def read_predictor_file(netcdf_file_name, read_unnormalized, read_normalized,
         uniformized/normalized predictors.  If False, key
         `predictor_matrix_unif_norm` in the output dictionary will be None.
     :return: predictor_dict: Dictionary in format returned by
-        `_process_predictors_one_day`.
+        `_create_predictors_one_day`.
     """
 
     error_checking.assert_is_boolean(read_unnormalized)
@@ -715,24 +765,6 @@ def find_target_file(top_directory_name, date_string,
     raise ValueError(error_string)
 
 
-def target_file_name_to_date(target_file_name):
-    """Parses date from name of target file.
-
-    :param target_file_name: Path to predictor file (see `find_target_file` for
-        naming convention).
-    :return: valid_date_string: Valid date (format "yyyymmdd").
-    """
-
-    error_checking.assert_is_string(target_file_name)
-    pathless_file_name = os.path.split(target_file_name)[-1]
-    extensionless_file_name = os.path.splitext(pathless_file_name)[0]
-
-    valid_date_string = extensionless_file_name.split('_')[-1]
-    _ = time_conversion.string_to_unix_sec(valid_date_string, DATE_FORMAT)
-
-    return valid_date_string
-
-
 def find_many_target_files(
         top_directory_name, first_date_string, last_date_string,
         raise_error_if_all_missing=True, raise_error_if_any_missing=False,
@@ -789,7 +821,7 @@ def read_target_file(netcdf_file_name):
 
     :param netcdf_file_name: Path to input file.
     :return: target_dict: Dictionary in format returned by
-        `_process_targets_one_day`.
+        `_create_targets_one_day`.
     """
 
     dataset_object = netCDF4.Dataset(netcdf_file_name)
@@ -798,7 +830,8 @@ def read_target_file(netcdf_file_name):
         TARGET_MATRIX_KEY: dataset_object.variables[TARGET_MATRIX_KEY][:],
         VALID_TIMES_KEY: dataset_object.variables[VALID_TIMES_KEY][:],
         LATITUDES_KEY: dataset_object.variables[LATITUDES_KEY][:],
-        LONGITUDES_KEY: dataset_object.variables[LONGITUDES_KEY][:]
+        LONGITUDES_KEY: dataset_object.variables[LONGITUDES_KEY][:],
+        MASK_FILE_KEY: str(getattr(dataset_object, MASK_FILE_KEY))
     }
 
     if numpy.any(numpy.diff(target_dict[LATITUDES_KEY]) < 0):

@@ -1,6 +1,6 @@
 #!/bin/tcsh
 
-#SBATCH --job-name="process_predictors_2016"
+#SBATCH --job-name="create_targets_2016"
 #SBATCH --partition="fge"
 #SBATCH --account="rda-ghpcs"
 #SBATCH --qos="batch"
@@ -10,20 +10,20 @@
 #SBATCH --mem=8G
 #SBATCH --time=08:00:00
 #SBATCH --array=1-53
+#SBATCH --exclude=h28n12
 ##SBATCH --exclude=h31n03,h28n12
 ##SBATCH --exclude=h29n01,h26n05,h28n06,h29n07,h30n03,h30n15
 #SBATCH --mail-type=BEGIN,END,FAIL
 #SBATCH --mail-user=ryan.lagerquist@noaa.gov
-#SBATCH --output=process_predictors_2016_%A_%a.out
+#SBATCH --output=create_targets_2016_%A_%a.out
 
 module load cuda/10.1
 source /scratch2/BMC/gsd-hpcs/Jebb.Q.Stewart/conda3.7/etc/profile.d/conda.csh
 conda activate base
 
 set CODE_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_standalone/ml4convection"
-set NORMALIZATION_FILE_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_project/satellite_data/normalization_params_20160101-20161224.p"
-set TOP_SATELLITE_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_project/satellite_data"
-set TOP_PREDICTOR_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_project/predictors"
+set TOP_RADAR_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_project/radar_data"
+set TOP_TARGET_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_project/targets"
 
 set FIRST_DATE_STRINGS=("20160101" "20160108" "20160115" "20160122" "20160129" "20160205" "20160212" "20160219" "20160226" "20160304" "20160311" "20160318" "20160325" "20160401" "20160408" "20160415" "20160422" "20160429" "20160506" "20160513" "20160520" "20160527" "20160603" "20160610" "20160617" "20160624" "20160701" "20160708" "20160715" "20160722" "20160729" "20160805" "20160812" "20160819" "20160826" "20160902" "20160909" "20160916" "20160923" "20160930" "20161007" "20161014" "20161021" "20161028" "20161104" "20161111" "20161118" "20161125" "20161202" "20161209" "20161216" "20161223" "20161230")
 set LAST_DATE_STRINGS=("20160107" "20160114" "20160121" "20160128" "20160204" "20160211" "20160218" "20160225" "20160303" "20160310" "20160317" "20160324" "20160331" "20160407" "20160414" "20160421" "20160428" "20160505" "20160512" "20160519" "20160526" "20160602" "20160609" "20160616" "20160623" "20160630" "20160707" "20160714" "20160721" "20160728" "20160804" "20160811" "20160818" "20160825" "20160901" "20160908" "20160915" "20160922" "20160929" "20161006" "20161013" "20161020" "20161027" "20161103" "20161110" "20161117" "20161124" "20161201" "20161208" "20161215" "20161222" "20161229" "20161231")
@@ -31,10 +31,10 @@ set LAST_DATE_STRINGS=("20160107" "20160114" "20160121" "20160128" "20160204" "2
 set first_date_string=${FIRST_DATE_STRINGS[$SLURM_ARRAY_TASK_ID]}
 set last_date_string=${LAST_DATE_STRINGS[$SLURM_ARRAY_TASK_ID]}
 
-python3 -u "${CODE_DIR_NAME}/process_predictors.py" \
---input_satellite_dir_name="${TOP_SATELLITE_DIR_NAME}" \
+python3 -u "${CODE_DIR_NAME}/create_targets.py" \
+--input_echo_classifn_dir_name="${TOP_RADAR_DIR_NAME}" \
+--input_mask_file_name="${TOP_RADAR_DIR_NAME}/radar_mask.nc" \
 --spatial_downsampling_factor=4 \
 --first_date_string="${first_date_string}" \
 --last_date_string="${last_date_string}" \
---input_normalization_file_name="${NORMALIZATION_FILE_NAME}" \
---output_predictor_dir_name="${TOP_PREDICTOR_DIR_NAME}"
+--output_target_dir_name="${TOP_TARGET_DIR_NAME}"

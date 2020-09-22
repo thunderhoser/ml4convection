@@ -1,4 +1,4 @@
-"""Processes satellite data into predictor files."""
+"""Creates predictor values from satellite data."""
 
 import os
 import sys
@@ -67,7 +67,7 @@ INPUT_ARG_PARSER.add_argument(
 
 def _run(top_input_dir_name, spatial_downsampling_factor, first_date_string,
          last_date_string, normalization_file_name, top_output_dir_name):
-    """Processes satellite data into predictor files.
+    """Creates predictor values from satellite data.
 
     This is effectively the main method.
 
@@ -79,7 +79,7 @@ def _run(top_input_dir_name, spatial_downsampling_factor, first_date_string,
     :param top_output_dir_name: Same.
     """
 
-    example_io.process_predictors(
+    example_io.create_predictors(
         top_input_dir_name=top_input_dir_name,
         spatial_downsampling_factor=spatial_downsampling_factor,
         first_date_string=first_date_string,

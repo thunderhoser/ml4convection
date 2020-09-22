@@ -248,15 +248,6 @@ def _run(count_dir_name, colour_map_name, plot_basemap, output_dir_name):
 
     print(SEPARATOR_STRING)
 
-    count_obs._write_count_file(
-        netcdf_file_name=
-        '{0:s}/counts_20160101-20181231.nc'.format(count_dir_name),
-        count_matrix=count_matrix,
-        latitudes_deg_n=metadata_dict[count_obs.LATITUDES_KEY],
-        longitudes_deg_e=metadata_dict[count_obs.LONGITUDES_KEY],
-        heights_m_asl=metadata_dict[count_obs.HEIGHTS_KEY]
-    )
-
     heights_m_asl = metadata_dict[radar_io.HEIGHTS_KEY]
     num_heights = len(heights_m_asl)
 
