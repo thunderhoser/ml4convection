@@ -800,8 +800,10 @@ class ZeroMaskedAreasLayer(keras.layers.Layer):
             print(self.mask_tensor)
             self.mask_tensor = K.expand_dims(self.mask_tensor, axis=0)
             self.mask_tensor = K.expand_dims(self.mask_tensor, axis=-1)
+            print(self.mask_tensor)
+            print('\n\n\n')
 
-        return self.mask_tensor * x
+        return K.eval(self.mask_tensor) * x
 
 
 def read_model(hdf5_file_name):
