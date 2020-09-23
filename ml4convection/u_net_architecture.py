@@ -176,6 +176,23 @@ def _zero_masked_areas_function(mask_matrix):
     return zeroing_function
 
 
+class ZeroMaskedAreasLayer(keras.layers.Layer):
+    def __init__(self, mask_tensor):
+        super(ZeroMaskedAreasLayer, self).__init__()
+        self.mask_tensor = mask_tensor
+
+    # def build(self, input_shape):
+    #     self.scale = self.add_weight(
+    #         shape=input_shape, initializer='glorot_uniform', trainable=True
+    #     )
+    #     self.offset = self.add_weight(
+    #         shape=input_shape, initializer='zeros', trainable=True
+    #     )
+
+    def call(self, x, epsilon=1e-5):
+        return self.mask_tensor * x
+
+
 def create_model(option_dict, loss_function, mask_matrix=None):
     """Creates U-net.
 
@@ -430,13 +447,17 @@ def create_model(option_dict, loss_function, mask_matrix=None):
     )(skip_layer_by_level[0])
 
     if mask_matrix is not None:
-        # mask_tensor = K.variable(mask_matrix.astype(float))
-        # mask_tensor = K.expand_dims(mask_tensor, axis=0)
-        # mask_tensor = K.expand_dims(mask_tensor, axis=-1)
+        mask_tensor = K.variable(mask_matrix.astype(float))
+        mask_tensor = K.expand_dims(mask_tensor, axis=0)
+        mask_tensor = K.expand_dims(mask_tensor, axis=-1)
 
-        skip_layer_by_level[0] = keras.layers.Lambda(
-            _zero_masked_areas_function(mask_matrix.astype(float))
-        )(skip_layer_by_level[0])
+        skip_layer_by_level[0] = ZeroMaskedAreasLayer(mask_tensor)(
+            skip_layer_by_level[0]
+        )
+
+        # skip_layer_by_level[0] = keras.layers.Lambda(
+        #     _zero_masked_areas_function(mask_matrix.astype(float))
+        # )(skip_layer_by_level[0])
 
     model_object = keras.models.Model(
         inputs=input_layer_object, outputs=skip_layer_by_level[0]
