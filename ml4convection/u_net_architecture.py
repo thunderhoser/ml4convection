@@ -181,6 +181,13 @@ class ZeroMaskedAreasLayer(keras.layers.Layer):
         super(ZeroMaskedAreasLayer, self).__init__()
         self.mask_tensor = mask_tensor
 
+    def get_config(self):
+        config = super().get_config().copy()
+        config.update({
+            'mask_tensor': self.mask_tensor
+        })
+        return config
+
     # def build(self, input_shape):
     #     self.scale = self.add_weight(
     #         shape=input_shape, initializer='glorot_uniform', trainable=True
