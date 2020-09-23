@@ -177,14 +177,14 @@ def _zero_masked_areas_function(mask_matrix):
 
 
 class ZeroMaskedAreasLayer(keras.layers.Layer):
-    def __init__(self, mask_tensor):
+    def __init__(self, mask_matrix):
         super(ZeroMaskedAreasLayer, self).__init__()
-        self.mask_tensor = mask_tensor
+        self.mask_matrix = mask_matrix
 
     def get_config(self):
         config = super().get_config().copy()
         config.update({
-            'mask_tensor': self.mask_tensor
+            'mask_matrix': self.mask_matrix
         })
         return config
 
@@ -197,7 +197,10 @@ class ZeroMaskedAreasLayer(keras.layers.Layer):
     #     )
 
     def call(self, x, epsilon=1e-5):
-        return self.mask_tensor * x
+        mask_tensor = K.variable(self.mask_matrix.astype(float))
+        mask_tensor = K.expand_dims(mask_tensor, axis=0)
+        mask_tensor = K.expand_dims(mask_tensor, axis=-1)
+        return mask_tensor * x
 
 
 def create_model(option_dict, loss_function, mask_matrix=None):
@@ -454,11 +457,11 @@ def create_model(option_dict, loss_function, mask_matrix=None):
     )(skip_layer_by_level[0])
 
     if mask_matrix is not None:
-        mask_tensor = K.variable(mask_matrix.astype(float))
-        mask_tensor = K.expand_dims(mask_tensor, axis=0)
-        mask_tensor = K.expand_dims(mask_tensor, axis=-1)
+        # mask_tensor = K.variable(mask_matrix.astype(float))
+        # mask_tensor = K.expand_dims(mask_tensor, axis=0)
+        # mask_tensor = K.expand_dims(mask_tensor, axis=-1)
 
-        skip_layer_by_level[0] = ZeroMaskedAreasLayer(mask_tensor)(
+        skip_layer_by_level[0] = ZeroMaskedAreasLayer(mask_matrix)(
             skip_layer_by_level[0]
         )
 
