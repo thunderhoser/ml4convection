@@ -141,30 +141,6 @@ def _check_architecture_args(option_dict):
     return option_dict
 
 
-def _zero_masked_areas_function(mask_tensor):
-    """Returns function that zeroes out convection probs for masked grid cells.
-
-    M = number of rows in grid
-    N = number of columns in grid
-
-    :param mask_tensor: 1-by-M-by-N-by-1 tensor of floats (0 for masked, 1 for
-        unmasked).
-    :return: zeroing_function: Function handle (see below).
-    """
-
-    def zeroing_function(prediction_tensor):
-        """Zeroes out convection probabilities for masked grid cells.
-
-        :param prediction_tensor: Keras tensor with model predictions.
-        :return: prediction_tensor: Same as input but with predictions zeroed
-            out at masked grid cells.
-        """
-
-        return mask_tensor * prediction_tensor
-
-    return zeroing_function
-
-
 def create_model(option_dict, loss_function, mask_matrix=None):
     """Creates U-net.
 
@@ -419,14 +395,12 @@ def create_model(option_dict, loss_function, mask_matrix=None):
     )(skip_layer_by_level[0])
 
     if mask_matrix is not None:
-        mask_tensor = K.variable(mask_matrix.astype(float))
-        mask_tensor = K.expand_dims(mask_tensor, axis=0)
-        mask_tensor = K.expand_dims(mask_tensor, axis=-1)
-
-        this_function = _zero_masked_areas_function(mask_tensor)
-        skip_layer_by_level[0] = keras.layers.Lambda(
-            this_function
-        )(skip_layer_by_level[0])
+        this_matrix = numpy.expand_dims(
+            mask_matrix.astype(float), axis=(0, -1)
+        )
+        skip_layer_by_level[0] = keras.layers.Multiply()([
+            this_matrix, skip_layer_by_level[0]
+        ])
 
     model_object = keras.models.Model(
         inputs=input_layer_object, outputs=skip_layer_by_level[0]

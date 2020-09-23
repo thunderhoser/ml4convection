@@ -77,7 +77,7 @@ def _run(training_predictor_dir_name, training_target_dir_name,
         model_file_name=input_model_file_name
     )
 
-    print('Reading class weights from: "{0:s}"...'.format(input_metafile_name))
+    print('Reading metadata from: "{0:s}"...'.format(input_metafile_name))
     metadata_dict = neural_net.read_metafile(input_metafile_name)
 
     print(SEPARATOR_STRING)
