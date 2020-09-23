@@ -772,6 +772,7 @@ class ZeroMaskedAreasLayer(keras.layers.Layer):
 
         super(ZeroMaskedAreasLayer, self).__init__()
         self.mask_matrix = mask_matrix
+        self.mask_tensor = None
 
     def get_config(self):
         """Some stupid thing Keras requires me to have.
@@ -781,7 +782,8 @@ class ZeroMaskedAreasLayer(keras.layers.Layer):
 
         config = super().get_config().copy()
         config.update({
-            'mask_matrix': self.mask_matrix
+            'mask_matrix': self.mask_matrix,
+            'mask_tensor': self.mask_tensor
         })
         return config
 
@@ -793,11 +795,13 @@ class ZeroMaskedAreasLayer(keras.layers.Layer):
         :return: prediction_tensor: Same as input but with more zeros.
         """
 
-        print(self.mask_matrix)
-        mask_tensor = K.variable(self.mask_matrix)
-        mask_tensor = K.expand_dims(mask_tensor, axis=0)
-        mask_tensor = K.expand_dims(mask_tensor, axis=-1)
-        return mask_tensor * x
+        if self.mask_tensor is None:
+            self.mask_tensor = K.variable(self.mask_matrix)
+            print(self.mask_tensor)
+            self.mask_tensor = K.expand_dims(self.mask_tensor, axis=0)
+            self.mask_tensor = K.expand_dims(self.mask_tensor, axis=-1)
+
+        return self.mask_tensor * x
 
 
 def read_model(hdf5_file_name):
