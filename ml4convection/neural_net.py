@@ -758,7 +758,7 @@ def train_model_from_preprocessed_files(
 class ZeroMaskedAreasLayer(keras.layers.Layer):
     """Layer that zeroes out convection probabilities for masked grid cells."""
 
-    def __init__(self, mask_matrix):
+    def __init__(self, mask_matrix, **kwargs):
         """Constructor (or initializer or whatever it's called in Python).
 
         I hate classes.
