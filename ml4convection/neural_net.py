@@ -816,7 +816,7 @@ def read_model(hdf5_file_name):
 
     error_checking.assert_file_exists(hdf5_file_name)
     custom_object_dict = copy.deepcopy(METRIC_FUNCTION_DICT)
-    custom_object_dict['ZeroMaskedAreasLayer'] = ZeroMaskedAreasLayer
+    # custom_object_dict['ZeroMaskedAreasLayer'] = ZeroMaskedAreasLayer
 
     try:
         return tf_keras.models.load_model(

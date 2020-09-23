@@ -430,9 +430,17 @@ def create_model(option_dict, loss_function, mask_matrix=None):
     )(skip_layer_by_level[0])
 
     if mask_matrix is not None:
-        skip_layer_by_level[0] = neural_net.ZeroMaskedAreasLayer(mask_matrix)(
-            skip_layer_by_level[0]
+        this_matrix = numpy.expand_dims(
+            mask_matrix.astype(float), axis=(0, -1)
         )
+        print(this_matrix.shape)
+        skip_layer_by_level[0] = keras.layers.Multiply()([
+            this_matrix, skip_layer_by_level[0]
+        ])
+
+        # skip_layer_by_level[0] = neural_net.ZeroMaskedAreasLayer(mask_matrix)(
+        #     skip_layer_by_level[0]
+        # )
 
     model_object = keras.models.Model(
         inputs=input_layer_object, outputs=skip_layer_by_level[0]
