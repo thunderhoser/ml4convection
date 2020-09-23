@@ -756,57 +756,6 @@ def train_model_from_preprocessed_files(
     )
 
 
-class ZeroMaskedAreasLayer(keras.layers.Layer):
-    """Layer that zeroes out convection probabilities for masked grid cells."""
-
-    def __init__(self, mask_matrix, **kwargs):
-        """Constructor (or initializer or whatever it's called in Python).
-
-        I hate classes.
-
-        M = number of rows in grid
-        N = number of columns in grid
-
-        :param mask_matrix: M-by-N numpy array of Boolean flags (False for
-            masked, True for unmasked).
-        """
-
-        super(ZeroMaskedAreasLayer, self).__init__()
-        self.mask_matrix = mask_matrix
-        self.mask_tensor = None
-
-    def get_config(self):
-        """Some stupid thing Keras requires me to have.
-
-        Otherwise, the model won't "serialize" when I save it.  What nonsense.
-        """
-
-        config = super().get_config().copy()
-        config.update({
-            'mask_matrix': self.mask_matrix,
-            'mask_tensor': self.mask_tensor
-        })
-        return config
-
-    def call(self, x, epsilon=1e-5):
-        """This method called when a ZeroMaskedAreasLayer is added to a model.
-
-        :param x: Tensor with predicted convection probabilities.
-        :param epsilon: I don't know.  Keras makes me have this argument.
-        :return: prediction_tensor: Same as input but with more zeros.
-        """
-
-        if self.mask_tensor is None:
-            self.mask_tensor = tensorflow.Variable(self.mask_matrix)
-            print(self.mask_tensor)
-            self.mask_tensor = K.expand_dims(self.mask_tensor, axis=0)
-            self.mask_tensor = K.expand_dims(self.mask_tensor, axis=-1)
-            print(self.mask_tensor)
-            print('\n\n\n')
-
-        return tensorflow.Variable(self.mask_tensor) * x
-
-
 def read_model(hdf5_file_name):
     """Reads model from HDF5 file.
 
@@ -815,12 +764,10 @@ def read_model(hdf5_file_name):
     """
 
     error_checking.assert_file_exists(hdf5_file_name)
-    custom_object_dict = copy.deepcopy(METRIC_FUNCTION_DICT)
-    # custom_object_dict['ZeroMaskedAreasLayer'] = ZeroMaskedAreasLayer
 
     try:
         return tf_keras.models.load_model(
-            hdf5_file_name, custom_objects=custom_object_dict
+            hdf5_file_name, custom_objects=METRIC_FUNCTION_DICT
         )
     except ValueError:
         pass
@@ -832,6 +779,7 @@ def read_model(hdf5_file_name):
     metadata_dict = read_metafile(metafile_name)
     class_weights = metadata_dict[CLASS_WEIGHTS_KEY]
     fss_half_window_size_px = metadata_dict[FSS_HALF_WINDOW_SIZE_KEY]
+    custom_object_dict = copy.deepcopy(METRIC_FUNCTION_DICT)
 
     if fss_half_window_size_px is not None:
         custom_object_dict['loss'] = custom_losses.fractions_skill_score(
