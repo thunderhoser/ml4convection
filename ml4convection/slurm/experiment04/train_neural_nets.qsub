@@ -23,8 +23,8 @@ source /scratch2/BMC/gsd-hpcs/Jebb.Q.Stewart/conda3.7/etc/profile.d/conda.csh
 conda activate base
 
 set CODE_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_standalone/ml4convection"
-set TEMPLATE_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_models/experiment01/templates"
-set TOP_OUTPUT_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_models/experiment01"
+set TEMPLATE_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_models/experiment04/templates"
+set TOP_OUTPUT_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_models/experiment04"
 
 set TRAINING_PREDICTOR_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_project/predictors"
 set VALIDN_PREDICTOR_DIR_NAME="${TRAINING_PREDICTOR_DIR_NAME}"
@@ -48,7 +48,6 @@ set output_dir_name="${TOP_OUTPUT_DIR_NAME}/fss-half-window-size-px=${half_windo
 echo $output_dir_name
 
 python3 -u "${CODE_DIR_NAME}/train_neural_net.py" \
---use_preprocessed_files=1 \
 --training_predictor_dir_name="${TRAINING_PREDICTOR_DIR_NAME}" \
 --validn_predictor_dir_name="${VALIDN_PREDICTOR_DIR_NAME}" \
 --training_target_dir_name="${TRAINING_TARGET_DIR_NAME}" \
