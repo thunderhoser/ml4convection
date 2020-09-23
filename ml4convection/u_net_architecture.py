@@ -176,50 +176,6 @@ def _zero_masked_areas_function(mask_matrix):
     return zeroing_function
 
 
-class ZeroMaskedAreasLayer(keras.layers.Layer):
-    """Layer that zeroes out convection probabilities for masked grid cells."""
-
-    def __init__(self, mask_matrix):
-        """Constructor (or initializer or whatever it's called in Python).
-
-        I hate classes.
-
-        M = number of rows in grid
-        N = number of columns in grid
-
-        :param mask_matrix: M-by-N numpy array of Boolean flags (False for
-            masked, True for unmasked).
-        """
-
-        super(ZeroMaskedAreasLayer, self).__init__()
-        self.mask_matrix = mask_matrix
-
-    def get_config(self):
-        """Some stupid thing Keras requires me to have.
-
-        Otherwise, the model won't "serialize" when I save it.  What nonsense.
-        """
-
-        config = super().get_config().copy()
-        config.update({
-            'mask_matrix': self.mask_matrix
-        })
-        return config
-
-    def call(self, x, epsilon=1e-5):
-        """This method called when a ZeroMaskedAreasLayer is added to a model.
-
-        :param x: Tensor with predicted convection probabilities.
-        :param epsilon: I don't know.  Keras makes me have this argument.
-        :return: prediction_tensor: Same as input but with more zeros.
-        """
-
-        mask_tensor = K.variable(self.mask_matrix.astype(float))
-        mask_tensor = K.expand_dims(mask_tensor, axis=0)
-        mask_tensor = K.expand_dims(mask_tensor, axis=-1)
-        return mask_tensor * x
-
-
 def create_model(option_dict, loss_function, mask_matrix=None):
     """Creates U-net.
 
@@ -474,7 +430,7 @@ def create_model(option_dict, loss_function, mask_matrix=None):
     )(skip_layer_by_level[0])
 
     if mask_matrix is not None:
-        skip_layer_by_level[0] = ZeroMaskedAreasLayer(mask_matrix)(
+        skip_layer_by_level[0] = neural_net.ZeroMaskedAreasLayer(mask_matrix)(
             skip_layer_by_level[0]
         )
 
