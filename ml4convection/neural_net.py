@@ -7,6 +7,7 @@ import random
 import pickle
 import numpy
 import keras
+import tensorflow
 from keras import backend as K
 import tensorflow.keras as tf_keras
 
@@ -796,14 +797,14 @@ class ZeroMaskedAreasLayer(keras.layers.Layer):
         """
 
         if self.mask_tensor is None:
-            self.mask_tensor = K.variable(self.mask_matrix)
+            self.mask_tensor = tensorflow.variable(self.mask_matrix)
             print(self.mask_tensor)
             self.mask_tensor = K.expand_dims(self.mask_tensor, axis=0)
             self.mask_tensor = K.expand_dims(self.mask_tensor, axis=-1)
             print(self.mask_tensor)
             print('\n\n\n')
 
-        return K.variable(self.mask_tensor) * x
+        return tensorflow.variable(self.mask_tensor) * x
 
 
 def read_model(hdf5_file_name):
