@@ -803,7 +803,7 @@ class ZeroMaskedAreasLayer(keras.layers.Layer):
             print(self.mask_tensor)
             print('\n\n\n')
 
-        return K.eval(self.mask_tensor) * x
+        return K.variable(self.mask_tensor) * x
 
 
 def read_model(hdf5_file_name):
