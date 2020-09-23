@@ -8,7 +8,7 @@ import pickle
 import numpy
 import keras
 import tensorflow
-from keras import backend as K
+from tensorflow.keras import backend as K
 import tensorflow.keras as tf_keras
 
 THIS_DIRECTORY_NAME = os.path.dirname(os.path.realpath(
