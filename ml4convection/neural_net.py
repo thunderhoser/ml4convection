@@ -793,7 +793,8 @@ class ZeroMaskedAreasLayer(keras.layers.Layer):
         :return: prediction_tensor: Same as input but with more zeros.
         """
 
-        mask_tensor = K.variable(self.mask_matrix.astype(float))
+        print(self.mask_matrix)
+        mask_tensor = K.variable(self.mask_matrix)
         mask_tensor = K.expand_dims(mask_tensor, axis=0)
         mask_tensor = K.expand_dims(mask_tensor, axis=-1)
         return mask_tensor * x
