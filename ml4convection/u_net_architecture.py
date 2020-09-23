@@ -160,10 +160,6 @@ def _zero_masked_areas_function(mask_matrix):
     :return: zeroing_function: Function handle (see below).
     """
 
-    mask_tensor = K.variable(mask_matrix.astype(float))
-    mask_tensor = K.expand_dims(mask_tensor, axis=0)
-    mask_tensor = K.expand_dims(mask_tensor, axis=-1)
-
     def zeroing_function(prediction_tensor):
         """Zeroes out convection probabilities for masked grid cells.
 
@@ -171,6 +167,10 @@ def _zero_masked_areas_function(mask_matrix):
         :return: prediction_tensor: Same as input but with predictions zeroed
             out at masked grid cells.
         """
+
+        mask_tensor = K.variable(mask_matrix.astype(float))
+        mask_tensor = K.expand_dims(mask_tensor, axis=0)
+        mask_tensor = K.expand_dims(mask_tensor, axis=-1)
 
         return mask_tensor * prediction_tensor
 
