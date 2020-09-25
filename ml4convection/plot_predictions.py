@@ -376,10 +376,10 @@ def _run(top_prediction_dir_name, first_date_string, last_date_string,
         plot_random_examples = False
 
     if plot_deterministic:
-        probability_threshold = None
-    else:
         error_checking.assert_is_greater(probability_threshold, 0.)
         error_checking.assert_is_less_than(probability_threshold, 1.)
+    else:
+        probability_threshold = None
 
     prediction_file_names = prediction_io.find_many_files(
         top_directory_name=top_prediction_dir_name,
