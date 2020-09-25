@@ -406,11 +406,6 @@ def subset_by_band(satellite_dict, band_numbers):
     error_checking.assert_is_integer_numpy_array(band_numbers)
     error_checking.assert_is_greater_numpy_array(band_numbers, 0)
 
-    print(band_numbers)
-    print(band_numbers.dtype)
-    print(satellite_dict[BAND_NUMBERS_KEY])
-    print(satellite_dict[BAND_NUMBERS_KEY].dtype)
-
     indices_to_keep = numpy.array([
         numpy.where(satellite_dict[BAND_NUMBERS_KEY] == n)[0][0]
         for n in band_numbers
