@@ -83,7 +83,7 @@ def _create_predictors_one_day(
     )
 
     if spatial_downsampling_factor > 1:
-        satellite_dict = _downsample_data_in_space(
+        satellite_dict = downsample_data_in_space(
             satellite_dict=satellite_dict,
             downsampling_factor=spatial_downsampling_factor,
             change_coordinates=True
@@ -162,7 +162,7 @@ def _create_targets_one_day(
     )
 
     if spatial_downsampling_factor > 1:
-        echo_classifn_dict = _downsample_data_in_space(
+        echo_classifn_dict = downsample_data_in_space(
             echo_classifn_dict=echo_classifn_dict,
             downsampling_factor=spatial_downsampling_factor,
             change_coordinates=True
@@ -337,8 +337,8 @@ def _write_target_file(target_dict, netcdf_file_name):
     dataset_object.close()
 
 
-def _downsample_data_in_space(downsampling_factor, change_coordinates=False,
-                              satellite_dict=None, echo_classifn_dict=None):
+def downsample_data_in_space(downsampling_factor, change_coordinates=False,
+                             satellite_dict=None, echo_classifn_dict=None):
     """Downsamples satellite and/or radar data in space.
 
     At least one of `satellite_dict` and `echo_classifn_dict` must be specified
@@ -355,10 +355,18 @@ def _downsample_data_in_space(downsampling_factor, change_coordinates=False,
         resolution.
     :return: echo_classifn_dict: Same as input but maybe with coarser spatial
         resolution.
+    :raises: ValueError: if
+        `satellite_dict is None and echo_classifn_dict is None`.
     """
 
     error_checking.assert_is_integer(downsampling_factor)
     error_checking.assert_is_greater(downsampling_factor, 1)
+    error_checking.assert_is_boolean(change_coordinates)
+
+    if satellite_dict is None and echo_classifn_dict is None:
+        raise ValueError(
+            'satellite_dict and echo_classifn_dict cannot both be None.'
+        )
 
     if satellite_dict is not None:
         satellite_dict[satellite_io.BRIGHTNESS_TEMP_KEY] = (
@@ -534,8 +542,8 @@ def create_targets(
         mask_dict = radar_io.expand_to_satellite_grid(any_radar_dict=mask_dict)
 
         if spatial_downsampling_factor > 1:
-            mask_dict = radar_io.downsample_mask_in_space(
-                mask_dict=mask_dict,
+            mask_dict = radar_io.downsample_in_space(
+                any_radar_dict=mask_dict,
                 downsampling_factor=spatial_downsampling_factor
             )
 

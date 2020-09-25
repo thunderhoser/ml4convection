@@ -925,46 +925,67 @@ def write_mask_file(
     dataset_object.close()
 
 
-def downsample_mask_in_space(mask_dict, downsampling_factor):
-    """Downsamples mask in space.
+def downsample_in_space(any_radar_dict, downsampling_factor):
+    """Downsample radar data to coarser spatial resolution.
 
-    :param mask_dict: Dictionary returned by `read_mask_file`.
-    :param downsampling_factor: Downsampling factor (integer).
-    :return: mask_dict: Same but with coarser spatial resolution.
+    :param any_radar_dict: Dictionary in format specified by
+        `read_reflectivity_file`, `read_echo_classifn_file`, or
+        `read_mask_file`.
+    :param downsampling_factor: Will coarsen resolution by this factor
+        (integer).
+    :return: any_radar_dict: Same as input but with coarser spatial resolution.
     """
 
     error_checking.assert_is_integer(downsampling_factor)
     error_checking.assert_is_greater(downsampling_factor, 1)
 
-    mask_matrix = numpy.expand_dims(
-        mask_dict[MASK_MATRIX_KEY].astype(float), axis=(0, -1)
-    )
-    mask_matrix = standalone_utils.do_2d_pooling(
-        feature_matrix=mask_matrix, window_size_px=downsampling_factor,
-        do_max_pooling=False
-    )
-    mask_dict[MASK_MATRIX_KEY] = numpy.round(
-        mask_matrix[0, ..., 0] + TOLERANCE
-    ).astype(bool)
+    # Do actual stuff.
+    if REFLECTIVITY_KEY in any_radar_dict:
+        any_radar_dict[REFLECTIVITY_KEY] = standalone_utils.do_2d_pooling(
+            feature_matrix=any_radar_dict[REFLECTIVITY_KEY],
+            window_size_px=downsampling_factor, do_max_pooling=False
+        )
+    elif CONVECTIVE_FLAGS_KEY in any_radar_dict:
+        convective_flag_matrix = numpy.expand_dims(
+            any_radar_dict[CONVECTIVE_FLAGS_KEY].astype(float), axis=-1
+        )
+        convective_flag_matrix = standalone_utils.do_2d_pooling(
+            feature_matrix=convective_flag_matrix,
+            window_size_px=downsampling_factor, do_max_pooling=True
+        )
+        any_radar_dict[CONVECTIVE_FLAGS_KEY] = (
+            convective_flag_matrix[..., 0] >= 0.99
+        )
+    else:
+        mask_matrix = numpy.expand_dims(
+            any_radar_dict[MASK_MATRIX_KEY].astype(float), axis=(0, -1)
+        )
+        mask_matrix = standalone_utils.do_2d_pooling(
+            feature_matrix=mask_matrix, window_size_px=downsampling_factor,
+            do_max_pooling=False
+        )
+        any_radar_dict[MASK_MATRIX_KEY] = numpy.round(
+            mask_matrix[0, ..., 0] + TOLERANCE
+        ).astype(bool)
 
     latitude_matrix_deg_n = numpy.expand_dims(
-        mask_dict[LATITUDES_KEY], axis=(0, -1)
+        any_radar_dict[LATITUDES_KEY], axis=(0, -1)
     )
     latitude_matrix_deg_n = standalone_utils.do_1d_pooling(
         feature_matrix=latitude_matrix_deg_n,
         window_size_px=downsampling_factor, do_max_pooling=False
     )
-    mask_dict[LATITUDES_KEY] = latitude_matrix_deg_n[0, :, 0]
+    any_radar_dict[LATITUDES_KEY] = latitude_matrix_deg_n[0, :, 0]
 
     # TODO(thunderhoser): Careful: this will not work with wrap-around at the
     # date line.
     longitude_matrix_deg_e = numpy.expand_dims(
-        mask_dict[LONGITUDES_KEY], axis=(0, -1)
+        any_radar_dict[LONGITUDES_KEY], axis=(0, -1)
     )
     longitude_matrix_deg_e = standalone_utils.do_1d_pooling(
         feature_matrix=longitude_matrix_deg_e,
         window_size_px=downsampling_factor, do_max_pooling=False
     )
-    mask_dict[LONGITUDES_KEY] = longitude_matrix_deg_e[0, :, 0]
+    any_radar_dict[LONGITUDES_KEY] = longitude_matrix_deg_e[0, :, 0]
 
-    return mask_dict
+    return any_radar_dict

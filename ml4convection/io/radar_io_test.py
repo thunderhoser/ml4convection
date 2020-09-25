@@ -134,7 +134,7 @@ REFLECTIVITY_DICT_EXPANDED_WITH_ZEROS = {
     radar_io.HEIGHTS_KEY: HEIGHTS_M_ASL
 }
 
-# The following constants are used to test downsample_mask_in_space.
+# The following constants are used to test downsample_in_space.
 THIS_MASK_MATRIX = numpy.array([
     [1, 0, 1],
     [1, 0, 1],
@@ -550,14 +550,14 @@ class RadarIoTests(unittest.TestCase):
 
         self.assertTrue(compare_mask_dicts(this_mask_dict, MASK_DICT_EXPANDED))
 
-    def test_downsample_mask_in_space_factor2(self):
-        """Ensures correct output from downsample_mask_in_space.
+    def test_downsample_in_space_factor2(self):
+        """Ensures correct output from downsample_in_space.
 
         In this case, downsampling factor is 2.
         """
 
-        this_mask_dict = radar_io.downsample_mask_in_space(
-            mask_dict=copy.deepcopy(MASK_DICT), downsampling_factor=2
+        this_mask_dict = radar_io.downsample_in_space(
+            any_radar_dict=copy.deepcopy(MASK_DICT), downsampling_factor=2
         )
         self.assertTrue(compare_mask_dicts(
             this_mask_dict, MASK_DICT_DOWNSAMPLED2

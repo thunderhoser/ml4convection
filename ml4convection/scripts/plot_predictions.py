@@ -28,8 +28,6 @@ INPUT_DIR_ARG_NAME = 'input_prediction_dir_name'
 FIRST_DATE_ARG_NAME = 'first_date_string'
 LAST_DATE_ARG_NAME = 'last_date_string'
 DAILY_TIMES_ARG_NAME = 'daily_times_seconds'
-PLOT_RANDOM_ARG_NAME = 'plot_random_examples'
-NUM_EXAMPLES_PER_DAY_ARG_NAME = 'num_examples_per_day'
 PLOT_BASEMAP_ARG_NAME = 'plot_basemap'
 PLOT_DETERMINISTIC_ARG_NAME = 'plot_deterministic'
 PROB_THRESHOLD_ARG_NAME = 'probability_threshold'
@@ -47,15 +45,6 @@ DATE_HELP_STRING = (
 DAILY_TIMES_HELP_STRING = (
     'List of times to plot for each day.  All values should be in the range '
     '0...86399.'
-)
-PLOT_RANDOM_HELP_STRING = (
-    '[used only if `{0:s}` is left alone] Boolean flag.  If 1, will randomly '
-    'draw `{1:s}` examples from each day.  If 0, will draw the first `{1:s}` '
-    'examples from each day.'
-).format(DAILY_TIMES_ARG_NAME, NUM_EXAMPLES_PER_DAY_ARG_NAME)
-
-NUM_EXAMPLES_PER_DAY_HELP_STRING = (
-    'See documentation for `{0:s}`.'.format(PLOT_RANDOM_ARG_NAME)
 )
 PLOT_BASEMAP_HELP_STRING = (
     'Boolean flag.  If 1 (0), will plot radar images with (without) basemap.'
@@ -89,14 +78,6 @@ INPUT_ARG_PARSER.add_argument(
 INPUT_ARG_PARSER.add_argument(
     '--' + DAILY_TIMES_ARG_NAME, type=int, nargs='+', required=False,
     default=[-1], help=DAILY_TIMES_HELP_STRING
-)
-INPUT_ARG_PARSER.add_argument(
-    '--' + PLOT_RANDOM_ARG_NAME, type=int, required=False, default=1,
-    help=PLOT_RANDOM_HELP_STRING
-)
-INPUT_ARG_PARSER.add_argument(
-    '--' + NUM_EXAMPLES_PER_DAY_ARG_NAME, type=int, required=False, default=5,
-    help=NUM_EXAMPLES_PER_DAY_HELP_STRING
 )
 INPUT_ARG_PARSER.add_argument(
     '--' + PLOT_BASEMAP_ARG_NAME, type=int, required=False, default=0,
@@ -261,65 +242,43 @@ def _plot_predictions_one_example(
 
 
 def _plot_predictions_one_day(
-        prediction_file_name, daily_times_seconds, plot_random_examples,
-        num_examples, plot_basemap, plot_deterministic, probability_threshold,
-        output_dir_name):
+        prediction_file_name, daily_times_seconds, plot_basemap,
+        plot_deterministic, probability_threshold, output_dir_name):
     """Plots predictions (and targets) for one day.
 
     :param prediction_file_name: Path to prediction file.  Will be read by
         `prediction_io.read_file`.
     :param daily_times_seconds: See documentation at top of file.
-    :param plot_random_examples: Same.
-    :param num_examples: Same.
     :param plot_basemap: Same.
     :param plot_deterministic: Same.
     :param probability_threshold: Same.
     :param output_dir_name: Same.
     """
 
-    # TODO(thunderhoser): Put this code somewhere reusable.
-
     print('Reading data from: "{0:s}"...'.format(prediction_file_name))
     prediction_dict = prediction_io.read_file(prediction_file_name)
 
-    if daily_times_seconds is not None:
-        valid_times_unix_sec = prediction_dict[prediction_io.VALID_TIMES_KEY]
-        base_time_unix_sec = number_rounding.floor_to_nearest(
-            valid_times_unix_sec[0], DAYS_TO_SECONDS
-        )
-        desired_times_unix_sec = numpy.round(
-            base_time_unix_sec + daily_times_seconds
-        ).astype(int)
+    # TODO(thunderhoser): Put this code somewhere reusable.
+    valid_times_unix_sec = prediction_dict[prediction_io.VALID_TIMES_KEY]
+    base_time_unix_sec = number_rounding.floor_to_nearest(
+        valid_times_unix_sec[0], DAYS_TO_SECONDS
+    )
+    desired_times_unix_sec = numpy.round(
+        base_time_unix_sec + daily_times_seconds
+    ).astype(int)
 
-        good_flags = numpy.array([
-            t in valid_times_unix_sec for t in desired_times_unix_sec
-        ], dtype=bool)
+    good_flags = numpy.array([
+        t in valid_times_unix_sec for t in desired_times_unix_sec
+    ], dtype=bool)
 
-        if not numpy.any(good_flags):
-            return
+    if not numpy.any(good_flags):
+        return
 
-        desired_times_unix_sec = desired_times_unix_sec[good_flags]
-        prediction_dict = prediction_io.subset_by_time(
-            prediction_dict=prediction_dict,
-            desired_times_unix_sec=desired_times_unix_sec
-        )[0]
-    else:
-        num_examples_total = len(prediction_dict[prediction_io.VALID_TIMES_KEY])
-        desired_indices = numpy.linspace(
-            0, num_examples_total - 1, num=num_examples_total, dtype=int
-        )
-
-        if num_examples < num_examples_total:
-            if plot_random_examples:
-                desired_indices = numpy.random.choice(
-                    desired_indices, size=num_examples, replace=False
-                )
-            else:
-                desired_indices = desired_indices[:num_examples]
-
-        prediction_dict = prediction_io.subset_by_index(
-            prediction_dict=prediction_dict, desired_indices=desired_indices
-        )
+    desired_times_unix_sec = desired_times_unix_sec[good_flags]
+    prediction_dict = prediction_io.subset_by_time(
+        prediction_dict=prediction_dict,
+        desired_times_unix_sec=desired_times_unix_sec
+    )[0]
 
     num_examples = len(prediction_dict[prediction_io.VALID_TIMES_KEY])
 
@@ -334,9 +293,8 @@ def _plot_predictions_one_day(
 
 
 def _run(top_prediction_dir_name, first_date_string, last_date_string,
-         daily_times_seconds, plot_random_examples, num_examples_per_day,
-         plot_basemap, plot_deterministic, probability_threshold,
-         output_dir_name):
+         daily_times_seconds, plot_basemap, plot_deterministic,
+         probability_threshold, output_dir_name):
     """Plot predictions (and targets) for the given days.
 
     This is effectively the main method.
@@ -345,8 +303,6 @@ def _run(top_prediction_dir_name, first_date_string, last_date_string,
     :param first_date_string: Same.
     :param last_date_string: Same.
     :param daily_times_seconds: Same.
-    :param plot_random_examples: Same.
-    :param num_examples_per_day: Same.
     :param plot_basemap: Same.
     :param plot_deterministic: Same.
     :param probability_threshold: Same.
@@ -365,13 +321,12 @@ def _run(top_prediction_dir_name, first_date_string, last_date_string,
         error_checking.assert_is_less_than_numpy_array(
             daily_times_seconds, DAYS_TO_SECONDS
         )
-        plot_random_examples = False
 
     if plot_deterministic:
-        probability_threshold = None
-    else:
         error_checking.assert_is_greater(probability_threshold, 0.)
         error_checking.assert_is_less_than(probability_threshold, 1.)
+    else:
+        probability_threshold = None
 
     prediction_file_names = prediction_io.find_many_files(
         top_directory_name=top_prediction_dir_name,
@@ -384,8 +339,6 @@ def _run(top_prediction_dir_name, first_date_string, last_date_string,
         _plot_predictions_one_day(
             prediction_file_name=prediction_file_names[i],
             daily_times_seconds=daily_times_seconds,
-            plot_random_examples=plot_random_examples,
-            num_examples=num_examples_per_day,
             plot_basemap=plot_basemap,
             plot_deterministic=plot_deterministic,
             probability_threshold=probability_threshold,
@@ -405,12 +358,6 @@ if __name__ == '__main__':
         last_date_string=getattr(INPUT_ARG_OBJECT, LAST_DATE_ARG_NAME),
         daily_times_seconds=numpy.array(
             getattr(INPUT_ARG_OBJECT, DAILY_TIMES_ARG_NAME), dtype=int
-        ),
-        plot_random_examples=bool(getattr(
-            INPUT_ARG_OBJECT, PLOT_RANDOM_ARG_NAME
-        )),
-        num_examples_per_day=getattr(
-            INPUT_ARG_OBJECT, NUM_EXAMPLES_PER_DAY_ARG_NAME
         ),
         plot_basemap=bool(getattr(INPUT_ARG_OBJECT, PLOT_BASEMAP_ARG_NAME)),
         plot_deterministic=bool(getattr(
