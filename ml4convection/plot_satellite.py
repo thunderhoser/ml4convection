@@ -67,7 +67,10 @@ PLOT_BASEMAP_HELP_STRING = (
     'Boolean flag.  If 1 (0), will plot satellite images with (without) '
     'basemap.'
 )
-OUTPUT_DIR_HELP_STRING = 'Name of output directory.  Images will be saved here.'
+OUTPUT_DIR_HELP_STRING = (
+    'Name of top-level output directory.  Images will be saved here (one '
+    'subdirectory per band).'
+)
 
 INPUT_ARG_PARSER = argparse.ArgumentParser()
 INPUT_ARG_PARSER.add_argument(
@@ -85,8 +88,8 @@ INPUT_ARG_PARSER.add_argument(
     help=BAND_NUMBERS_HELP_STRING
 )
 INPUT_ARG_PARSER.add_argument(
-    '--' + DAILY_TIMES_ARG_NAME, type=int, nargs='+', required=False,
-    default=[-1], help=DAILY_TIMES_HELP_STRING
+    '--' + DAILY_TIMES_ARG_NAME, type=int, nargs='+', required=True,
+    help=DAILY_TIMES_HELP_STRING
 )
 INPUT_ARG_PARSER.add_argument(
     '--' + SPATIAL_DS_FACTOR_ARG_NAME, type=int, required=False, default=1,
@@ -103,7 +106,8 @@ INPUT_ARG_PARSER.add_argument(
 
 
 def _plot_one_satellite_image(
-        satellite_dict, time_index, band_index, plot_basemap, output_dir_name):
+        satellite_dict, time_index, band_index, plot_basemap,
+        top_output_dir_name):
     """Plots one satellite image.
 
     :param satellite_dict: Dictionary in format returned by
@@ -111,7 +115,7 @@ def _plot_one_satellite_image(
     :param time_index: Index of time to plot.
     :param band_index: Index of spectral band to plot.
     :param plot_basemap: See documentation at top of file.
-    :param output_dir_name: Same.
+    :param top_output_dir_name: Same.
     """
 
     latitudes_deg_n = satellite_dict[satellite_io.LATITUDES_KEY]
@@ -206,10 +210,11 @@ def _plot_one_satellite_image(
     axes_object.set_title(title_string)
 
     output_file_name = (
-        '{0:s}/brightness-temperature_band{1:02d}_{2:s}.jpg'
+        '{0:s}/band{1:02d}/brightness-temperature_band{1:02d}_{2:s}.jpg'
     ).format(
-        output_dir_name, band_number, valid_time_string
+        top_output_dir_name, band_number, valid_time_string
     )
+    file_system_utils.mkdir_recursive_if_necessary(file_name=output_file_name)
 
     print('Saving figure to file: "{0:s}"...'.format(output_file_name))
     figure_object.savefig(
@@ -221,7 +226,7 @@ def _plot_one_satellite_image(
 
 def _plot_satellite_one_day(
         satellite_file_name, band_numbers, daily_times_seconds,
-        spatial_downsampling_factor, plot_basemap, output_dir_name):
+        spatial_downsampling_factor, plot_basemap, top_output_dir_name):
     """Plots satellite images for one day.
 
     :param satellite_file_name: Path to input file.  Will be read by
@@ -230,7 +235,7 @@ def _plot_satellite_one_day(
     :param daily_times_seconds: Same.
     :param spatial_downsampling_factor: Same.
     :param plot_basemap: Same.
-    :param output_dir_name: Same.
+    :param top_output_dir_name: Same.
     """
 
     print('Reading data from: "{0:s}"...'.format(satellite_file_name))
@@ -277,13 +282,14 @@ def _plot_satellite_one_day(
         for j in range(num_bands):
             _plot_one_satellite_image(
                 satellite_dict=satellite_dict, time_index=i, band_index=j,
-                plot_basemap=plot_basemap, output_dir_name=output_dir_name
+                plot_basemap=plot_basemap,
+                top_output_dir_name=top_output_dir_name
             )
 
 
 def _run(top_satellite_dir_name, first_date_string, last_date_string,
          band_numbers, daily_times_seconds, spatial_downsampling_factor,
-         plot_basemap, output_dir_name):
+         plot_basemap, top_output_dir_name):
     """Plots satellite images for the given days.
 
     This is effectively the main method.
@@ -295,24 +301,16 @@ def _run(top_satellite_dir_name, first_date_string, last_date_string,
     :param daily_times_seconds: Same.
     :param spatial_downsampling_factor: Same.
     :param plot_basemap: Same.
-    :param output_dir_name: Same.
+    :param top_output_dir_name: Same.
     """
 
     if spatial_downsampling_factor <= 1:
         spatial_downsampling_factor = None
 
-    file_system_utils.mkdir_recursive_if_necessary(
-        directory_name=output_dir_name
+    error_checking.assert_is_geq_numpy_array(daily_times_seconds, 0)
+    error_checking.assert_is_less_than_numpy_array(
+        daily_times_seconds, DAYS_TO_SECONDS
     )
-
-    if len(daily_times_seconds) == 1 and daily_times_seconds[0] < 0:
-        daily_times_seconds = None
-
-    if daily_times_seconds is not None:
-        error_checking.assert_is_geq_numpy_array(daily_times_seconds, 0)
-        error_checking.assert_is_less_than_numpy_array(
-            daily_times_seconds, DAYS_TO_SECONDS
-        )
 
     satellite_file_names = satellite_io.find_many_files(
         top_directory_name=top_satellite_dir_name,
@@ -328,7 +326,7 @@ def _run(top_satellite_dir_name, first_date_string, last_date_string,
             band_numbers=band_numbers,
             daily_times_seconds=daily_times_seconds,
             spatial_downsampling_factor=spatial_downsampling_factor,
-            plot_basemap=plot_basemap, output_dir_name=output_dir_name
+            plot_basemap=plot_basemap, top_output_dir_name=top_output_dir_name
         )
 
         if i != len(satellite_file_names) - 1:
@@ -354,5 +352,5 @@ if __name__ == '__main__':
             INPUT_ARG_OBJECT, SPATIAL_DS_FACTOR_ARG_NAME
         ),
         plot_basemap=bool(getattr(INPUT_ARG_OBJECT, PLOT_BASEMAP_ARG_NAME)),
-        output_dir_name=getattr(INPUT_ARG_OBJECT, OUTPUT_DIR_ARG_NAME)
+        top_output_dir_name=getattr(INPUT_ARG_OBJECT, OUTPUT_DIR_ARG_NAME)
     )

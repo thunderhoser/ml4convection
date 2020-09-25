@@ -93,8 +93,8 @@ INPUT_ARG_PARSER.add_argument(
     '--' + LAST_DATE_ARG_NAME, type=str, required=True, help=DATE_HELP_STRING
 )
 INPUT_ARG_PARSER.add_argument(
-    '--' + DAILY_TIMES_ARG_NAME, type=int, nargs='+', required=False,
-    default=[-1], help=DAILY_TIMES_HELP_STRING
+    '--' + DAILY_TIMES_ARG_NAME, type=int, nargs='+', required=True,
+    help=DAILY_TIMES_HELP_STRING
 )
 INPUT_ARG_PARSER.add_argument(
     '--' + SPATIAL_DS_FACTOR_ARG_NAME, type=int, required=False, default=1,
@@ -346,14 +346,10 @@ def _run(top_reflectivity_dir_name, top_echo_classifn_dir_name,
     if top_echo_classifn_dir_name == '':
         top_echo_classifn_dir_name = None
 
-    if len(daily_times_seconds) == 1 and daily_times_seconds[0] < 0:
-        daily_times_seconds = None
-
-    if daily_times_seconds is not None:
-        error_checking.assert_is_geq_numpy_array(daily_times_seconds, 0)
-        error_checking.assert_is_less_than_numpy_array(
-            daily_times_seconds, DAYS_TO_SECONDS
-        )
+    error_checking.assert_is_geq_numpy_array(daily_times_seconds, 0)
+    error_checking.assert_is_less_than_numpy_array(
+        daily_times_seconds, DAYS_TO_SECONDS
+    )
 
     input_file_names = radar_io.find_many_files(
         top_directory_name=top_reflectivity_dir_name,
