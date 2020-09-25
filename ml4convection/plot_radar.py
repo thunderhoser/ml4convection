@@ -277,7 +277,7 @@ def _plot_radar_one_day(
 
     if expand_to_satellite_grid:
         reflectivity_dict = radar_io.expand_to_satellite_grid(
-            any_radar_dict=reflectivity_dict, fill_nans=False
+            any_radar_dict=reflectivity_dict, fill_nans=True
         )
 
     if spatial_downsampling_factor is not None:
@@ -379,7 +379,7 @@ def _run(top_reflectivity_dir_name, top_echo_classifn_dir_name,
     for i in range(len(input_file_names)):
         print('Reading data from: "{0:s}"...'.format(input_file_names[i]))
         reflectivity_dict = radar_io.read_reflectivity_file(
-            netcdf_file_name=input_file_names[i], fill_nans=False
+            netcdf_file_name=input_file_names[i], fill_nans=True
         )
 
         if top_echo_classifn_dir_name is None:
