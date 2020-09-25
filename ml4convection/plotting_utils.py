@@ -14,10 +14,15 @@ THIS_DIRECTORY_NAME = os.path.dirname(os.path.realpath(
 sys.path.append(os.path.normpath(os.path.join(THIS_DIRECTORY_NAME, '..')))
 
 import error_checking
+import longitude_conversion as lng_conversion
 
 VERTICAL_CBAR_PADDING = 0.05
 HORIZONTAL_CBAR_PADDING = 0.075
 DEFAULT_CBAR_ORIENTATION_STRING = 'horizontal'
+
+DEFAULT_FIGURE_WIDTH_INCHES = 15.
+DEFAULT_FIGURE_HEIGHT_INCHES = 15.
+DEFAULT_RESOLUTION_STRING = 'i'
 
 FONT_SIZE = 30
 pyplot.rc('font', size=FONT_SIZE)
@@ -27,6 +32,45 @@ pyplot.rc('xtick', labelsize=FONT_SIZE)
 pyplot.rc('ytick', labelsize=FONT_SIZE)
 pyplot.rc('legend', fontsize=FONT_SIZE)
 pyplot.rc('figure', titlesize=FONT_SIZE)
+
+def _check_basemap_args(
+        min_latitude_deg, max_latitude_deg, min_longitude_deg,
+        max_longitude_deg, resolution_string):
+    """Error-checks input args for creating basemap.
+
+    Latitudes must be in deg N, and longitudes must be in deg E.
+
+    Both output values are in deg E, with positive values (180-360) in the
+    western hemisphere.  The inputs may be positive or negative in WH.
+
+    :param min_latitude_deg: Minimum latitude in map (bottom-left corner).
+    :param max_latitude_deg: Max latitude in map (top-right corner).
+    :param min_longitude_deg: Minimum longitude in map (bottom-left corner).
+    :param max_longitude_deg: Max longitude in map (top-right corner).
+    :param resolution_string: Resolution of boundaries (political borders,
+        lakes, rivers, etc.) in basemap.  Options are "c" for crude, "l" for
+        low, "i" for intermediate, "h" for high, and "f" for full.
+    :return: min_longitude_deg: Minimum longitude (deg E, positive in western
+        hemisphere).
+    :return: max_longitude_deg: Max longitude (deg E, positive in western
+        hemisphere).
+    """
+
+    error_checking.assert_is_valid_latitude(min_latitude_deg)
+    error_checking.assert_is_valid_latitude(max_latitude_deg)
+    error_checking.assert_is_greater(max_latitude_deg, min_latitude_deg)
+
+    min_longitude_deg = lng_conversion.convert_lng_positive_in_west(
+        min_longitude_deg
+    )
+    max_longitude_deg = lng_conversion.convert_lng_positive_in_west(
+        max_longitude_deg
+    )
+
+    error_checking.assert_is_greater(max_longitude_deg, min_longitude_deg)
+    error_checking.assert_is_string(resolution_string)
+
+    return min_longitude_deg, max_longitude_deg
 
 
 def plot_colour_bar(
@@ -144,3 +188,46 @@ def plot_linear_colour_bar(
         orientation_string=orientation_string, padding=padding,
         extend_min=extend_min, extend_max=extend_max,
         fraction_of_axis_length=fraction_of_axis_length, font_size=font_size)
+
+
+def create_equidist_cylindrical_map(
+        min_latitude_deg, max_latitude_deg, min_longitude_deg,
+        max_longitude_deg, figure_width_inches=DEFAULT_FIGURE_WIDTH_INCHES,
+        figure_height_inches=DEFAULT_FIGURE_HEIGHT_INCHES,
+        resolution_string=DEFAULT_RESOLUTION_STRING):
+    """Creates equidistant cylindrical map.
+
+    This method only initializes a map with the equidistant cylindrical
+    projection.  It does not plot anything.
+
+    :param min_latitude_deg: See doc for `_check_basemap_args`.
+    :param max_latitude_deg: Same.
+    :param min_longitude_deg: Same.
+    :param max_longitude_deg: Same.
+    :param figure_width_inches: Figure width.
+    :param figure_height_inches: Figure height.
+    :param resolution_string: See doc for `_check_basemap_args`.
+    :return: figure_object: See doc for `create_lambert_conformal_map`.
+    :return: axes_object: Same.
+    :return: basemap_object: Same.
+    """
+
+    from mpl_toolkits.basemap import Basemap
+
+    min_longitude_deg, max_longitude_deg = _check_basemap_args(
+        min_latitude_deg=min_latitude_deg, max_latitude_deg=max_latitude_deg,
+        min_longitude_deg=min_longitude_deg,
+        max_longitude_deg=max_longitude_deg,
+        resolution_string=resolution_string)
+
+    figure_object, axes_object = pyplot.subplots(
+        1, 1, figsize=(figure_width_inches, figure_height_inches)
+    )
+
+    basemap_object = Basemap(
+        projection='cyl', resolution=resolution_string,
+        llcrnrlat=min_latitude_deg, llcrnrlon=min_longitude_deg,
+        urcrnrlat=max_latitude_deg, urcrnrlon=max_longitude_deg
+    )
+
+    return figure_object, axes_object, basemap_object
