@@ -243,7 +243,7 @@ def _plot_satellite_one_day(
             satellite_dict=satellite_dict,
             downsampling_factor=spatial_downsampling_factor,
             change_coordinates=True
-        )
+        )[0]
 
     satellite_dict = satellite_io.subset_by_band(
         satellite_dict=satellite_dict, band_numbers=band_numbers
