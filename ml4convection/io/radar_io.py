@@ -969,8 +969,9 @@ def downsample_in_space(any_radar_dict, downsampling_factor):
         ).astype(bool)
 
     latitude_matrix_deg_n = numpy.expand_dims(
-        any_radar_dict[LATITUDES_KEY], axis=(0, -1)
+        any_radar_dict[LATITUDES_KEY], axis=0
     )
+    latitude_matrix_deg_n = numpy.expand_dims(latitude_matrix_deg_n, axis=-1)
     latitude_matrix_deg_n = standalone_utils.do_1d_pooling(
         feature_matrix=latitude_matrix_deg_n,
         window_size_px=downsampling_factor, do_max_pooling=False
@@ -980,8 +981,9 @@ def downsample_in_space(any_radar_dict, downsampling_factor):
     # TODO(thunderhoser): Careful: this will not work with wrap-around at the
     # date line.
     longitude_matrix_deg_e = numpy.expand_dims(
-        any_radar_dict[LONGITUDES_KEY], axis=(0, -1)
+        any_radar_dict[LONGITUDES_KEY], axis=0
     )
+    longitude_matrix_deg_e = numpy.expand_dims(longitude_matrix_deg_e, axis=-1)
     longitude_matrix_deg_e = standalone_utils.do_1d_pooling(
         feature_matrix=longitude_matrix_deg_e,
         window_size_px=downsampling_factor, do_max_pooling=False

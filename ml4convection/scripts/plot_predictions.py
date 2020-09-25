@@ -76,8 +76,8 @@ INPUT_ARG_PARSER.add_argument(
     '--' + LAST_DATE_ARG_NAME, type=str, required=True, help=DATE_HELP_STRING
 )
 INPUT_ARG_PARSER.add_argument(
-    '--' + DAILY_TIMES_ARG_NAME, type=int, nargs='+', required=False,
-    default=[-1], help=DAILY_TIMES_HELP_STRING
+    '--' + DAILY_TIMES_ARG_NAME, type=int, nargs='+', required=True,
+    help=DAILY_TIMES_HELP_STRING
 )
 INPUT_ARG_PARSER.add_argument(
     '--' + PLOT_BASEMAP_ARG_NAME, type=int, required=False, default=0,
@@ -313,14 +313,10 @@ def _run(top_prediction_dir_name, first_date_string, last_date_string,
         directory_name=output_dir_name
     )
 
-    if len(daily_times_seconds) == 1 and daily_times_seconds[0] < 0:
-        daily_times_seconds = None
-
-    if daily_times_seconds is not None:
-        error_checking.assert_is_geq_numpy_array(daily_times_seconds, 0)
-        error_checking.assert_is_less_than_numpy_array(
-            daily_times_seconds, DAYS_TO_SECONDS
-        )
+    error_checking.assert_is_geq_numpy_array(daily_times_seconds, 0)
+    error_checking.assert_is_less_than_numpy_array(
+        daily_times_seconds, DAYS_TO_SECONDS
+    )
 
     if plot_deterministic:
         error_checking.assert_is_greater(probability_threshold, 0.)
