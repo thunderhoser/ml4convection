@@ -298,6 +298,9 @@ def _run(top_satellite_dir_name, first_date_string, last_date_string,
     :param output_dir_name: Same.
     """
 
+    print(band_numbers)
+    print(band_numbers.dtype)
+
     if spatial_downsampling_factor <= 1:
         spatial_downsampling_factor = None
 
