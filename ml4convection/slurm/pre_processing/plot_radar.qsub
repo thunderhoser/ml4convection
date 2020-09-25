@@ -22,10 +22,11 @@
 #SBATCH --output=plot_radar_%A_%a.out
 
 module load cuda/10.1
-# source /scratch2/BMC/gsd-hpcs/Jebb.Q.Stewart/conda3.7/etc/profile.d/conda.csh
-# conda activate base
-module use /scratch2/BMC/gsd-hpcs/bass/modulefiles
-module load Anaconda3
+source /scratch2/BMC/gsd-hpcs/Jebb.Q.Stewart/conda3.7/etc/profile.d/conda.csh
+conda activate base
+
+# module use /scratch2/BMC/gsd-hpcs/bass/modulefiles
+# module load Anaconda3
 
 set CODE_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_standalone/ml4convection"
 set RADAR_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_project/radar_data"
@@ -43,5 +44,5 @@ python3 -u "${CODE_DIR_NAME}/plot_radar.py" \
 --daily_times_seconds 0 7200 14400 21600 28800 36000 43200 50400 57600 64800 72000 79200 \
 --spatial_downsampling_factor=4 \
 --expand_to_satellite_grid=1 \
---plot_basemap=1 \
+--plot_basemap=0 \
 --output_dir_name="${RADAR_DIR_NAME}/radar_plots"
