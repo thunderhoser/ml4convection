@@ -135,7 +135,7 @@ def _find_input_files(
 
     valid_times_unix_sec = numpy.concatenate([
         d + daily_times_seconds for d in dates_unix_sec
-    ], dtype=int)
+    ])
 
     possible_valid_time_strings = [
         time_conversion.unix_sec_to_string(t, TIME_FORMAT)
