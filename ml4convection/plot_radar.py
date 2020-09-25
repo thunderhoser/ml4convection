@@ -273,7 +273,7 @@ def _plot_radar_one_day(
 
         reflectivity_dict[radar_io.REFLECTIVITY_KEY][
             convective_flag_matrix == False
-            ] = 0.
+        ] = 0.
 
     if expand_to_satellite_grid:
         reflectivity_dict = radar_io.expand_to_satellite_grid(

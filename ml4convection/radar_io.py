@@ -975,6 +975,8 @@ def downsample_in_space(any_radar_dict, downsampling_factor):
             mask_matrix[0, ..., 0] + TOLERANCE
         ).astype(bool)
 
+    print(any_radar_dict[LATITUDES_KEY])
+    print(any_radar_dict[LATITUDES_KEY].shape)
     latitude_matrix_deg_n = numpy.expand_dims(
         any_radar_dict[LATITUDES_KEY], axis=(0, -1)
     )
