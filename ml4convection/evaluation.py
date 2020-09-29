@@ -763,6 +763,11 @@ def get_advanced_scores(basic_score_table_xarray):
             basic_score_table_xarray.attrs[this_key]
         )
 
+    print(advanced_score_table_xarray[MEAN_FORECAST_PROB_KEY].values)
+    print(advanced_score_table_xarray[EVENT_FREQUENCY_KEY].values)
+    print(advanced_score_table_xarray[NUM_EXAMPLES_KEY].values)
+    print(advanced_score_table_xarray.attrs[TRAINING_EVENT_FREQ_KEY])
+
     bss_dict = gg_model_eval.get_brier_skill_score(
         mean_forecast_prob_by_bin=
         advanced_score_table_xarray[MEAN_FORECAST_PROB_KEY].values,
