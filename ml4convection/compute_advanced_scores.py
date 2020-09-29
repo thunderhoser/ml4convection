@@ -90,6 +90,7 @@ def _run(top_basic_score_dir_name, first_date_string, last_date_string,
     advanced_score_table_xarray = evaluation.get_advanced_scores(
         basic_score_table_xarray
     )
+    print(advanced_score_table_xarray)
 
     print('Writing advanced scores to: "{0:s}"...'.format(output_file_name))
     evaluation.write_file(
