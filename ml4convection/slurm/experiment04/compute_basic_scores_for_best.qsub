@@ -50,5 +50,5 @@ python3 -u "${CODE_DIR_NAME}/compute_basic_scores.py" \
 --first_date_string="${first_date_string}" \
 --last_date_string="${last_date_string}" \
 --matching_distance_px=1 \
---training_event_frequency=0.01 \
+--training_event_frequency=0.047527 \
 --output_dir_name="${prediction_dir_name}/evaluation"

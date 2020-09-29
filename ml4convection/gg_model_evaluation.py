@@ -1123,7 +1123,13 @@ def get_brier_skill_score(
     error_checking.assert_is_geq(climatology, 0.)
     error_checking.assert_is_leq(climatology, 1.)
 
-    uncertainty = climatology * (1. - climatology)
+    climo_uncertainty = climatology * (1. - climatology)
+
+    sample_climatology = numpy.average(
+        mean_observed_label_by_bin[num_examples_by_bin > 0],
+        weights=num_examples_by_bin[num_examples_by_bin > 0]
+    )
+    uncertainty = sample_climatology * (1. - sample_climatology)
 
     this_numerator = numpy.nansum(
         num_examples_by_bin *
@@ -1133,13 +1139,13 @@ def get_brier_skill_score(
 
     this_numerator = numpy.nansum(
         num_examples_by_bin *
-        (mean_observed_label_by_bin - climatology) ** 2
+        (mean_observed_label_by_bin - sample_climatology) ** 2
     )
     resolution = this_numerator / numpy.sum(num_examples_by_bin)
     brier_score = uncertainty + reliability - resolution
 
     try:
-        brier_skill_score = (resolution - reliability) / uncertainty
+        brier_skill_score = 1. - brier_score / climo_uncertainty
     except ZeroDivisionError:
         brier_skill_score = numpy.nan
 
