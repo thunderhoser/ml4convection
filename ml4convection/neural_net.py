@@ -18,6 +18,7 @@ import time_conversion
 import file_system_utils
 import error_checking
 import custom_metrics
+import radar_io
 import satellite_io
 import example_io
 import general_utils
@@ -881,6 +882,33 @@ def read_metafile(dill_file_name):
 
     if FSS_HALF_WINDOW_SIZE_KEY not in metadata_dict:
         metadata_dict[FSS_HALF_WINDOW_SIZE_KEY] = None
+
+    if MASK_MATRIX_KEY not in metadata_dict:
+        this_file_name = (
+            '/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_project/'
+            'radar_data/radar_mask.nc'
+        )
+
+        mask_dict = radar_io.read_mask_file(this_file_name)
+        mask_dict = radar_io.expand_to_satellite_grid(any_radar_dict=mask_dict)
+        mask_dict = radar_io.downsample_in_space(
+            any_radar_dict=mask_dict, downsampling_factor=4
+        )
+        metadata_dict[MASK_MATRIX_KEY] = mask_dict[radar_io.MASK_MATRIX_KEY]
+
+        _write_metafile(
+            dill_file_name=dill_file_name,
+            num_epochs=metadata_dict[NUM_EPOCHS_KEY],
+            num_training_batches_per_epoch=metadata_dict[NUM_TRAINING_BATCHES_KEY],
+            training_option_dict=metadata_dict[TRAINING_OPTIONS_KEY],
+            num_validation_batches_per_epoch=metadata_dict[NUM_VALIDATION_BATCHES_KEY],
+            validation_option_dict=metadata_dict[VALIDATION_OPTIONS_KEY],
+            do_early_stopping=metadata_dict[EARLY_STOPPING_KEY],
+            plateau_lr_multiplier=metadata_dict[PLATEAU_LR_MUTIPLIER_KEY],
+            class_weights=metadata_dict[CLASS_WEIGHTS_KEY],
+            fss_half_window_size_px=metadata_dict[FSS_HALF_WINDOW_SIZE_KEY],
+            mask_matrix=metadata_dict[MASK_MATRIX_KEY]
+        )
 
     missing_keys = list(set(METADATA_KEYS) - set(metadata_dict.keys()))
     if len(missing_keys) == 0:
