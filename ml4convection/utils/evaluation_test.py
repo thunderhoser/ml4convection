@@ -9,8 +9,8 @@ from ml4convection.utils import evaluation
 
 TOLERANCE = 1e-6
 
-# The following constants are used to test _dilate_binary_matrix and
-# _erode_binary_matrix.
+# The following constants are used to test dilate_binary_matrix and
+# erode_binary_matrix.
 FIRST_DILATION_DISTANCE_PX = 35000. / 32463.
 SECOND_DILATION_DISTANCE_PX = 50000. / 32463.
 THIRD_DILATION_DISTANCE_PX = 100000. / 32463.
@@ -662,12 +662,12 @@ class EvaluationTests(unittest.TestCase):
     """Each method is a unit test for evaluation.py."""
 
     def test_dilate_binary_matrix_first(self):
-        """Ensures correct output from _dilate_binary_matrix.
+        """Ensures correct output from dilate_binary_matrix.
 
         In this case, using first dilation distance.
         """
 
-        this_matrix = evaluation._dilate_binary_matrix(
+        this_matrix = evaluation.dilate_binary_matrix(
             binary_matrix=ORIG_MASK_MATRIX,
             buffer_distance_px=FIRST_DILATION_DISTANCE_PX
         )
@@ -677,12 +677,12 @@ class EvaluationTests(unittest.TestCase):
         ))
 
     def test_dilate_binary_matrix_second(self):
-        """Ensures correct output from _dilate_binary_matrix.
+        """Ensures correct output from dilate_binary_matrix.
 
         In this case, using second dilation distance.
         """
 
-        this_matrix = evaluation._dilate_binary_matrix(
+        this_matrix = evaluation.dilate_binary_matrix(
             binary_matrix=ORIG_MASK_MATRIX,
             buffer_distance_px=SECOND_DILATION_DISTANCE_PX
         )
@@ -692,12 +692,12 @@ class EvaluationTests(unittest.TestCase):
         ))
 
     def test_dilate_binary_matrix_third(self):
-        """Ensures correct output from _dilate_binary_matrix.
+        """Ensures correct output from dilate_binary_matrix.
 
         In this case, using third dilation distance.
         """
 
-        this_matrix = evaluation._dilate_binary_matrix(
+        this_matrix = evaluation.dilate_binary_matrix(
             binary_matrix=ORIG_MASK_MATRIX,
             buffer_distance_px=THIRD_DILATION_DISTANCE_PX
         )
@@ -707,12 +707,12 @@ class EvaluationTests(unittest.TestCase):
         ))
 
     def test_dilate_binary_matrix_fourth(self):
-        """Ensures correct output from _dilate_binary_matrix.
+        """Ensures correct output from dilate_binary_matrix.
 
         In this case, using fourth dilation distance.
         """
 
-        this_matrix = evaluation._dilate_binary_matrix(
+        this_matrix = evaluation.dilate_binary_matrix(
             binary_matrix=ORIG_MASK_MATRIX,
             buffer_distance_px=FOURTH_DILATION_DISTANCE_PX
         )
@@ -722,12 +722,12 @@ class EvaluationTests(unittest.TestCase):
         ))
 
     def test_erode_binary_matrix_first(self):
-        """Ensures correct output from _erode_binary_matrix.
+        """Ensures correct output from erode_binary_matrix.
 
         In this case, using first erosion distance.
         """
 
-        this_matrix = evaluation._erode_binary_matrix(
+        this_matrix = evaluation.erode_binary_matrix(
             binary_matrix=ORIG_MASK_MATRIX,
             buffer_distance_px=FIRST_DILATION_DISTANCE_PX
         )
@@ -737,12 +737,12 @@ class EvaluationTests(unittest.TestCase):
         ))
 
     def test_erode_binary_matrix_second(self):
-        """Ensures correct output from _erode_binary_matrix.
+        """Ensures correct output from erode_binary_matrix.
 
         In this case, using second erosion distance.
         """
 
-        this_matrix = evaluation._erode_binary_matrix(
+        this_matrix = evaluation.erode_binary_matrix(
             binary_matrix=ORIG_MASK_MATRIX,
             buffer_distance_px=SECOND_DILATION_DISTANCE_PX
         )
@@ -752,12 +752,12 @@ class EvaluationTests(unittest.TestCase):
         ))
 
     def test_erode_binary_matrix_third(self):
-        """Ensures correct output from _erode_binary_matrix.
+        """Ensures correct output from erode_binary_matrix.
 
         In this case, using third erosion distance.
         """
 
-        this_matrix = evaluation._erode_binary_matrix(
+        this_matrix = evaluation.erode_binary_matrix(
             binary_matrix=ORIG_MASK_MATRIX,
             buffer_distance_px=THIRD_DILATION_DISTANCE_PX
         )
@@ -832,7 +832,7 @@ class EvaluationTests(unittest.TestCase):
         In this case, using second matching distance.
         """
 
-        this_mask_matrix = evaluation._erode_binary_matrix(
+        this_mask_matrix = evaluation.erode_binary_matrix(
             binary_matrix=MASK_MATRIX,
             buffer_distance_px=SECOND_MATCHING_DISTANCE_PX
         )
@@ -883,7 +883,7 @@ class EvaluationTests(unittest.TestCase):
         In this case, using second matching distance.
         """
 
-        this_mask_matrix = evaluation._erode_binary_matrix(
+        this_mask_matrix = evaluation.erode_binary_matrix(
             binary_matrix=MASK_MATRIX,
             buffer_distance_px=SECOND_MATCHING_DISTANCE_PX
         )

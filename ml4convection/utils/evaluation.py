@@ -19,7 +19,7 @@ TOLERANCE = 1e-6
 DATE_FORMAT = '%Y%m%d'
 TIME_FORMAT_FOR_MESSAGES = '%Y-%m-%d-%H%M'
 
-DEFAULT_NUM_PROB_THRESHOLDS = 201
+DEFAULT_NUM_PROB_THRESHOLDS = 101
 DEFAULT_NUM_BINS_FOR_RELIABILITY = 20
 
 TIME_DIM = 'valid_time_unix_sec'
@@ -98,38 +98,6 @@ def _get_structure_matrix(buffer_distance_px):
     return distance_matrix_px <= buffer_distance_px
 
 
-def _dilate_binary_matrix(binary_matrix, buffer_distance_px):
-    """Dilates binary matrix.
-
-    :param binary_matrix: See doc for `_check_2d_binary_matrix`.
-    :param buffer_distance_px: Buffer distance (pixels).
-    :return: dilated_binary_matrix: Dilated version of input.
-    """
-
-    structure_matrix = _get_structure_matrix(buffer_distance_px)
-    dilated_binary_matrix = binary_dilation(
-        binary_matrix.astype(int), structure=structure_matrix, iterations=1,
-        border_value=0
-    )
-    return dilated_binary_matrix.astype(binary_matrix.dtype)
-
-
-def _erode_binary_matrix(binary_matrix, buffer_distance_px):
-    """Erodes binary matrix.
-
-    :param binary_matrix: See doc for `_check_2d_binary_matrix`.
-    :param buffer_distance_px: Buffer distance (pixels).
-    :return: eroded_binary_matrix: Eroded version of input.
-    """
-
-    structure_matrix = _get_structure_matrix(buffer_distance_px)
-    eroded_binary_matrix = binary_erosion(
-        binary_matrix.astype(int), structure=structure_matrix, iterations=1,
-        border_value=1
-    )
-    return eroded_binary_matrix.astype(binary_matrix.dtype)
-
-
 def _match_actual_convection_one_time(
         actual_target_matrix, predicted_target_matrix, matching_distance_px,
         eroded_eval_mask_matrix):
@@ -151,7 +119,7 @@ def _match_actual_convection_one_time(
     :return: num_false_negatives: Number of false negatives.
     """
 
-    dilated_prediction_matrix = _dilate_binary_matrix(
+    dilated_prediction_matrix = dilate_binary_matrix(
         binary_matrix=predicted_target_matrix,
         buffer_distance_px=matching_distance_px
     ).astype(int)
@@ -180,7 +148,7 @@ def _match_predicted_convection_one_time(
     :return: num_false_positives: Number of false positives.
     """
 
-    dilated_actual_target_matrix = _dilate_binary_matrix(
+    dilated_actual_target_matrix = dilate_binary_matrix(
         binary_matrix=actual_target_matrix,
         buffer_distance_px=matching_distance_px
     ).astype(int)
@@ -218,7 +186,7 @@ def _get_reliability_components_one_time(
         (convection) frequencies.
     """
 
-    dilated_actual_target_matrix = _dilate_binary_matrix(
+    dilated_actual_target_matrix = dilate_binary_matrix(
         binary_matrix=actual_target_matrix,
         buffer_distance_px=matching_distance_px
     ).astype(int)
@@ -380,6 +348,44 @@ def _get_frequency_bias(contingency_table_dict):
         return numpy.nan
 
 
+def dilate_binary_matrix(binary_matrix, buffer_distance_px):
+    """Dilates binary matrix.
+
+    :param binary_matrix: See doc for `_check_2d_binary_matrix`.
+    :param buffer_distance_px: Buffer distance (pixels).
+    :return: dilated_binary_matrix: Dilated version of input.
+    """
+
+    _check_2d_binary_matrix(binary_matrix)
+    error_checking.assert_is_geq(buffer_distance_px, 0.)
+
+    structure_matrix = _get_structure_matrix(buffer_distance_px)
+    dilated_binary_matrix = binary_dilation(
+        binary_matrix.astype(int), structure=structure_matrix, iterations=1,
+        border_value=0
+    )
+    return dilated_binary_matrix.astype(binary_matrix.dtype)
+
+
+def erode_binary_matrix(binary_matrix, buffer_distance_px):
+    """Erodes binary matrix.
+
+    :param binary_matrix: See doc for `_check_2d_binary_matrix`.
+    :param buffer_distance_px: Buffer distance (pixels).
+    :return: eroded_binary_matrix: Eroded version of input.
+    """
+
+    _check_2d_binary_matrix(binary_matrix)
+    error_checking.assert_is_geq(buffer_distance_px, 0.)
+
+    structure_matrix = _get_structure_matrix(buffer_distance_px)
+    eroded_binary_matrix = binary_erosion(
+        binary_matrix.astype(int), structure=structure_matrix, iterations=1,
+        border_value=1
+    )
+    return eroded_binary_matrix.astype(binary_matrix.dtype)
+
+
 def get_basic_scores(
         prediction_file_name, matching_distance_px, training_event_frequency,
         square_fss_filter=True, num_prob_thresholds=DEFAULT_NUM_PROB_THRESHOLDS,
@@ -436,7 +442,7 @@ def get_basic_scores(
     error_checking.assert_is_leq(training_event_frequency, 1.)
     error_checking.assert_is_boolean(square_fss_filter)
     error_checking.assert_is_integer(num_prob_thresholds)
-    error_checking.assert_is_geq(num_prob_thresholds, 11)
+    error_checking.assert_is_geq(num_prob_thresholds, 2)
     error_checking.assert_is_integer(num_bins_for_reliability)
     error_checking.assert_is_geq(num_bins_for_reliability, 10)
 
@@ -500,7 +506,7 @@ def get_basic_scores(
     )
 
     # Do actual stuff.
-    eroded_eval_mask_matrix = _erode_binary_matrix(
+    eroded_eval_mask_matrix = erode_binary_matrix(
         binary_matrix=eval_mask_matrix, buffer_distance_px=matching_distance_px
     )
     valid_time_strings = [

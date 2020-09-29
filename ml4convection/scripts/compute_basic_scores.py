@@ -10,6 +10,7 @@ INPUT_DIR_ARG_NAME = 'input_prediction_dir_name'
 FIRST_DATE_ARG_NAME = 'first_date_string'
 LAST_DATE_ARG_NAME = 'last_date_string'
 MATCHING_DISTANCE_ARG_NAME = 'matching_distance_px'
+NUM_PROB_THRESHOLDS_ARG_NAME = 'num_prob_thresholds'
 
 # TODO(thunderhoser): This will be non-trivial to compute for each matching
 # distance.
@@ -27,6 +28,10 @@ DATE_HELP_STRING = (
 
 MATCHING_DISTANCE_HELP_STRING = (
     'Matching distance (pixels) for neighbourhood evaluation.'
+)
+NUM_PROB_THRESHOLDS_HELP_STRING = (
+    'Number of probability thresholds.  One contingency table will be created '
+    'for each.'
 )
 TRAINING_EVENT_FREQ_HELP_STRING = (
     'Event frequency in training data for the given matching distance.'
@@ -51,6 +56,11 @@ INPUT_ARG_PARSER.add_argument(
 INPUT_ARG_PARSER.add_argument(
     '--' + MATCHING_DISTANCE_ARG_NAME, type=float, required=True,
     help=MATCHING_DISTANCE_HELP_STRING
+)
+INPUT_ARG_PARSER.add_argument(
+    '--' + NUM_PROB_THRESHOLDS_ARG_NAME, type=int, required=False,
+    default=evaluation.DEFAULT_NUM_PROB_THRESHOLDS,
+    help=NUM_PROB_THRESHOLDS_HELP_STRING
 )
 INPUT_ARG_PARSER.add_argument(
     '--' + TRAINING_EVENT_FREQ_ARG_NAME, type=float, required=True,
