@@ -11,9 +11,6 @@ FIRST_DATE_ARG_NAME = 'first_date_string'
 LAST_DATE_ARG_NAME = 'last_date_string'
 MATCHING_DISTANCE_ARG_NAME = 'matching_distance_px'
 NUM_PROB_THRESHOLDS_ARG_NAME = 'num_prob_thresholds'
-
-# TODO(thunderhoser): This will be non-trivial to compute for each matching
-# distance.
 TRAINING_EVENT_FREQ_ARG_NAME = 'training_event_frequency'
 OUTPUT_DIR_ARG_NAME = 'output_dir_name'
 
