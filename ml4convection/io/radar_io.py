@@ -843,7 +843,8 @@ def read_mask_file(netcdf_file_name):
         LONGITUDES_KEY: dataset_object.variables[LONGITUDES_KEY][:],
         MAX_MASK_HEIGHT_KEY: getattr(dataset_object, MAX_MASK_HEIGHT_KEY),
         MIN_OBSERVATIONS_KEY: getattr(dataset_object, MIN_OBSERVATIONS_KEY),
-        MIN_HEIGHT_FRACTION_KEY: getattr(dataset_object, MIN_HEIGHT_FRACTION_KEY)
+        MIN_HEIGHT_FRACTION_KEY:
+            getattr(dataset_object, MIN_HEIGHT_FRACTION_KEY)
     }
 
     dataset_object.close()

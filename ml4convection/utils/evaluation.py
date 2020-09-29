@@ -302,13 +302,13 @@ def _get_fss_components_one_time(
 
 def _get_pod(contingency_table_dict):
     """Computes POD (probability of detection).
-    
+
     :param contingency_table_dict: Dictionary with the following keys.
     contingency_table_dict["num_actual_oriented_true_positives"]
     contingency_table_dict["num_prediction_oriented_true_positives"]
     contingency_table_dict["num_false_positives"]
     contingency_table_dict["num_false_negatives"]
-    
+
     :return: pod: Probability of detection.
     """
 
@@ -326,7 +326,7 @@ def _get_pod(contingency_table_dict):
 
 def _get_success_ratio(contingency_table_dict):
     """Computes success ratio.
-    
+
     :param contingency_table_dict: See doc for `_get_pod`.
     :return: success_ratio: Success ratio.
     """
@@ -381,7 +381,7 @@ def get_basic_scores(
         num_prob_thresholds=DEFAULT_NUM_PROB_THRESHOLDS,
         num_bins_for_reliability=DEFAULT_NUM_BINS_FOR_RELIABILITY):
     """Computes basic scores.
-    
+
     M = number of rows in grid
     N = number of columns in grid
 
@@ -406,10 +406,10 @@ def get_basic_scores(
     :return: basic_score_table_xarray: xarray table with results (variable
         and dimension names should make the table self-explanatory).
     """
-    
+
     # Check input args.
     _check_2d_binary_matrix(eval_mask_matrix)
-    error_checking.assert_is_string(training_event_frequency)
+    error_checking.assert_is_string(eval_mask_file_name)
     error_checking.assert_is_geq(matching_distance_px, 0.)
     error_checking.assert_is_geq(training_event_frequency, 0.)
     error_checking.assert_is_leq(training_event_frequency, 1.)
@@ -418,7 +418,7 @@ def get_basic_scores(
     error_checking.assert_is_geq(num_prob_thresholds, 11)
     error_checking.assert_is_integer(num_bins_for_reliability)
     error_checking.assert_is_geq(num_bins_for_reliability, 10)
-    
+
     # Create xarray table.
     valid_times_unix_sec = prediction_dict[prediction_io.VALID_TIMES_KEY]
     probability_thresholds = gg_model_eval.get_binarization_thresholds(
@@ -477,7 +477,7 @@ def get_basic_scores(
     basic_score_table_xarray.attrs[TRAINING_EVENT_FREQ_KEY] = (
         training_event_frequency
     )
-    
+
     # Do actual stuff.
     eroded_eval_mask_matrix = _erode_binary_matrix(
         binary_matrix=eval_mask_matrix, buffer_distance_px=matching_distance_px
@@ -486,7 +486,7 @@ def get_basic_scores(
         time_conversion.unix_sec_to_string(t, TIME_FORMAT_FOR_MESSAGES)
         for t in valid_times_unix_sec
     ]
-    
+
     for i in range(num_times):
         (
             basic_score_table_xarray[NUM_EXAMPLES_KEY].values[i, ...],
@@ -653,8 +653,6 @@ def get_advanced_scores(basic_score_table_xarray):
     }
     main_data_dict.update(new_dict)
 
-    # TODO(thunderhoser): BS, BSS, REL, RES, and FSS will be "attributes".
-
     advanced_score_table_xarray = xarray.Dataset(
         data_vars=main_data_dict, coords=metadata_dict
     )
@@ -678,8 +676,8 @@ def get_advanced_scores(basic_score_table_xarray):
         }
 
         for this_key in [
-            NUM_ACTUAL_ORIENTED_TP_KEY, NUM_PREDICTION_ORIENTED_TP_KEY,
-            NUM_FALSE_POSITIVES_KEY, NUM_FALSE_NEGATIVES_KEY
+                NUM_ACTUAL_ORIENTED_TP_KEY, NUM_PREDICTION_ORIENTED_TP_KEY,
+                NUM_FALSE_POSITIVES_KEY, NUM_FALSE_NEGATIVES_KEY
         ]:
             advanced_score_table_xarray[this_key].values[j] = (
                 this_contingency_table[this_key]
@@ -724,8 +722,8 @@ def get_advanced_scores(basic_score_table_xarray):
         )
 
     for this_key in [
-        MASK_FILE_KEY, MATCHING_DISTANCE_KEY, SQUARE_FSS_FILTER_KEY,
-        TRAINING_EVENT_FREQ_KEY
+            MASK_FILE_KEY, MATCHING_DISTANCE_KEY, SQUARE_FSS_FILTER_KEY,
+            TRAINING_EVENT_FREQ_KEY
     ]:
         advanced_score_table_xarray.attrs[this_key] = (
             basic_score_table_xarray.attrs[this_key]
@@ -738,7 +736,7 @@ def get_advanced_scores(basic_score_table_xarray):
         advanced_score_table_xarray[EVENT_FREQUENCY_KEY].values,
         num_examples_by_bin=
         advanced_score_table_xarray[NUM_EXAMPLES_KEY].values,
-        climatology=advanced_score_table_xarray[TRAINING_EVENT_FREQ_KEY]
+        climatology=advanced_score_table_xarray.attrs[TRAINING_EVENT_FREQ_KEY]
     )
 
     advanced_score_table_xarray.attrs[BRIER_SKILL_SCORE_KEY] = (
