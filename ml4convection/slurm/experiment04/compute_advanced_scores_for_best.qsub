@@ -39,7 +39,7 @@ set model_dir_name="${TOP_MODEL_DIR_NAME}/fss-half-window-size-px=${half_window_
 set evaluation_dir_name="${model_dir_name}/validation/evaluation"
 
 python3 -u "${CODE_DIR_NAME}/compute_advanced_scores.py" \
---input_evaluation_dir_name="${evaluation_dir_name}" \
+--input_basic_score_dir_name="${evaluation_dir_name}" \
 --first_date_string="20170101" \
 --last_date_string="20171224" \
 --output_file_name="${evaluation_dir_name}/advanced_scores_20170101-20171224.p"
