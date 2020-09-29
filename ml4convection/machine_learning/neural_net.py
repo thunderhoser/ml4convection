@@ -11,6 +11,7 @@ from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
 from gewittergefahr.deep_learning import keras_metrics as custom_metrics
+from ml4convection.io import radar_io
 from ml4convection.io import satellite_io
 from ml4convection.io import example_io
 from ml4convection.utils import general_utils
@@ -116,12 +117,13 @@ EARLY_STOPPING_KEY = 'do_early_stopping'
 PLATEAU_LR_MUTIPLIER_KEY = 'plateau_lr_multiplier'
 CLASS_WEIGHTS_KEY = 'class_weights'
 FSS_HALF_WINDOW_SIZE_KEY = 'fss_half_window_size_px'
+MASK_MATRIX_KEY = 'mask_matrix'
 
 METADATA_KEYS = [
     NUM_EPOCHS_KEY, NUM_TRAINING_BATCHES_KEY, TRAINING_OPTIONS_KEY,
     NUM_VALIDATION_BATCHES_KEY, VALIDATION_OPTIONS_KEY,
     EARLY_STOPPING_KEY, PLATEAU_LR_MUTIPLIER_KEY, CLASS_WEIGHTS_KEY,
-    FSS_HALF_WINDOW_SIZE_KEY
+    FSS_HALF_WINDOW_SIZE_KEY, MASK_MATRIX_KEY
 ]
 
 PREDICTOR_MATRIX_KEY = 'predictor_matrix'
@@ -333,11 +335,14 @@ def _write_metafile(
         dill_file_name, num_epochs, num_training_batches_per_epoch,
         training_option_dict, num_validation_batches_per_epoch,
         validation_option_dict, do_early_stopping, plateau_lr_multiplier,
-        class_weights, fss_half_window_size_px):
+        class_weights, fss_half_window_size_px, mask_matrix):
     """Writes metadata to Dill file.
 
+    M = number of rows in prediction grid
+    N = number of columns in prediction grid
+
     :param dill_file_name: Path to output file.
-    :param num_epochs: See doc for `train_model_from_raw_files`.
+    :param num_epochs: See doc for `train_model_from_preprocessed_files`.
     :param num_training_batches_per_epoch: Same.
     :param training_option_dict: Same.
     :param num_validation_batches_per_epoch: Same.
@@ -346,6 +351,7 @@ def _write_metafile(
     :param plateau_lr_multiplier: Same.
     :param class_weights: Same.
     :param fss_half_window_size_px: Same.
+    :param mask_matrix: Same.
     """
 
     metadata_dict = {
@@ -357,7 +363,8 @@ def _write_metafile(
         EARLY_STOPPING_KEY: do_early_stopping,
         PLATEAU_LR_MUTIPLIER_KEY: plateau_lr_multiplier,
         CLASS_WEIGHTS_KEY: class_weights,
-        FSS_HALF_WINDOW_SIZE_KEY: fss_half_window_size_px
+        FSS_HALF_WINDOW_SIZE_KEY: fss_half_window_size_px,
+        MASK_MATRIX_KEY: mask_matrix
     }
 
     file_system_utils.mkdir_recursive_if_necessary(file_name=dill_file_name)
@@ -624,20 +631,25 @@ def train_model_from_preprocessed_files(
         model_object, output_dir_name, num_epochs,
         num_training_batches_per_epoch, training_option_dict,
         num_validation_batches_per_epoch, validation_option_dict,
-        do_early_stopping=True,
+        mask_matrix, do_early_stopping=True,
         plateau_lr_multiplier=DEFAULT_LEARNING_RATE_MULTIPLIER,
         class_weights=None, fss_half_window_size_px=None):
     """Trains neural net from pre-processed (predictor and target) files.
 
-    :param model_object: See doc for `train_model_from_raw_files`.
-    :param output_dir_name: Same.
-    :param num_epochs: Same.
-    :param num_training_batches_per_epoch: Same.
+    M = number of rows in prediction grid
+    N = number of columns in prediction grid
+
+    param model_object: Untrained neural net (instance of `keras.models.Model`
+        or `keras.models.Sequential`).
+    :param output_dir_name: Path to output directory (model and training history
+        will be saved here).
+    :param num_epochs: Number of training epochs.
+    :param num_training_batches_per_epoch: Number of training batches per epoch.
     :param training_option_dict: See doc for
         `generator_from_preprocessed_files`.  This dictionary will be used to
         generate training data.
-    :param num_validation_batches_per_epoch: See doc for
-        `train_model_from_raw_files`.
+    :param num_validation_batches_per_epoch: Number of validation batches per
+        epoch.
     :param validation_option_dict: See doc for
         `generator_from_preprocessed_files`.  For validation only, the following
         values will replace corresponding values in `training_option_dict`:
@@ -646,10 +658,19 @@ def train_model_from_preprocessed_files(
     validation_option_dict['first_valid_date_string']
     validation_option_dict['last_valid_date_string']
 
-    :param do_early_stopping: See doc for `train_model_from_raw_files`.
-    :param plateau_lr_multiplier: Same.
-    :param class_weights: Same.
-    :param fss_half_window_size_px: Same.
+    :param mask_matrix: M-by-N numpy array of Boolean flags.  Grid cells labeled
+        True (False) are (not) used for model evaluation.
+    :param do_early_stopping: Boolean flag.  If True, will stop training early
+        if validation loss has not improved over last several epochs (see
+        constants at top of file for what exactly this means).
+    :param plateau_lr_multiplier: Multiplier for learning rate.  Learning
+        rate will be multiplied by this factor upon plateau in validation
+        performance.
+    :param class_weights: See doc for `check_class_weights`.  If weighted cross-
+        entropy is not the loss function, leave this alone.
+    :param fss_half_window_size_px: Number of pixels (grid cells) in half of
+        smoothing window for fractions skill score (FSS).  If FSS is not the
+        loss function, leave this alone.
     """
 
     file_system_utils.mkdir_recursive_if_necessary(
@@ -663,6 +684,15 @@ def train_model_from_preprocessed_files(
     error_checking.assert_is_integer(num_validation_batches_per_epoch)
     error_checking.assert_is_geq(num_validation_batches_per_epoch, 10)
     error_checking.assert_is_boolean(do_early_stopping)
+
+    error_checking.assert_is_numpy_array(mask_matrix, num_dimensions=2)
+
+    try:
+        error_checking.assert_is_integer_numpy_array(mask_matrix)
+        error_checking.assert_is_geq_numpy_array(mask_matrix, 0)
+        error_checking.assert_is_leq_numpy_array(mask_matrix, 1)
+    except TypeError:
+        error_checking.assert_is_boolean_numpy_array(mask_matrix)
 
     if do_early_stopping:
         error_checking.assert_is_greater(plateau_lr_multiplier, 0.)
@@ -730,7 +760,8 @@ def train_model_from_preprocessed_files(
         do_early_stopping=do_early_stopping,
         plateau_lr_multiplier=plateau_lr_multiplier,
         class_weights=class_weights,
-        fss_half_window_size_px=fss_half_window_size_px
+        fss_half_window_size_px=fss_half_window_size_px,
+        mask_matrix=mask_matrix
     )
 
     training_generator = generator_from_preprocessed_files(training_option_dict)
@@ -818,7 +849,8 @@ def read_metafile(dill_file_name):
 
     :param dill_file_name: Path to input file.
     :return: metadata_dict: Dictionary with the following keys.
-    metadata_dict['num_epochs']: See doc for `train_model`.
+    metadata_dict['num_epochs']: See doc for
+        `train_model_from_preprocessed_files`.
     metadata_dict['num_training_batches_per_epoch']: Same.
     metadata_dict['training_option_dict']: Same.
     metadata_dict['num_validation_batches_per_epoch']: Same.
@@ -827,6 +859,7 @@ def read_metafile(dill_file_name):
     metadata_dict['plateau_lr_multiplier']: Same.
     metadata_dict['class_weights']: Same.
     metadata_dict['fss_half_window_size_px']: Same.
+    metadata_dict['mask_matrix']: Same.
 
     :raises: ValueError: if any expected key is not found in dictionary.
     """
@@ -839,8 +872,22 @@ def read_metafile(dill_file_name):
 
     if CLASS_WEIGHTS_KEY not in metadata_dict:
         metadata_dict[CLASS_WEIGHTS_KEY] = None
+
     if FSS_HALF_WINDOW_SIZE_KEY not in metadata_dict:
         metadata_dict[FSS_HALF_WINDOW_SIZE_KEY] = None
+
+    if MASK_MATRIX_KEY not in metadata_dict:
+        this_file_name = (
+            '/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_project/'
+            'radar_data/radar_mask.nc'
+        )
+
+        mask_dict = radar_io.read_mask_file(this_file_name)
+        mask_dict = radar_io.expand_to_satellite_grid(any_radar_dict=mask_dict)
+        mask_dict = radar_io.downsample_in_space(
+            any_radar_dict=mask_dict, downsampling_factor=4
+        )
+        metadata_dict[MASK_MATRIX_KEY] = mask_dict[radar_io.MASK_MATRIX_KEY]
 
     missing_keys = list(set(METADATA_KEYS) - set(metadata_dict.keys()))
     if len(missing_keys) == 0:

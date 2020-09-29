@@ -1,5 +1,7 @@
 """Model evaluation."""
 
+import pickle
+import os.path
 import numpy
 import xarray
 from scipy.signal import convolve2d
@@ -8,10 +10,13 @@ from gewittergefahr.gg_utils import histograms
 from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import number_rounding
 from gewittergefahr.gg_utils import model_evaluation as gg_model_eval
+from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
 from ml4convection.io import prediction_io
+from ml4convection.machine_learning import neural_net
 
 TOLERANCE = 1e-6
+DATE_FORMAT = '%Y%m%d'
 TIME_FORMAT_FOR_MESSAGES = '%Y-%m-%d-%H%M'
 
 DEFAULT_NUM_PROB_THRESHOLDS = 201
@@ -33,7 +38,7 @@ EVENT_FREQUENCY_KEY = 'event_frequency'
 ACTUAL_SSE_KEY = 'actual_sse'
 REFERENCE_SSE_KEY = 'reference_sse'
 
-MASK_FILE_KEY = 'eval_mask_file_name'
+MODEL_FILE_KEY = 'model_file_name'
 MATCHING_DISTANCE_KEY = 'matching_distance_px'
 SQUARE_FSS_FILTER_KEY = 'square_fss_filter'
 TRAINING_EVENT_FREQ_KEY = 'training_event_frequency'
@@ -376,22 +381,18 @@ def _get_frequency_bias(contingency_table_dict):
 
 
 def get_basic_scores(
-        prediction_dict, eval_mask_matrix, eval_mask_file_name,
-        matching_distance_px, training_event_frequency, square_fss_filter=True,
-        num_prob_thresholds=DEFAULT_NUM_PROB_THRESHOLDS,
-        num_bins_for_reliability=DEFAULT_NUM_BINS_FOR_RELIABILITY):
+        prediction_file_name, matching_distance_px, training_event_frequency,
+        square_fss_filter=True, num_prob_thresholds=DEFAULT_NUM_PROB_THRESHOLDS,
+        num_bins_for_reliability=DEFAULT_NUM_BINS_FOR_RELIABILITY,
+        test_mode=False, prediction_dict=None, eval_mask_matrix=None,
+        model_file_name=None):
     """Computes basic scores.
 
     M = number of rows in grid
     N = number of columns in grid
 
-    :param prediction_dict: Dictionary in the format returned by
-        `prediction_io.read_file`.
-    :param eval_mask_matrix: M-by-N numpy array (see doc for
-        `_check_2d_binary_matrix`), indicating which pixels are to be used for
-        evaluation.
-    :param eval_mask_file_name: Path to mask file (readable by
-        `radar_io.read_mask_file`).  Will be stored in output table as metadata.
+    :param prediction_file_name: Path to input file (will be read by
+        `prediction_io.read_file`).
     :param matching_distance_px: Matching distance (pixels) for neighbourhood
         evaluation.
     :param training_event_frequency: Event frequency in training data.  Will be
@@ -403,13 +404,33 @@ def get_basic_scores(
     :param num_prob_thresholds: Number of probability thresholds.  One
         contingency table will be created for each.
     :param num_bins_for_reliability: Number of bins for reliability curve.
+    :param test_mode: Leave this alone.
+    :param prediction_dict: Leave this alone.
+    :param eval_mask_matrix: Leave this alone.
+    :param model_file_name: Leave this alone.
     :return: basic_score_table_xarray: xarray table with results (variable
         and dimension names should make the table self-explanatory).
     """
 
+    error_checking.assert_is_boolean(test_mode)
+
+    if not test_mode:
+        print('Reading data from: "{0:s}"...'.format(prediction_file_name))
+        prediction_dict = prediction_io.read_file(prediction_file_name)
+
+        model_file_name = prediction_dict[prediction_io.MODEL_FILE_KEY]
+        model_metafile_name = neural_net.find_metafile(
+            model_file_name=model_file_name, raise_error_if_missing=True
+        )
+
+        print('Reading model metadata from: "{0:s}"...'.format(
+            model_metafile_name
+        ))
+        model_metadata_dict = neural_net.read_metafile(model_metafile_name)
+        eval_mask_matrix = model_metadata_dict[neural_net.MASK_MATRIX_KEY]
+
     # Check input args.
     _check_2d_binary_matrix(eval_mask_matrix)
-    error_checking.assert_is_string(eval_mask_file_name)
     error_checking.assert_is_geq(matching_distance_px, 0.)
     error_checking.assert_is_geq(training_event_frequency, 0.)
     error_checking.assert_is_leq(training_event_frequency, 1.)
@@ -471,7 +492,7 @@ def get_basic_scores(
         data_vars=main_data_dict, coords=metadata_dict
     )
 
-    basic_score_table_xarray.attrs[MASK_FILE_KEY] = eval_mask_file_name
+    basic_score_table_xarray.attrs[MODEL_FILE_KEY] = model_file_name
     basic_score_table_xarray.attrs[MATCHING_DISTANCE_KEY] = matching_distance_px
     basic_score_table_xarray.attrs[SQUARE_FSS_FILTER_KEY] = square_fss_filter
     basic_score_table_xarray.attrs[TRAINING_EVENT_FREQ_KEY] = (
@@ -577,8 +598,8 @@ def concat_basic_score_tables(basic_score_tables_xarray):
         all input tables.
     """
 
-    mask_file_names = [
-        t.attrs[MASK_FILE_KEY] for t in basic_score_tables_xarray
+    model_file_names = [
+        t.attrs[MODEL_FILE_KEY] for t in basic_score_tables_xarray
     ]
     matching_distances_px = numpy.array([
         t.attrs[MATCHING_DISTANCE_KEY] for t in basic_score_tables_xarray
@@ -590,7 +611,7 @@ def concat_basic_score_tables(basic_score_tables_xarray):
         t.attrs[SQUARE_FSS_FILTER_KEY] for t in basic_score_tables_xarray
     ], dtype=bool)
 
-    unique_mask_file_names = numpy.unique(numpy.array(mask_file_names))
+    unique_model_file_names = numpy.unique(numpy.array(model_file_names))
     unique_matching_distances_px = numpy.unique(
         number_rounding.round_to_nearest(matching_distances_px, TOLERANCE)
     )
@@ -599,7 +620,7 @@ def concat_basic_score_tables(basic_score_tables_xarray):
     )
     unique_square_flags = numpy.unique(square_fss_filter_flags)
 
-    assert len(unique_mask_file_names) == 1
+    assert len(unique_model_file_names) == 1
     assert len(unique_matching_distances_px) == 1
     assert len(unique_training_event_freqs) == 1
     assert len(unique_square_flags) == 1
@@ -722,7 +743,7 @@ def get_advanced_scores(basic_score_table_xarray):
         )
 
     for this_key in [
-            MASK_FILE_KEY, MATCHING_DISTANCE_KEY, SQUARE_FSS_FILTER_KEY,
+            MODEL_FILE_KEY, MATCHING_DISTANCE_KEY, SQUARE_FSS_FILTER_KEY,
             TRAINING_EVENT_FREQ_KEY
     ]:
         advanced_score_table_xarray.attrs[this_key] = (
@@ -761,3 +782,73 @@ def get_advanced_scores(basic_score_table_xarray):
     )
 
     return advanced_score_table_xarray
+
+
+def find_file(top_directory_name, valid_date_string, with_basic_scores,
+              raise_error_if_missing=True):
+    """Finds Pickle file with evaluation scores.
+
+    :param top_directory_name: Name of top-level directory where file is
+        expected.
+    :param valid_date_string: Valid date (format "yyyymmdd").
+    :param with_basic_scores: Boolean flag.  If True (False), will find file
+        with basic (advanced) scores.
+    :param raise_error_if_missing: Boolean flag.  If file is missing and
+        `raise_error_if_missing == True`, will throw error.  If file is missing
+        and `raise_error_if_missing == False`, will return *expected* file path.
+    :return: evaluation_file_name: File path.
+    :raises: ValueError: if file is missing
+        and `raise_error_if_missing == True`.
+    """
+
+    error_checking.assert_is_string(top_directory_name)
+    error_checking.assert_is_boolean(with_basic_scores)
+    error_checking.assert_is_boolean(raise_error_if_missing)
+    _ = time_conversion.string_to_unix_sec(valid_date_string, DATE_FORMAT)
+
+    evaluation_file_name = '{0:s}/{1:s}/{2:s}_scores_{3:s}.nc'.format(
+        top_directory_name,
+        valid_date_string[:4],
+        'basic' if with_basic_scores else 'advanced',
+        valid_date_string
+    )
+
+    if os.path.isfile(evaluation_file_name) or not raise_error_if_missing:
+        return evaluation_file_name
+
+    error_string = 'Cannot find file.  Expected at: "{0:s}"'.format(
+        evaluation_file_name
+    )
+    raise ValueError(error_string)
+
+
+def write_file(score_table_xarray, pickle_file_name):
+    """Writes evaluation scores to Pickle file.
+
+    :param score_table_xarray: xarray table created by `get_basic_scores` or
+        `get_advanced_scores`.
+    :param pickle_file_name: Path to output file.
+    """
+
+    file_system_utils.mkdir_recursive_if_necessary(file_name=pickle_file_name)
+
+    pickle_file_handle = open(pickle_file_name, 'wb')
+    pickle.dump(score_table_xarray, pickle_file_handle)
+    pickle_file_handle.close()
+
+
+def read_file(pickle_file_name):
+    """Reads evaluation scores from Pickle file.
+
+    :param pickle_file_name: Path to input file.
+    :return: score_table_xarray: xarray table created by `get_basic_scores` or
+        `get_advanced_scores`.
+    """
+
+    error_checking.assert_file_exists(pickle_file_name)
+
+    pickle_file_handle = open(pickle_file_name, 'rb')
+    score_table_xarray = pickle.load(pickle_file_handle)
+    pickle_file_handle.close()
+
+    return score_table_xarray
