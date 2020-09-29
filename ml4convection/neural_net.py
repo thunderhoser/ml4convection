@@ -18,7 +18,6 @@ import time_conversion
 import file_system_utils
 import error_checking
 import custom_metrics
-import radar_io
 import satellite_io
 import example_io
 import general_utils
@@ -882,19 +881,6 @@ def read_metafile(dill_file_name):
 
     if FSS_HALF_WINDOW_SIZE_KEY not in metadata_dict:
         metadata_dict[FSS_HALF_WINDOW_SIZE_KEY] = None
-
-    if MASK_MATRIX_KEY not in metadata_dict:
-        this_file_name = (
-            '/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_project/'
-            'radar_data/radar_mask.nc'
-        )
-
-        mask_dict = radar_io.read_mask_file(this_file_name)
-        mask_dict = radar_io.expand_to_satellite_grid(any_radar_dict=mask_dict)
-        mask_dict = radar_io.downsample_in_space(
-            any_radar_dict=mask_dict, downsampling_factor=4
-        )
-        metadata_dict[MASK_MATRIX_KEY] = mask_dict[radar_io.MASK_MATRIX_KEY]
 
     missing_keys = list(set(METADATA_KEYS) - set(metadata_dict.keys()))
     if len(missing_keys) == 0:
