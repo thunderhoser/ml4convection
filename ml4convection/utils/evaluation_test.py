@@ -507,6 +507,12 @@ for THIS_KEY in [
         ADVANCED_SCORE_TABLE_XARRAY.attrs[THIS_KEY]
     )
 
+# The following constants are used to test find_file.
+TOP_DIRECTORY_NAME = 'foo'
+VALID_DATE_STRING = '19670502'
+BASIC_SCORE_FILE_NAME = 'foo/1967/basic_scores_19670502.p'
+ADVANCED_SCORE_FILE_NAME = 'foo/1967/advanced_scores_19670502.p'
+
 
 def _compare_basic_score_tables(first_table, second_table):
     """Compares two xarray tables with basic scores.
@@ -1012,6 +1018,34 @@ class EvaluationTests(unittest.TestCase):
         self.assertTrue(_compare_advanced_score_tables(
             this_score_table_xarray, CONCAT_ADVANCED_SCORE_TABLE_XARRAY
         ))
+
+    def test_find_file_basic(self):
+        """Ensures correct output from find_file.
+
+        In this case, file contains basic scores.
+        """
+
+        this_file_name = evaluation.find_file(
+            top_directory_name=TOP_DIRECTORY_NAME,
+            valid_date_string=VALID_DATE_STRING, with_basic_scores=True,
+            raise_error_if_missing=False
+        )
+
+        self.assertTrue(this_file_name == BASIC_SCORE_FILE_NAME)
+
+    def test_find_file_advanced(self):
+        """Ensures correct output from find_file.
+
+        In this case, file contains advanced scores.
+        """
+
+        this_file_name = evaluation.find_file(
+            top_directory_name=TOP_DIRECTORY_NAME,
+            valid_date_string=VALID_DATE_STRING, with_basic_scores=False,
+            raise_error_if_missing=False
+        )
+
+        self.assertTrue(this_file_name == ADVANCED_SCORE_FILE_NAME)
 
 
 if __name__ == '__main__':

@@ -806,7 +806,7 @@ def find_file(top_directory_name, valid_date_string, with_basic_scores,
     error_checking.assert_is_boolean(raise_error_if_missing)
     _ = time_conversion.string_to_unix_sec(valid_date_string, DATE_FORMAT)
 
-    evaluation_file_name = '{0:s}/{1:s}/{2:s}_scores_{3:s}.nc'.format(
+    evaluation_file_name = '{0:s}/{1:s}/{2:s}_scores_{3:s}.p'.format(
         top_directory_name,
         valid_date_string[:4],
         'basic' if with_basic_scores else 'advanced',
