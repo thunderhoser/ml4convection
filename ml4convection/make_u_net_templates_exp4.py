@@ -118,36 +118,17 @@ def _run():
                 print('Writing metadata to: "{0:s}"...'.format(
                     this_metafile_name
                 ))
-
-                this_metadata_dict = neural_net.read_metafile(
-                    this_metafile_name
-                )
-
                 neural_net._write_metafile(
-                    dill_file_name=this_metafile_name,
-                    num_epochs=this_metadata_dict[neural_net.NUM_EPOCHS_KEY],
-                    num_training_batches_per_epoch=this_metadata_dict[neural_net.NUM_TRAINING_BATCHES_KEY],
-                    training_option_dict=this_metadata_dict[neural_net.TRAINING_OPTIONS_KEY],
-                    num_validation_batches_per_epoch=this_metadata_dict[neural_net.NUM_VALIDATION_BATCHES_KEY],
-                    validation_option_dict=this_metadata_dict[neural_net.VALIDATION_OPTIONS_KEY],
-                    do_early_stopping=this_metadata_dict[neural_net.EARLY_STOPPING_KEY],
-                    plateau_lr_multiplier=this_metadata_dict[neural_net.PLATEAU_LR_MUTIPLIER_KEY],
+                    dill_file_name=this_metafile_name, num_epochs=100,
+                    num_training_batches_per_epoch=100,
+                    training_option_dict=dummy_option_dict,
+                    num_validation_batches_per_epoch=100,
+                    validation_option_dict=dummy_option_dict,
+                    do_early_stopping=True, plateau_lr_multiplier=0.6,
                     class_weights=None,
                     fss_half_window_size_px=FSS_HALF_WINDOW_SIZES_PX[i],
                     mask_matrix=mask_matrix
                 )
-
-                # neural_net._write_metafile(
-                #     dill_file_name=this_metafile_name, num_epochs=100,
-                #     num_training_batches_per_epoch=100,
-                #     training_option_dict=dummy_option_dict,
-                #     num_validation_batches_per_epoch=100,
-                #     validation_option_dict=dummy_option_dict,
-                #     do_early_stopping=True, plateau_lr_multiplier=0.6,
-                #     class_weights=None,
-                #     fss_half_window_size_px=FSS_HALF_WINDOW_SIZES_PX[i],
-                #     mask_matrix=mask_matrix
-                # )
 
 
 if __name__ == '__main__':
