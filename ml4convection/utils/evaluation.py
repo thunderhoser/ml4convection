@@ -822,6 +822,79 @@ def find_file(top_directory_name, valid_date_string, with_basic_scores,
     raise ValueError(error_string)
 
 
+def file_name_to_date(evaluation_file_name):
+    """Parses date from name of evaluation file.
+
+    :param evaluation_file_name: Path to evaluation file (see `find_file` for
+        naming convention).
+    :return: valid_date_string: Valid date (format "yyyymmdd").
+    """
+
+    error_checking.assert_is_string(evaluation_file_name)
+    pathless_file_name = os.path.split(evaluation_file_name)[-1]
+    extensionless_file_name = os.path.splitext(pathless_file_name)[0]
+
+    valid_date_string = extensionless_file_name.split('_')[-1]
+    _ = time_conversion.string_to_unix_sec(valid_date_string, DATE_FORMAT)
+
+    return valid_date_string
+
+
+def find_many_files(
+        top_directory_name, first_date_string, last_date_string,
+        with_basic_scores, raise_error_if_all_missing=True,
+        raise_error_if_any_missing=False, test_mode=False):
+    """Finds many Pickle files with evaluation scores.
+
+    :param top_directory_name: See doc for `find_file`.
+    :param first_date_string: First valid date (format "yyyymmdd").
+    :param last_date_string: Last valid date (format "yyyymmdd").
+    :param with_basic_scores: See doc for `find_file`.
+    :param raise_error_if_any_missing: Boolean flag.  If any file is missing and
+        `raise_error_if_any_missing == True`, will throw error.
+    :param raise_error_if_all_missing: Boolean flag.  If all files are missing
+        and `raise_error_if_all_missing == True`, will throw error.
+    :param test_mode: Leave this alone.
+    :return: evaluation_file_names: 1-D list of paths to evaluation files.  This
+        list does *not* contain expected paths to non-existent files.
+    :raises: ValueError: if all files are missing and
+        `raise_error_if_all_missing == True`.
+    """
+
+    error_checking.assert_is_boolean(with_basic_scores)
+    error_checking.assert_is_boolean(raise_error_if_any_missing)
+    error_checking.assert_is_boolean(raise_error_if_all_missing)
+    error_checking.assert_is_boolean(test_mode)
+
+    valid_date_strings = time_conversion.get_spc_dates_in_range(
+        first_date_string, last_date_string
+    )
+
+    evaluation_file_names = []
+
+    for this_date_string in valid_date_strings:
+        this_file_name = find_file(
+            top_directory_name=top_directory_name,
+            valid_date_string=this_date_string,
+            with_basic_scores=with_basic_scores,
+            raise_error_if_missing=raise_error_if_any_missing
+        )
+
+        if test_mode or os.path.isfile(this_file_name):
+            evaluation_file_names.append(this_file_name)
+
+    if raise_error_if_all_missing and len(evaluation_file_names) == 0:
+        error_string = (
+            'Cannot find any file in directory "{0:s}" from dates {1:s} to '
+            '{2:s}.'
+        ).format(
+            top_directory_name, first_date_string, last_date_string
+        )
+        raise ValueError(error_string)
+
+    return evaluation_file_names
+
+
 def write_file(score_table_xarray, pickle_file_name):
     """Writes evaluation scores to Pickle file.
 

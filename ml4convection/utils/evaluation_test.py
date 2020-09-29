@@ -1047,6 +1047,28 @@ class EvaluationTests(unittest.TestCase):
 
         self.assertTrue(this_file_name == ADVANCED_SCORE_FILE_NAME)
 
+    def test_file_name_to_date_basic(self):
+        """Ensures correct output from file_name_to_date.
+
+        In this case, file contains basic scores.
+        """
+
+        self.assertTrue(
+            prediction_io.file_name_to_date(BASIC_SCORE_FILE_NAME) ==
+            VALID_DATE_STRING
+        )
+
+    def test_file_name_to_date_advanced(self):
+        """Ensures correct output from file_name_to_date.
+
+        In this case, file contains advanced scores.
+        """
+
+        self.assertTrue(
+            prediction_io.file_name_to_date(ADVANCED_SCORE_FILE_NAME) ==
+            VALID_DATE_STRING
+        )
+
 
 if __name__ == '__main__':
     unittest.main()
