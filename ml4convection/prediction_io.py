@@ -65,6 +65,24 @@ def find_file(top_directory_name, valid_date_string,
     raise ValueError(error_string)
 
 
+def file_name_to_date(prediction_file_name):
+    """Parses date from name of prediction file.
+
+    :param prediction_file_name: Path to prediction file (see `find_file` for
+        naming convention).
+    :return: valid_date_string: Valid date (format "yyyymmdd").
+    """
+
+    error_checking.assert_is_string(prediction_file_name)
+    pathless_file_name = os.path.split(prediction_file_name)[-1]
+    extensionless_file_name = os.path.splitext(pathless_file_name)[0]
+
+    valid_date_string = extensionless_file_name.split('_')[-1]
+    _ = time_conversion.string_to_unix_sec(valid_date_string, DATE_FORMAT)
+
+    return valid_date_string
+
+
 def find_many_files(
         top_directory_name, first_date_string, last_date_string,
         raise_error_if_all_missing=True, raise_error_if_any_missing=False,
