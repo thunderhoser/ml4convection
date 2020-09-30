@@ -106,7 +106,7 @@ def _plot_performance_diagrams(score_tables_xarray, output_file_name):
         if num_tables == NUM_HOURS_PER_DAY:
             label_string = '{0:02d}'.format(i)
         else:
-            valid_time_string = '2000-{0:02d}'.format(i)
+            valid_time_string = '2000-{0:02d}'.format(i + 1)
             valid_time_unix_sec = time_conversion.string_to_unix_sec(
                 valid_time_string, '%Y-%m'
             )
@@ -176,7 +176,7 @@ def _plot_reliability_curves(score_tables_xarray, output_file_name):
         if num_tables == NUM_HOURS_PER_DAY:
             label_string = '{0:02d}'.format(i)
         else:
-            valid_time_string = '2000-{0:02d}'.format(i)
+            valid_time_string = '2000-{0:02d}'.format(i + 1)
             valid_time_unix_sec = time_conversion.string_to_unix_sec(
                 valid_time_string, '%Y-%m'
             )
