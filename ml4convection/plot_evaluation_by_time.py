@@ -100,7 +100,7 @@ def _plot_performance_diagrams(score_tables_xarray, output_file_name):
 
         normalized_index = float(i) / (num_tables - 1)
         label_index = int(numpy.round(
-            normalized_index * (len(these_pod) - 2)
+            normalized_index * (len(these_pod) - 4)
         ))
 
         if num_tables == NUM_HOURS_PER_DAY:
