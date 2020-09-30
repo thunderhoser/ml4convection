@@ -363,7 +363,7 @@ def _plot_scores_as_graph(
         y_values = numpy.round(y_values).astype(int)
         histogram_name = r'Num positive examples'
 
-    y_values = numpy.maximum(numpy.log10(y_values), 0.)
+    # y_values = numpy.maximum(numpy.log10(y_values), 0.)
 
     this_handle = histogram_axes_object.bar(
         x=x_values, height=y_values, width=1., color=HISTOGRAM_FACE_COLOUR,
@@ -374,14 +374,17 @@ def _plot_scores_as_graph(
     legend_strings.append(histogram_name)
     histogram_axes_object.set_ylabel(histogram_name)
 
-    tick_values = histogram_axes_object.get_yticks()
-    tick_strings = [
-        '{0:d}'.format(int(numpy.round(10 ** v))) for v in tick_values
-    ]
-    histogram_axes_object.set_yticklabels(tick_strings)
+    # tick_values = histogram_axes_object.get_yticks()
+    # tick_strings = [
+    #     '{0:d}'.format(int(numpy.round(10 ** v))) for v in tick_values
+    # ]
+    # histogram_axes_object.set_yticklabels(tick_strings)
 
+    # print('{0:s} by split: {1:s}'.format(
+    #     histogram_name, str(10 ** y_values)
+    # ))
     print('{0:s} by split: {1:s}'.format(
-        histogram_name, str(10 ** y_values)
+        histogram_name, str(y_values)
     ))
 
     if plot_legend:
