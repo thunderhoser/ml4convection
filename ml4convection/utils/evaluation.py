@@ -634,6 +634,33 @@ def concat_basic_score_tables(basic_score_tables_xarray):
     return xarray.concat(objs=basic_score_tables_xarray, dim=TIME_DIM)
 
 
+def subset_basic_scores_by_hour(basic_score_table_xarray, desired_hour):
+    """Concatenates many tables along time dimension.
+
+    :param basic_score_table_xarray: xarray table in format returned by
+        `get_basic_scores`.
+    :param desired_hour: Desired hour (integer in range 0...23).
+    :return: basic_score_table_xarray: Same as input but with fewer times.
+    """
+
+    error_checking.assert_is_integer(desired_hour)
+    error_checking.assert_is_geq(desired_hour, 0)
+    error_checking.assert_is_leq(desired_hour, 23)
+
+    valid_times_unix_sec = basic_score_table_xarray.coords[TIME_DIM].values
+
+    valid_hours = numpy.array([
+        int(time_conversion.unix_sec_to_string(t, '%H'))
+        for t in valid_times_unix_sec
+    ], dtype=int)
+
+    good_indices = numpy.where(valid_hours == desired_hour)[0]
+
+    return basic_score_table_xarray.isel(
+        indexers={TIME_DIM: good_indices}, drop=True
+    )
+
+
 def get_advanced_scores(basic_score_table_xarray):
     """Computes advanced scores from basic scores.
 
@@ -790,54 +817,48 @@ def get_advanced_scores(basic_score_table_xarray):
     return advanced_score_table_xarray
 
 
-def find_file(top_directory_name, valid_date_string, with_basic_scores,
-              raise_error_if_missing=True):
-    """Finds Pickle file with evaluation scores.
+def find_basic_score_file(top_directory_name, valid_date_string,
+                          raise_error_if_missing=True):
+    """Finds Pickle file with basic evaluation scores.
 
     :param top_directory_name: Name of top-level directory where file is
         expected.
     :param valid_date_string: Valid date (format "yyyymmdd").
-    :param with_basic_scores: Boolean flag.  If True (False), will find file
-        with basic (advanced) scores.
     :param raise_error_if_missing: Boolean flag.  If file is missing and
         `raise_error_if_missing == True`, will throw error.  If file is missing
         and `raise_error_if_missing == False`, will return *expected* file path.
-    :return: evaluation_file_name: File path.
+    :return: basic_score_file_name: File path.
     :raises: ValueError: if file is missing
         and `raise_error_if_missing == True`.
     """
 
     error_checking.assert_is_string(top_directory_name)
-    error_checking.assert_is_boolean(with_basic_scores)
     error_checking.assert_is_boolean(raise_error_if_missing)
     _ = time_conversion.string_to_unix_sec(valid_date_string, DATE_FORMAT)
 
-    evaluation_file_name = '{0:s}/{1:s}/{2:s}_scores_{3:s}.p'.format(
-        top_directory_name,
-        valid_date_string[:4],
-        'basic' if with_basic_scores else 'advanced',
-        valid_date_string
+    basic_score_file_name = '{0:s}/{1:s}/basic_scores_{2:s}.p'.format(
+        top_directory_name, valid_date_string[:4], valid_date_string
     )
 
-    if os.path.isfile(evaluation_file_name) or not raise_error_if_missing:
-        return evaluation_file_name
+    if os.path.isfile(basic_score_file_name) or not raise_error_if_missing:
+        return basic_score_file_name
 
     error_string = 'Cannot find file.  Expected at: "{0:s}"'.format(
-        evaluation_file_name
+        basic_score_file_name
     )
     raise ValueError(error_string)
 
 
-def file_name_to_date(evaluation_file_name):
-    """Parses date from name of evaluation file.
+def basic_file_name_to_date(basic_score_file_name):
+    """Parses date from name of basic-score file.
 
-    :param evaluation_file_name: Path to evaluation file (see `find_file` for
-        naming convention).
+    :param basic_score_file_name: Path to evaluation file (see
+        `find_basic_score_file` for naming convention).
     :return: valid_date_string: Valid date (format "yyyymmdd").
     """
 
-    error_checking.assert_is_string(evaluation_file_name)
-    pathless_file_name = os.path.split(evaluation_file_name)[-1]
+    error_checking.assert_is_string(basic_score_file_name)
+    pathless_file_name = os.path.split(basic_score_file_name)[-1]
     extensionless_file_name = os.path.splitext(pathless_file_name)[0]
 
     valid_date_string = extensionless_file_name.split('_')[-1]
@@ -846,28 +867,26 @@ def file_name_to_date(evaluation_file_name):
     return valid_date_string
 
 
-def find_many_files(
+def find_many_basic_score_files(
         top_directory_name, first_date_string, last_date_string,
-        with_basic_scores, raise_error_if_all_missing=True,
-        raise_error_if_any_missing=False, test_mode=False):
+        raise_error_if_all_missing=True, raise_error_if_any_missing=False,
+        test_mode=False):
     """Finds many Pickle files with evaluation scores.
 
-    :param top_directory_name: See doc for `find_file`.
+    :param top_directory_name: See doc for `find_basic_score_file`.
     :param first_date_string: First valid date (format "yyyymmdd").
     :param last_date_string: Last valid date (format "yyyymmdd").
-    :param with_basic_scores: See doc for `find_file`.
     :param raise_error_if_any_missing: Boolean flag.  If any file is missing and
         `raise_error_if_any_missing == True`, will throw error.
     :param raise_error_if_all_missing: Boolean flag.  If all files are missing
         and `raise_error_if_all_missing == True`, will throw error.
     :param test_mode: Leave this alone.
-    :return: evaluation_file_names: 1-D list of paths to evaluation files.  This
-        list does *not* contain expected paths to non-existent files.
+    :return: basic_score_file_names: 1-D list of file paths.  This list does
+        *not* contain expected paths to non-existent files.
     :raises: ValueError: if all files are missing and
         `raise_error_if_all_missing == True`.
     """
 
-    error_checking.assert_is_boolean(with_basic_scores)
     error_checking.assert_is_boolean(raise_error_if_any_missing)
     error_checking.assert_is_boolean(raise_error_if_all_missing)
     error_checking.assert_is_boolean(test_mode)
@@ -876,20 +895,19 @@ def find_many_files(
         first_date_string, last_date_string
     )
 
-    evaluation_file_names = []
+    basic_score_file_names = []
 
     for this_date_string in valid_date_strings:
-        this_file_name = find_file(
+        this_file_name = find_basic_score_file(
             top_directory_name=top_directory_name,
             valid_date_string=this_date_string,
-            with_basic_scores=with_basic_scores,
             raise_error_if_missing=raise_error_if_any_missing
         )
 
         if test_mode or os.path.isfile(this_file_name):
-            evaluation_file_names.append(this_file_name)
+            basic_score_file_names.append(this_file_name)
 
-    if raise_error_if_all_missing and len(evaluation_file_names) == 0:
+    if raise_error_if_all_missing and len(basic_score_file_names) == 0:
         error_string = (
             'Cannot find any file in directory "{0:s}" from dates {1:s} to '
             '{2:s}.'
@@ -898,7 +916,51 @@ def find_many_files(
         )
         raise ValueError(error_string)
 
-    return evaluation_file_names
+    return basic_score_file_names
+
+
+def find_advanced_score_file(
+        directory_name, month=None, hour=None, raise_error_if_missing=True):
+    """Finds Pickle file with advanced evaluation scores.
+
+    :param directory_name: Name of directory where file is expected.
+    :param month: Month (integer in 1...12).  If None, will look for file that
+        has all months.
+    :param hour: Hour (integer in 0...23).  If None, will look for file that
+        has all hours.
+    :param raise_error_if_missing: Boolean flag.  If file is missing and
+        `raise_error_if_missing == True`, will throw error.  If file is missing
+        and `raise_error_if_missing == False`, will return *expected* file path.
+    :return: advanced_score_file_name: File path.
+    :raises: ValueError: if file is missing
+        and `raise_error_if_missing == True`.
+    """
+
+    error_checking.assert_is_string(directory_name)
+    error_checking.assert_is_boolean(raise_error_if_missing)
+
+    advanced_score_file_name = '{0:s}/advanced_scores'.format(directory_name)
+
+    if month is not None:
+        error_checking.assert_is_integer(month)
+        error_checking.assert_is_geq(month, 1)
+        error_checking.assert_is_leq(month, 12)
+        advanced_score_file_name += '_month={0:02d}'.format(month)
+    elif hour is not None:
+        error_checking.assert_is_integer(hour)
+        error_checking.assert_is_geq(hour, 0)
+        error_checking.assert_is_leq(hour, 23)
+        advanced_score_file_name += '_hour={0:02d}'.format(hour)
+
+    advanced_score_file_name += '.p'
+
+    if os.path.isfile(advanced_score_file_name) or not raise_error_if_missing:
+        return advanced_score_file_name
+
+    error_string = 'Cannot find file.  Expected at: "{0:s}"'.format(
+        advanced_score_file_name
+    )
+    raise ValueError(error_string)
 
 
 def write_file(score_table_xarray, pickle_file_name):

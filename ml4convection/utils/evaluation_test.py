@@ -1,5 +1,6 @@
 """Unit tests for evaluation.py."""
 
+import copy
 import unittest
 import numpy
 import xarray
@@ -301,8 +302,16 @@ BASIC_SCORE_TABLE_XARRAY.attrs[evaluation.TRAINING_EVENT_FREQ_KEY] = (
 )
 
 # The following constants are used to test concat_basic_score_tables.
+SECOND_BASIC_SCORE_TABLE_XARRAY = copy.deepcopy(BASIC_SCORE_TABLE_XARRAY)
+THIS_COORD_DICT = {
+    evaluation.TIME_DIM: numpy.array([10000], dtype=int)
+}
+SECOND_BASIC_SCORE_TABLE_XARRAY = (
+    SECOND_BASIC_SCORE_TABLE_XARRAY.assign_coords(THIS_COORD_DICT)
+)
+
 THIS_METADATA_DICT = {
-    evaluation.TIME_DIM: numpy.array([1000, 1000], dtype=int),
+    evaluation.TIME_DIM: numpy.array([1000, 10000], dtype=int),
     evaluation.PROBABILITY_THRESHOLD_DIM: THESE_PROB_THRESHOLDS,
     evaluation.RELIABILITY_BIN_DIM: THESE_BIN_INDICES
 }
@@ -463,7 +472,7 @@ ADVANCED_SCORE_TABLE_XARRAY.attrs[evaluation.RESOLUTION_KEY] = (
 )
 
 THIS_METADATA_DICT = {
-    evaluation.TIME_DIM: numpy.array([1000, 1000], dtype=int),
+    evaluation.TIME_DIM: numpy.array([1000, 10000], dtype=int),
     evaluation.PROBABILITY_THRESHOLD_DIM: THESE_PROB_THRESHOLDS,
     evaluation.RELIABILITY_BIN_DIM: THESE_BIN_INDICES
 }
@@ -507,11 +516,15 @@ for THIS_KEY in [
         ADVANCED_SCORE_TABLE_XARRAY.attrs[THIS_KEY]
     )
 
-# The following constants are used to test find_file.
+# The following constants are used to test find_basic_score_file,
+# basic_file_name_to_date, and find_advanced_score_file.
 TOP_DIRECTORY_NAME = 'foo'
 VALID_DATE_STRING = '19670502'
 BASIC_SCORE_FILE_NAME = 'foo/1967/basic_scores_19670502.p'
-ADVANCED_SCORE_FILE_NAME = 'foo/1967/advanced_scores_19670502.p'
+
+ADVANCED_SCORE_FILE_NAME_ALL = 'foo/advanced_scores.p'
+ADVANCED_SCORE_FILE_NAME_HOUR0 = 'foo/advanced_scores_hour=00.p'
+ADVANCED_SCORE_FILE_NAME_MONTH1 = 'foo/advanced_scores_month=01.p'
 
 
 def _compare_basic_score_tables(first_table, second_table):
@@ -984,12 +997,57 @@ class EvaluationTests(unittest.TestCase):
         """Ensures correct output from concat_basic_score_tables."""
 
         this_score_table_xarray = evaluation.concat_basic_score_tables(
-            [BASIC_SCORE_TABLE_XARRAY, BASIC_SCORE_TABLE_XARRAY]
+            [BASIC_SCORE_TABLE_XARRAY, SECOND_BASIC_SCORE_TABLE_XARRAY]
         )
 
         self.assertTrue(_compare_basic_score_tables(
             this_score_table_xarray, CONCAT_BASIC_SCORE_TABLE_XARRAY
         ))
+
+    def test_subset_basic_scores_hour0(self):
+        """Ensures correct output from subset_basic_scores_by_hour.
+
+        In this case, desired hour is 0.
+        """
+
+        this_score_table_xarray = evaluation.subset_basic_scores_by_hour(
+            basic_score_table_xarray=CONCAT_BASIC_SCORE_TABLE_XARRAY,
+            desired_hour=0
+        )
+
+        self.assertTrue(_compare_basic_score_tables(
+            this_score_table_xarray, BASIC_SCORE_TABLE_XARRAY
+        ))
+
+    def test_subset_basic_scores_hour2(self):
+        """Ensures correct output from subset_basic_scores_by_hour.
+
+        In this case, desired hour is 2.
+        """
+
+        this_score_table_xarray = evaluation.subset_basic_scores_by_hour(
+            basic_score_table_xarray=CONCAT_BASIC_SCORE_TABLE_XARRAY,
+            desired_hour=2
+        )
+
+        self.assertTrue(_compare_basic_score_tables(
+            this_score_table_xarray, SECOND_BASIC_SCORE_TABLE_XARRAY
+        ))
+
+    def test_subset_basic_scores_hour23(self):
+        """Ensures correct output from subset_basic_scores_by_hour.
+
+        In this case, desired hour is 23.
+        """
+
+        this_score_table_xarray = evaluation.subset_basic_scores_by_hour(
+            basic_score_table_xarray=CONCAT_BASIC_SCORE_TABLE_XARRAY,
+            desired_hour=23
+        )
+
+        self.assertTrue(
+            this_score_table_xarray.coords[evaluation.TIME_DIM].size == 0
+        )
 
     def test_get_advanced_scores_1time(self):
         """Ensures correct output from get_advanced_scores.
@@ -1019,55 +1077,63 @@ class EvaluationTests(unittest.TestCase):
             this_score_table_xarray, CONCAT_ADVANCED_SCORE_TABLE_XARRAY
         ))
 
-    def test_find_file_basic(self):
-        """Ensures correct output from find_file.
+    def test_find_basic_score_file(self):
+        """Ensures correct output from find_basic_score_file."""
 
-        In this case, file contains basic scores.
-        """
-
-        this_file_name = evaluation.find_file(
+        this_file_name = evaluation.find_basic_score_file(
             top_directory_name=TOP_DIRECTORY_NAME,
-            valid_date_string=VALID_DATE_STRING, with_basic_scores=True,
+            valid_date_string=VALID_DATE_STRING,
             raise_error_if_missing=False
         )
 
         self.assertTrue(this_file_name == BASIC_SCORE_FILE_NAME)
 
-    def test_find_file_advanced(self):
-        """Ensures correct output from find_file.
+    def test_basic_file_name_to_date(self):
+        """Ensures correct output from basic_file_name_to_date."""
 
-        In this case, file contains advanced scores.
+        self.assertTrue(
+            evaluation.basic_file_name_to_date(BASIC_SCORE_FILE_NAME) ==
+            VALID_DATE_STRING
+        )
+
+    def test_find_advanced_score_file_all(self):
+        """Ensures correct output from find_advanced_score_file.
+
+        In this case, file contains all hours and months.
         """
 
-        this_file_name = evaluation.find_file(
-            top_directory_name=TOP_DIRECTORY_NAME,
-            valid_date_string=VALID_DATE_STRING, with_basic_scores=False,
+        this_file_name = evaluation.find_advanced_score_file(
+            directory_name=TOP_DIRECTORY_NAME, month=None, hour=None,
             raise_error_if_missing=False
         )
 
-        self.assertTrue(this_file_name == ADVANCED_SCORE_FILE_NAME)
+        self.assertTrue(this_file_name == ADVANCED_SCORE_FILE_NAME_ALL)
 
-    def test_file_name_to_date_basic(self):
-        """Ensures correct output from file_name_to_date.
+    def test_find_advanced_score_file_hour0(self):
+        """Ensures correct output from find_advanced_score_file.
 
-        In this case, file contains basic scores.
+        In this case, file contains only hour 0.
         """
 
-        self.assertTrue(
-            prediction_io.file_name_to_date(BASIC_SCORE_FILE_NAME) ==
-            VALID_DATE_STRING
+        this_file_name = evaluation.find_advanced_score_file(
+            directory_name=TOP_DIRECTORY_NAME, month=None, hour=0,
+            raise_error_if_missing=False
         )
 
-    def test_file_name_to_date_advanced(self):
-        """Ensures correct output from file_name_to_date.
+        self.assertTrue(this_file_name == ADVANCED_SCORE_FILE_NAME_HOUR0)
 
-        In this case, file contains advanced scores.
+    def test_find_advanced_score_file_month1(self):
+        """Ensures correct output from find_advanced_score_file.
+
+        In this case, file contains only January.
         """
 
-        self.assertTrue(
-            prediction_io.file_name_to_date(ADVANCED_SCORE_FILE_NAME) ==
-            VALID_DATE_STRING
+        this_file_name = evaluation.find_advanced_score_file(
+            directory_name=TOP_DIRECTORY_NAME, month=1, hour=None,
+            raise_error_if_missing=False
         )
+
+        self.assertTrue(this_file_name == ADVANCED_SCORE_FILE_NAME_MONTH1)
 
 
 if __name__ == '__main__':
