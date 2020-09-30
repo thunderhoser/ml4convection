@@ -33,6 +33,7 @@ pyplot.rc('ytick', labelsize=FONT_SIZE)
 pyplot.rc('legend', fontsize=FONT_SIZE)
 pyplot.rc('figure', titlesize=FONT_SIZE)
 
+
 def _check_basemap_args(
         min_latitude_deg, max_latitude_deg, min_longitude_deg,
         max_longitude_deg, resolution_string):
@@ -231,3 +232,33 @@ def create_equidist_cylindrical_map(
     )
 
     return figure_object, axes_object, basemap_object
+
+
+def label_axes(
+        axes_object, label_string, font_size=50, font_colour=numpy.full(3, 0.),
+        x_coord_normalized=0., y_coord_normalized=1.):
+    """Adds text label to axes.
+
+    :param axes_object: Axes (instance of
+        `matplotlib.axes._subplots.AxesSubplot`).
+    :param label_string: Label.
+    :param font_size: Font size.
+    :param font_colour: Font colour.
+    :param x_coord_normalized: Normalized x-coordinate (from 0...1, where 1 is
+        the right side).
+    :param y_coord_normalized: Normalized y-coordinate (from 0...1, where 1 is
+        the top).
+    """
+
+    error_checking.assert_is_string(label_string)
+    # error_checking.assert_is_geq(x_coord_normalized, 0.)
+    # error_checking.assert_is_leq(x_coord_normalized, 1.)
+    # error_checking.assert_is_geq(y_coord_normalized, 0.)
+    # error_checking.assert_is_leq(y_coord_normalized, 1.)
+
+    axes_object.text(
+        x_coord_normalized, y_coord_normalized, label_string,
+        fontsize=font_size, color=font_colour,
+        horizontalalignment='right', verticalalignment='bottom',
+        transform=axes_object.transAxes
+    )
