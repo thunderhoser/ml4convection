@@ -367,16 +367,20 @@ def _bias_from_sr_and_pod(success_ratio_array, pod_array):
     return pod_array / success_ratio_array
 
 
-def _get_csi_colour_scheme():
+def _get_csi_colour_scheme(use_green_scheme):
     """Returns colour scheme for CSI (critical success index).
 
+    :param use_green_scheme: Boolean flag.  If True (False), will use green
+        (blue) colour scheme.
     :return: colour_map_object: Colour scheme (instance of
         `matplotlib.colors.ListedColormap`).
     :return: colour_norm_object: Instance of `matplotlib.colors.BoundaryNorm`,
         defining the scale of the colour map.
     """
 
-    this_colour_map_object = pyplot.get_cmap('Blues')
+    this_colour_map_object = pyplot.get_cmap(
+        'Greens' if use_green_scheme else 'Blues'
+    )
     this_colour_norm_object = matplotlib.colors.BoundaryNorm(
         CSI_LEVELS, this_colour_map_object.N
     )
@@ -400,7 +404,8 @@ def _get_csi_colour_scheme():
 def plot_reliability_curve(
         axes_object, mean_predictions, mean_observations, min_value_to_plot,
         max_value_to_plot, line_colour=RELIABILITY_LINE_COLOUR,
-        line_style='solid', line_width=DEFAULT_LINE_WIDTH):
+        line_style='solid', line_width=DEFAULT_LINE_WIDTH,
+        plot_background=True):
     """Plots reliability curve.
 
     B = number of bins
@@ -414,6 +419,8 @@ def plot_reliability_curve(
     :param line_colour: Line colour (in any format accepted by matplotlib).
     :param line_style: Line style (in any format accepted by matplotlib).
     :param line_width: Line width (in any format accepted by matplotlib).
+    :param plot_background: Boolean flag.  If True, will plot background
+        (reference line).
     :return: main_line_handle: Handle for main line (reliability curve).
     """
 
@@ -433,13 +440,16 @@ def plot_reliability_curve(
     if max_value_to_plot == min_value_to_plot:
         max_value_to_plot = min_value_to_plot + 1.
 
-    perfect_x_coords = numpy.array([min_value_to_plot, max_value_to_plot])
-    perfect_y_coords = numpy.array([min_value_to_plot, max_value_to_plot])
+    error_checking.assert_is_boolean(plot_background)
 
-    axes_object.plot(
-        perfect_x_coords, perfect_y_coords, color=REFERENCE_LINE_COLOUR,
-        linestyle='dashed', linewidth=REFERENCE_LINE_WIDTH
-    )
+    if plot_background:
+        perfect_x_coords = numpy.array([min_value_to_plot, max_value_to_plot])
+        perfect_y_coords = numpy.array([min_value_to_plot, max_value_to_plot])
+
+        axes_object.plot(
+            perfect_x_coords, perfect_y_coords, color=REFERENCE_LINE_COLOUR,
+            linestyle='dashed', linewidth=REFERENCE_LINE_WIDTH
+        )
 
     nan_flags = numpy.logical_or(
         numpy.isnan(mean_predictions), numpy.isnan(mean_observations)
@@ -557,7 +567,8 @@ def plot_roc_curve(axes_object, pod_by_threshold, pofd_by_threshold,
 
 def plot_performance_diagram(
         axes_object, pod_by_threshold, success_ratio_by_threshold,
-        line_colour=PERF_DIAGRAM_COLOUR, plot_background=True):
+        line_colour=PERF_DIAGRAM_COLOUR, plot_background=True,
+        plot_csi_in_green=False):
     """Plots performance diagram.
 
     T = number of probability thresholds
@@ -569,6 +580,8 @@ def plot_performance_diagram(
     :param line_colour: Line colour.
     :param plot_background: Boolean flag.  If True, will plot background
         (frequency-bias and CSI contours).
+    :param plot_csi_in_green: Boolean flag.  If True (False), will plot CSI in
+        green (blue) colour scheme.
     :return: line_handle: Line handle for ROC curve.
     """
 
@@ -594,6 +607,7 @@ def plot_performance_diagram(
     )
 
     error_checking.assert_is_boolean(plot_background)
+    error_checking.assert_is_boolean(plot_csi_in_green)
 
     if plot_background:
         success_ratio_matrix, pod_matrix = _get_sr_pod_grid()
@@ -605,7 +619,7 @@ def plot_performance_diagram(
         )
 
         this_colour_map_object, this_colour_norm_object = (
-            _get_csi_colour_scheme()
+            _get_csi_colour_scheme(use_green_scheme=plot_csi_in_green)
         )
         pyplot.contourf(
             success_ratio_matrix, pod_matrix, csi_matrix, CSI_LEVELS,
