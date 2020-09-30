@@ -44,4 +44,4 @@ python3 -u "${CODE_DIR_NAME}/compute_advanced_scores.py" \
 --last_date_string="20171224" \
 --desired_month=-1 \
 --split_by_hour=0 \
---output_file_name="${evaluation_dir_name}"
+--output_dir_name="${evaluation_dir_name}"
