@@ -1,6 +1,6 @@
 #!/bin/tcsh
 
-#SBATCH --job-name="find_event_frequencies"
+#SBATCH --job-name="find_hourly_event_frequencies"
 #SBATCH --partition="fge"
 #SBATCH --account="rda-ghpcs"
 #SBATCH --qos="batch"
@@ -15,7 +15,7 @@
 ##SBATCH --exclude=h29n01,h26n05,h28n06,h29n07,h30n03,h30n15
 #SBATCH --mail-type=BEGIN,END,FAIL
 #SBATCH --mail-user=ryan.lagerquist@noaa.gov
-#SBATCH --output=find_event_frequencies_%A_%a.out
+#SBATCH --output=find_hourly_event_frequencies_%A_%a.out
 
 module load cuda/10.1
 source /scratch2/BMC/gsd-hpcs/Jebb.Q.Stewart/conda3.7/etc/profile.d/conda.csh
@@ -32,6 +32,6 @@ python3 -u "${CODE_DIR_NAME}/find_event_frequency.py" \
 --input_target_dir_name="${TOP_TARGET_DIR_NAME}" \
 --dilation_distance_px=${dilation_distance_px} \
 --desired_month=-1 \
---split_by_hour=0 \
+--split_by_hour=1 \
 --first_date_string="20160101" \
 --last_date_string="20161224"
