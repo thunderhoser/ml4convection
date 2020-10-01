@@ -1,5 +1,6 @@
 """Finds event (convection) frequency for given dilation distance."""
 
+import os.path
 import argparse
 import numpy
 from gewittergefahr.gg_utils import time_conversion
@@ -20,6 +21,7 @@ FIRST_DATE_ARG_NAME = 'first_date_string'
 LAST_DATE_ARG_NAME = 'last_date_string'
 MONTH_ARG_NAME = 'desired_month'
 SPLIT_BY_HOUR_ARG_NAME = 'split_by_hour'
+OUTPUT_FILE_ARG_NAME = 'output_file_name'
 
 TARGET_DIR_HELP_STRING = (
     'Name of top-level directory with target values.  Files therein will be '
@@ -39,6 +41,9 @@ MONTH_HELP_STRING = (
 SPLIT_BY_HOUR_HELP_STRING = (
     '[used only if `{0:s}` is left alone] Boolean flag.  If 1, will find event '
     'frequency for each hour.  If 0, will use all hours.'
+)
+OUTPUT_FILE_HELP_STRING = (
+    'Path to output file.  Will be written by `evaluation.write_climo_to_file`.'
 )
 
 INPUT_ARG_PARSER = argparse.ArgumentParser()
@@ -64,10 +69,14 @@ INPUT_ARG_PARSER.add_argument(
     '--' + SPLIT_BY_HOUR_ARG_NAME, type=int, required=False, default=0,
     help=SPLIT_BY_HOUR_HELP_STRING
 )
+INPUT_ARG_PARSER.add_argument(
+    '--' + OUTPUT_FILE_ARG_NAME, type=str, required=True,
+    help=OUTPUT_FILE_HELP_STRING
+)
 
 
 def _run(top_target_dir_name, first_date_string, last_date_string,
-         dilation_distance_px, desired_month, split_by_hour):
+         dilation_distance_px, desired_month, split_by_hour, output_file_name):
     """Finds event (convection) frequency for given dilation distance.
 
     This is effectively the main method.
@@ -78,6 +87,7 @@ def _run(top_target_dir_name, first_date_string, last_date_string,
     :param dilation_distance_px: Same.
     :param desired_month: Same.
     :param split_by_hour: Same.
+    :param output_file_name: Same.
     """
 
     if desired_month <= 0:
@@ -191,20 +201,54 @@ def _run(top_target_dir_name, first_date_string, last_date_string,
         else:
             print(MINOR_SEPARATOR_STRING)
 
-    for j in range(num_splits):
-        this_frequency = (
-            float(num_convective_pixels_by_split[j]) /
-            num_pixels_by_split[j]
-        )
+    event_frequency_by_split = numpy.array([
+        float(ncp) / np
+        for ncp, np in zip(num_convective_pixels_by_split, num_pixels_by_split)
+    ])
 
+    for j in range(num_splits):
         print((
             'Number of convective pixels{0:s} = {1:d} of {2:d} = {3:10f}'
         ).format(
             ' for hour {0:d}'.format(j) if split_by_hour else '',
             num_convective_pixels_by_split[j],
             num_pixels_by_split[j],
-            this_frequency
+            event_frequency_by_split[j]
         ))
+
+    print(SEPARATOR_STRING)
+
+    if os.path.isfile(output_file_name):
+        print('Reading previous event frequencies from: "{0:s}"...'.format(
+            output_file_name
+        ))
+
+        (
+            event_frequency_overall,
+            event_frequency_by_hour,
+            event_frequency_by_month
+        ) = evaluation.read_climo_from_file(output_file_name)
+    else:
+        event_frequency_overall = numpy.nan
+        event_frequency_by_hour = numpy.full(24, numpy.nan)
+        event_frequency_by_month = numpy.full(12, numpy.nan)
+
+    if desired_month is not None:
+        event_frequency_by_month[desired_month - 1] = (
+            event_frequency_by_split[0]
+        )
+    elif split_by_hour:
+        event_frequency_by_hour = event_frequency_by_split
+    else:
+        event_frequency_overall = event_frequency_by_split[0]
+
+    print('Writing results to: "{0:s}"...'.format(output_file_name))
+    evaluation.write_climo_to_file(
+        event_frequency_overall=event_frequency_overall,
+        event_frequency_by_hour=event_frequency_by_hour,
+        event_frequency_by_month=event_frequency_by_month,
+        pickle_file_name=output_file_name
+    )
 
 
 if __name__ == '__main__':
@@ -219,4 +263,5 @@ if __name__ == '__main__':
         ),
         desired_month=getattr(INPUT_ARG_OBJECT, MONTH_ARG_NAME),
         split_by_hour=bool(getattr(INPUT_ARG_OBJECT, SPLIT_BY_HOUR_ARG_NAME)),
+        output_file_name=getattr(INPUT_ARG_OBJECT, OUTPUT_FILE_ARG_NAME)
     )

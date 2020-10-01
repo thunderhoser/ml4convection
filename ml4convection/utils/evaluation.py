@@ -993,3 +993,82 @@ def read_file(pickle_file_name):
     pickle_file_handle.close()
 
     return score_table_xarray
+
+
+def write_climo_to_file(
+        event_frequency_overall, event_frequency_by_hour,
+        event_frequency_by_month, pickle_file_name):
+    """Writes climatology (event frequencies in training data) to Pickle file.
+
+    :param event_frequency_overall: Overall event frequency (fraction of
+        convective pixels).
+    :param event_frequency_by_hour: length-24 numpy array of hourly frequencies.
+    :param event_frequency_by_month: length-12 numpy array of monthly
+        frequencies.
+    :param pickle_file_name: Path to output file.
+    """
+
+    if event_frequency_overall is not None:
+        error_checking.assert_is_greater(
+            event_frequency_overall, 0., allow_nan=True
+        )
+        error_checking.assert_is_less_than(
+            event_frequency_overall, 1., allow_nan=True
+        )
+
+    if event_frequency_by_hour is not None:
+        error_checking.assert_is_numpy_array(
+            event_frequency_by_hour,
+            exact_dimensions=numpy.array([24], dtype=int)
+        )
+
+        error_checking.assert_is_greater_numpy_array(
+            event_frequency_by_hour, 0., allow_nan=True
+        )
+        error_checking.assert_is_less_than_numpy_array(
+            event_frequency_by_hour, 1., allow_nan=True
+        )
+
+    if event_frequency_by_month is not None:
+        error_checking.assert_is_numpy_array(
+            event_frequency_by_month,
+            exact_dimensions=numpy.array([12], dtype=int)
+        )
+
+        error_checking.assert_is_greater_numpy_array(
+            event_frequency_by_month, 0., allow_nan=True
+        )
+        error_checking.assert_is_less_than_numpy_array(
+            event_frequency_by_month, 1., allow_nan=True
+        )
+
+    file_system_utils.mkdir_recursive_if_necessary(file_name=pickle_file_name)
+
+    pickle_file_handle = open(pickle_file_name, 'wb')
+    pickle.dump(event_frequency_overall, pickle_file_handle)
+    pickle.dump(event_frequency_by_hour, pickle_file_handle)
+    pickle.dump(event_frequency_by_month, pickle_file_handle)
+    pickle_file_handle.close()
+
+
+def read_climo_from_file(pickle_file_name):
+    """Reads climatology (event frequencies in training data) from Pickle file.
+
+    :param pickle_file_name: Path to input file.
+    :return: event_frequency_overall: See doc for `write_climo_to_file`.
+    :return: event_frequency_by_hour: Same.
+    :return: event_frequency_by_month: Same.
+    """
+
+    error_checking.assert_file_exists(pickle_file_name)
+
+    pickle_file_handle = open(pickle_file_name, 'rb')
+    event_frequency_overall = pickle.load(pickle_file_handle)
+    event_frequency_by_hour = pickle.load(pickle_file_handle)
+    event_frequency_by_month = pickle.load(pickle_file_handle)
+    pickle_file_handle.close()
+
+    return (
+        event_frequency_overall, event_frequency_by_hour,
+        event_frequency_by_month
+    )
