@@ -27,11 +27,13 @@ set TOP_TARGET_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convectio
 set DILATION_DISTANCES_PX=(0 1 1.4142135624 2 3 4 5 6 7)
 
 set dilation_distance_px=${DILATION_DISTANCES_PX[$SLURM_ARRAY_TASK_ID]}
+set dilation_distance_string=`printf "%.6f" $dilation_distance_px`
 
 python3 -u "${CODE_DIR_NAME}/find_event_frequency.py" \
 --input_target_dir_name="${TOP_TARGET_DIR_NAME}" \
 --dilation_distance_px=${dilation_distance_px} \
+--first_date_string="20160101" \
+--last_date_string="20161224" \
 --desired_month=-1 \
 --split_by_hour=1 \
---first_date_string="20160101" \
---last_date_string="20161224"
+--output_file_name="${TOP_TARGET_DIR_NAME}/climo_dilation-distance-px=${dilation_distance_string}.p"

@@ -28,12 +28,14 @@ set DILATION_DISTANCES_PX=(0 1 1.4142135624 2 3 4 5 6 7 0 1 1.4142135624 2 3 4 5
 set MONTHS=(1 1 1 1 1 1 1 1 1 1 1 1 2 2 2 2 2 2 2 2 2 2 2 2 3 3 3 3 3 3 3 3 3 3 3 3 4 4 4 4 4 4 4 4 4 4 4 4 5 5 5 5 5 5 5 5 5 5 5 5 6 6 6 6 6 6 6 6 6 6 6 6 7 7 7 7 7 7 7 7 7 7 7 7 8 8 8 8 8 8 8 8 8 8 8 8 9 9 9 9 9 9 9 9 9 9 9 9 10 10 10 10 10 10 10 10 10 10 10 10 11 11 11 11 11 11 11 11 11 11 11 11 12 12 12 12 12 12 12 12 12 12 12 12)
 
 set dilation_distance_px=${DILATION_DISTANCES_PX[$SLURM_ARRAY_TASK_ID]}
+set dilation_distance_string=`printf "%.6f" $dilation_distance_px`
 set month=${MONTHS[$SLURM_ARRAY_TASK_ID]}
 
 python3 -u "${CODE_DIR_NAME}/find_event_frequency.py" \
 --input_target_dir_name="${TOP_TARGET_DIR_NAME}" \
 --dilation_distance_px=${dilation_distance_px} \
+--first_date_string="20160101" \
+--last_date_string="20161224" \
 --desired_month=${month} \
 --split_by_hour=0 \
---first_date_string="20160101" \
---last_date_string="20161224"
+--output_file_name="${TOP_TARGET_DIR_NAME}/climo_dilation-distance-px=${dilation_distance_string}.p"
