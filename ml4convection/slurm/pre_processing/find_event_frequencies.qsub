@@ -34,6 +34,4 @@ python3 -u "${CODE_DIR_NAME}/find_event_frequency.py" \
 --dilation_distance_px=${dilation_distance_px} \
 --first_date_string="20160101" \
 --last_date_string="20161224" \
---desired_month=-1 \
---split_by_hour=0 \
 --output_file_name="${TOP_TARGET_DIR_NAME}/climo_dilation-distance-px=${dilation_distance_string}.p"

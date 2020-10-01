@@ -1016,12 +1016,8 @@ def write_climo_to_file(
     """
 
     if event_frequency_overall is not None:
-        error_checking.assert_is_greater(
-            event_frequency_overall, 0., allow_nan=True
-        )
-        error_checking.assert_is_less_than(
-            event_frequency_overall, 1., allow_nan=True
-        )
+        error_checking.assert_is_greater(event_frequency_overall, 0.)
+        error_checking.assert_is_less_than(event_frequency_overall, 1.)
 
     if event_frequency_by_hour is not None:
         error_checking.assert_is_numpy_array(
@@ -1030,10 +1026,10 @@ def write_climo_to_file(
         )
 
         error_checking.assert_is_greater_numpy_array(
-            event_frequency_by_hour, 0., allow_nan=True
+            event_frequency_by_hour, 0.
         )
         error_checking.assert_is_less_than_numpy_array(
-            event_frequency_by_hour, 1., allow_nan=True
+            event_frequency_by_hour, 1.
         )
 
     if event_frequency_by_month is not None:
@@ -1043,10 +1039,10 @@ def write_climo_to_file(
         )
 
         error_checking.assert_is_greater_numpy_array(
-            event_frequency_by_month, 0., allow_nan=True
+            event_frequency_by_month, 0.
         )
         error_checking.assert_is_less_than_numpy_array(
-            event_frequency_by_month, 1., allow_nan=True
+            event_frequency_by_month, 1.
         )
 
     file_system_utils.mkdir_recursive_if_necessary(file_name=pickle_file_name)
