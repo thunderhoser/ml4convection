@@ -23,6 +23,8 @@ DEFAULT_NUM_PROB_THRESHOLDS = 101
 DEFAULT_NUM_BINS_FOR_RELIABILITY = 20
 
 TIME_DIM = 'valid_time_unix_sec'
+LATITUDE_DIM = 'latitude_deg_n'
+LONGITUDE_DIM = 'longitude_deg_e'
 PROBABILITY_THRESHOLD_DIM = 'probability_threshold'
 RELIABILITY_BIN_DIM = 'reliability_bin'
 
@@ -31,7 +33,9 @@ NUM_PREDICTION_ORIENTED_TP_KEY = 'num_prediction_oriented_true_positives'
 NUM_FALSE_NEGATIVES_KEY = 'num_false_negatives'
 NUM_FALSE_POSITIVES_KEY = 'num_false_positives'
 
-NUM_EXAMPLES_KEY = 'num_examples'
+EXAMPLE_COUNT_KEY = 'num_examples'
+SUMMED_FORECAST_PROB_KEY = 'summed_forecast_prob'
+POSITIVE_EXAMPLE_COUNT_KEY = 'num_positive_examples'
 MEAN_FORECAST_PROB_KEY = 'mean_forecast_prob'
 EVENT_FREQUENCY_KEY = 'event_frequency'
 
@@ -114,23 +118,20 @@ def _match_actual_convection_one_time(
         `_check_2d_binary_matrix`), indicating which pixels are to be used for
         evaluation.  This must be already eroded for the given matching
         distance.
-    :return: num_actual_oriented_true_positives: Number of actual-oriented true
-        positives.
-    :return: num_false_negatives: Number of false negatives.
+    :return: fancy_prediction_matrix: M-by-N numpy array of integers (-1 where
+        actual convection does not occur, 0 where actual convection occurs but
+        is not predicted, 1 where actual convection occurs and is predicted).
     """
 
-    dilated_prediction_matrix = dilate_binary_matrix(
+    fancy_prediction_matrix = dilate_binary_matrix(
         binary_matrix=predicted_target_matrix,
         buffer_distance_px=matching_distance_px
     ).astype(int)
 
-    dilated_prediction_matrix[actual_target_matrix.astype(int) == 0] = -1
-    dilated_prediction_matrix[eroded_eval_mask_matrix.astype(int) == 0] = -1
+    fancy_prediction_matrix[actual_target_matrix.astype(int) == 0] = -1
+    fancy_prediction_matrix[eroded_eval_mask_matrix.astype(int) == 0] = -1
 
-    return (
-        numpy.sum(dilated_prediction_matrix == 1),
-        numpy.sum(dilated_prediction_matrix == 0)
-    )
+    return fancy_prediction_matrix
 
 
 def _match_predicted_convection_one_time(
@@ -143,23 +144,20 @@ def _match_predicted_convection_one_time(
     :param predicted_target_matrix: Same.
     :param matching_distance_px: Same.
     :param eroded_eval_mask_matrix: Same.
-    :return: num_prediction_oriented_true_positives: Number of prediction-
-        oriented true positives.
-    :return: num_false_positives: Number of false positives.
+    :return: fancy_target_matrix: M-by-N numpy array of integers (-1 where
+        convection is not predicted, 0 where convection is predicted but does
+        not occur, 1 where convection is predicted and occurs).
     """
 
-    dilated_actual_target_matrix = dilate_binary_matrix(
+    fancy_target_matrix = dilate_binary_matrix(
         binary_matrix=actual_target_matrix,
         buffer_distance_px=matching_distance_px
     ).astype(int)
 
-    dilated_actual_target_matrix[predicted_target_matrix.astype(int) == 0] = -1
-    dilated_actual_target_matrix[eroded_eval_mask_matrix.astype(int) == 0] = -1
+    fancy_target_matrix[predicted_target_matrix.astype(int) == 0] = -1
+    fancy_target_matrix[eroded_eval_mask_matrix.astype(int) == 0] = -1
 
-    return (
-        numpy.sum(dilated_actual_target_matrix == 1),
-        numpy.sum(dilated_actual_target_matrix == 0)
-    )
+    return fancy_target_matrix
 
 
 def _get_reliability_components_one_time(
@@ -179,11 +177,12 @@ def _get_reliability_components_one_time(
     :param num_bins: Number of bins for reliability curve.
     :param eroded_eval_mask_matrix: See doc for
         `_match_actual_convection_one_time`.
-    :return: example_counts: length-B numpy array of example counts.
-    :return: mean_probabilities: length-B numpy array of mean forecast
-        probabilities.
-    :return: event_frequencies: length-B numpy array of conditional event
-        (convection) frequencies.
+    :return: example_count_matrix: M-by-N-by-B numpy array of total example
+        counts.
+    :return: summed_probability_matrix: M-by-N-by-B numpy array of summed
+        forecast probabilities.
+    :return: positive_example_count_matrix: M-by-N-by-B numpy array of positive-
+        example counts.
     """
 
     dilated_actual_target_matrix = dilate_binary_matrix(
@@ -191,34 +190,33 @@ def _get_reliability_components_one_time(
         buffer_distance_px=matching_distance_px
     ).astype(int)
 
-    good_flags = numpy.ravel(eroded_eval_mask_matrix.astype(bool))
-    probabilities_1d = numpy.ravel(probability_matrix)[good_flags]
-    target_classes_1d = numpy.ravel(dilated_actual_target_matrix)[good_flags]
-
-    example_to_bin_indices = histograms.create_histogram(
-        input_values=probabilities_1d, num_bins=num_bins,
-        min_value=0., max_value=1.
+    bin_indices = histograms.create_histogram(
+        input_values=numpy.ravel(probability_matrix),
+        num_bins=num_bins, min_value=0., max_value=1.
     )[0]
 
-    example_counts = numpy.full(num_bins, -1, dtype=int)
-    mean_probabilities = numpy.full(num_bins, numpy.nan)
-    event_frequencies = numpy.full(num_bins, numpy.nan)
+    bin_index_matrix = numpy.reshape(bin_indices, probability_matrix.shape)
+    bin_index_matrix[eroded_eval_mask_matrix.astype(bool) == False] = -1
 
-    for k in range(num_bins):
-        these_example_indices = numpy.where(example_to_bin_indices == k)[0]
-        example_counts[k] = len(these_example_indices)
+    these_dim = probability_matrix.shape + (num_bins,)
+    example_count_matrix = numpy.full(these_dim, 0, dtype=int)
+    summed_probability_matrix = numpy.full(these_dim, numpy.nan)
+    positive_example_count_matrix = numpy.full(these_dim, 0, dtype=int)
 
-        if example_counts[k] == 0:
-            continue
-
-        mean_probabilities[k] = numpy.mean(
-            probabilities_1d[these_example_indices]
+    for j in range(num_bins):
+        row_indices, column_indices = numpy.where(bin_index_matrix == j)
+        example_count_matrix[..., j][row_indices, column_indices] = 1
+        summed_probability_matrix[..., j][row_indices, column_indices] = (
+            probability_matrix[row_indices, column_indices]
         )
-        event_frequencies[k] = numpy.mean(
-            target_classes_1d[these_example_indices]
+        positive_example_count_matrix[..., j][row_indices, column_indices] = (
+            dilated_actual_target_matrix[row_indices, column_indices]
         )
 
-    return example_counts, mean_probabilities, event_frequencies
+    return (
+        example_count_matrix, summed_probability_matrix,
+        positive_example_count_matrix
+    )
 
 
 def _get_fss_components_one_time(
@@ -226,14 +224,18 @@ def _get_fss_components_one_time(
         eroded_eval_mask_matrix, square_filter):
     """Computes FSS (fractions skill score) components for one time step.
 
+    M = number of rows in grid
+    N = number of columns in grid
+
     :param actual_target_matrix: See doc for
         `_get_reliability_components_one_time`.
     :param probability_matrix: Same.
     :param matching_distance_px: Same.
     :param eroded_eval_mask_matrix: Same.
     :param square_filter: See doc for `get_basic_scores`.
-    :return: actual_sse: Actual sum of squared errors (SSE).
-    :return: reference_sse: Reference SSE.
+    :return: actual_see_matrix: M-by-N numpy array with SSE (sum of squared
+        errors) at each grid cell.
+    :return: reference_sse_matrix: Same but for reference SSE.
     """
 
     # TODO(thunderhoser): This method does not deal with edge effects from
@@ -258,19 +260,16 @@ def _get_fss_components_one_time(
     smoothed_prob_matrix = convolve2d(
         probability_matrix, weight_matrix, mode='same'
     )
-
-    good_flags = numpy.ravel(eroded_eval_mask_matrix.astype(bool))
-    smoothed_targets_1d = numpy.ravel(smoothed_target_matrix)[good_flags]
-    smoothed_probs_1d = numpy.ravel(smoothed_prob_matrix)[good_flags]
-
-    actual_sse = numpy.sum(
-        (smoothed_targets_1d - smoothed_probs_1d) ** 2
-    )
-    reference_sse = numpy.sum(
-        smoothed_targets_1d ** 2 + smoothed_probs_1d ** 2
+    smoothed_prob_matrix[eroded_eval_mask_matrix.astype(bool) == False] = (
+        numpy.nan
     )
 
-    return actual_sse, reference_sse
+    actual_sse_matrix = (smoothed_target_matrix - smoothed_prob_matrix) ** 2
+    reference_sse_matrix = (
+        smoothed_target_matrix ** 2 + smoothed_prob_matrix ** 2
+    )
+
+    return actual_sse_matrix, reference_sse_matrix
 
 
 def _get_pod(contingency_table_dict):
@@ -456,15 +455,24 @@ def get_basic_scores(
     )
     metadata_dict = {
         TIME_DIM: valid_times_unix_sec,
+        LATITUDE_DIM: prediction_dict[prediction_io.LATITUDES_KEY],
+        LONGITUDE_DIM: prediction_dict[prediction_io.LONGITUDES_KEY],
         PROBABILITY_THRESHOLD_DIM: probability_thresholds,
         RELIABILITY_BIN_DIM: bin_indices
     }
 
     num_times = len(valid_times_unix_sec)
+    num_grid_rows = len(prediction_dict[prediction_io.LATITUDES_KEY])
+    num_grid_columns = len(prediction_dict[prediction_io.LONGITUDES_KEY])
     num_prob_thresholds = len(probability_thresholds)
 
-    these_dim = (TIME_DIM, PROBABILITY_THRESHOLD_DIM)
-    this_array = numpy.full((num_times, num_prob_thresholds), 0, dtype=int)
+    these_dim = (
+        TIME_DIM, LATITUDE_DIM, LONGITUDE_DIM, PROBABILITY_THRESHOLD_DIM
+    )
+    this_array = numpy.full(
+        (num_times, num_grid_rows, num_grid_columns, num_prob_thresholds),
+        0, dtype=int
+    )
     main_data_dict = {
         NUM_ACTUAL_ORIENTED_TP_KEY: (these_dim, this_array + 0),
         NUM_PREDICTION_ORIENTED_TP_KEY: (these_dim, this_array + 0),
@@ -472,22 +480,26 @@ def get_basic_scores(
         NUM_FALSE_POSITIVES_KEY: (these_dim, this_array + 0)
     }
 
-    these_dim = (TIME_DIM, RELIABILITY_BIN_DIM)
+    these_dim = (TIME_DIM, LATITUDE_DIM, LONGITUDE_DIM, RELIABILITY_BIN_DIM)
     this_integer_array = numpy.full(
-        (num_times, num_bins_for_reliability), 0, dtype=int
+        (num_times, num_grid_rows, num_grid_columns, num_bins_for_reliability),
+        0, dtype=int
     )
     this_float_array = numpy.full(
-        (num_times, num_bins_for_reliability), numpy.nan
+        (num_times, num_grid_rows, num_grid_columns, num_bins_for_reliability),
+        numpy.nan
     )
     new_dict = {
-        NUM_EXAMPLES_KEY: (these_dim, this_integer_array + 0),
-        MEAN_FORECAST_PROB_KEY: (these_dim, this_float_array + 0.),
-        EVENT_FREQUENCY_KEY: (these_dim, this_float_array + 0.)
+        EXAMPLE_COUNT_KEY: (these_dim, this_integer_array + 0),
+        SUMMED_FORECAST_PROB_KEY: (these_dim, this_float_array + 0.),
+        POSITIVE_EXAMPLE_COUNT_KEY: (these_dim, this_integer_array + 0)
     }
     main_data_dict.update(new_dict)
 
-    these_dim = (TIME_DIM,)
-    this_array = numpy.full(num_times, numpy.nan)
+    these_dim = (TIME_DIM, LATITUDE_DIM, LONGITUDE_DIM)
+    this_array = numpy.full(
+        (num_times, num_grid_rows, num_grid_columns), numpy.nan
+    )
     new_dict = {
         ACTUAL_SSE_KEY: (these_dim, this_array + 0.),
         REFERENCE_SSE_KEY: (these_dim, this_array + 0.)
@@ -501,6 +513,8 @@ def get_basic_scores(
     basic_score_table_xarray.attrs[MODEL_FILE_KEY] = model_file_name
     basic_score_table_xarray.attrs[MATCHING_DISTANCE_KEY] = matching_distance_px
     basic_score_table_xarray.attrs[SQUARE_FSS_FILTER_KEY] = square_fss_filter
+
+    # TODO(thunderhoser): Need to change this.
     basic_score_table_xarray.attrs[TRAINING_EVENT_FREQ_KEY] = (
         training_event_frequency
     )
@@ -516,9 +530,9 @@ def get_basic_scores(
 
     for i in range(num_times):
         (
-            basic_score_table_xarray[NUM_EXAMPLES_KEY].values[i, ...],
-            basic_score_table_xarray[MEAN_FORECAST_PROB_KEY].values[i, ...],
-            basic_score_table_xarray[EVENT_FREQUENCY_KEY].values[i, ...]
+            basic_score_table_xarray[EXAMPLE_COUNT_KEY].values[i, ...],
+            basic_score_table_xarray[SUMMED_FORECAST_PROB_KEY].values[i, ...],
+            basic_score_table_xarray[POSITIVE_EXAMPLE_COUNT_KEY].values[i, ...]
         ) = _get_reliability_components_one_time(
             actual_target_matrix=
             prediction_dict[prediction_io.TARGET_MATRIX_KEY][i, ...],
@@ -530,8 +544,8 @@ def get_basic_scores(
         )
 
         (
-            basic_score_table_xarray[ACTUAL_SSE_KEY].values[i],
-            basic_score_table_xarray[REFERENCE_SSE_KEY].values[i]
+            basic_score_table_xarray[ACTUAL_SSE_KEY].values[i, ...],
+            basic_score_table_xarray[REFERENCE_SSE_KEY].values[i, ...]
         ) = _get_fss_components_one_time(
             actual_target_matrix=
             prediction_dict[prediction_io.TARGET_MATRIX_KEY][i, ...],
@@ -558,10 +572,7 @@ def get_basic_scores(
 
             t = basic_score_table_xarray
 
-            (
-                t[NUM_ACTUAL_ORIENTED_TP_KEY].values[i, j],
-                t[NUM_FALSE_NEGATIVES_KEY].values[i, j]
-            ) = _match_actual_convection_one_time(
+            this_fancy_prediction_matrix = _match_actual_convection_one_time(
                 actual_target_matrix=
                 prediction_dict[prediction_io.TARGET_MATRIX_KEY][i, ...],
                 predicted_target_matrix=this_predicted_target_matrix,
@@ -569,15 +580,26 @@ def get_basic_scores(
                 eroded_eval_mask_matrix=eroded_eval_mask_matrix
             )
 
-            (
-                t[NUM_PREDICTION_ORIENTED_TP_KEY].values[i, j],
-                t[NUM_FALSE_POSITIVES_KEY].values[i, j]
-            ) = _match_predicted_convection_one_time(
+            t[NUM_ACTUAL_ORIENTED_TP_KEY].values[i, ..., j] = (
+                (this_fancy_prediction_matrix == 1).astype(int)
+            )
+            t[NUM_FALSE_NEGATIVES_KEY].values[i, ..., j] = (
+                (this_fancy_prediction_matrix == 0).astype(int)
+            )
+
+            this_fancy_target_matrix = _match_predicted_convection_one_time(
                 actual_target_matrix=
                 prediction_dict[prediction_io.TARGET_MATRIX_KEY][i, ...],
                 predicted_target_matrix=this_predicted_target_matrix,
                 matching_distance_px=matching_distance_px,
                 eroded_eval_mask_matrix=eroded_eval_mask_matrix
+            )
+
+            t[NUM_PREDICTION_ORIENTED_TP_KEY].values[i, ..., j] = (
+                (this_fancy_target_matrix == 1).astype(int)
+            )
+            t[NUM_FALSE_POSITIVES_KEY].values[i, ..., j] = (
+                (this_fancy_target_matrix == 0).astype(int)
             )
 
             basic_score_table_xarray = t
@@ -635,7 +657,7 @@ def concat_basic_score_tables(basic_score_tables_xarray):
 
 
 def subset_basic_scores_by_hour(basic_score_table_xarray, desired_hour):
-    """Concatenates many tables along time dimension.
+    """Subsets table by hour.
 
     :param basic_score_table_xarray: xarray table in format returned by
         `get_basic_scores`.
@@ -657,8 +679,135 @@ def subset_basic_scores_by_hour(basic_score_table_xarray, desired_hour):
     good_indices = numpy.where(valid_hours == desired_hour)[0]
 
     return basic_score_table_xarray.isel(
-        indexers={TIME_DIM: good_indices}, drop=True
+        indexers={TIME_DIM: good_indices}, drop=False
     )
+
+
+def subset_basic_scores_by_space(
+        basic_score_table_xarray, first_grid_row, last_grid_row,
+        first_grid_column, last_grid_column):
+    """Subsets table by space.
+
+    :param basic_score_table_xarray: xarray table in format returned by
+        `get_basic_scores`.
+    :param first_grid_row: First row to keep (integer index).
+    :param last_grid_row: Last row to keep (integer index).
+    :param first_grid_column: First column to keep (integer index).
+    :param last_grid_column: Last column to keep (integer index).
+    :return: basic_score_table_xarray: Same as input but with fewer grid points.
+    """
+
+    num_grid_rows = len(basic_score_table_xarray.coords[LATITUDE_DIM].values)
+    num_grid_columns = len(
+        basic_score_table_xarray.coords[LONGITUDE_DIM].values
+    )
+
+    error_checking.assert_is_integer(first_grid_row)
+    error_checking.assert_is_geq(first_grid_row, 0)
+    error_checking.assert_is_integer(last_grid_row)
+    error_checking.assert_is_less_than(last_grid_row, num_grid_rows)
+    error_checking.assert_is_geq(last_grid_row, first_grid_row)
+
+    error_checking.assert_is_integer(first_grid_column)
+    error_checking.assert_is_geq(first_grid_column, 0)
+    error_checking.assert_is_integer(last_grid_column)
+    error_checking.assert_is_less_than(last_grid_column, num_grid_columns)
+    error_checking.assert_is_geq(last_grid_column, first_grid_column)
+
+    good_row_indices = numpy.linspace(
+        first_grid_row, last_grid_row,
+        num=last_grid_row - first_grid_row + 1, dtype=int
+    )
+    good_column_indices = numpy.linspace(
+        first_grid_column, last_grid_column,
+        num=last_grid_column - first_grid_column + 1, dtype=int
+    )
+    good_index_dict = {
+        LATITUDE_DIM: good_row_indices,
+        LONGITUDE_DIM: good_column_indices
+    }
+
+    return basic_score_table_xarray.isel(indexers=good_index_dict, drop=False)
+
+
+def aggregate_basic_scores_in_space(basic_score_table_xarray):
+    """Aggregates basic scores in space.
+
+    :param basic_score_table_xarray: xarray table in format returned by
+        `get_basic_scores`, with different scores for each grid cell.
+    :return: basic_score_table_xarray: Same as input but with the same scores
+        for all grid cells.
+    """
+
+    # Create new table.
+    metadata_dict = {
+        LATITUDE_DIM: numpy.array([numpy.nan]),
+        LONGITUDE_DIM: numpy.array([numpy.nan])
+    }
+
+    for this_key in [TIME_DIM, PROBABILITY_THRESHOLD_DIM, RELIABILITY_BIN_DIM]:
+        metadata_dict[this_key] = (
+            basic_score_table_xarray.coords[this_key].values
+        )
+
+    num_times = len(metadata_dict[TIME_DIM])
+    num_prob_thresholds = len(metadata_dict[PROBABILITY_THRESHOLD_DIM])
+    num_bins_for_reliability = len(metadata_dict[RELIABILITY_BIN_DIM])
+
+    these_dim = (
+        TIME_DIM, LATITUDE_DIM, LONGITUDE_DIM, PROBABILITY_THRESHOLD_DIM
+    )
+    this_array = numpy.full(
+        (num_times, 1, 1, num_prob_thresholds), 0, dtype=int
+    )
+    main_data_dict = {
+        NUM_ACTUAL_ORIENTED_TP_KEY: (these_dim, this_array + 0),
+        NUM_PREDICTION_ORIENTED_TP_KEY: (these_dim, this_array + 0),
+        NUM_FALSE_NEGATIVES_KEY: (these_dim, this_array + 0),
+        NUM_FALSE_POSITIVES_KEY: (these_dim, this_array + 0)
+    }
+
+    these_dim = (TIME_DIM, LATITUDE_DIM, LONGITUDE_DIM, RELIABILITY_BIN_DIM)
+    this_integer_array = numpy.full(
+        (num_times, 1, 1, num_bins_for_reliability), 0, dtype=int
+    )
+    this_float_array = numpy.full(
+        (num_times, 1, 1, num_bins_for_reliability), numpy.nan
+    )
+    new_dict = {
+        EXAMPLE_COUNT_KEY: (these_dim, this_integer_array + 0),
+        SUMMED_FORECAST_PROB_KEY: (these_dim, this_float_array + 0.),
+        POSITIVE_EXAMPLE_COUNT_KEY: (these_dim, this_integer_array + 0)
+    }
+    main_data_dict.update(new_dict)
+
+    these_dim = (TIME_DIM, LATITUDE_DIM, LONGITUDE_DIM)
+    this_array = numpy.full((num_times, 1, 1), numpy.nan)
+    new_dict = {
+        ACTUAL_SSE_KEY: (these_dim, this_array + 0.),
+        REFERENCE_SSE_KEY: (these_dim, this_array + 0.)
+    }
+    main_data_dict.update(new_dict)
+
+    new_score_table_xarray = xarray.Dataset(
+        data_vars=main_data_dict, coords=metadata_dict,
+        attrs=basic_score_table_xarray.attrs
+    )
+
+    main_keys = [
+        NUM_ACTUAL_ORIENTED_TP_KEY, NUM_PREDICTION_ORIENTED_TP_KEY,
+        NUM_FALSE_POSITIVES_KEY, NUM_FALSE_NEGATIVES_KEY,
+        EXAMPLE_COUNT_KEY, SUMMED_FORECAST_PROB_KEY, POSITIVE_EXAMPLE_COUNT_KEY,
+        ACTUAL_SSE_KEY, REFERENCE_SSE_KEY
+    ]
+
+    for this_key in main_keys:
+        new_score_table_xarray[this_key].values = numpy.nansum(
+            basic_score_table_xarray[this_key].values,
+            axis=(1, 2), keepdims=True
+        )
+
+    return new_score_table_xarray
 
 
 def get_advanced_scores(basic_score_table_xarray):
@@ -670,22 +819,28 @@ def get_advanced_scores(basic_score_table_xarray):
         (variable and dimension names should make the table self-explanatory).
     """
 
-    probability_thresholds = (
-        basic_score_table_xarray.coords[PROBABILITY_THRESHOLD_DIM].values
+    metadata_dict = dict()
+
+    for this_key in [
+            TIME_DIM, LATITUDE_DIM, LONGITUDE_DIM,
+            PROBABILITY_THRESHOLD_DIM, RELIABILITY_BIN_DIM
+    ]:
+        metadata_dict[this_key] = (
+            basic_score_table_xarray.coords[this_key].values
+        )
+
+    num_grid_rows = len(metadata_dict[LATITUDE_DIM])
+    num_grid_columns = len(metadata_dict[LONGITUDE_DIM])
+    num_prob_thresholds = len(metadata_dict[PROBABILITY_THRESHOLD_DIM])
+    num_bins_for_reliability = len(metadata_dict[RELIABILITY_BIN_DIM])
+
+    these_dim = (LATITUDE_DIM, LONGITUDE_DIM, PROBABILITY_THRESHOLD_DIM)
+    this_integer_array = numpy.full(
+        (num_grid_rows, num_grid_columns, num_prob_thresholds), 0, dtype=int)
+
+    this_float_array = numpy.full(
+        (num_grid_rows, num_grid_columns, num_prob_thresholds), numpy.nan
     )
-    bin_indices = basic_score_table_xarray.coords[RELIABILITY_BIN_DIM].values
-    metadata_dict = {
-        TIME_DIM: basic_score_table_xarray.coords[TIME_DIM].values,
-        PROBABILITY_THRESHOLD_DIM: probability_thresholds,
-        RELIABILITY_BIN_DIM: bin_indices
-    }
-
-    num_prob_thresholds = len(probability_thresholds)
-    num_bins_for_reliability = len(bin_indices)
-
-    these_dim = (PROBABILITY_THRESHOLD_DIM,)
-    this_integer_array = numpy.full(num_prob_thresholds, 0, dtype=int)
-    this_float_array = numpy.full(num_prob_thresholds, numpy.nan)
     main_data_dict = {
         NUM_ACTUAL_ORIENTED_TP_KEY: (these_dim, this_integer_array + 0),
         NUM_PREDICTION_ORIENTED_TP_KEY: (these_dim, this_integer_array + 0),
@@ -697,122 +852,144 @@ def get_advanced_scores(basic_score_table_xarray):
         CSI_KEY: (these_dim, this_float_array + 0.)
     }
 
-    these_dim = (RELIABILITY_BIN_DIM,)
-    this_integer_array = numpy.full((num_bins_for_reliability), 0, dtype=int)
-    this_float_array = numpy.full((num_bins_for_reliability), numpy.nan)
+    these_dim = (LATITUDE_DIM, LONGITUDE_DIM, RELIABILITY_BIN_DIM)
+    this_integer_array = numpy.full(
+        (num_grid_rows, num_grid_columns, num_bins_for_reliability),
+        0, dtype=int
+    )
+    this_float_array = numpy.full(
+        (num_grid_rows, num_grid_columns, num_bins_for_reliability), numpy.nan
+    )
     new_dict = {
-        NUM_EXAMPLES_KEY: (these_dim, this_integer_array + 0),
+        EXAMPLE_COUNT_KEY: (these_dim, this_integer_array + 0),
         MEAN_FORECAST_PROB_KEY: (these_dim, this_float_array + 0.),
         EVENT_FREQUENCY_KEY: (these_dim, this_float_array + 0.)
     }
     main_data_dict.update(new_dict)
 
+    these_dim = (LATITUDE_DIM, LONGITUDE_DIM)
+    this_float_array = numpy.full((num_grid_rows, num_grid_columns), numpy.nan)
+    new_dict = {
+        BRIER_SCORE_KEY: (these_dim, this_float_array + 0.),
+        BRIER_SKILL_SCORE_KEY: (these_dim, this_float_array + 0.),
+        RELIABILITY_KEY: (these_dim, this_float_array + 0.),
+        RESOLUTION_KEY: (these_dim, this_float_array + 0.),
+        FSS_KEY: (these_dim, this_float_array + 0.)
+    }
+    main_data_dict.update(new_dict)
+
     advanced_score_table_xarray = xarray.Dataset(
-        data_vars=main_data_dict, coords=metadata_dict
+        data_vars=main_data_dict, coords=metadata_dict,
+        attrs=basic_score_table_xarray.attrs
     )
 
-    for j in range(num_prob_thresholds):
-        t = basic_score_table_xarray
+    for i in range(num_grid_rows):
+        for j in range(num_grid_columns):
+            for k in range(num_prob_thresholds):
+                t = basic_score_table_xarray
 
-        this_contingency_table = {
-            NUM_ACTUAL_ORIENTED_TP_KEY: numpy.sum(
-                t[NUM_ACTUAL_ORIENTED_TP_KEY].values[:, j]
-            ),
-            NUM_PREDICTION_ORIENTED_TP_KEY: numpy.sum(
-                t[NUM_PREDICTION_ORIENTED_TP_KEY].values[:, j]
-            ),
-            NUM_FALSE_POSITIVES_KEY: numpy.sum(
-                t[NUM_FALSE_POSITIVES_KEY].values[:, j]
-            ),
-            NUM_FALSE_NEGATIVES_KEY: numpy.sum(
-                t[NUM_FALSE_NEGATIVES_KEY].values[:, j]
+                this_contingency_table = {
+                    NUM_ACTUAL_ORIENTED_TP_KEY: numpy.sum(
+                        t[NUM_ACTUAL_ORIENTED_TP_KEY].values[:, i, j, k]
+                    ),
+                    NUM_PREDICTION_ORIENTED_TP_KEY: numpy.sum(
+                        t[NUM_PREDICTION_ORIENTED_TP_KEY].values[:, i, j, k]
+                    ),
+                    NUM_FALSE_POSITIVES_KEY: numpy.sum(
+                        t[NUM_FALSE_POSITIVES_KEY].values[:, i, j, k]
+                    ),
+                    NUM_FALSE_NEGATIVES_KEY: numpy.sum(
+                        t[NUM_FALSE_NEGATIVES_KEY].values[:, i, j, k]
+                    )
+                }
+
+                for this_key in [
+                        NUM_ACTUAL_ORIENTED_TP_KEY,
+                        NUM_PREDICTION_ORIENTED_TP_KEY,
+                        NUM_FALSE_POSITIVES_KEY, NUM_FALSE_NEGATIVES_KEY
+                ]:
+                    advanced_score_table_xarray[this_key].values[i, j, k] = (
+                        this_contingency_table[this_key]
+                    )
+
+                advanced_score_table_xarray[POD_KEY].values[i, j, k] = (
+                    _get_pod(this_contingency_table)
+                )
+                advanced_score_table_xarray[SUCCESS_RATIO_KEY].values[
+                    i, j, k
+                ] = _get_success_ratio(this_contingency_table)
+
+                advanced_score_table_xarray[CSI_KEY].values[i, j, k] = (
+                    _get_csi(this_contingency_table)
+                )
+                advanced_score_table_xarray[FREQUENCY_BIAS_KEY].values[
+                    i, j, k
+                ] = _get_frequency_bias(this_contingency_table)
+
+            for k in range(num_bins_for_reliability):
+                t = basic_score_table_xarray
+
+                this_num_examples = numpy.sum(
+                    t[EXAMPLE_COUNT_KEY].values[:, i, j, k]
+                )
+                if this_num_examples == 0:
+                    continue
+
+                this_sum_forecast_probs = numpy.nansum(
+                    t[SUMMED_FORECAST_PROB_KEY].values[:, i, j, k]
+                )
+                this_num_positive_examples = numpy.sum(
+                    t[POSITIVE_EXAMPLE_COUNT_KEY].values[:, i, j, k]
+                )
+
+                advanced_score_table_xarray[EXAMPLE_COUNT_KEY].values[
+                    i, j, k
+                ] = this_num_examples
+
+                advanced_score_table_xarray[MEAN_FORECAST_PROB_KEY].values[
+                    i, j, k
+                ] = this_sum_forecast_probs / this_num_examples
+
+                advanced_score_table_xarray[EVENT_FREQUENCY_KEY].values[
+                    i, j, k
+                ] = float(this_num_positive_examples) / this_num_examples
+
+            a = advanced_score_table_xarray
+
+            if numpy.any(a[EXAMPLE_COUNT_KEY].values[i, j, :] > 0):
+                this_bss_dict = gg_model_eval.get_brier_skill_score(
+                    mean_forecast_prob_by_bin=
+                    a[MEAN_FORECAST_PROB_KEY].values[i, j, :],
+                    mean_observed_label_by_bin=
+                    a[EVENT_FREQUENCY_KEY].values[i, j, :],
+                    num_examples_by_bin=a[EXAMPLE_COUNT_KEY].values[i, j, :],
+                    climatology=a.attrs[TRAINING_EVENT_FREQ_KEY]
+                )
+
+                a[BRIER_SKILL_SCORE_KEY].values[i, j] = (
+                    this_bss_dict[gg_model_eval.BSS_KEY]
+                )
+                a[BRIER_SCORE_KEY].values[i, j] = (
+                    this_bss_dict[gg_model_eval.BRIER_SCORE_KEY]
+                )
+                a[RELIABILITY_KEY].values[i, j] = (
+                    this_bss_dict[gg_model_eval.RELIABILITY_KEY]
+                )
+                a[RESOLUTION_KEY].values[i, j] = (
+                    this_bss_dict[gg_model_eval.RESOLUTION_KEY]
+                )
+
+                advanced_score_table_xarray = a
+
+            this_actual_sse = numpy.sum(
+                basic_score_table_xarray[ACTUAL_SSE_KEY].values[:, i, j]
             )
-        }
-
-        for this_key in [
-                NUM_ACTUAL_ORIENTED_TP_KEY, NUM_PREDICTION_ORIENTED_TP_KEY,
-                NUM_FALSE_POSITIVES_KEY, NUM_FALSE_NEGATIVES_KEY
-        ]:
-            advanced_score_table_xarray[this_key].values[j] = (
-                this_contingency_table[this_key]
+            this_reference_sse = numpy.sum(
+                basic_score_table_xarray[REFERENCE_SSE_KEY].values[:, i, j]
             )
-
-        advanced_score_table_xarray[POD_KEY].values[j] = (
-            _get_pod(this_contingency_table)
-        )
-        advanced_score_table_xarray[SUCCESS_RATIO_KEY].values[j] = (
-            _get_success_ratio(this_contingency_table)
-        )
-        advanced_score_table_xarray[CSI_KEY].values[j] = (
-            _get_csi(this_contingency_table)
-        )
-        advanced_score_table_xarray[FREQUENCY_BIAS_KEY].values[j] = (
-            _get_frequency_bias(this_contingency_table)
-        )
-
-    for j in range(num_bins_for_reliability):
-        t = basic_score_table_xarray
-
-        these_example_counts = t[NUM_EXAMPLES_KEY].values[:, j]
-        these_mean_probs = t[MEAN_FORECAST_PROB_KEY].values[:, j]
-        these_event_frequencies = t[EVENT_FREQUENCY_KEY].values[:, j]
-
-        advanced_score_table_xarray[MEAN_FORECAST_PROB_KEY].values[j] = (
-            numpy.average(
-                these_mean_probs[these_example_counts > 0],
-                weights=these_example_counts[these_example_counts > 0]
+            advanced_score_table_xarray[FSS_KEY].values[i, j] = (
+                1. - this_actual_sse / this_reference_sse
             )
-        )
-
-        advanced_score_table_xarray[EVENT_FREQUENCY_KEY].values[j] = (
-            numpy.average(
-                these_event_frequencies[these_example_counts > 0],
-                weights=these_example_counts[these_example_counts > 0]
-            )
-        )
-
-        advanced_score_table_xarray[NUM_EXAMPLES_KEY].values[j] = numpy.sum(
-            these_example_counts
-        )
-
-    for this_key in [
-            MODEL_FILE_KEY, MATCHING_DISTANCE_KEY, SQUARE_FSS_FILTER_KEY,
-            TRAINING_EVENT_FREQ_KEY
-    ]:
-        advanced_score_table_xarray.attrs[this_key] = (
-            basic_score_table_xarray.attrs[this_key]
-        )
-
-    bss_dict = gg_model_eval.get_brier_skill_score(
-        mean_forecast_prob_by_bin=
-        advanced_score_table_xarray[MEAN_FORECAST_PROB_KEY].values,
-        mean_observed_label_by_bin=
-        advanced_score_table_xarray[EVENT_FREQUENCY_KEY].values,
-        num_examples_by_bin=
-        advanced_score_table_xarray[NUM_EXAMPLES_KEY].values,
-        climatology=advanced_score_table_xarray.attrs[TRAINING_EVENT_FREQ_KEY]
-    )
-
-    advanced_score_table_xarray.attrs[BRIER_SKILL_SCORE_KEY] = (
-        bss_dict[gg_model_eval.BSS_KEY]
-    )
-    advanced_score_table_xarray.attrs[BRIER_SCORE_KEY] = (
-        bss_dict[gg_model_eval.BRIER_SCORE_KEY]
-    )
-    advanced_score_table_xarray.attrs[RELIABILITY_KEY] = (
-        bss_dict[gg_model_eval.RELIABILITY_KEY]
-    )
-    advanced_score_table_xarray.attrs[RESOLUTION_KEY] = (
-        bss_dict[gg_model_eval.RESOLUTION_KEY]
-    )
-
-    actual_sse = numpy.sum(basic_score_table_xarray[ACTUAL_SSE_KEY].values)
-    reference_sse = numpy.sum(
-        basic_score_table_xarray[REFERENCE_SSE_KEY].values
-    )
-    advanced_score_table_xarray.attrs[FSS_KEY] = (
-        1. - actual_sse / reference_sse
-    )
 
     return advanced_score_table_xarray
 
