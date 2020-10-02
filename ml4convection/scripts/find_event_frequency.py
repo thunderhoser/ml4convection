@@ -1,4 +1,4 @@
-"""Finds event (convection) frequency for given dilation distance."""
+"""Finds event (convection) frequencies for given dilation distance."""
 
 import argparse
 import numpy
@@ -6,6 +6,7 @@ from gewittergefahr.gg_utils import time_conversion
 from ml4convection.io import radar_io
 from ml4convection.io import example_io
 from ml4convection.io import twb_satellite_io
+from ml4convection.io import climatology_io
 from ml4convection.utils import evaluation
 
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
@@ -32,7 +33,7 @@ DATE_HELP_STRING = (
 ).format(FIRST_DATE_ARG_NAME, LAST_DATE_ARG_NAME)
 
 OUTPUT_FILE_HELP_STRING = (
-    'Path to output file.  Will be written by `evaluation.write_climo_to_file`.'
+    'Path to output file.  Will be written by `climatology_io.write_file`.'
 )
 
 INPUT_ARG_PARSER = argparse.ArgumentParser()
@@ -58,7 +59,7 @@ INPUT_ARG_PARSER.add_argument(
 
 def _run(top_target_dir_name, first_date_string, last_date_string,
          dilation_distance_px, output_file_name):
-    """Finds event (convection) frequency for given dilation distance.
+    """Finds event (convection) frequencies for given dilation distance.
 
     This is effectively the main method.
 
@@ -107,14 +108,14 @@ def _run(top_target_dir_name, first_date_string, last_date_string,
 
     print(SEPARATOR_STRING)
 
-    num_pixels_overall = 0
-    num_convective_pixels_overall = 0
-    num_pixels_by_hour = numpy.full(NUM_HOURS_PER_DAY, 0, dtype=int)
-    num_convective_pixels_by_hour = numpy.full(NUM_HOURS_PER_DAY, 0, dtype=int)
-    num_pixels_by_month = numpy.full(NUM_MONTHS_PER_YEAR, 0, dtype=int)
-    num_convective_pixels_by_month = numpy.full(
-        NUM_MONTHS_PER_YEAR, 0, dtype=int
-    )
+    num_examples_overall = 0
+    num_pos_examples_overall = 0
+    num_examples_by_hour = numpy.full(NUM_HOURS_PER_DAY, 0, dtype=int)
+    num_pos_examples_by_hour = numpy.full(NUM_HOURS_PER_DAY, 0, dtype=int)
+    num_examples_by_month = numpy.full(NUM_MONTHS_PER_YEAR, 0, dtype=int)
+    num_pos_examples_by_month = numpy.full(NUM_MONTHS_PER_YEAR, 0, dtype=int)
+    num_examples_by_pixel = numpy.full(mask_matrix.shape, 0, dtype=int)
+    num_pos_examples_by_pixel = numpy.full(mask_matrix.shape, 0, dtype=int)
 
     for this_file_name in target_file_names:
         print('Reading data from: "{0:s}"...'.format(this_file_name))
@@ -129,56 +130,60 @@ def _run(top_target_dir_name, first_date_string, last_date_string,
             )
             target_matrix[mask_matrix == False] = -1
 
-            num_pixels_overall += numpy.sum(target_matrix >= 0)
-            num_convective_pixels_overall += numpy.sum(target_matrix == 1)
+            num_examples_by_pixel += (target_matrix >= 0).astype(int)
+            num_pos_examples_by_pixel += (target_matrix == 1).astype(int)
+
+            num_examples_overall += numpy.sum(target_matrix >= 0)
+            num_pos_examples_overall += numpy.sum(target_matrix == 1)
 
             hour_index = int(time_conversion.unix_sec_to_string(
                 valid_times_unix_sec[i], '%H'
             ))
-            num_pixels_by_hour[hour_index] += numpy.sum(target_matrix >= 0)
-            num_convective_pixels_by_hour[hour_index] += numpy.sum(
+            num_examples_by_hour[hour_index] += numpy.sum(target_matrix >= 0)
+            num_pos_examples_by_hour[hour_index] += numpy.sum(
                 target_matrix == 1
             )
 
             month_index = -1 + int(time_conversion.unix_sec_to_string(
                 valid_times_unix_sec[i], '%m'
             ))
-            num_pixels_by_month[month_index] += numpy.sum(target_matrix >= 0)
-            num_convective_pixels_by_month[month_index] += numpy.sum(
+            num_examples_by_month[month_index] += numpy.sum(target_matrix >= 0)
+            num_pos_examples_by_month[month_index] += numpy.sum(
                 target_matrix == 1
             )
 
             print((
-                'Number of convective pixels overall = {0:d} of {1:d} = {2:10f}'
+                'Number of convective examples overall = {0:d} of {1:d} = '
+                '{2:10f}'
             ).format(
-                num_convective_pixels_overall, num_pixels_overall,
-                float(num_convective_pixels_overall) / num_pixels_overall
+                num_pos_examples_overall, num_examples_overall,
+                float(num_pos_examples_overall) / num_examples_overall
             ))
 
             this_freq = (
-                float(num_convective_pixels_by_hour[hour_index]) /
-                num_pixels_by_hour[hour_index]
+                float(num_pos_examples_by_hour[hour_index]) /
+                num_examples_by_hour[hour_index]
             )
 
             print((
-                'Number of convective pixels for hour {0:d} = {1:d} of {2:d} = '
-                '{3:10f}'
+                'Number of convective examples for hour {0:d} = {1:d} of {2:d}'
+                ' = {3:10f}'
             ).format(
-                hour_index, num_convective_pixels_by_hour[hour_index],
-                num_pixels_by_hour[hour_index], this_freq
+                hour_index, num_pos_examples_by_hour[hour_index],
+                num_examples_by_hour[hour_index], this_freq
             ))
 
             this_freq = (
-                float(num_convective_pixels_by_month[month_index]) /
-                num_pixels_by_month[month_index]
+                float(num_pos_examples_by_month[month_index]) /
+                num_examples_by_month[month_index]
             )
 
             print((
-                'Number of convective pixels for month {0:d} = {1:d} of {2:d} ='
-                ' {3:10f}'
+                'Number of convective examples for month {0:d} = {1:d} of {2:d}'
+                ' = {3:10f}'
             ).format(
-                month_index + 1, num_convective_pixels_by_month[month_index],
-                num_pixels_by_month[month_index], this_freq
+                month_index + 1, num_pos_examples_by_month[month_index],
+                num_examples_by_month[month_index], this_freq
             ))
 
         if this_file_name == target_file_names[-1]:
@@ -186,53 +191,81 @@ def _run(top_target_dir_name, first_date_string, last_date_string,
         else:
             print(MINOR_SEPARATOR_STRING)
 
+    num_examples_by_hour = num_examples_by_hour.astype(float)
+    num_examples_by_month = num_examples_by_month.astype(float)
+    num_examples_by_pixel = num_examples_by_pixel.astype(float)
+
+    num_examples_by_hour[num_examples_by_hour == 0] = numpy.nan
+    num_examples_by_month[num_examples_by_month == 0] = numpy.nan
+    num_examples_by_pixel[num_examples_by_pixel == 0] = numpy.nan
+
     event_frequency_overall = (
-        float(num_convective_pixels_overall) / num_pixels_overall
+        float(num_pos_examples_overall) / num_examples_overall
+    )
+    event_frequency_by_hour = (
+        num_pos_examples_by_hour.astype(float) / num_examples_by_hour
+    )
+    event_frequency_by_month = (
+        num_pos_examples_by_month.astype(float) / num_examples_by_month
+    )
+    event_frequency_by_pixel = (
+        num_pos_examples_by_pixel.astype(float) / num_examples_by_pixel
     )
 
-    event_frequency_by_hour = numpy.array([
-        float(ncp) / np
-        for ncp, np in zip(num_convective_pixels_by_hour, num_pixels_by_hour)
-    ])
-
-    event_frequency_by_month = numpy.array([
-        float(ncp) / np
-        for ncp, np in zip(num_convective_pixels_by_month, num_pixels_by_month)
-    ])
-
     print((
-        'Number of convective pixels overall = {0:d} of {1:d} = {2:10f}'
+        'Number of convective examples overall = {0:d} of {1:d} = {2:10f}\n'
     ).format(
-        num_convective_pixels_overall, num_pixels_overall,
+        num_pos_examples_overall, num_examples_overall,
         event_frequency_overall
     ))
 
     for j in range(NUM_HOURS_PER_DAY):
         print((
-            'Number of convective pixels for hour {0:d} = {1:d} of {2:d} = '
+            'Number of convective examples for hour {0:d} = {1:d} of {2:d} = '
             '{3:10f}'
         ).format(
-            j, num_convective_pixels_by_hour[j], num_pixels_by_hour[j],
+            j, num_pos_examples_by_hour[j], num_examples_by_hour[j],
             event_frequency_by_hour[j]
         ))
 
+    print('\n')
+
     for j in range(NUM_MONTHS_PER_YEAR):
         print((
-            'Number of convective pixels for month {0:d} = {1:d} of {2:d} = '
+            'Number of convective examples for month {0:d} = {1:d} of {2:d} = '
             '{3:10f}'
         ).format(
-            j + 1, num_convective_pixels_by_month[j], num_pixels_by_month[j],
+            j + 1, num_pos_examples_by_month[j], num_examples_by_month[j],
             event_frequency_by_month[j]
         ))
+
+    print((
+        'Number of pixels with event frequency of NaN = {0:d} of {1:d}'
+    ).format(
+        numpy.sum(numpy.isnan(event_frequency_by_pixel)),
+        event_frequency_by_pixel.size
+    ))
+
+    print((
+        'Min/mean/max event frequency over all pixels = '
+        '{0:10f}, {1:10f}, {2:10f}'
+    ).format(
+        numpy.nanmin(event_frequency_by_pixel),
+        numpy.nanmean(event_frequency_by_pixel),
+        numpy.nanmax(event_frequency_by_pixel)
+    ))
 
     print(SEPARATOR_STRING)
 
     print('Writing results to: "{0:s}"...'.format(output_file_name))
-    evaluation.write_climo_to_file(
+    climatology_io.write_file(
         event_frequency_overall=event_frequency_overall,
         event_frequency_by_hour=event_frequency_by_hour,
         event_frequency_by_month=event_frequency_by_month,
-        pickle_file_name=output_file_name
+        event_frequency_by_pixel=event_frequency_by_pixel,
+        latitudes_deg_n=mask_dict[radar_io.LATITUDES_KEY],
+        longitudes_deg_e=mask_dict[radar_io.LONGITUDES_KEY],
+        netcdf_file_name=output_file_name
     )
 
 

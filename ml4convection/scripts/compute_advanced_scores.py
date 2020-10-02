@@ -112,7 +112,7 @@ def _run(top_basic_score_dir_name, first_date_string, last_date_string,
             climo_file_name
         ))
         event_frequency_by_hour = (
-            evaluation.read_climo_from_file(climo_file_name)[2]
+            evaluation.read_climo_from_file(climo_file_name)[1]
         )
 
     basic_score_file_names = evaluation.find_many_basic_score_files(
