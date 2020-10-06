@@ -3,8 +3,8 @@
 from setuptools import setup
 
 PACKAGE_NAMES = [
-    'ml4convection', 'ml4convection.io', 'ml4convection.plotting',
-    'ml4convection.scripts'
+    'ml4convection', 'ml4convection.io', 'ml4convection.machine_learning',
+    'ml4convection.plotting', 'ml4convection.utils', 'ml4convection.scripts'
 ]
 KEYWORDS = [
     'machine learning', 'deep learning', 'artificial intelligence',
