@@ -211,13 +211,13 @@ def _run(top_target_dir_name, first_date_string, last_date_string,
         float(num_pos_examples_overall) / num_examples_overall
     )
     event_frequency_by_hour = (
-        num_pos_examples_by_hour.astype(float) / num_examples_by_hour
+        (num_pos_examples_by_hour + 0).astype(float) / num_examples_by_hour
     )
     event_frequency_by_month = (
-        num_pos_examples_by_month.astype(float) / num_examples_by_month
+        (num_pos_examples_by_month + 0).astype(float) / num_examples_by_month
     )
     event_frequency_by_pixel = (
-        num_pos_examples_by_pixel.astype(float) / num_examples_by_pixel
+        (num_pos_examples_by_pixel + 0).astype(float) / num_examples_by_pixel
     )
 
     print((
