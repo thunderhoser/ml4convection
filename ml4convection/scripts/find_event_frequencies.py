@@ -220,22 +220,32 @@ def _run(top_target_dir_name, first_date_string, last_date_string,
     ))
 
     for j in range(NUM_HOURS_PER_DAY):
+        this_num_examples = (
+            0 if numpy.isnan(num_examples_by_hour[j])
+            else int(numpy.round(num_examples_by_hour[j]))
+        )
+
         print((
             'Number of convective examples for hour {0:d} = {1:d} of {2:d} = '
             '{3:10f}'
         ).format(
-            j, num_pos_examples_by_hour[j], num_examples_by_hour[j],
+            j, num_pos_examples_by_hour[j], this_num_examples,
             event_frequency_by_hour[j]
         ))
 
     print('\n')
 
     for j in range(NUM_MONTHS_PER_YEAR):
+        this_num_examples = (
+            0 if numpy.isnan(num_examples_by_month[j])
+            else int(numpy.round(num_examples_by_month[j]))
+        )
+
         print((
             'Number of convective examples for month {0:d} = {1:d} of {2:d} = '
             '{3:10f}'
         ).format(
-            j + 1, num_pos_examples_by_month[j], num_examples_by_month[j],
+            j + 1, num_pos_examples_by_month[j], this_num_examples,
             event_frequency_by_month[j]
         ))
 

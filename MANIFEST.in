@@ -1,1 +1,2 @@
 include ml4convection/io/*.LUT
+include ml4convection/io/borders.nc
