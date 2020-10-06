@@ -93,8 +93,10 @@ def _run(top_prediction_dir_name, first_date_string, last_date_string,
         prediction_io.file_name_to_date(f) for f in prediction_file_names
     ]
     num_dates = len(date_strings)
+    print(date_strings)
 
     for i in range(num_dates):
+        print(i)
         this_score_table_xarray = evaluation.get_basic_scores(
             prediction_file_name=prediction_file_names[i],
             matching_distance_px=matching_distance_px
