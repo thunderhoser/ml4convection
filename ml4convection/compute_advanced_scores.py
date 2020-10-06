@@ -179,7 +179,6 @@ def _run(top_basic_score_dir_name, first_date_string, last_date_string,
                     basic_score_table_xarray=this_score_table, desired_hour=j
                 )
             )
-            print(basic_score_table_matrix[i, j])
 
     for j in range(num_splits):
         basic_score_table_xarray = evaluation.concat_basic_score_tables(

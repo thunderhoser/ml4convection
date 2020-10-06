@@ -1,12 +1,20 @@
 """Helper methods for plotting (mostly 2-D georeferenced maps)."""
 
+import os
+import sys
 import numpy
 import matplotlib
 matplotlib.use('agg')
 import matplotlib.pyplot as pyplot
-from gewittergefahr.gg_utils import number_rounding
-from gewittergefahr.gg_utils import longitude_conversion as lng_conversion
-from gewittergefahr.gg_utils import error_checking
+
+THIS_DIRECTORY_NAME = os.path.dirname(os.path.realpath(
+    os.path.join(os.getcwd(), os.path.expanduser(__file__))
+))
+sys.path.append(os.path.normpath(os.path.join(THIS_DIRECTORY_NAME, '..')))
+
+import number_rounding
+import longitude_conversion as lng_conversion
+import error_checking
 
 GRID_LINE_WIDTH = 1.
 GRID_LINE_COLOUR = numpy.full(3, 0.)
@@ -65,6 +73,14 @@ def plot_grid_lines(
     parallels_deg_n = parallels_deg_n[
         parallels_deg_n <= numpy.max(plot_latitudes_deg_n)
     ]
+    parallel_label_strings = [
+        '{0:.1f}'.format(p) if parallel_spacing_deg < 1.
+        else '{0:d}'.format(int(numpy.round(p)))
+        for p in parallels_deg_n
+    ]
+    parallel_label_strings = [
+        s + r' $^{\circ}$N' for s in parallel_label_strings
+    ]
 
     meridians_deg_e = numpy.unique(
         number_rounding.round_to_nearest(plot_longitudes_deg_e, 2.)
@@ -75,24 +91,23 @@ def plot_grid_lines(
     meridians_deg_e = meridians_deg_e[
         meridians_deg_e <= numpy.max(plot_longitudes_deg_e)
     ]
-
-    axes_object.set_xticks(meridians_deg_e)
-    axes_object.set_yticks(parallels_deg_n)
-
-    meridian_label_strings = axes_object.get_xticks()[1]
     meridian_label_strings = [
-        '' if s == '' else s + r' $^{\circ}$E' for s in meridian_label_strings
+        '{0:.1f}'.format(m) if meridian_spacing_deg < 1.
+        else '{0:d}'.format(int(numpy.round(m)))
+        for m in meridians_deg_e
     ]
-    axes_object.set_xticklabels(
-        meridian_label_strings, fontdict={'fontsize': font_size}
-    )
+    meridian_label_strings = [
+        s + r' $^{\circ}$N' for s in meridian_label_strings
+    ]
 
-    parallel_label_strings = axes_object.get_yticks()[1]
-    parallel_label_strings = [
-        '' if s == '' else s + r' $^{\circ}$N' for s in parallel_label_strings
-    ]
+    axes_object.set_yticks(parallels_deg_n)
     axes_object.set_yticklabels(
         parallel_label_strings, fontdict={'fontsize': font_size}
+    )
+
+    axes_object.set_xticks(meridians_deg_e)
+    axes_object.set_xticklabels(
+        meridian_label_strings, fontdict={'fontsize': font_size}
     )
 
     axes_object.grid(
