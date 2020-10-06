@@ -29,7 +29,7 @@ set DILATION_DISTANCES_PX=(0 1 1.4142135624 2 3 4 5 6 7)
 set dilation_distance_px=${DILATION_DISTANCES_PX[$SLURM_ARRAY_TASK_ID]}
 set dilation_distance_string=`printf "%.6f" $dilation_distance_px`
 
-python3 -u "${CODE_DIR_NAME}/find_event_frequency.py" \
+python3 -u "${CODE_DIR_NAME}/find_event_frequencies.py" \
 --input_target_dir_name="${TOP_TARGET_DIR_NAME}" \
 --dilation_distance_px=${dilation_distance_px} \
 --first_date_string="20160101" \
