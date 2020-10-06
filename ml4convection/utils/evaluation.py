@@ -1099,10 +1099,14 @@ def find_many_basic_score_files(
 
 
 def find_advanced_score_file(
-        directory_name, month=None, hour=None, raise_error_if_missing=True):
+        directory_name, aggregated_in_space, month=None, hour=None,
+        raise_error_if_missing=True):
     """Finds Pickle file with advanced evaluation scores.
 
     :param directory_name: Name of directory where file is expected.
+    :param aggregated_in_space: Boolean flag.  If True, will look for file with
+        scores aggregated over the domain.  If False, will look for file with
+        scores at each grid point.
     :param month: Month (integer in 1...12).  If None, will look for file that
         has all months.
     :param hour: Hour (integer in 0...23).  If None, will look for file that
@@ -1116,6 +1120,7 @@ def find_advanced_score_file(
     """
 
     error_checking.assert_is_string(directory_name)
+    error_checking.assert_is_boolean(aggregated_in_space)
     error_checking.assert_is_boolean(raise_error_if_missing)
 
     advanced_score_file_name = '{0:s}/advanced_scores'.format(directory_name)
@@ -1130,6 +1135,9 @@ def find_advanced_score_file(
         error_checking.assert_is_geq(hour, 0)
         error_checking.assert_is_leq(hour, 23)
         advanced_score_file_name += '_hour={0:02d}'.format(hour)
+
+    if aggregated_in_space:
+        advanced_score_file_name += '_aggregated-in-space'
 
     advanced_score_file_name += '.p'
 

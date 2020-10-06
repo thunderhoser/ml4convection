@@ -1072,9 +1072,16 @@ TOP_DIRECTORY_NAME = 'foo'
 VALID_DATE_STRING = '19670502'
 BASIC_SCORE_FILE_NAME = 'foo/1967/basic_scores_19670502.p'
 
-ADVANCED_SCORE_FILE_NAME_ALL = 'foo/advanced_scores.p'
-ADVANCED_SCORE_FILE_NAME_HOUR0 = 'foo/advanced_scores_hour=00.p'
-ADVANCED_SCORE_FILE_NAME_MONTH1 = 'foo/advanced_scores_month=01.p'
+ADVANCED_SCORE_FILE_NAME_YEAR_AGG = 'foo/advanced_scores_aggregated-in-space.p'
+ADVANCED_SCORE_FILE_NAME_YEAR_NOT_AGG = 'foo/advanced_scores.p'
+ADVANCED_SCORE_FILE_NAME_HOUR0_AGG = (
+    'foo/advanced_scores_hour=00_aggregated-in-space.p'
+)
+ADVANCED_SCORE_FILE_NAME_HOUR0_NOT_AGG = 'foo/advanced_scores_hour=00.p'
+ADVANCED_SCORE_FILE_NAME_MONTH1_AGG = (
+    'foo/advanced_scores_month=01_aggregated-in-space.p'
+)
+ADVANCED_SCORE_FILE_NAME_MONTH1_NOT_AGG = 'foo/advanced_scores_month=01.p'
 
 
 def _compare_basic_score_tables(first_table, second_table):
@@ -1696,44 +1703,92 @@ class EvaluationTests(unittest.TestCase):
             VALID_DATE_STRING
         )
 
-    def test_find_advanced_score_file_all(self):
+    def test_find_advanced_score_file_year_agg(self):
         """Ensures correct output from find_advanced_score_file.
 
-        In this case, file contains all hours and months.
+        In this case, file contains all hours/months and spatially aggregated
+        scores.
         """
 
         this_file_name = evaluation.find_advanced_score_file(
-            directory_name=TOP_DIRECTORY_NAME, month=None, hour=None,
-            raise_error_if_missing=False
+            directory_name=TOP_DIRECTORY_NAME, aggregated_in_space=True,
+            month=None, hour=None, raise_error_if_missing=False
         )
 
-        self.assertTrue(this_file_name == ADVANCED_SCORE_FILE_NAME_ALL)
+        self.assertTrue(this_file_name == ADVANCED_SCORE_FILE_NAME_YEAR_AGG)
 
-    def test_find_advanced_score_file_hour0(self):
+    def test_find_advanced_score_file_year_not_agg(self):
         """Ensures correct output from find_advanced_score_file.
 
-        In this case, file contains only hour 0.
+        In this case, file contains all hours/months and one set of scores per
+        grid point.
         """
 
         this_file_name = evaluation.find_advanced_score_file(
-            directory_name=TOP_DIRECTORY_NAME, month=None, hour=0,
-            raise_error_if_missing=False
+            directory_name=TOP_DIRECTORY_NAME, aggregated_in_space=False,
+            month=None, hour=None, raise_error_if_missing=False
         )
 
-        self.assertTrue(this_file_name == ADVANCED_SCORE_FILE_NAME_HOUR0)
+        self.assertTrue(this_file_name == ADVANCED_SCORE_FILE_NAME_YEAR_NOT_AGG)
 
-    def test_find_advanced_score_file_month1(self):
+    def test_find_advanced_score_file_hour0_agg(self):
         """Ensures correct output from find_advanced_score_file.
 
-        In this case, file contains only January.
+        In this case, file contains only hour 0 and spatially aggregated scores.
         """
 
         this_file_name = evaluation.find_advanced_score_file(
-            directory_name=TOP_DIRECTORY_NAME, month=1, hour=None,
-            raise_error_if_missing=False
+            directory_name=TOP_DIRECTORY_NAME, aggregated_in_space=True,
+            month=None, hour=0, raise_error_if_missing=False
         )
 
-        self.assertTrue(this_file_name == ADVANCED_SCORE_FILE_NAME_MONTH1)
+        self.assertTrue(this_file_name == ADVANCED_SCORE_FILE_NAME_HOUR0_AGG)
+
+    def test_find_advanced_score_file_hour0_not_agg(self):
+        """Ensures correct output from find_advanced_score_file.
+
+        In this case, file contains only hour 0 and one set of scores per grid
+        cell.
+        """
+
+        this_file_name = evaluation.find_advanced_score_file(
+            directory_name=TOP_DIRECTORY_NAME, aggregated_in_space=False,
+            month=None, hour=0, raise_error_if_missing=False
+        )
+
+        self.assertTrue(
+            this_file_name == ADVANCED_SCORE_FILE_NAME_HOUR0_NOT_AGG
+        )
+
+    def test_find_advanced_score_file_month1_agg(self):
+        """Ensures correct output from find_advanced_score_file.
+
+        In this case, file contains only January and spatially aggregated
+        scores.
+        """
+
+        this_file_name = evaluation.find_advanced_score_file(
+            directory_name=TOP_DIRECTORY_NAME, aggregated_in_space=True,
+            month=1, hour=None, raise_error_if_missing=False
+        )
+
+        self.assertTrue(this_file_name == ADVANCED_SCORE_FILE_NAME_MONTH1_AGG)
+
+    def test_find_advanced_score_file_month1_not_agg(self):
+        """Ensures correct output from find_advanced_score_file.
+
+        In this case, file contains only January and one set of scores per grid
+        cell.
+        """
+
+        this_file_name = evaluation.find_advanced_score_file(
+            directory_name=TOP_DIRECTORY_NAME, aggregated_in_space=False,
+            month=1, hour=None, raise_error_if_missing=False
+        )
+
+        self.assertTrue(
+            this_file_name == ADVANCED_SCORE_FILE_NAME_MONTH1_NOT_AGG
+        )
 
 
 if __name__ == '__main__':

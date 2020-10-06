@@ -20,6 +20,9 @@ def _run():
     test_file_names = glob.glob(test_file_pattern)
 
     for this_file_name in test_file_names:
+        if 'dead_code/' in this_file_name:
+            continue
+
         print('Running file: "{0:s}"...'.format(this_file_name))
 
         command_string = '"{0:s}" "{1:s}"'.format(

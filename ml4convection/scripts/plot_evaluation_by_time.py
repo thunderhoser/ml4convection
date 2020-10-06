@@ -424,7 +424,7 @@ def _run(input_dir_name, probability_threshold, output_dir_name):
     hours = numpy.linspace(0, 23, num=24, dtype=int)
     hourly_input_file_names = [
         evaluation.find_advanced_score_file(
-            directory_name=input_dir_name, hour=h
+            directory_name=input_dir_name, aggregated_in_space=True, hour=h
         )
         for h in hours
     ]
@@ -443,7 +443,7 @@ def _run(input_dir_name, probability_threshold, output_dir_name):
     months = numpy.linspace(1, 12, num=12, dtype=int)
     monthly_input_file_names = [
         evaluation.find_advanced_score_file(
-            directory_name=input_dir_name, month=m
+            directory_name=input_dir_name, aggregated_in_space=True, month=m
         )
         for m in months
     ]
