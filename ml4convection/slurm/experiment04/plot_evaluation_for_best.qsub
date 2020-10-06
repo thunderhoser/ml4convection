@@ -36,8 +36,8 @@ set conv_layer_dropout_string=`printf "%.3f" $CONV_LAYER_DROPOUT_RATE`
 set l2_weight_string=`printf "%.6f" $L2_WEIGHT`
 
 set model_dir_name="${TOP_MODEL_DIR_NAME}/fss-half-window-size-px=${half_window_size_string}_conv-dropout=${conv_layer_dropout_string}_l2-weight=${l2_weight_string}"
-set advanced_score_file_name="${model_dir_name}/validation/evaluation/advanced_scores_20170101-20171224.p"
-set output_dir_name="${model_dir_name}/validation/evaluation/advanced_scores_20170101-20171224"
+set advanced_score_file_name="${model_dir_name}/validation/evaluation/advanced_scores_gridded=0.p"
+set output_dir_name="${model_dir_name}/validation/evaluation/advanced_scores_gridded=0"
 
 python3 -u "${CODE_DIR_NAME}/plot_evaluation.py" \
 --input_advanced_score_file_name="${advanced_score_file_name}" \
