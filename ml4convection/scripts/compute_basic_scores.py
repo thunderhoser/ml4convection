@@ -11,7 +11,6 @@ FIRST_DATE_ARG_NAME = 'first_date_string'
 LAST_DATE_ARG_NAME = 'last_date_string'
 MATCHING_DISTANCE_ARG_NAME = 'matching_distance_px'
 NUM_PROB_THRESHOLDS_ARG_NAME = 'num_prob_thresholds'
-TRAINING_EVENT_FREQ_ARG_NAME = 'training_event_frequency'
 OUTPUT_DIR_ARG_NAME = 'output_dir_name'
 
 INPUT_DIR_HELP_STRING = (
@@ -30,13 +29,10 @@ NUM_PROB_THRESHOLDS_HELP_STRING = (
     'Number of probability thresholds.  One contingency table will be created '
     'for each.'
 )
-TRAINING_EVENT_FREQ_HELP_STRING = (
-    'Event frequency in training data for the given matching distance.'
-)
 OUTPUT_DIR_HELP_STRING = (
     'Name of output directory.  Results will be written here by '
     '`evaluation.write_file`, to exact locations determined by '
-    '`evaluation.find_file`.'
+    '`evaluation.find_basic_score_file`.'
 )
 
 INPUT_ARG_PARSER = argparse.ArgumentParser()
@@ -60,17 +56,13 @@ INPUT_ARG_PARSER.add_argument(
     help=NUM_PROB_THRESHOLDS_HELP_STRING
 )
 INPUT_ARG_PARSER.add_argument(
-    '--' + TRAINING_EVENT_FREQ_ARG_NAME, type=float, required=True,
-    help=TRAINING_EVENT_FREQ_HELP_STRING
-)
-INPUT_ARG_PARSER.add_argument(
     '--' + OUTPUT_DIR_ARG_NAME, type=str, required=True,
     help=OUTPUT_DIR_HELP_STRING
 )
 
 
 def _run(top_prediction_dir_name, first_date_string, last_date_string,
-         matching_distance_px, training_event_frequency, top_output_dir_name):
+         matching_distance_px, top_output_dir_name):
     """Computes basic evaluation scores.
 
     This is effectively the main method.
@@ -79,7 +71,6 @@ def _run(top_prediction_dir_name, first_date_string, last_date_string,
     :param first_date_string: Same.
     :param last_date_string: Same.
     :param matching_distance_px: Same.
-    :param training_event_frequency: Same.
     :param top_output_dir_name: Same.
     """
 
@@ -98,13 +89,12 @@ def _run(top_prediction_dir_name, first_date_string, last_date_string,
     for i in range(num_dates):
         this_score_table_xarray = evaluation.get_basic_scores(
             prediction_file_name=prediction_file_names[i],
-            matching_distance_px=matching_distance_px,
-            training_event_frequency=training_event_frequency
+            matching_distance_px=matching_distance_px
         )
 
-        this_output_file_name = evaluation.find_file(
+        this_output_file_name = evaluation.find_basic_score_file(
             top_directory_name=top_output_dir_name,
-            valid_date_string=date_strings[i], with_basic_scores=True,
+            valid_date_string=date_strings[i],
             raise_error_if_missing=False
         )
 
@@ -131,9 +121,6 @@ if __name__ == '__main__':
         last_date_string=getattr(INPUT_ARG_OBJECT, LAST_DATE_ARG_NAME),
         matching_distance_px=getattr(
             INPUT_ARG_OBJECT, MATCHING_DISTANCE_ARG_NAME
-        ),
-        training_event_frequency=getattr(
-            INPUT_ARG_OBJECT, TRAINING_EVENT_FREQ_ARG_NAME
         ),
         top_output_dir_name=getattr(INPUT_ARG_OBJECT, OUTPUT_DIR_ARG_NAME)
     )

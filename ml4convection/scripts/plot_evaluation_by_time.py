@@ -301,11 +301,7 @@ def _plot_scores_as_graph(
     # Plot third score.
     if probability_threshold is None:
         y_values = numpy.array([
-            gg_model_eval.get_area_under_perf_diagram(
-                pod_by_threshold=t[evaluation.POD_KEY].values,
-                success_ratio_by_threshold=
-                t[evaluation.SUCCESS_RATIO_KEY].values
-            )
+            t.attrs[evaluation.BRIER_SCORE_KEY]
             for t in score_tables_xarray
         ])
     else:
@@ -323,30 +319,41 @@ def _plot_scores_as_graph(
 
     legend_handles.append(this_handle)
     legend_strings.append(
-        'AUPD' if probability_threshold is None else 'POD'
+        'BS' if probability_threshold is None else 'POD'
     )
 
     # Plot fourth score.
-    if probability_threshold is not None:
+    if probability_threshold is None:
+        y_values = numpy.array([
+            gg_model_eval.get_area_under_perf_diagram(
+                pod_by_threshold=t[evaluation.POD_KEY].values,
+                success_ratio_by_threshold=
+                t[evaluation.SUCCESS_RATIO_KEY].values
+            )
+            for t in score_tables_xarray
+        ])
+    else:
         y_values = numpy.array([
             t[evaluation.SUCCESS_RATIO_KEY][prob_threshold_index]
             for t in score_tables_xarray
         ])
 
-        this_handle = main_axes_object.plot(
-            x_values, y_values, color=FOURTH_SCORE_COLOUR, linewidth=LINE_WIDTH,
-            marker=MARKER_TYPE, markersize=MARKER_SIZE, markeredgewidth=0,
-            markerfacecolor=FOURTH_SCORE_COLOUR,
-            markeredgecolor=FOURTH_SCORE_COLOUR
-        )[0]
+    this_handle = main_axes_object.plot(
+        x_values, y_values, color=FOURTH_SCORE_COLOUR, linewidth=LINE_WIDTH,
+        marker=MARKER_TYPE, markersize=MARKER_SIZE, markeredgewidth=0,
+        markerfacecolor=FOURTH_SCORE_COLOUR,
+        markeredgecolor=FOURTH_SCORE_COLOUR
+    )[0]
 
-        legend_handles.append(this_handle)
-        legend_strings.append('Success ratio')
+    legend_handles.append(this_handle)
+    legend_strings.append(
+        'AUPD' if probability_threshold is None else 'Success ratio'
+    )
 
     # Plot histogram.
     if plot_total_example_counts:
         y_values = numpy.array([
-            numpy.sum(t[evaluation.NUM_EXAMPLES_KEY].values)
+            numpy.sum(t[evaluation.EXAMPLE_COUNT_KEY].values)
             for t in score_tables_xarray
         ], dtype=int)
 
@@ -354,7 +361,7 @@ def _plot_scores_as_graph(
     else:
         y_values = numpy.array([
             numpy.nansum(
-                t[evaluation.NUM_EXAMPLES_KEY].values *
+                t[evaluation.EXAMPLE_COUNT_KEY].values *
                 t[evaluation.EVENT_FREQUENCY_KEY].values
             )
             for t in score_tables_xarray

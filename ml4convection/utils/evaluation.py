@@ -386,8 +386,8 @@ def erode_binary_matrix(binary_matrix, buffer_distance_px):
 
 
 def get_basic_scores(
-        prediction_file_name, matching_distance_px, training_event_frequency,
-        square_fss_filter=True, num_prob_thresholds=DEFAULT_NUM_PROB_THRESHOLDS,
+        prediction_file_name, matching_distance_px, square_fss_filter=True,
+        num_prob_thresholds=DEFAULT_NUM_PROB_THRESHOLDS,
         num_bins_for_reliability=DEFAULT_NUM_BINS_FOR_RELIABILITY,
         test_mode=False, prediction_dict=None, eval_mask_matrix=None,
         model_file_name=None):
@@ -400,8 +400,6 @@ def get_basic_scores(
         `prediction_io.read_file`).
     :param matching_distance_px: Matching distance (pixels) for neighbourhood
         evaluation.
-    :param training_event_frequency: Event frequency in training data.  Will be
-        stored in output table as metadata.
     :param square_fss_filter: Boolean flag.  If True, the smoothing filter for
         FSS (fractions skill score) will be "squared" -- i.e., will be a square
         matrix with all non-zero values.  If False, the smoothing filter will
@@ -437,8 +435,6 @@ def get_basic_scores(
     # Check input args.
     _check_2d_binary_matrix(eval_mask_matrix)
     error_checking.assert_is_geq(matching_distance_px, 0.)
-    error_checking.assert_is_geq(training_event_frequency, 0.)
-    error_checking.assert_is_leq(training_event_frequency, 1.)
     error_checking.assert_is_boolean(square_fss_filter)
     error_checking.assert_is_integer(num_prob_thresholds)
     error_checking.assert_is_geq(num_prob_thresholds, 2)
@@ -513,11 +509,6 @@ def get_basic_scores(
     basic_score_table_xarray.attrs[MODEL_FILE_KEY] = model_file_name
     basic_score_table_xarray.attrs[MATCHING_DISTANCE_KEY] = matching_distance_px
     basic_score_table_xarray.attrs[SQUARE_FSS_FILTER_KEY] = square_fss_filter
-
-    # TODO(thunderhoser): Need to change this.
-    basic_score_table_xarray.attrs[TRAINING_EVENT_FREQ_KEY] = (
-        training_event_frequency
-    )
 
     # Do actual stuff.
     eroded_eval_mask_matrix = erode_binary_matrix(
@@ -632,9 +623,6 @@ def concat_basic_score_tables(basic_score_tables_xarray):
     matching_distances_px = numpy.array([
         t.attrs[MATCHING_DISTANCE_KEY] for t in basic_score_tables_xarray
     ])
-    training_event_frequencies = numpy.array([
-        t.attrs[TRAINING_EVENT_FREQ_KEY] for t in basic_score_tables_xarray
-    ])
     square_fss_filter_flags = numpy.array([
         t.attrs[SQUARE_FSS_FILTER_KEY] for t in basic_score_tables_xarray
     ], dtype=bool)
@@ -643,14 +631,10 @@ def concat_basic_score_tables(basic_score_tables_xarray):
     unique_matching_distances_px = numpy.unique(
         number_rounding.round_to_nearest(matching_distances_px, TOLERANCE)
     )
-    unique_training_event_freqs = numpy.unique(
-        number_rounding.round_to_nearest(training_event_frequencies, TOLERANCE)
-    )
     unique_square_flags = numpy.unique(square_fss_filter_flags)
 
     assert len(unique_model_file_names) == 1
     assert len(unique_matching_distances_px) == 1
-    assert len(unique_training_event_freqs) == 1
     assert len(unique_square_flags) == 1
 
     return xarray.concat(objs=basic_score_tables_xarray, dim=TIME_DIM)
@@ -810,11 +794,16 @@ def aggregate_basic_scores_in_space(basic_score_table_xarray):
     return new_score_table_xarray
 
 
-def get_advanced_scores(basic_score_table_xarray):
+def get_advanced_scores(basic_score_table_xarray, training_event_freq_matrix):
     """Computes advanced scores from basic scores.
+
+    M = number of rows in grid
+    N = number of columns in grid
 
     :param basic_score_table_xarray: xarray table in format returned by
         `get_basic_scores`.
+    :param training_event_freq_matrix: M-by-N numpy array of event frequencies
+        ("climatologies") in training data.
     :return: advanced_score_table_xarray: xarray table with advanced scores
         (variable and dimension names should make the table self-explanatory).
     """
@@ -831,6 +820,18 @@ def get_advanced_scores(basic_score_table_xarray):
 
     num_grid_rows = len(metadata_dict[LATITUDE_DIM])
     num_grid_columns = len(metadata_dict[LONGITUDE_DIM])
+
+    these_dim = numpy.array([num_grid_rows, num_grid_columns], dtype=int)
+    error_checking.assert_is_numpy_array(
+        training_event_freq_matrix, exact_dimensions=these_dim
+    )
+    error_checking.assert_is_geq_numpy_array(
+        training_event_freq_matrix, 0., allow_nan=True
+    )
+    error_checking.assert_is_leq_numpy_array(
+        training_event_freq_matrix, 1., allow_nan=True
+    )
+
     num_prob_thresholds = len(metadata_dict[PROBABILITY_THRESHOLD_DIM])
     num_bins_for_reliability = len(metadata_dict[RELIABILITY_BIN_DIM])
 
@@ -874,7 +875,8 @@ def get_advanced_scores(basic_score_table_xarray):
         BRIER_SKILL_SCORE_KEY: (these_dim, this_float_array + 0.),
         RELIABILITY_KEY: (these_dim, this_float_array + 0.),
         RESOLUTION_KEY: (these_dim, this_float_array + 0.),
-        FSS_KEY: (these_dim, this_float_array + 0.)
+        FSS_KEY: (these_dim, this_float_array + 0.),
+        TRAINING_EVENT_FREQ_KEY: (these_dim, training_event_freq_matrix + 0.)
     }
     main_data_dict.update(new_dict)
 
@@ -963,7 +965,7 @@ def get_advanced_scores(basic_score_table_xarray):
                     mean_observed_label_by_bin=
                     a[EVENT_FREQUENCY_KEY].values[i, j, :],
                     num_examples_by_bin=a[EXAMPLE_COUNT_KEY].values[i, j, :],
-                    climatology=a.attrs[TRAINING_EVENT_FREQ_KEY]
+                    climatology=a[TRAINING_EVENT_FREQ_KEY].values[i, j]
                 )
 
                 a[BRIER_SKILL_SCORE_KEY].values[i, j] = (
