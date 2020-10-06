@@ -57,7 +57,8 @@ OUTPUT_DIR_ARG_NAME = 'output_dir_name'
 
 INPUT_DIR_HELP_STRING = (
     'Name of input directory.  Files therein will be found by '
-    '`evaluation.find_advanced_score_file` and read by `evaluation.read_file`.'
+    '`evaluation.find_advanced_score_file` and read by '
+    '`evaluation.read_advanced_score_file`.'
 )
 PROB_THRESHOLD_HELP_STRING = (
     'Probability threshold used to compute CSI, POD, and FAR.  If you do not '
@@ -86,8 +87,8 @@ def _plot_performance_diagrams(score_tables_xarray, output_file_name):
     """Plots performance diagrams.
 
     :param score_tables_xarray: 1-D list of tables in format returned by
-        `evaluation.read_file`, where each table corresponds to either one month
-        or one hour.
+        `evaluation.read_advanced_score_file`, where each table corresponds to
+        either one month or one hour.
     :param output_file_name: Path to output file.  Figure will be saved here.
     """
 
@@ -432,7 +433,7 @@ def _run(input_dir_name, probability_threshold, output_dir_name):
     hours = numpy.linspace(0, 23, num=24, dtype=int)
     hourly_input_file_names = [
         evaluation.find_advanced_score_file(
-            directory_name=input_dir_name, aggregated_in_space=True, hour=h
+            directory_name=input_dir_name, gridded=False, hour=h
         )
         for h in hours
     ]
@@ -444,14 +445,14 @@ def _run(input_dir_name, probability_threshold, output_dir_name):
         print('Reading data from: "{0:s}"...'.format(
             hourly_input_file_names[i]
         ))
-        hourly_score_tables_xarray[i] = evaluation.read_file(
+        hourly_score_tables_xarray[i] = evaluation.read_advanced_score_file(
             hourly_input_file_names[i]
         )
 
     months = numpy.linspace(1, 12, num=12, dtype=int)
     monthly_input_file_names = [
         evaluation.find_advanced_score_file(
-            directory_name=input_dir_name, aggregated_in_space=True, month=m
+            directory_name=input_dir_name, gridded=False, month=m
         )
         for m in months
     ]
@@ -463,7 +464,7 @@ def _run(input_dir_name, probability_threshold, output_dir_name):
         print('Reading data from: "{0:s}"...'.format(
             monthly_input_file_names[i]
         ))
-        monthly_score_tables_xarray[i] = evaluation.read_file(
+        monthly_score_tables_xarray[i] = evaluation.read_advanced_score_file(
             monthly_input_file_names[i]
         )
 

@@ -1,6 +1,6 @@
 #!/bin/tcsh
 
-#SBATCH --job-name="compute_aggregated_scores_for_best"
+#SBATCH --job-name="compute_advanced_ungridded_scores_for_best"
 #SBATCH --partition="fge"
 #SBATCH --account="rda-ghpcs"
 #SBATCH --qos="batch"
@@ -18,7 +18,7 @@
 ##SBATCH --exclude=h29n01,h26n05,h28n06,h29n07,h30n03,h30n15
 #SBATCH --mail-type=BEGIN,END,FAIL
 #SBATCH --mail-user=ryan.lagerquist@noaa.gov
-#SBATCH --output=compute_aggregated_scores_for_best_%A.out
+#SBATCH --output=compute_advanced_ungridded_scores_for_best_%A.out
 
 module load cuda/10.1
 source /scratch2/BMC/gsd-hpcs/Jebb.Q.Stewart/conda3.7/etc/profile.d/conda.csh
@@ -45,6 +45,6 @@ python3 -u "${CODE_DIR_NAME}/compute_advanced_scores.py" \
 --last_date_string="20171224" \
 --desired_month=-1 \
 --split_by_hour=0 \
---aggregate_in_space=1 \
+--gridded=0 \
 --input_climo_file_name="${TOP_TARGET_DIR_NAME}/climo_dilation-distance-px=1.000000.p" \
 --output_dir_name="${evaluation_dir_name}"

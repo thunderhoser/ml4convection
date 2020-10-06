@@ -1,6 +1,6 @@
 #!/bin/tcsh
 
-#SBATCH --job-name="compute_basic_scores_for_best"
+#SBATCH --job-name="compute_basic_ungridded_scores_for_best"
 #SBATCH --partition="fge"
 #SBATCH --account="rda-ghpcs"
 #SBATCH --qos="batch"
@@ -19,7 +19,7 @@
 ##SBATCH --exclude=h29n01,h26n05,h28n06,h29n07,h30n03,h30n15
 #SBATCH --mail-type=BEGIN,END,FAIL
 #SBATCH --mail-user=ryan.lagerquist@noaa.gov
-#SBATCH --output=compute_basic_scores_for_best_%A_%a.out
+#SBATCH --output=compute_basic_ungridded_scores_for_best_%A_%a.out
 
 module load cuda/10.1
 source /scratch2/BMC/gsd-hpcs/Jebb.Q.Stewart/conda3.7/etc/profile.d/conda.csh
@@ -49,5 +49,7 @@ python3 -u "${CODE_DIR_NAME}/compute_basic_scores.py" \
 --input_prediction_dir_name="${prediction_dir_name}" \
 --first_date_string="${first_date_string}" \
 --last_date_string="${last_date_string}" \
+--gridded=0 \
 --matching_distance_px=1 \
+--num_prob_thresholds=201 \
 --output_dir_name="${prediction_dir_name}/evaluation"

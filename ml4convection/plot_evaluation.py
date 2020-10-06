@@ -27,7 +27,7 @@ OUTPUT_DIR_ARG_NAME = 'output_dir_name'
 
 ADVANCED_SCORE_FILE_HELP_STRING = (
     'Path to file with advanced evaluation scores.  Will be read by '
-    '`evaluation.read_file`.'
+    '`evaluation.read_advanced_score_file`.'
 )
 OUTPUT_DIR_HELP_STRING = (
     'Name of output directory.  Figures will be saved here.'
@@ -58,7 +58,9 @@ def _run(advanced_score_file_name, output_dir_name):
     )
 
     print('Reading data from: "{0:s}"...'.format(advanced_score_file_name))
-    advanced_score_table_xarray = evaluation.read_file(advanced_score_file_name)
+    advanced_score_table_xarray = evaluation.read_advanced_score_file(
+        advanced_score_file_name
+    )
 
     # Plot performance diagram.
     figure_object, axes_object = pyplot.subplots(
@@ -105,7 +107,7 @@ def _run(advanced_score_file_name, output_dir_name):
         mean_observations=
         advanced_score_table_xarray[evaluation.EVENT_FREQUENCY_KEY].values,
         example_counts=
-        advanced_score_table_xarray[evaluation.NUM_EXAMPLES_KEY].values,
+        advanced_score_table_xarray[evaluation.EXAMPLE_COUNT_KEY].values,
         mean_value_in_training=
         advanced_score_table_xarray.attrs[evaluation.TRAINING_EVENT_FREQ_KEY],
         min_value_to_plot=0., max_value_to_plot=1.

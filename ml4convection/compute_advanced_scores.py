@@ -25,7 +25,7 @@ FIRST_DATE_ARG_NAME = 'first_date_string'
 LAST_DATE_ARG_NAME = 'last_date_string'
 MONTH_ARG_NAME = 'desired_month'
 SPLIT_BY_HOUR_ARG_NAME = 'split_by_hour'
-AGGREGATE_IN_SPACE_ARG_NAME = 'aggregate_in_space'
+GRIDDED_ARG_NAME = 'gridded'
 CLIMO_FILE_ARG_NAME = 'input_climo_file_name'
 OUTPUT_DIR_ARG_NAME = 'output_dir_name'
 
@@ -49,12 +49,10 @@ SPLIT_BY_HOUR_HELP_STRING = (
     ' evaluate predictions for all hours.'
 ).format(MONTH_ARG_NAME)
 
-AGGREGATE_IN_SPACE_HELP_STRING = (
-    '[used only if `{0:s}` and `{1:s}` are left alone] Boolean flag.  If 1, '
-    'will compute each score for the full domain only.  If 0, will compute each'
-    ' score for each grid cell.'
-).format(MONTH_ARG_NAME, SPLIT_BY_HOUR_ARG_NAME)
-
+GRIDDED_HELP_STRING = (
+    'Boolean flag.  If 1, scores will be gridded (one set for each pixel).  If '
+    '0, scores will be aggregated (one set for the full domain).'
+)
 CLIMO_FILE_HELP_STRING = (
     'Path to file with climatology (event frequencies in training data).'
 )
@@ -84,8 +82,7 @@ INPUT_ARG_PARSER.add_argument(
     help=SPLIT_BY_HOUR_HELP_STRING
 )
 INPUT_ARG_PARSER.add_argument(
-    '--' + AGGREGATE_IN_SPACE_ARG_NAME, type=int, required=False, default=1,
-    help=AGGREGATE_IN_SPACE_HELP_STRING
+    '--' + GRIDDED_ARG_NAME, type=int, required=True, help=GRIDDED_HELP_STRING
 )
 INPUT_ARG_PARSER.add_argument(
     '--' + CLIMO_FILE_ARG_NAME, type=str, required=False, default='',
@@ -98,7 +95,7 @@ INPUT_ARG_PARSER.add_argument(
 
 
 def _run(top_basic_score_dir_name, first_date_string, last_date_string,
-         desired_month, split_by_hour, aggregate_in_space, climo_file_name,
+         desired_month, split_by_hour, gridded, climo_file_name,
          output_dir_name):
     """Computes advanced evaluation scores.
 
@@ -110,7 +107,7 @@ def _run(top_basic_score_dir_name, first_date_string, last_date_string,
     :param desired_month: Same.
     :param split_by_hour: Same.
     :param climo_file_name: Same.
-    :param aggregate_in_space: Same.
+    :param gridded: Same.
     :param output_dir_name: Same.
     """
 
@@ -123,7 +120,7 @@ def _run(top_basic_score_dir_name, first_date_string, last_date_string,
         error_checking.assert_is_leq(desired_month, 12)
 
     if desired_month is not None or split_by_hour:
-        aggregate_in_space = True
+        gridded = False
 
     print('Reading event frequencies from: "{0:s}"...'.format(climo_file_name))
     climo_dict = climatology_io.read_file(climo_file_name)
@@ -132,7 +129,7 @@ def _run(top_basic_score_dir_name, first_date_string, last_date_string,
         top_directory_name=top_basic_score_dir_name,
         first_date_string=first_date_string,
         last_date_string=last_date_string,
-        raise_error_if_any_missing=False
+        gridded=gridded, raise_error_if_any_missing=False
     )
     date_strings = [
         evaluation.basic_file_name_to_date(f) for f in basic_score_file_names
@@ -168,12 +165,9 @@ def _run(top_basic_score_dir_name, first_date_string, last_date_string,
         print('Reading basic scores from: "{0:s}"...'.format(
             basic_score_file_names[i]
         ))
-        this_score_table = evaluation.read_file(basic_score_file_names[i])
-
-        if aggregate_in_space:
-            this_score_table = evaluation.aggregate_basic_scores_in_space(
-                this_score_table
-            )
+        this_score_table = evaluation.read_basic_score_file(
+            basic_score_file_names[i]
+        )
 
         if not split_by_hour:
             basic_score_table_matrix[i, 0] = copy.deepcopy(this_score_table)
@@ -206,13 +200,13 @@ def _run(top_basic_score_dir_name, first_date_string, last_date_string,
             this_freq = climo_dict[climatology_io.EVENT_FREQ_BY_HOUR_KEY][j]
             this_freq_matrix = numpy.full((1, 1), this_freq)
         else:
-            if aggregate_in_space:
-                this_freq = climo_dict[climatology_io.EVENT_FREQ_OVERALL_KEY][j]
-                this_freq_matrix = numpy.full((1, 1), this_freq)
-            else:
+            if gridded:
                 this_freq_matrix = (
-                    climo_dict[climatology_io.EVENT_FREQ_BY_PIXEL_KEY][j]
+                    climo_dict[climatology_io.EVENT_FREQ_BY_PIXEL_KEY]
                 )
+            else:
+                this_freq = climo_dict[climatology_io.EVENT_FREQ_OVERALL_KEY]
+                this_freq_matrix = numpy.full((1, 1), this_freq)
 
         advanced_score_table_xarray = evaluation.get_advanced_scores(
             basic_score_table_xarray=basic_score_table_xarray,
@@ -223,13 +217,12 @@ def _run(top_basic_score_dir_name, first_date_string, last_date_string,
         output_file_name = evaluation.find_advanced_score_file(
             directory_name=output_dir_name,
             month=desired_month, hour=j if split_by_hour else None,
-            aggregated_in_space=aggregate_in_space,
-            raise_error_if_missing=False
+            gridded=gridded, raise_error_if_missing=False
         )
 
         print('Writing advanced scores to: "{0:s}"...'.format(output_file_name))
-        evaluation.write_file(
-            score_table_xarray=advanced_score_table_xarray,
+        evaluation.write_advanced_score_file(
+            advanced_score_table_xarray=advanced_score_table_xarray,
             pickle_file_name=output_file_name
         )
 
@@ -243,9 +236,7 @@ if __name__ == '__main__':
         last_date_string=getattr(INPUT_ARG_OBJECT, LAST_DATE_ARG_NAME),
         desired_month=getattr(INPUT_ARG_OBJECT, MONTH_ARG_NAME),
         split_by_hour=bool(getattr(INPUT_ARG_OBJECT, SPLIT_BY_HOUR_ARG_NAME)),
-        aggregate_in_space=bool(getattr(
-            INPUT_ARG_OBJECT, AGGREGATE_IN_SPACE_ARG_NAME
-        )),
+        gridded=bool(getattr(INPUT_ARG_OBJECT, LAST_DATE_ARG_NAME)),
         climo_file_name=getattr(INPUT_ARG_OBJECT, CLIMO_FILE_ARG_NAME),
         output_dir_name=getattr(INPUT_ARG_OBJECT, OUTPUT_DIR_ARG_NAME)
     )

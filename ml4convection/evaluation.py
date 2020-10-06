@@ -239,7 +239,7 @@ def _get_fss_components_one_time(
     :param probability_matrix: Same.
     :param matching_distance_px: Same.
     :param eroded_eval_mask_matrix: Same.
-    :param square_filter: See doc for `get_basic_scores`.
+    :param square_filter: See doc for `get_basic_scores_ungridded`.
     :return: actual_see_matrix: M-by-N numpy array with SSE (sum of squared
         errors) at each grid cell.
     :return: reference_sse_matrix: Same but for reference SSE.
@@ -354,6 +354,80 @@ def _get_frequency_bias(contingency_table_dict):
         return numpy.nan
 
 
+def _init_basic_score_table(
+        valid_times_unix_sec, probability_thresholds, num_bins_for_reliability,
+        latitudes_deg_n, longitudes_deg_e):
+    """Initializes xarray table that will contain basic scores.
+
+    :param valid_times_unix_sec: 1-D numpy array of valid times.
+    :param probability_thresholds: 1-D numpy array of probability thresholds for
+        contingency tables.
+    :param num_bins_for_reliability: Number of bins for reliability.
+    :param latitudes_deg_n: 1-D numpy array of grid latitudes (deg N).
+    :param longitudes_deg_e: 1-D numpy array of grid longitudes (deg E).
+    :return: basic_score_table_xarray: xarray table (variable and dimension
+        names should make the table self-explanatory).
+    """
+
+    bin_indices = numpy.linspace(
+        0, num_bins_for_reliability - 1, num=num_bins_for_reliability, dtype=int
+    )
+    metadata_dict = {
+        TIME_DIM: valid_times_unix_sec,
+        LATITUDE_DIM: latitudes_deg_n,
+        LONGITUDE_DIM: longitudes_deg_e,
+        PROBABILITY_THRESHOLD_DIM: probability_thresholds,
+        RELIABILITY_BIN_DIM: bin_indices
+    }
+
+    num_times = len(valid_times_unix_sec)
+    num_grid_rows = len(latitudes_deg_n)
+    num_grid_columns = len(longitudes_deg_e)
+    num_prob_thresholds = len(probability_thresholds)
+
+    these_dim = (
+        TIME_DIM, LATITUDE_DIM, LONGITUDE_DIM, PROBABILITY_THRESHOLD_DIM
+    )
+    this_array = numpy.full(
+        (num_times, num_grid_rows, num_grid_columns, num_prob_thresholds),
+        0, dtype=int
+    )
+    main_data_dict = {
+        NUM_ACTUAL_ORIENTED_TP_KEY: (these_dim, this_array + 0),
+        NUM_PREDICTION_ORIENTED_TP_KEY: (these_dim, this_array + 0),
+        NUM_FALSE_NEGATIVES_KEY: (these_dim, this_array + 0),
+        NUM_FALSE_POSITIVES_KEY: (these_dim, this_array + 0)
+    }
+
+    these_dim = (TIME_DIM, LATITUDE_DIM, LONGITUDE_DIM, RELIABILITY_BIN_DIM)
+    this_integer_array = numpy.full(
+        (num_times, num_grid_rows, num_grid_columns, num_bins_for_reliability),
+        0, dtype=int
+    )
+    this_float_array = numpy.full(
+        (num_times, num_grid_rows, num_grid_columns, num_bins_for_reliability),
+        numpy.nan
+    )
+    new_dict = {
+        EXAMPLE_COUNT_KEY: (these_dim, this_integer_array + 0),
+        SUMMED_FORECAST_PROB_KEY: (these_dim, this_float_array + 0.),
+        POSITIVE_EXAMPLE_COUNT_KEY: (these_dim, this_integer_array + 0)
+    }
+    main_data_dict.update(new_dict)
+
+    these_dim = (TIME_DIM, LATITUDE_DIM, LONGITUDE_DIM)
+    this_array = numpy.full(
+        (num_times, num_grid_rows, num_grid_columns), numpy.nan
+    )
+    new_dict = {
+        ACTUAL_SSE_KEY: (these_dim, this_array + 0.),
+        REFERENCE_SSE_KEY: (these_dim, this_array + 0.)
+    }
+    main_data_dict.update(new_dict)
+
+    return xarray.Dataset(data_vars=main_data_dict, coords=metadata_dict)
+
+
 def dilate_binary_matrix(binary_matrix, buffer_distance_px):
     """Dilates binary matrix.
 
@@ -392,16 +466,13 @@ def erode_binary_matrix(binary_matrix, buffer_distance_px):
     return eroded_binary_matrix.astype(binary_matrix.dtype)
 
 
-def get_basic_scores(
+def get_basic_scores_ungridded(
         prediction_file_name, matching_distance_px, square_fss_filter=True,
         num_prob_thresholds=DEFAULT_NUM_PROB_THRESHOLDS,
         num_bins_for_reliability=DEFAULT_NUM_BINS_FOR_RELIABILITY,
         test_mode=False, prediction_dict=None, eval_mask_matrix=None,
         model_file_name=None):
-    """Computes basic scores.
-
-    M = number of rows in grid
-    N = number of columns in grid
+    """Computes basic scores for full domain (aggregated in space).
 
     :param prediction_file_name: Path to input file (will be read by
         `prediction_io.read_file`).
@@ -453,64 +524,13 @@ def get_basic_scores(
     probability_thresholds = gg_model_eval.get_binarization_thresholds(
         threshold_arg=num_prob_thresholds
     )
-    bin_indices = numpy.linspace(
-        0, num_bins_for_reliability - 1, num=num_bins_for_reliability, dtype=int
-    )
-    metadata_dict = {
-        TIME_DIM: valid_times_unix_sec,
-        LATITUDE_DIM: prediction_dict[prediction_io.LATITUDES_KEY],
-        LONGITUDE_DIM: prediction_dict[prediction_io.LONGITUDES_KEY],
-        PROBABILITY_THRESHOLD_DIM: probability_thresholds,
-        RELIABILITY_BIN_DIM: bin_indices
-    }
+    nan_array = numpy.full(1, numpy.nan)
 
-    num_times = len(valid_times_unix_sec)
-    num_grid_rows = len(prediction_dict[prediction_io.LATITUDES_KEY])
-    num_grid_columns = len(prediction_dict[prediction_io.LONGITUDES_KEY])
-    num_prob_thresholds = len(probability_thresholds)
-
-    these_dim = (
-        TIME_DIM, LATITUDE_DIM, LONGITUDE_DIM, PROBABILITY_THRESHOLD_DIM
-    )
-    this_array = numpy.full(
-        (num_times, num_grid_rows, num_grid_columns, num_prob_thresholds),
-        0, dtype=int
-    )
-    main_data_dict = {
-        NUM_ACTUAL_ORIENTED_TP_KEY: (these_dim, this_array + 0),
-        NUM_PREDICTION_ORIENTED_TP_KEY: (these_dim, this_array + 0),
-        NUM_FALSE_NEGATIVES_KEY: (these_dim, this_array + 0),
-        NUM_FALSE_POSITIVES_KEY: (these_dim, this_array + 0)
-    }
-
-    these_dim = (TIME_DIM, LATITUDE_DIM, LONGITUDE_DIM, RELIABILITY_BIN_DIM)
-    this_integer_array = numpy.full(
-        (num_times, num_grid_rows, num_grid_columns, num_bins_for_reliability),
-        0, dtype=int
-    )
-    this_float_array = numpy.full(
-        (num_times, num_grid_rows, num_grid_columns, num_bins_for_reliability),
-        numpy.nan
-    )
-    new_dict = {
-        EXAMPLE_COUNT_KEY: (these_dim, this_integer_array + 0),
-        SUMMED_FORECAST_PROB_KEY: (these_dim, this_float_array + 0.),
-        POSITIVE_EXAMPLE_COUNT_KEY: (these_dim, this_integer_array + 0)
-    }
-    main_data_dict.update(new_dict)
-
-    these_dim = (TIME_DIM, LATITUDE_DIM, LONGITUDE_DIM)
-    this_array = numpy.full(
-        (num_times, num_grid_rows, num_grid_columns), numpy.nan
-    )
-    new_dict = {
-        ACTUAL_SSE_KEY: (these_dim, this_array + 0.),
-        REFERENCE_SSE_KEY: (these_dim, this_array + 0.)
-    }
-    main_data_dict.update(new_dict)
-
-    basic_score_table_xarray = xarray.Dataset(
-        data_vars=main_data_dict, coords=metadata_dict
+    basic_score_table_xarray = _init_basic_score_table(
+        valid_times_unix_sec=valid_times_unix_sec,
+        probability_thresholds=probability_thresholds,
+        num_bins_for_reliability=num_bins_for_reliability,
+        latitudes_deg_n=nan_array, longitudes_deg_e=nan_array
     )
 
     basic_score_table_xarray.attrs[MODEL_FILE_KEY] = model_file_name
@@ -525,6 +545,191 @@ def get_basic_scores(
         time_conversion.unix_sec_to_string(t, TIME_FORMAT_FOR_MESSAGES)
         for t in valid_times_unix_sec
     ]
+
+    num_times = len(valid_times_unix_sec)
+    num_prob_thresholds = len(probability_thresholds)
+
+    for i in range(num_times):
+        (
+            this_example_count_matrix,
+            this_summed_prob_matrix,
+            this_pos_example_count_matrix
+        ) = _get_reliability_components_one_time(
+            actual_target_matrix=
+            prediction_dict[prediction_io.TARGET_MATRIX_KEY][i, ...],
+            probability_matrix=
+            prediction_dict[prediction_io.PROBABILITY_MATRIX_KEY][i, ...],
+            matching_distance_px=matching_distance_px,
+            num_bins=num_bins_for_reliability,
+            eroded_eval_mask_matrix=eroded_eval_mask_matrix
+        )
+
+        basic_score_table_xarray[EXAMPLE_COUNT_KEY].values[i, ...] = (
+            numpy.sum(this_example_count_matrix, axis=(0, 1), keepdims=True)
+        )
+        basic_score_table_xarray[SUMMED_FORECAST_PROB_KEY].values[i, ...] = (
+            numpy.nansum(this_summed_prob_matrix, axis=(0, 1), keepdims=True)
+        )
+        basic_score_table_xarray[POSITIVE_EXAMPLE_COUNT_KEY].values[i, ...] = (
+            numpy.sum(this_pos_example_count_matrix, axis=(0, 1), keepdims=True)
+        )
+
+        this_actual_sse_matrix, this_reference_sse_matrix = (
+            _get_fss_components_one_time(
+                actual_target_matrix=
+                prediction_dict[prediction_io.TARGET_MATRIX_KEY][i, ...],
+                probability_matrix=
+                prediction_dict[prediction_io.PROBABILITY_MATRIX_KEY][i, ...],
+                matching_distance_px=matching_distance_px,
+                eroded_eval_mask_matrix=eroded_eval_mask_matrix,
+                square_filter=square_fss_filter
+            )
+        )
+
+        basic_score_table_xarray[ACTUAL_SSE_KEY].values[i, ...] = (
+            numpy.nansum(this_actual_sse_matrix, axis=(0, 1), keepdims=True)
+        )
+        basic_score_table_xarray[REFERENCE_SSE_KEY].values[i, ...] = (
+            numpy.nansum(this_reference_sse_matrix, axis=(0, 1), keepdims=True)
+        )
+
+        for j in range(num_prob_thresholds):
+            if numpy.mod(j, 10) == 0:
+                print((
+                    'Have computed contingency tables for {0:d} of {1:d} '
+                    'probability thresholds at {2:s}...'
+                ).format(
+                    j, num_prob_thresholds, valid_time_strings[i]
+                ))
+
+            this_predicted_target_matrix = (
+                prediction_dict[prediction_io.PROBABILITY_MATRIX_KEY][i, ...] >=
+                probability_thresholds[j]
+            )
+
+            t = basic_score_table_xarray
+
+            this_fancy_prediction_matrix = _match_actual_convection_one_time(
+                actual_target_matrix=
+                prediction_dict[prediction_io.TARGET_MATRIX_KEY][i, ...],
+                predicted_target_matrix=this_predicted_target_matrix,
+                matching_distance_px=matching_distance_px,
+                eroded_eval_mask_matrix=eroded_eval_mask_matrix
+            )
+
+            t[NUM_ACTUAL_ORIENTED_TP_KEY].values[i, 0, 0, j] = numpy.sum(
+                this_fancy_prediction_matrix == 1
+            )
+            t[NUM_FALSE_NEGATIVES_KEY].values[i, 0, 0, j] = numpy.sum(
+                this_fancy_prediction_matrix == 0
+            )
+
+            this_fancy_target_matrix = _match_predicted_convection_one_time(
+                actual_target_matrix=
+                prediction_dict[prediction_io.TARGET_MATRIX_KEY][i, ...],
+                predicted_target_matrix=this_predicted_target_matrix,
+                matching_distance_px=matching_distance_px,
+                eroded_eval_mask_matrix=eroded_eval_mask_matrix
+            )
+
+            t[NUM_PREDICTION_ORIENTED_TP_KEY].values[i, 0, 0, j] = numpy.sum(
+                this_fancy_target_matrix == 1
+            )
+            t[NUM_FALSE_POSITIVES_KEY].values[i, 0, 0, j] = numpy.sum(
+                this_fancy_target_matrix == 0
+            )
+
+            basic_score_table_xarray = t
+
+        print((
+            'Have computed contingency tables for all {0:d} probability '
+            'thresholds at {1:s}!'
+        ).format(
+            num_prob_thresholds, valid_time_strings[i]
+        ))
+
+        if i != num_times - 1:
+            print('\n')
+
+    return basic_score_table_xarray
+
+
+def get_basic_scores_gridded(
+        prediction_file_name, matching_distance_px, probability_thresholds,
+        square_fss_filter=True,
+        num_bins_for_reliability=DEFAULT_NUM_BINS_FOR_RELIABILITY,
+        test_mode=False, prediction_dict=None, eval_mask_matrix=None,
+        model_file_name=None):
+    """Computes basic scores on grid (one set of scores for each grid point).
+
+    :param prediction_file_name: See doc for `get_basic_scores_ungridded`.
+    :param matching_distance_px: Same.
+    :param probability_thresholds: 1-D numpy array of probability thresholds for
+        contingency tables.
+    :param square_fss_filter: See doc for `get_basic_scores_ungridded`.
+    :param num_bins_for_reliability: Same.
+    :param test_mode: Leave this alone.
+    :param prediction_dict: Leave this alone.
+    :param eval_mask_matrix: Leave this alone.
+    :param model_file_name: Leave this alone.
+    :return: basic_score_table_xarray: xarray table with results (variable
+        and dimension names should make the table self-explanatory).
+    """
+
+    error_checking.assert_is_boolean(test_mode)
+
+    if not test_mode:
+        print('Reading data from: "{0:s}"...'.format(prediction_file_name))
+        prediction_dict = prediction_io.read_file(prediction_file_name)
+
+        model_file_name = prediction_dict[prediction_io.MODEL_FILE_KEY]
+        model_metafile_name = neural_net.find_metafile(
+            model_file_name=model_file_name, raise_error_if_missing=True
+        )
+
+        print('Reading model metadata from: "{0:s}"...'.format(
+            model_metafile_name
+        ))
+        model_metadata_dict = neural_net.read_metafile(model_metafile_name)
+        eval_mask_matrix = model_metadata_dict[neural_net.MASK_MATRIX_KEY]
+
+    # Check input args.
+    _check_2d_binary_matrix(eval_mask_matrix)
+    error_checking.assert_is_geq(matching_distance_px, 0.)
+    error_checking.assert_is_boolean(square_fss_filter)
+    error_checking.assert_is_numpy_array(
+        probability_thresholds, num_dimensions=1
+    )
+    error_checking.assert_is_geq_numpy_array(probability_thresholds, 0.)
+    error_checking.assert_is_integer(num_bins_for_reliability)
+    error_checking.assert_is_geq(num_bins_for_reliability, 10)
+
+    # Create xarray table.
+    valid_times_unix_sec = prediction_dict[prediction_io.VALID_TIMES_KEY]
+
+    basic_score_table_xarray = _init_basic_score_table(
+        valid_times_unix_sec=valid_times_unix_sec,
+        probability_thresholds=probability_thresholds,
+        num_bins_for_reliability=num_bins_for_reliability,
+        latitudes_deg_n=prediction_dict[prediction_io.LATITUDES_KEY],
+        longitudes_deg_e=prediction_dict[prediction_io.LONGITUDES_KEY]
+    )
+
+    basic_score_table_xarray.attrs[MODEL_FILE_KEY] = model_file_name
+    basic_score_table_xarray.attrs[MATCHING_DISTANCE_KEY] = matching_distance_px
+    basic_score_table_xarray.attrs[SQUARE_FSS_FILTER_KEY] = square_fss_filter
+
+    # Do actual stuff.
+    eroded_eval_mask_matrix = erode_binary_matrix(
+        binary_matrix=eval_mask_matrix, buffer_distance_px=matching_distance_px
+    )
+    valid_time_strings = [
+        time_conversion.unix_sec_to_string(t, TIME_FORMAT_FOR_MESSAGES)
+        for t in valid_times_unix_sec
+    ]
+
+    num_times = len(valid_times_unix_sec)
+    num_prob_thresholds = len(probability_thresholds)
 
     for i in range(num_times):
         (
@@ -619,7 +824,7 @@ def concat_basic_score_tables(basic_score_tables_xarray):
     """Concatenates many tables along time dimension.
 
     :param basic_score_tables_xarray: 1-D list of xarray tables in format
-        returned by `get_basic_scores`.
+        returned by `get_basic_scores_gridded` or `get_basic_scores_ungridded`.
     :return: basic_score_table_xarray: Single xarray table, containing data from
         all input tables.
     """
@@ -651,7 +856,7 @@ def subset_basic_scores_by_hour(basic_score_table_xarray, desired_hour):
     """Subsets table by hour.
 
     :param basic_score_table_xarray: xarray table in format returned by
-        `get_basic_scores`.
+        `get_basic_scores_gridded` or `get_basic_scores_ungridded`.
     :param desired_hour: Desired hour (integer in range 0...23).
     :return: basic_score_table_xarray: Same as input but with fewer times.
     """
@@ -680,7 +885,7 @@ def subset_basic_scores_by_space(
     """Subsets table by space.
 
     :param basic_score_table_xarray: xarray table in format returned by
-        `get_basic_scores`.
+        `get_basic_scores_gridded`.
     :param first_grid_row: First row to keep (integer index).
     :param last_grid_row: Last row to keep (integer index).
     :param first_grid_column: First column to keep (integer index).
@@ -724,10 +929,10 @@ def subset_basic_scores_by_space(
 def aggregate_basic_scores_in_space(basic_score_table_xarray):
     """Aggregates basic scores in space.
 
-    :param basic_score_table_xarray: xarray table in format returned by
-        `get_basic_scores`, with different scores for each grid cell.
-    :return: basic_score_table_xarray: Same as input but with the same scores
-        for all grid cells.
+    :param basic_score_table_xarray: xarray table in format created by
+        `get_basic_scores_gridded`.
+    :return: basic_score_table_xarray: Equivalent xarray table in format created
+        by `get_basic_scores_ungridded`.
     """
 
     # Create new table.
@@ -808,7 +1013,7 @@ def get_advanced_scores(basic_score_table_xarray, training_event_freq_matrix):
     N = number of columns in grid
 
     :param basic_score_table_xarray: xarray table in format returned by
-        `get_basic_scores`.
+        `get_basic_scores_gridded` or `get_basic_scores_ungridded`.
     :param training_event_freq_matrix: M-by-N numpy array of event frequencies
         ("climatologies") in training data.
     :return: advanced_score_table_xarray: xarray table with advanced scores
@@ -1003,13 +1208,16 @@ def get_advanced_scores(basic_score_table_xarray, training_event_freq_matrix):
     return advanced_score_table_xarray
 
 
-def find_basic_score_file(top_directory_name, valid_date_string,
+def find_basic_score_file(top_directory_name, valid_date_string, gridded,
                           raise_error_if_missing=True):
-    """Finds Pickle file with basic evaluation scores.
+    """Finds NetCDF file with basic evaluation scores.
 
     :param top_directory_name: Name of top-level directory where file is
         expected.
     :param valid_date_string: Valid date (format "yyyymmdd").
+    :param gridded: Boolean flag.  If True, will look for file with gridded
+        scores.  If False, will look for file with scores aggregated over full
+        domain.
     :param raise_error_if_missing: Boolean flag.  If file is missing and
         `raise_error_if_missing == True`, will throw error.  If file is missing
         and `raise_error_if_missing == False`, will return *expected* file path.
@@ -1019,11 +1227,15 @@ def find_basic_score_file(top_directory_name, valid_date_string,
     """
 
     error_checking.assert_is_string(top_directory_name)
+    error_checking.assert_is_boolean(gridded)
     error_checking.assert_is_boolean(raise_error_if_missing)
     _ = time_conversion.string_to_unix_sec(valid_date_string, DATE_FORMAT)
 
-    basic_score_file_name = '{0:s}/{1:s}/basic_scores_{2:s}.p'.format(
-        top_directory_name, valid_date_string[:4], valid_date_string
+    basic_score_file_name = (
+        '{0:s}/{1:s}/basic_scores_gridded={2:d}_{3:s}.p'
+    ).format(
+        top_directory_name, valid_date_string[:4], int(gridded),
+        valid_date_string
     )
 
     if os.path.isfile(basic_score_file_name) or not raise_error_if_missing:
@@ -1054,14 +1266,15 @@ def basic_file_name_to_date(basic_score_file_name):
 
 
 def find_many_basic_score_files(
-        top_directory_name, first_date_string, last_date_string,
+        top_directory_name, first_date_string, last_date_string, gridded,
         raise_error_if_all_missing=True, raise_error_if_any_missing=False,
         test_mode=False):
-    """Finds many Pickle files with evaluation scores.
+    """Finds many NetCDF files with evaluation scores.
 
     :param top_directory_name: See doc for `find_basic_score_file`.
     :param first_date_string: First valid date (format "yyyymmdd").
     :param last_date_string: Last valid date (format "yyyymmdd").
+    :param gridded: See doc for `find_basic_score_file`.
     :param raise_error_if_any_missing: Boolean flag.  If any file is missing and
         `raise_error_if_any_missing == True`, will throw error.
     :param raise_error_if_all_missing: Boolean flag.  If all files are missing
@@ -1086,7 +1299,7 @@ def find_many_basic_score_files(
     for this_date_string in valid_date_strings:
         this_file_name = find_basic_score_file(
             top_directory_name=top_directory_name,
-            valid_date_string=this_date_string,
+            valid_date_string=this_date_string, gridded=gridded,
             raise_error_if_missing=raise_error_if_any_missing
         )
 
@@ -1105,15 +1318,43 @@ def find_many_basic_score_files(
     return basic_score_file_names
 
 
+def write_basic_score_file(basic_score_table_xarray, netcdf_file_name):
+    """Writes basic scores to NetCDF file.
+
+    :param basic_score_table_xarray: xarray table created by
+        `get_basic_scores_gridded` or `get_basic_scores_ungridded`.
+    :param netcdf_file_name: Path to output file.
+    """
+
+    file_system_utils.mkdir_recursive_if_necessary(file_name=netcdf_file_name)
+
+    basic_score_table_xarray.to_netcdf(
+        path=netcdf_file_name, mode='w', format='NETCDF3_64BIT'
+    )
+
+
+def read_basic_score_file(netcdf_file_name):
+    """Reads basic scores from NetCDF file.
+
+    :param netcdf_file_name: Path to input file.
+    :return: basic_score_table_xarray: xarray table created by
+        `get_basic_scores_gridded` or `get_basic_scores_ungridded`.
+    """
+
+    error_checking.assert_file_exists(netcdf_file_name)
+
+    return xarray.open_dataset(netcdf_file_name)
+
+
 def find_advanced_score_file(
-        directory_name, aggregated_in_space, month=None, hour=None,
+        directory_name, gridded, month=None, hour=None,
         raise_error_if_missing=True):
     """Finds Pickle file with advanced evaluation scores.
 
     :param directory_name: Name of directory where file is expected.
-    :param aggregated_in_space: Boolean flag.  If True, will look for file with
-        scores aggregated over the domain.  If False, will look for file with
-        scores at each grid point.
+    :param gridded: Boolean flag.  If True, will look for file with gridded
+        scores (a different set of scores at each grid cell).  If False, will
+        look for file with scores aggregated over the full domain.
     :param month: Month (integer in 1...12).  If None, will look for file that
         has all months.
     :param hour: Hour (integer in 0...23).  If None, will look for file that
@@ -1127,7 +1368,7 @@ def find_advanced_score_file(
     """
 
     error_checking.assert_is_string(directory_name)
-    error_checking.assert_is_boolean(aggregated_in_space)
+    error_checking.assert_is_boolean(gridded)
     error_checking.assert_is_boolean(raise_error_if_missing)
 
     advanced_score_file_name = '{0:s}/advanced_scores'.format(directory_name)
@@ -1143,10 +1384,7 @@ def find_advanced_score_file(
         error_checking.assert_is_leq(hour, 23)
         advanced_score_file_name += '_hour={0:02d}'.format(hour)
 
-    if aggregated_in_space:
-        advanced_score_file_name += '_aggregated-in-space'
-
-    advanced_score_file_name += '.p'
+    advanced_score_file_name += '_gridded={0:d}.p'.format(int(gridded))
 
     if os.path.isfile(advanced_score_file_name) or not raise_error_if_missing:
         return advanced_score_file_name
@@ -1157,10 +1395,10 @@ def find_advanced_score_file(
     raise ValueError(error_string)
 
 
-def write_file(score_table_xarray, pickle_file_name):
-    """Writes evaluation scores to Pickle file.
+def write_advanced_score_file(advanced_score_table_xarray, pickle_file_name):
+    """Writes advanced scores to Pickle file.
 
-    :param score_table_xarray: xarray table created by `get_basic_scores` or
+    :param advanced_score_table_xarray: xarray table created by
         `get_advanced_scores`.
     :param pickle_file_name: Path to output file.
     """
@@ -1168,22 +1406,22 @@ def write_file(score_table_xarray, pickle_file_name):
     file_system_utils.mkdir_recursive_if_necessary(file_name=pickle_file_name)
 
     pickle_file_handle = open(pickle_file_name, 'wb')
-    pickle.dump(score_table_xarray, pickle_file_handle)
+    pickle.dump(advanced_score_table_xarray, pickle_file_handle)
     pickle_file_handle.close()
 
 
-def read_file(pickle_file_name):
-    """Reads evaluation scores from Pickle file.
+def read_advanced_score_file(pickle_file_name):
+    """Reads advanced scores from Pickle file.
 
     :param pickle_file_name: Path to input file.
-    :return: score_table_xarray: xarray table created by `get_basic_scores` or
+    :return: advanced_score_table_xarray: xarray table created by
         `get_advanced_scores`.
     """
 
     error_checking.assert_file_exists(pickle_file_name)
 
     pickle_file_handle = open(pickle_file_name, 'rb')
-    score_table_xarray = pickle.load(pickle_file_handle)
+    advanced_score_table_xarray = pickle.load(pickle_file_handle)
     pickle_file_handle.close()
 
-    return score_table_xarray
+    return advanced_score_table_xarray
