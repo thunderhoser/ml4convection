@@ -9,19 +9,18 @@ from gewittergefahr.gg_utils import number_rounding
 from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
-from gewittergefahr.plotting import plotting_utils
+from gewittergefahr.plotting import plotting_utils as gg_plotting_utils
 from gewittergefahr.plotting import radar_plotting
 from ml4convection.io import radar_io
+from ml4convection.io import border_io
+from ml4convection.plotting import plotting_utils
 
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 
 DAYS_TO_SECONDS = 86400
 TIME_FORMAT = '%Y-%m-%d-%H%M'
-
 COMPOSITE_REFL_NAME = 'reflectivity_column_max_dbz'
 
-NUM_PARALLELS = 8
-NUM_MERIDIANS = 6
 FIGURE_RESOLUTION_DPI = 300
 FIGURE_WIDTH_INCHES = 15
 FIGURE_HEIGHT_INCHES = 15
@@ -33,7 +32,6 @@ LAST_DATE_ARG_NAME = 'last_date_string'
 DAILY_TIMES_ARG_NAME = 'daily_times_seconds'
 SPATIAL_DS_FACTOR_ARG_NAME = 'spatial_downsampling_factor'
 EXPAND_GRID_ARG_NAME = 'expand_to_satellite_grid'
-PLOT_BASEMAP_ARG_NAME = 'plot_basemap'
 OUTPUT_DIR_ARG_NAME = 'output_dir_name'
 
 REFLECTIVITY_DIR_HELP_STRING = (
@@ -63,9 +61,6 @@ SPATIAL_DS_FACTOR_HELP_STRING = (
 EXPAND_GRID_HELP_STRING = (
     'Boolean flag.  If 1 (0), will plot radar images on full satellite grid '
     '(original radar grid, which is smaller).'
-)
-PLOT_BASEMAP_HELP_STRING = (
-    'Boolean flag.  If 1 (0), will plot radar images with (without) basemap.'
 )
 OUTPUT_DIR_HELP_STRING = 'Name of output directory.  Images will be saved here.'
 
@@ -97,64 +92,35 @@ INPUT_ARG_PARSER.add_argument(
     help=EXPAND_GRID_HELP_STRING
 )
 INPUT_ARG_PARSER.add_argument(
-    '--' + PLOT_BASEMAP_ARG_NAME, type=int, required=False, default=0,
-    help=PLOT_BASEMAP_HELP_STRING
-)
-INPUT_ARG_PARSER.add_argument(
     '--' + OUTPUT_DIR_ARG_NAME, type=str, required=True,
     help=OUTPUT_DIR_HELP_STRING
 )
 
 
 def _plot_radar_one_example(
-        reflectivity_dict, example_index, plot_basemap, output_dir_name):
+        reflectivity_dict, example_index, border_latitudes_deg_n,
+        border_longitudes_deg_e, output_dir_name):
     """Plots one radar image.
-
-    M = number of rows in grid
-    N = number of columns in grid
 
     :param reflectivity_dict: See doc for `_plot_radar_one_day`.
     :param example_index: Will plot [i]th example, where i = `example_index`.
-    :param plot_basemap: See documentation at top of file.
+    :param border_latitudes_deg_n: See doc for `_plot_radar_one_day`.
+    :param border_longitudes_deg_e: Same.
     :param output_dir_name: Same.
     """
 
     latitudes_deg_n = reflectivity_dict[radar_io.LATITUDES_KEY]
     longitudes_deg_e = reflectivity_dict[radar_io.LONGITUDES_KEY]
 
-    if plot_basemap:
-        figure_object, axes_object, basemap_object = (
-            plotting_utils.create_equidist_cylindrical_map(
-                min_latitude_deg=numpy.min(latitudes_deg_n),
-                max_latitude_deg=numpy.max(latitudes_deg_n),
-                min_longitude_deg=numpy.min(longitudes_deg_e),
-                max_longitude_deg=numpy.max(longitudes_deg_e),
-                resolution_string='i'
-            )
-        )
+    figure_object, axes_object = pyplot.subplots(
+        1, 1, figsize=(FIGURE_WIDTH_INCHES, FIGURE_HEIGHT_INCHES)
+    )
 
-        plotting_utils.plot_coastlines(
-            basemap_object=basemap_object, axes_object=axes_object,
-            line_colour=plotting_utils.DEFAULT_COUNTRY_COLOUR
-        )
-        plotting_utils.plot_countries(
-            basemap_object=basemap_object, axes_object=axes_object
-        )
-        plotting_utils.plot_states_and_provinces(
-            basemap_object=basemap_object, axes_object=axes_object
-        )
-        plotting_utils.plot_parallels(
-            basemap_object=basemap_object, axes_object=axes_object,
-            num_parallels=NUM_PARALLELS
-        )
-        plotting_utils.plot_meridians(
-            basemap_object=basemap_object, axes_object=axes_object,
-            num_meridians=NUM_MERIDIANS
-        )
-    else:
-        figure_object, axes_object = pyplot.subplots(
-            1, 1, figsize=(FIGURE_WIDTH_INCHES, FIGURE_HEIGHT_INCHES)
-        )
+    plotting_utils.plot_borders(
+        border_latitudes_deg_n=border_latitudes_deg_n,
+        border_longitudes_deg_e=border_longitudes_deg_e,
+        axes_object=axes_object
+    )
 
     valid_time_unix_sec = (
         reflectivity_dict[radar_io.VALID_TIMES_KEY][example_index]
@@ -179,42 +145,22 @@ def _plot_radar_one_example(
         longitude_spacing_deg=numpy.diff(longitudes_deg_e[:2])[0]
     )
 
-    if not plot_basemap:
-        tick_latitudes_deg_n = numpy.unique(numpy.round(latitudes_deg_n))
-        tick_latitudes_deg_n = tick_latitudes_deg_n[
-            tick_latitudes_deg_n >= numpy.min(latitudes_deg_n)
-        ]
-        tick_latitudes_deg_n = tick_latitudes_deg_n[
-            tick_latitudes_deg_n <= numpy.max(latitudes_deg_n)
-        ]
-
-        tick_longitudes_deg_e = numpy.unique(numpy.round(longitudes_deg_e))
-        tick_longitudes_deg_e = tick_longitudes_deg_e[
-            tick_longitudes_deg_e >= numpy.min(longitudes_deg_e)
-        ]
-        tick_longitudes_deg_e = tick_longitudes_deg_e[
-            tick_longitudes_deg_e <= numpy.max(longitudes_deg_e)
-        ]
-
-        axes_object.set_xticks(tick_longitudes_deg_e)
-        axes_object.set_yticks(tick_latitudes_deg_n)
-        axes_object.grid(
-            b=True, which='major', axis='both', linestyle='--', linewidth=2
-        )
-
-        axes_object.set_xlabel(r'Longitude ($^{\circ}$E)')
-        axes_object.set_ylabel(r'Latitude ($^{\circ}$N)')
-
     colour_map_object, colour_norm_object = (
         radar_plotting.get_default_colour_scheme(COMPOSITE_REFL_NAME)
     )
 
-    plotting_utils.plot_colour_bar(
+    gg_plotting_utils.plot_colour_bar(
         axes_object_or_matrix=axes_object,
         data_matrix=composite_refl_matrix_dbz,
         colour_map_object=colour_map_object,
         colour_norm_object=colour_norm_object,
         orientation_string='vertical', extend_min=False, extend_max=True
+    )
+
+    plotting_utils.plot_grid_lines(
+        plot_latitudes_deg_n=latitudes_deg_n,
+        plot_longitudes_deg_e=longitudes_deg_e, axes_object=axes_object,
+        parallel_spacing_deg=2., meridian_spacing_deg=2.
     )
 
     axes_object.set_title(title_string)
@@ -232,20 +178,23 @@ def _plot_radar_one_example(
 
 
 def _plot_radar_one_day(
-        reflectivity_dict, echo_classifn_dict, daily_times_seconds,
-        spatial_downsampling_factor, expand_to_satellite_grid,
-        plot_basemap, output_dir_name):
+        reflectivity_dict, echo_classifn_dict, border_latitudes_deg_n,
+        border_longitudes_deg_e, daily_times_seconds,
+        spatial_downsampling_factor, expand_to_satellite_grid, output_dir_name):
     """Plots radar images for one day.
+
+    P = number of points in border set
 
     :param reflectivity_dict: Dictionary in the format returned by
         `radar_io.read_reflectivity_file`.
     :param echo_classifn_dict: Dictionary in the format returned by
         `radar_io.read_echo_classifn_file`.  If specified, will plot convective
         pixels only.  If None, will plot all pixels.
+    :param border_latitudes_deg_n: length-P numpy array of latitudes (deg N).
+    :param border_longitudes_deg_e: length-P numpy array of longitudes (deg E).
     :param daily_times_seconds: See documentation at top of file.
     :param spatial_downsampling_factor: Same.
     :param expand_to_satellite_grid: Same.
-    :param plot_basemap: Same.
     :param output_dir_name: Same.
     """
 
@@ -303,8 +252,9 @@ def _plot_radar_one_day(
 
     for i in range(num_examples):
         _plot_radar_one_example(
-            reflectivity_dict=reflectivity_dict,
-            example_index=i, plot_basemap=plot_basemap,
+            reflectivity_dict=reflectivity_dict, example_index=i,
+            border_latitudes_deg_n=border_latitudes_deg_n,
+            border_longitudes_deg_e=border_longitudes_deg_e,
             output_dir_name=output_dir_name
         )
 
@@ -312,7 +262,7 @@ def _plot_radar_one_day(
 def _run(top_reflectivity_dir_name, top_echo_classifn_dir_name,
          first_date_string, last_date_string, daily_times_seconds,
          spatial_downsampling_factor, expand_to_satellite_grid,
-         plot_basemap, output_dir_name):
+         output_dir_name):
     """Plots radar images for the given days.
 
     This is effectively the main method.
@@ -324,9 +274,10 @@ def _run(top_reflectivity_dir_name, top_echo_classifn_dir_name,
     :param daily_times_seconds: Same.
     :param spatial_downsampling_factor: Same.
     :param expand_to_satellite_grid: Same.
-    :param plot_basemap: Same.
     :param output_dir_name: Same.
     """
+
+    border_latitudes_deg_n, border_longitudes_deg_e = border_io.read_file()
 
     if spatial_downsampling_factor <= 1:
         spatial_downsampling_factor = None
@@ -381,9 +332,11 @@ def _run(top_reflectivity_dir_name, top_echo_classifn_dir_name,
             reflectivity_dict=reflectivity_dict,
             echo_classifn_dict=echo_classifn_dict,
             daily_times_seconds=daily_times_seconds,
+            border_latitudes_deg_n=border_latitudes_deg_n,
+            border_longitudes_deg_e=border_longitudes_deg_e,
             spatial_downsampling_factor=spatial_downsampling_factor,
             expand_to_satellite_grid=expand_to_satellite_grid,
-            plot_basemap=plot_basemap, output_dir_name=output_dir_name
+            output_dir_name=output_dir_name
         )
 
         if i != len(input_file_names) - 1:
@@ -411,6 +364,5 @@ if __name__ == '__main__':
         expand_to_satellite_grid=bool(
             getattr(INPUT_ARG_OBJECT, EXPAND_GRID_ARG_NAME)
         ),
-        plot_basemap=bool(getattr(INPUT_ARG_OBJECT, PLOT_BASEMAP_ARG_NAME)),
         output_dir_name=getattr(INPUT_ARG_OBJECT, OUTPUT_DIR_ARG_NAME)
     )

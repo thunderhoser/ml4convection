@@ -9,9 +9,10 @@ from gewittergefahr.gg_utils import number_rounding
 from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
-from gewittergefahr.plotting import plotting_utils
 from ml4convection.io import satellite_io
 from ml4convection.io import example_io
+from ml4convection.io import border_io
+from ml4convection.plotting import plotting_utils
 from ml4convection.plotting import satellite_plotting
 
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
@@ -19,8 +20,6 @@ SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 DAYS_TO_SECONDS = 86400
 TIME_FORMAT = '%Y-%m-%d-%H%M'
 
-NUM_PARALLELS = 8
-NUM_MERIDIANS = 6
 FIGURE_RESOLUTION_DPI = 300
 FIGURE_WIDTH_INCHES = 15
 FIGURE_HEIGHT_INCHES = 15
@@ -31,7 +30,6 @@ LAST_DATE_ARG_NAME = 'last_date_string'
 BAND_NUMBERS_ARG_NAME = 'band_numbers'
 DAILY_TIMES_ARG_NAME = 'daily_times_seconds'
 SPATIAL_DS_FACTOR_ARG_NAME = 'spatial_downsampling_factor'
-PLOT_BASEMAP_ARG_NAME = 'plot_basemap'
 OUTPUT_DIR_ARG_NAME = 'output_dir_name'
 
 SATELLITE_DIR_HELP_STRING = (
@@ -54,10 +52,6 @@ DAILY_TIMES_HELP_STRING = (
 SPATIAL_DS_FACTOR_HELP_STRING = (
     'Downsampling factor, used to coarsen spatial resolution.  If you do not '
     'want to coarsen spatial resolution, leave this alone.'
-)
-PLOT_BASEMAP_HELP_STRING = (
-    'Boolean flag.  If 1 (0), will plot satellite images with (without) '
-    'basemap.'
 )
 OUTPUT_DIR_HELP_STRING = (
     'Name of top-level output directory.  Images will be saved here (one '
@@ -88,64 +82,37 @@ INPUT_ARG_PARSER.add_argument(
     help=SPATIAL_DS_FACTOR_HELP_STRING
 )
 INPUT_ARG_PARSER.add_argument(
-    '--' + PLOT_BASEMAP_ARG_NAME, type=int, required=False, default=0,
-    help=PLOT_BASEMAP_HELP_STRING
-)
-INPUT_ARG_PARSER.add_argument(
     '--' + OUTPUT_DIR_ARG_NAME, type=str, required=True,
     help=OUTPUT_DIR_HELP_STRING
 )
 
 
 def _plot_one_satellite_image(
-        satellite_dict, time_index, band_index, plot_basemap,
-        top_output_dir_name):
+        satellite_dict, time_index, band_index, border_latitudes_deg_n,
+        border_longitudes_deg_e, top_output_dir_name):
     """Plots one satellite image.
 
     :param satellite_dict: Dictionary in format returned by
         `satellite_io.read_file`.
     :param time_index: Index of time to plot.
     :param band_index: Index of spectral band to plot.
-    :param plot_basemap: See documentation at top of file.
+    :param border_latitudes_deg_n: See doc for `_plot_satellite_one_day`.
+    :param border_longitudes_deg_e: Same.
     :param top_output_dir_name: Same.
     """
 
     latitudes_deg_n = satellite_dict[satellite_io.LATITUDES_KEY]
     longitudes_deg_e = satellite_dict[satellite_io.LONGITUDES_KEY]
 
-    if plot_basemap:
-        figure_object, axes_object, basemap_object = (
-            plotting_utils.create_equidist_cylindrical_map(
-                min_latitude_deg=numpy.min(latitudes_deg_n),
-                max_latitude_deg=numpy.max(latitudes_deg_n),
-                min_longitude_deg=numpy.min(longitudes_deg_e),
-                max_longitude_deg=numpy.max(longitudes_deg_e),
-                resolution_string='i'
-            )
-        )
+    figure_object, axes_object = pyplot.subplots(
+        1, 1, figsize=(FIGURE_WIDTH_INCHES, FIGURE_HEIGHT_INCHES)
+    )
 
-        plotting_utils.plot_coastlines(
-            basemap_object=basemap_object, axes_object=axes_object,
-            line_colour=plotting_utils.DEFAULT_COUNTRY_COLOUR
-        )
-        plotting_utils.plot_countries(
-            basemap_object=basemap_object, axes_object=axes_object
-        )
-        plotting_utils.plot_states_and_provinces(
-            basemap_object=basemap_object, axes_object=axes_object
-        )
-        plotting_utils.plot_parallels(
-            basemap_object=basemap_object, axes_object=axes_object,
-            num_parallels=NUM_PARALLELS
-        )
-        plotting_utils.plot_meridians(
-            basemap_object=basemap_object, axes_object=axes_object,
-            num_meridians=NUM_MERIDIANS
-        )
-    else:
-        figure_object, axes_object = pyplot.subplots(
-            1, 1, figsize=(FIGURE_WIDTH_INCHES, FIGURE_HEIGHT_INCHES)
-        )
+    plotting_utils.plot_borders(
+        border_latitudes_deg_n=border_latitudes_deg_n,
+        border_longitudes_deg_e=border_longitudes_deg_e,
+        axes_object=axes_object
+    )
 
     valid_time_unix_sec = (
         satellite_dict[satellite_io.VALID_TIMES_KEY][time_index]
@@ -173,31 +140,11 @@ def _plot_one_satellite_image(
         longitude_spacing_deg=numpy.diff(longitudes_deg_e[:2])[0]
     )
 
-    if not plot_basemap:
-        tick_latitudes_deg_n = numpy.unique(numpy.round(latitudes_deg_n))
-        tick_latitudes_deg_n = tick_latitudes_deg_n[
-            tick_latitudes_deg_n >= numpy.min(latitudes_deg_n)
-        ]
-        tick_latitudes_deg_n = tick_latitudes_deg_n[
-            tick_latitudes_deg_n <= numpy.max(latitudes_deg_n)
-        ]
-
-        tick_longitudes_deg_e = numpy.unique(numpy.round(longitudes_deg_e))
-        tick_longitudes_deg_e = tick_longitudes_deg_e[
-            tick_longitudes_deg_e >= numpy.min(longitudes_deg_e)
-        ]
-        tick_longitudes_deg_e = tick_longitudes_deg_e[
-            tick_longitudes_deg_e <= numpy.max(longitudes_deg_e)
-        ]
-
-        axes_object.set_xticks(tick_longitudes_deg_e)
-        axes_object.set_yticks(tick_latitudes_deg_n)
-        axes_object.grid(
-            b=True, which='major', axis='both', linestyle='--', linewidth=2
-        )
-
-        axes_object.set_xlabel(r'Longitude ($^{\circ}$E)')
-        axes_object.set_ylabel(r'Latitude ($^{\circ}$N)')
+    plotting_utils.plot_grid_lines(
+        plot_latitudes_deg_n=latitudes_deg_n,
+        plot_longitudes_deg_e=longitudes_deg_e, axes_object=axes_object,
+        parallel_spacing_deg=2., meridian_spacing_deg=2.
+    )
 
     axes_object.set_title(title_string)
 
@@ -217,16 +164,20 @@ def _plot_one_satellite_image(
 
 
 def _plot_satellite_one_day(
-        satellite_file_name, band_numbers, daily_times_seconds,
-        spatial_downsampling_factor, plot_basemap, top_output_dir_name):
+        satellite_file_name, border_latitudes_deg_n, border_longitudes_deg_e,
+        band_numbers, daily_times_seconds, spatial_downsampling_factor,
+        top_output_dir_name):
     """Plots satellite images for one day.
+
+    P = number of points in border set
 
     :param satellite_file_name: Path to input file.  Will be read by
         `satellite_io.read_file`.
+    :param border_latitudes_deg_n: length-P numpy array of latitudes (deg N).
+    :param border_longitudes_deg_e: length-P numpy array of longitudes (deg E).
     :param band_numbers: See documentation at top of file.
     :param daily_times_seconds: Same.
     :param spatial_downsampling_factor: Same.
-    :param plot_basemap: Same.
     :param top_output_dir_name: Same.
     """
 
@@ -274,14 +225,15 @@ def _plot_satellite_one_day(
         for j in range(num_bands):
             _plot_one_satellite_image(
                 satellite_dict=satellite_dict, time_index=i, band_index=j,
-                plot_basemap=plot_basemap,
+                border_latitudes_deg_n=border_latitudes_deg_n,
+                border_longitudes_deg_e=border_longitudes_deg_e,
                 top_output_dir_name=top_output_dir_name
             )
 
 
 def _run(top_satellite_dir_name, first_date_string, last_date_string,
          band_numbers, daily_times_seconds, spatial_downsampling_factor,
-         plot_basemap, top_output_dir_name):
+         top_output_dir_name):
     """Plots satellite images for the given days.
 
     This is effectively the main method.
@@ -292,9 +244,10 @@ def _run(top_satellite_dir_name, first_date_string, last_date_string,
     :param band_numbers: Same.
     :param daily_times_seconds: Same.
     :param spatial_downsampling_factor: Same.
-    :param plot_basemap: Same.
     :param top_output_dir_name: Same.
     """
+
+    border_latitudes_deg_n, border_longitudes_deg_e = border_io.read_file()
 
     if spatial_downsampling_factor <= 1:
         spatial_downsampling_factor = None
@@ -315,10 +268,12 @@ def _run(top_satellite_dir_name, first_date_string, last_date_string,
     for i in range(len(satellite_file_names)):
         _plot_satellite_one_day(
             satellite_file_name=satellite_file_names[i],
+            border_latitudes_deg_n=border_latitudes_deg_n,
+            border_longitudes_deg_e=border_longitudes_deg_e,
             band_numbers=band_numbers,
             daily_times_seconds=daily_times_seconds,
             spatial_downsampling_factor=spatial_downsampling_factor,
-            plot_basemap=plot_basemap, top_output_dir_name=top_output_dir_name
+            top_output_dir_name=top_output_dir_name
         )
 
         if i != len(satellite_file_names) - 1:
@@ -343,6 +298,5 @@ if __name__ == '__main__':
         spatial_downsampling_factor=getattr(
             INPUT_ARG_OBJECT, SPATIAL_DS_FACTOR_ARG_NAME
         ),
-        plot_basemap=bool(getattr(INPUT_ARG_OBJECT, PLOT_BASEMAP_ARG_NAME)),
         top_output_dir_name=getattr(INPUT_ARG_OBJECT, OUTPUT_DIR_ARG_NAME)
     )
