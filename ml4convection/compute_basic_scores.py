@@ -159,7 +159,7 @@ if __name__ == '__main__':
         top_prediction_dir_name=getattr(INPUT_ARG_OBJECT, INPUT_DIR_ARG_NAME),
         first_date_string=getattr(INPUT_ARG_OBJECT, FIRST_DATE_ARG_NAME),
         last_date_string=getattr(INPUT_ARG_OBJECT, LAST_DATE_ARG_NAME),
-        gridded=bool(getattr(INPUT_ARG_OBJECT, LAST_DATE_ARG_NAME)),
+        gridded=bool(getattr(INPUT_ARG_OBJECT, GRIDDED_ARG_NAME)),
         matching_distance_px=getattr(
             INPUT_ARG_OBJECT, MATCHING_DISTANCE_ARG_NAME
         ),

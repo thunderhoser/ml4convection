@@ -236,7 +236,7 @@ if __name__ == '__main__':
         last_date_string=getattr(INPUT_ARG_OBJECT, LAST_DATE_ARG_NAME),
         desired_month=getattr(INPUT_ARG_OBJECT, MONTH_ARG_NAME),
         split_by_hour=bool(getattr(INPUT_ARG_OBJECT, SPLIT_BY_HOUR_ARG_NAME)),
-        gridded=bool(getattr(INPUT_ARG_OBJECT, LAST_DATE_ARG_NAME)),
+        gridded=bool(getattr(INPUT_ARG_OBJECT, GRIDDED_ARG_NAME)),
         climo_file_name=getattr(INPUT_ARG_OBJECT, CLIMO_FILE_ARG_NAME),
         output_dir_name=getattr(INPUT_ARG_OBJECT, OUTPUT_DIR_ARG_NAME)
     )
