@@ -331,7 +331,7 @@ SUCCESS_RATIO = 15. / 33
 CRITICAL_SUCCESS_INDEX = (29. / 14 + 33. / 15 - 1) ** -1
 FREQUENCY_BIAS = float(14 * 33) / (29 * 15)
 
-# The following constants are used to test get_basic_scores.
+# The following constants are used to test get_basic_scores_gridded.
 VALID_TIMES_UNIX_SEC = numpy.array([1000], dtype=int)
 LATITUDES_DEG_N = numpy.linspace(50, 59, num=10, dtype=float)
 LONGITUDES_DEG_E = numpy.linspace(240, 251, num=12, dtype=float)
@@ -350,7 +350,6 @@ MODEL_FILE_NAME = 'foo.bar'
 MATCHING_DISTANCE_PX = 0.
 TRAINING_EVENT_FREQUENCY = 0.01
 SQUARE_FSS_FILTER = True
-NUM_PROB_THRESHOLDS = 12
 
 PROB_THRESHOLDS = numpy.array([
     0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1, 1 + 1e-6
@@ -366,7 +365,7 @@ FIRST_METADATA_DICT = {
 }
 
 THESE_DIM = (
-    1, len(LATITUDES_DEG_N), len(LONGITUDES_DEG_E), NUM_PROB_THRESHOLDS
+    1, len(LATITUDES_DEG_N), len(LONGITUDES_DEG_E), len(PROB_THRESHOLDS)
 )
 THIS_NUM_AO_TRUE_POS_MATRIX = numpy.full(THESE_DIM, 0, dtype=int)
 THIS_NUM_AO_TRUE_POS_MATRIX[0, 3:7, 4:8, 0] = 1
@@ -393,10 +392,10 @@ THIS_NUM_FALSE_POS_MATRIX = numpy.expand_dims(
     THIS_NUM_FALSE_POS_MATRIX, axis=(0, -1)
 )
 THIS_NUM_FALSE_POS_MATRIX = numpy.repeat(
-    THIS_NUM_FALSE_POS_MATRIX, axis=-1, repeats=NUM_PROB_THRESHOLDS
+    THIS_NUM_FALSE_POS_MATRIX, axis=-1, repeats=len(PROB_THRESHOLDS)
 )
 
-for j in range(1, NUM_PROB_THRESHOLDS):
+for j in range(1, len(PROB_THRESHOLDS)):
     THIS_NUM_FALSE_POS_MATRIX[0, ..., j][
         PROBABILITY_MATRIX < PROB_THRESHOLDS[j]
     ] = 0
@@ -446,27 +445,27 @@ NEW_DICT = {
 }
 FIRST_MAIN_DICT.update(NEW_DICT)
 
-FIRST_BASIC_SCORE_TABLE = xarray.Dataset(
+FIRST_BASIC_TABLE_GRIDDED = xarray.Dataset(
     data_vars=FIRST_MAIN_DICT, coords=FIRST_METADATA_DICT
 )
 
-FIRST_BASIC_SCORE_TABLE.attrs[evaluation.MODEL_FILE_KEY] = (
+FIRST_BASIC_TABLE_GRIDDED.attrs[evaluation.MODEL_FILE_KEY] = (
     MODEL_FILE_NAME
 )
-FIRST_BASIC_SCORE_TABLE.attrs[evaluation.MATCHING_DISTANCE_KEY] = (
+FIRST_BASIC_TABLE_GRIDDED.attrs[evaluation.MATCHING_DISTANCE_KEY] = (
     MATCHING_DISTANCE_PX
 )
-FIRST_BASIC_SCORE_TABLE.attrs[evaluation.SQUARE_FSS_FILTER_KEY] = (
+FIRST_BASIC_TABLE_GRIDDED.attrs[evaluation.SQUARE_FSS_FILTER_KEY] = (
     SQUARE_FSS_FILTER
 )
 
 # The following constants are used to test concat_basic_score_tables.
-SECOND_BASIC_SCORE_TABLE = copy.deepcopy(FIRST_BASIC_SCORE_TABLE)
+SECOND_BASIC_TABLE_GRIDDED = copy.deepcopy(FIRST_BASIC_TABLE_GRIDDED)
 THIS_COORD_DICT = {
     evaluation.TIME_DIM: numpy.array([10000], dtype=int)
 }
-SECOND_BASIC_SCORE_TABLE = (
-    SECOND_BASIC_SCORE_TABLE.assign_coords(THIS_COORD_DICT)
+SECOND_BASIC_TABLE_GRIDDED = (
+    SECOND_BASIC_TABLE_GRIDDED.assign_coords(THIS_COORD_DICT)
 )
 
 CONCAT_METADATA_DICT = {
@@ -528,9 +527,9 @@ NEW_DICT = {
 }
 CONCAT_MAIN_DICT.update(NEW_DICT)
 
-CONCAT_BASIC_SCORE_TABLE = xarray.Dataset(
+CONCAT_BASIC_TABLE_GRIDDED = xarray.Dataset(
     data_vars=CONCAT_MAIN_DICT, coords=CONCAT_METADATA_DICT,
-    attrs=FIRST_BASIC_SCORE_TABLE.attrs
+    attrs=FIRST_BASIC_TABLE_GRIDDED.attrs
 )
 
 # The following constants are used to test subset_basic_scores_by_space.
@@ -544,7 +543,7 @@ SMALL_GRID_LONGITUDES_DEG_E = numpy.linspace(243, 248, num=6, dtype=float)
 
 THESE_DIM = (
     1, len(SMALL_GRID_LATITUDES_DEG_N), len(SMALL_GRID_LONGITUDES_DEG_E),
-    NUM_PROB_THRESHOLDS
+    len(PROB_THRESHOLDS)
 )
 THIS_NUM_AO_TRUE_POS_MATRIX = numpy.full(THESE_DIM, 0, dtype=int)
 THIS_NUM_AO_TRUE_POS_MATRIX[0, 1:5, 1:5, 0] = 1
@@ -577,9 +576,9 @@ THIS_NUM_FALSE_POS_MATRIX = numpy.expand_dims(
     THIS_NUM_FALSE_POS_MATRIX, axis=(0, -1)
 )
 THIS_NUM_FALSE_POS_MATRIX = numpy.repeat(
-    THIS_NUM_FALSE_POS_MATRIX, axis=-1, repeats=NUM_PROB_THRESHOLDS
+    THIS_NUM_FALSE_POS_MATRIX, axis=-1, repeats=len(PROB_THRESHOLDS)
 )
-for j in range(1, NUM_PROB_THRESHOLDS):
+for j in range(1, len(PROB_THRESHOLDS)):
     THIS_NUM_FALSE_POS_MATRIX[0, ..., j][
         THIS_PROB_MATRIX < PROB_THRESHOLDS[j]
     ] = 0
@@ -641,13 +640,13 @@ NEW_DICT = {
 }
 MAIN_DICT_SMALL_GRID.update(NEW_DICT)
 
-BASIC_SCORE_TABLE_SMALL_GRID = xarray.Dataset(
+SMALL_BASIC_TABLE_GRIDDED = xarray.Dataset(
     data_vars=MAIN_DICT_SMALL_GRID, coords=METADATA_DICT_SMALL_GRID,
-    attrs=FIRST_BASIC_SCORE_TABLE.attrs
+    attrs=FIRST_BASIC_TABLE_GRIDDED.attrs
 )
 
 # The following constants are used to test aggregate_basic_scores_in_space.
-METADATA_DICT_AGGREGATED = {
+METADATA_DICT_UNGRIDDED = {
     evaluation.TIME_DIM: VALID_TIMES_UNIX_SEC,
     evaluation.LATITUDE_DIM: numpy.array([numpy.nan]),
     evaluation.LONGITUDE_DIM: numpy.array([numpy.nan]),
@@ -682,7 +681,7 @@ THESE_DIM = (
     evaluation.TIME_DIM, evaluation.LATITUDE_DIM, evaluation.LONGITUDE_DIM,
     evaluation.PROBABILITY_THRESHOLD_DIM
 )
-MAIN_DICT_AGGREGATED = {
+MAIN_DICT_UNGRIDDED = {
     evaluation.NUM_ACTUAL_ORIENTED_TP_KEY:
         (THESE_DIM, THIS_NUM_AO_TRUE_POS_MATRIX + 0),
     evaluation.NUM_PREDICTION_ORIENTED_TP_KEY:
@@ -693,43 +692,43 @@ MAIN_DICT_AGGREGATED = {
         (THESE_DIM, THIS_NUM_FALSE_NEG_MATRIX + 0)
 }
 
-TOTAL_COUNT_MATRIX_AGGREGATED = numpy.array(
+TOTAL_COUNT_MATRIX_UNGRIDDED = numpy.array(
     [56, 3, 6, 3, 6, 3, 6, 3, 3, 3], dtype=int
 )
-MEAN_PROB_MATRIX_AGGREGATED = numpy.array([
+MEAN_PROB_MATRIX_UNGRIDDED = numpy.array([
     0, 0.11, 0.21, 0.31, 0.41, 0.51, 0.61, 0.71, 0.81, 1
 ])
-SUMMED_PROB_MATRIX_AGGREGATED = (
-    TOTAL_COUNT_MATRIX_AGGREGATED * MEAN_PROB_MATRIX_AGGREGATED
+SUMMED_PROB_MATRIX_UNGRIDDED = (
+    TOTAL_COUNT_MATRIX_UNGRIDDED * MEAN_PROB_MATRIX_UNGRIDDED
 )
-POS_COUNT_MATRIX_AGGREGATED = numpy.array(
+POS_COUNT_MATRIX_UNGRIDDED = numpy.array(
     [16, 0, 0, 0, 0, 0, 0, 0, 0, 0], dtype=int
 )
-EVENT_FREQ_MATRIX_AGGREGATED = numpy.array([
+EVENT_FREQ_MATRIX_UNGRIDDED = numpy.array([
     16. / 56, 0, 0, 0, 0, 0, 0, 0, 0, 0
 ])
 
 for _ in range(3):
-    TOTAL_COUNT_MATRIX_AGGREGATED = numpy.expand_dims(
-        TOTAL_COUNT_MATRIX_AGGREGATED, axis=0
+    TOTAL_COUNT_MATRIX_UNGRIDDED = numpy.expand_dims(
+        TOTAL_COUNT_MATRIX_UNGRIDDED, axis=0
     )
-    MEAN_PROB_MATRIX_AGGREGATED = numpy.expand_dims(
-        MEAN_PROB_MATRIX_AGGREGATED, axis=0
+    MEAN_PROB_MATRIX_UNGRIDDED = numpy.expand_dims(
+        MEAN_PROB_MATRIX_UNGRIDDED, axis=0
     )
-    SUMMED_PROB_MATRIX_AGGREGATED = numpy.expand_dims(
-        SUMMED_PROB_MATRIX_AGGREGATED, axis=0
+    SUMMED_PROB_MATRIX_UNGRIDDED = numpy.expand_dims(
+        SUMMED_PROB_MATRIX_UNGRIDDED, axis=0
     )
-    POS_COUNT_MATRIX_AGGREGATED = numpy.expand_dims(
-        POS_COUNT_MATRIX_AGGREGATED, axis=0
+    POS_COUNT_MATRIX_UNGRIDDED = numpy.expand_dims(
+        POS_COUNT_MATRIX_UNGRIDDED, axis=0
     )
-    EVENT_FREQ_MATRIX_AGGREGATED = numpy.expand_dims(
-        EVENT_FREQ_MATRIX_AGGREGATED, axis=0
+    EVENT_FREQ_MATRIX_UNGRIDDED = numpy.expand_dims(
+        EVENT_FREQ_MATRIX_UNGRIDDED, axis=0
     )
 
-REF_SSE_MATRIX_AGGREGATED = numpy.full(
+REF_SSE_MATRIX_UNGRIDDED = numpy.full(
     (1, 1, 1), numpy.nansum(FIRST_REFERENCE_SSE_MATRIX)
 )
-ACTUAL_SSE_MATRIX_AGGREGATED = numpy.full(
+ACTUAL_SSE_MATRIX_UNGRIDDED = numpy.full(
     (1, 1, 1), numpy.nansum(FIRST_ACTUAL_SSE_MATRIX)
 )
 
@@ -738,31 +737,31 @@ THESE_DIM = (
     evaluation.RELIABILITY_BIN_DIM
 )
 NEW_DICT = {
-    evaluation.EXAMPLE_COUNT_KEY: (THESE_DIM, TOTAL_COUNT_MATRIX_AGGREGATED + 0),
+    evaluation.EXAMPLE_COUNT_KEY: (THESE_DIM, TOTAL_COUNT_MATRIX_UNGRIDDED + 0),
     evaluation.SUMMED_FORECAST_PROB_KEY:
-        (THESE_DIM, SUMMED_PROB_MATRIX_AGGREGATED + 0.),
+        (THESE_DIM, SUMMED_PROB_MATRIX_UNGRIDDED + 0.),
     evaluation.POSITIVE_EXAMPLE_COUNT_KEY:
-        (THESE_DIM, POS_COUNT_MATRIX_AGGREGATED + 0)
+        (THESE_DIM, POS_COUNT_MATRIX_UNGRIDDED + 0)
 }
-MAIN_DICT_AGGREGATED.update(NEW_DICT)
+MAIN_DICT_UNGRIDDED.update(NEW_DICT)
 
 THESE_DIM = (
     evaluation.TIME_DIM, evaluation.LATITUDE_DIM, evaluation.LONGITUDE_DIM
 )
 NEW_DICT = {
-    evaluation.ACTUAL_SSE_KEY: (THESE_DIM, ACTUAL_SSE_MATRIX_AGGREGATED + 0.),
-    evaluation.REFERENCE_SSE_KEY: (THESE_DIM, REF_SSE_MATRIX_AGGREGATED + 0.),
+    evaluation.ACTUAL_SSE_KEY: (THESE_DIM, ACTUAL_SSE_MATRIX_UNGRIDDED + 0.),
+    evaluation.REFERENCE_SSE_KEY: (THESE_DIM, REF_SSE_MATRIX_UNGRIDDED + 0.),
 }
-MAIN_DICT_AGGREGATED.update(NEW_DICT)
+MAIN_DICT_UNGRIDDED.update(NEW_DICT)
 
-BASIC_SCORE_TABLE_AGGREGATED = xarray.Dataset(
-    data_vars=MAIN_DICT_AGGREGATED, coords=METADATA_DICT_AGGREGATED,
-    attrs=FIRST_BASIC_SCORE_TABLE.attrs
+BASIC_SCORE_TABLE_UNGRIDDED = xarray.Dataset(
+    data_vars=MAIN_DICT_UNGRIDDED, coords=METADATA_DICT_UNGRIDDED,
+    attrs=FIRST_BASIC_TABLE_GRIDDED.attrs
 )
 
-# The following constants are used to test get_advanced_scores with spatial
-# aggregation.
-METADATA_DICT_ADVANCED_AGG = {
+# The following constants are used to test get_advanced_scores for ungridded
+# data.
+METADATA_DICT_ADVANCED_UNGRIDDED = {
     evaluation.LATITUDE_DIM: numpy.array([numpy.nan]),
     evaluation.LONGITUDE_DIM: numpy.array([numpy.nan]),
     evaluation.PROBABILITY_THRESHOLD_DIM: PROB_THRESHOLDS,
@@ -835,7 +834,7 @@ THESE_DIM = (
     evaluation.LATITUDE_DIM, evaluation.LONGITUDE_DIM,
     evaluation.PROBABILITY_THRESHOLD_DIM
 )
-MAIN_DICT_ADVANCED_AGG = {
+MAIN_DICT_ADVANCED_UNGRIDDED = {
     evaluation.NUM_ACTUAL_ORIENTED_TP_KEY:
         (THESE_DIM, THIS_NUM_AO_TRUE_POS_MATRIX + 0),
     evaluation.NUM_PREDICTION_ORIENTED_TP_KEY:
@@ -856,18 +855,18 @@ THESE_DIM = (
 )
 NEW_DICT = {
     evaluation.EXAMPLE_COUNT_KEY:
-        (THESE_DIM, TOTAL_COUNT_MATRIX_AGGREGATED[0, ...]),
+        (THESE_DIM, TOTAL_COUNT_MATRIX_UNGRIDDED[0, ...]),
     evaluation.MEAN_FORECAST_PROB_KEY:
-        (THESE_DIM, MEAN_PROB_MATRIX_AGGREGATED[0, ...]),
+        (THESE_DIM, MEAN_PROB_MATRIX_UNGRIDDED[0, ...]),
     evaluation.EVENT_FREQUENCY_KEY:
-        (THESE_DIM, EVENT_FREQ_MATRIX_AGGREGATED[0, ...])
+        (THESE_DIM, EVENT_FREQ_MATRIX_UNGRIDDED[0, ...])
 }
-MAIN_DICT_ADVANCED_AGG.update(NEW_DICT)
+MAIN_DICT_ADVANCED_UNGRIDDED.update(NEW_DICT)
 
 THIS_BSS_DICT = gg_model_eval.get_brier_skill_score(
-    mean_forecast_prob_by_bin=numpy.ravel(MEAN_PROB_MATRIX_AGGREGATED),
-    mean_observed_label_by_bin=numpy.ravel(EVENT_FREQ_MATRIX_AGGREGATED),
-    num_examples_by_bin=numpy.ravel(TOTAL_COUNT_MATRIX_AGGREGATED),
+    mean_forecast_prob_by_bin=numpy.ravel(MEAN_PROB_MATRIX_UNGRIDDED),
+    mean_observed_label_by_bin=numpy.ravel(EVENT_FREQ_MATRIX_UNGRIDDED),
+    num_examples_by_bin=numpy.ravel(TOTAL_COUNT_MATRIX_UNGRIDDED),
     climatology=TRAINING_EVENT_FREQUENCY
 )
 
@@ -883,7 +882,7 @@ THIS_RESOLUTION_MATRIX = numpy.full(
 )
 
 THIS_FSS = numpy.ravel(
-    1. - ACTUAL_SSE_MATRIX_AGGREGATED / REF_SSE_MATRIX_AGGREGATED
+    1. - ACTUAL_SSE_MATRIX_UNGRIDDED / REF_SSE_MATRIX_UNGRIDDED
 )
 THIS_FSS_MATRIX = numpy.full((1, 1), THIS_FSS)
 THIS_TRAINING_FREQ_MATRIX = numpy.full((1, 1), TRAINING_EVENT_FREQUENCY)
@@ -897,16 +896,15 @@ NEW_DICT = {
     evaluation.FSS_KEY: (THESE_DIM, THIS_FSS_MATRIX + 0.),
     evaluation.TRAINING_EVENT_FREQ_KEY: (THESE_DIM, THIS_TRAINING_FREQ_MATRIX + 0.)
 }
-MAIN_DICT_ADVANCED_AGG.update(NEW_DICT)
+MAIN_DICT_ADVANCED_UNGRIDDED.update(NEW_DICT)
 
-ADVANCED_SCORE_TABLE_AGGREGATED = xarray.Dataset(
-    data_vars=MAIN_DICT_ADVANCED_AGG, coords=METADATA_DICT_ADVANCED_AGG,
-    attrs=FIRST_BASIC_SCORE_TABLE.attrs
+ADVANCED_SCORE_TABLE_UNGRIDDED = xarray.Dataset(
+    data_vars=MAIN_DICT_ADVANCED_UNGRIDDED, coords=METADATA_DICT_ADVANCED_UNGRIDDED,
+    attrs=FIRST_BASIC_TABLE_GRIDDED.attrs
 )
 
-# The following constants are used to test get_advanced_scores with no spatial
-# aggregation.
-METADATA_DICT_ADVANCED_NOT_AGG = {
+# The following constants are used to test get_advanced_scores for gridded data.
+METADATA_DICT_ADVANCED_GRIDDED = {
     evaluation.LATITUDE_DIM: LATITUDES_DEG_N,
     evaluation.LONGITUDE_DIM: LONGITUDES_DEG_E,
     evaluation.PROBABILITY_THRESHOLD_DIM: PROB_THRESHOLDS,
@@ -964,7 +962,7 @@ THESE_DIM = (
     evaluation.LATITUDE_DIM, evaluation.LONGITUDE_DIM,
     evaluation.PROBABILITY_THRESHOLD_DIM
 )
-MAIN_DICT_ADVANCED_NOT_AGG = {
+MAIN_DICT_ADVANCED_GRIDDED = {
     evaluation.NUM_ACTUAL_ORIENTED_TP_KEY:
         (THESE_DIM, THIS_NUM_AO_TRUE_POS_MATRIX + 0),
     evaluation.NUM_PREDICTION_ORIENTED_TP_KEY:
@@ -985,7 +983,7 @@ THIS_MEAN_PROB_MATRIX = FIRST_SUMMED_PROB_MATRIX + 0.
 TEMP_MATRIX = FIRST_EXAMPLE_COUNT_MATRIX.astype(float)
 TEMP_MATRIX[TEMP_MATRIX == 0] = numpy.nan
 THIS_EVENT_FREQ_MATRIX = (
-    FIRST_POS_EXAMPLE_COUNT_MATRIX / THIS_EXAMPLE_COUNT_MATRIX
+    FIRST_POS_EXAMPLE_COUNT_MATRIX.astype(float) / TEMP_MATRIX
 )
 
 THESE_DIM = (
@@ -997,7 +995,7 @@ NEW_DICT = {
     evaluation.MEAN_FORECAST_PROB_KEY: (THESE_DIM, THIS_MEAN_PROB_MATRIX + 0.),
     evaluation.EVENT_FREQUENCY_KEY: (THESE_DIM, THIS_EVENT_FREQ_MATRIX + 0.)
 }
-MAIN_DICT_ADVANCED_NOT_AGG.update(NEW_DICT)
+MAIN_DICT_ADVANCED_GRIDDED.update(NEW_DICT)
 
 THIS_NUM_ROWS = len(LATITUDES_DEG_N)
 THIS_NUM_COLUMNS = len(LONGITUDES_DEG_E)
@@ -1059,29 +1057,26 @@ NEW_DICT = {
     evaluation.TRAINING_EVENT_FREQ_KEY:
         (THESE_DIM, THIS_TRAINING_FREQ_MATRIX + 0.)
 }
-MAIN_DICT_ADVANCED_NOT_AGG.update(NEW_DICT)
+MAIN_DICT_ADVANCED_GRIDDED.update(NEW_DICT)
 
-ADVANCED_SCORE_TABLE_NOT_AGGREGATED = xarray.Dataset(
-    data_vars=MAIN_DICT_ADVANCED_NOT_AGG, coords=METADATA_DICT_ADVANCED_NOT_AGG,
-    attrs=FIRST_BASIC_SCORE_TABLE.attrs
+ADVANCED_SCORE_TABLE_GRIDDED = xarray.Dataset(
+    data_vars=MAIN_DICT_ADVANCED_GRIDDED, coords=METADATA_DICT_ADVANCED_GRIDDED,
+    attrs=FIRST_BASIC_TABLE_GRIDDED.attrs
 )
 
 # The following constants are used to test find_basic_score_file,
 # basic_file_name_to_date, and find_advanced_score_file.
 TOP_DIRECTORY_NAME = 'foo'
 VALID_DATE_STRING = '19670502'
-BASIC_SCORE_FILE_NAME = 'foo/1967/basic_scores_19670502.p'
+BASIC_FILE_NAME_UNGRIDDED = 'foo/1967/basic_scores_gridded=0_19670502.p'
+BASIC_FILE_NAME_GRIDDED = 'foo/1967/basic_scores_gridded=1_19670502.p'
 
-ADVANCED_SCORE_FILE_NAME_YEAR_AGG = 'foo/advanced_scores_aggregated-in-space.p'
-ADVANCED_SCORE_FILE_NAME_YEAR_NOT_AGG = 'foo/advanced_scores.p'
-ADVANCED_SCORE_FILE_NAME_HOUR0_AGG = (
-    'foo/advanced_scores_hour=00_aggregated-in-space.p'
-)
-ADVANCED_SCORE_FILE_NAME_HOUR0_NOT_AGG = 'foo/advanced_scores_hour=00.p'
-ADVANCED_SCORE_FILE_NAME_MONTH1_AGG = (
-    'foo/advanced_scores_month=01_aggregated-in-space.p'
-)
-ADVANCED_SCORE_FILE_NAME_MONTH1_NOT_AGG = 'foo/advanced_scores_month=01.p'
+ADVANCED_FILE_NAME_ALL_UNGRIDDED = 'foo/advanced_scores_gridded=0.p'
+ADVANCED_FILE_NAME_ALL_GRIDDED = 'foo/advanced_scores_gridded=1.p'
+ADVANCED_FILE_NAME_HOUR0_UNGRIDDED = 'foo/advanced_scores_hour=00_gridded=0.p'
+ADVANCED_FILE_NAME_HOUR0_GRIDDED = 'foo/advanced_scores_hour=00_gridded=1.p'
+ADVANCED_FILE_NAME_MONTH1_UNGRIDDED = 'foo/advanced_scores_month=01_gridded=0.p'
+ADVANCED_FILE_NAME_MONTH1_GRIDDED = 'foo/advanced_scores_month=01_gridded=1.p'
 
 
 def _compare_basic_score_tables(first_table, second_table):
@@ -1185,15 +1180,13 @@ def _compare_advanced_score_tables(first_table, second_table):
                 first_table[this_key].values, second_table[this_key].values,
                 atol=TOLERANCE, equal_nan=True
         ):
-            print(this_key)
-            # return False
+            return False
 
     for this_key in integer_keys:
         if not numpy.array_equal(
                 first_table[this_key].values, second_table[this_key].values
         ):
-            print(this_key)
-            # return False
+            return False
 
     float_keys = [
         evaluation.LATITUDE_DIM, evaluation.LONGITUDE_DIM,
@@ -1207,16 +1200,14 @@ def _compare_advanced_score_tables(first_table, second_table):
                 second_table.coords[this_key].values,
                 atol=TOLERANCE, equal_nan=True
         ):
-            print(this_key)
-            # return False
+            return False
 
     for this_key in integer_keys:
         if not numpy.array_equal(
                 first_table.coords[this_key].values,
                 second_table.coords[this_key].values
         ):
-            print(this_key)
-            # return False
+            return False
 
     float_keys = [evaluation.MATCHING_DISTANCE_KEY]
     exact_keys = [evaluation.MODEL_FILE_KEY, evaluation.SQUARE_FSS_FILTER_KEY]
@@ -1226,13 +1217,11 @@ def _compare_advanced_score_tables(first_table, second_table):
                 first_table.attrs[this_key], second_table.attrs[this_key],
                 atol=TOLERANCE
         ):
-            print(this_key)
-            # return False
+            return False
 
     for this_key in exact_keys:
         if first_table.attrs[this_key] != second_table.attrs[this_key]:
-            print(this_key)
-            # return False
+            return False
 
     return True
 
@@ -1548,32 +1537,32 @@ class EvaluationTests(unittest.TestCase):
             FREQUENCY_BIAS, atol=TOLERANCE
         ))
 
-    def test_get_basic_scores(self):
-        """Ensures correct output from get_basic_scores."""
+    def test_get_basic_scores_gridded(self):
+        """Ensures correct output from get_basic_scores_gridded."""
 
-        this_score_table_xarray = evaluation.get_basic_scores(
+        this_score_table_xarray = evaluation.get_basic_scores_gridded(
             prediction_file_name=None,
             matching_distance_px=MATCHING_DISTANCE_PX,
+            probability_thresholds=PROB_THRESHOLDS,
             square_fss_filter=SQUARE_FSS_FILTER,
-            num_prob_thresholds=NUM_PROB_THRESHOLDS - 1,
             num_bins_for_reliability=NUM_BINS_FOR_RELIABILITY,
             test_mode=True, prediction_dict=PREDICTION_DICT,
             eval_mask_matrix=MASK_MATRIX, model_file_name=MODEL_FILE_NAME
         )
 
         self.assertTrue(_compare_basic_score_tables(
-            this_score_table_xarray, FIRST_BASIC_SCORE_TABLE
+            this_score_table_xarray, FIRST_BASIC_TABLE_GRIDDED
         ))
 
     def test_concat_basic_score_tables(self):
         """Ensures correct output from concat_basic_score_tables."""
 
         this_score_table_xarray = evaluation.concat_basic_score_tables(
-            [FIRST_BASIC_SCORE_TABLE, SECOND_BASIC_SCORE_TABLE]
+            [FIRST_BASIC_TABLE_GRIDDED, SECOND_BASIC_TABLE_GRIDDED]
         )
 
         self.assertTrue(_compare_basic_score_tables(
-            this_score_table_xarray, CONCAT_BASIC_SCORE_TABLE
+            this_score_table_xarray, CONCAT_BASIC_TABLE_GRIDDED
         ))
 
     def test_subset_basic_scores_hour0(self):
@@ -1583,12 +1572,12 @@ class EvaluationTests(unittest.TestCase):
         """
 
         this_score_table_xarray = evaluation.subset_basic_scores_by_hour(
-            basic_score_table_xarray=CONCAT_BASIC_SCORE_TABLE,
+            basic_score_table_xarray=CONCAT_BASIC_TABLE_GRIDDED,
             desired_hour=0
         )
 
         self.assertTrue(_compare_basic_score_tables(
-            this_score_table_xarray, FIRST_BASIC_SCORE_TABLE
+            this_score_table_xarray, FIRST_BASIC_TABLE_GRIDDED
         ))
 
     def test_subset_basic_scores_hour2(self):
@@ -1598,12 +1587,12 @@ class EvaluationTests(unittest.TestCase):
         """
 
         this_score_table_xarray = evaluation.subset_basic_scores_by_hour(
-            basic_score_table_xarray=CONCAT_BASIC_SCORE_TABLE,
+            basic_score_table_xarray=CONCAT_BASIC_TABLE_GRIDDED,
             desired_hour=2
         )
 
         self.assertTrue(_compare_basic_score_tables(
-            this_score_table_xarray, SECOND_BASIC_SCORE_TABLE
+            this_score_table_xarray, SECOND_BASIC_TABLE_GRIDDED
         ))
 
     def test_subset_basic_scores_hour23(self):
@@ -1613,7 +1602,7 @@ class EvaluationTests(unittest.TestCase):
         """
 
         this_score_table_xarray = evaluation.subset_basic_scores_by_hour(
-            basic_score_table_xarray=CONCAT_BASIC_SCORE_TABLE,
+            basic_score_table_xarray=CONCAT_BASIC_TABLE_GRIDDED,
             desired_hour=23
         )
 
@@ -1625,7 +1614,7 @@ class EvaluationTests(unittest.TestCase):
         """Ensures correct output from subset_basic_scores_by_space."""
 
         this_score_table_xarray = evaluation.subset_basic_scores_by_space(
-            basic_score_table_xarray=FIRST_BASIC_SCORE_TABLE,
+            basic_score_table_xarray=FIRST_BASIC_TABLE_GRIDDED,
             first_grid_row=FIRST_ROW_SMALL_GRID,
             last_grid_row=LAST_ROW_SMALL_GRID,
             first_grid_column=FIRST_COLUMN_SMALL_GRID,
@@ -1633,40 +1622,57 @@ class EvaluationTests(unittest.TestCase):
         )
 
         self.assertTrue(_compare_basic_score_tables(
-            this_score_table_xarray, BASIC_SCORE_TABLE_SMALL_GRID
+            this_score_table_xarray, SMALL_BASIC_TABLE_GRIDDED
         ))
 
     def test_aggregate_basic_scores_in_space(self):
         """Ensures correct output from aggregate_basic_scores_in_space."""
 
         this_score_table_xarray = evaluation.aggregate_basic_scores_in_space(
-            FIRST_BASIC_SCORE_TABLE
+            FIRST_BASIC_TABLE_GRIDDED
         )
 
         self.assertTrue(_compare_basic_score_tables(
-            this_score_table_xarray, BASIC_SCORE_TABLE_AGGREGATED
+            this_score_table_xarray, BASIC_SCORE_TABLE_UNGRIDDED
         ))
 
-    def test_get_advanced_scores_agg(self):
+    def test_get_basic_scores_ungridded(self):
+        """Ensures correct output from get_basic_scores_ungridded."""
+
+        this_score_table_xarray = evaluation.get_basic_scores_ungridded(
+            prediction_file_name=None,
+            matching_distance_px=MATCHING_DISTANCE_PX,
+            num_prob_thresholds=len(PROB_THRESHOLDS) - 1,
+            square_fss_filter=SQUARE_FSS_FILTER,
+            num_bins_for_reliability=NUM_BINS_FOR_RELIABILITY,
+            test_mode=True, prediction_dict=PREDICTION_DICT,
+            eval_mask_matrix=MASK_MATRIX, model_file_name=MODEL_FILE_NAME
+        )
+
+        self.assertTrue(_compare_basic_score_tables(
+            this_score_table_xarray, BASIC_SCORE_TABLE_UNGRIDDED
+        ))
+
+    def test_get_advanced_scores_ungridded(self):
         """Ensures correct output from get_advanced_scores.
 
-        In this case, advanced scores are aggregated in space.
+        In this case, advanced scores are ungridded.
         """
 
         this_score_table_xarray = evaluation.get_advanced_scores(
-            basic_score_table_xarray=BASIC_SCORE_TABLE_AGGREGATED,
+            basic_score_table_xarray=BASIC_SCORE_TABLE_UNGRIDDED,
             training_event_freq_matrix=
             numpy.full((1, 1), TRAINING_EVENT_FREQUENCY)
         )
 
         self.assertTrue(_compare_advanced_score_tables(
-            this_score_table_xarray, ADVANCED_SCORE_TABLE_AGGREGATED
+            this_score_table_xarray, ADVANCED_SCORE_TABLE_UNGRIDDED
         ))
 
-    def test_get_advanced_scores_not_agg(self):
+    def test_get_advanced_scores_gridded(self):
         """Ensures correct output from get_advanced_scores.
 
-        In this case, advanced scores are *not* aggregated in space.
+        In this case, advanced scores are gridded.
         """
 
         this_num_rows = len(LATITUDES_DEG_N)
@@ -1676,119 +1682,141 @@ class EvaluationTests(unittest.TestCase):
         )
 
         this_score_table_xarray = evaluation.get_advanced_scores(
-            basic_score_table_xarray=CONCAT_BASIC_SCORE_TABLE,
+            basic_score_table_xarray=CONCAT_BASIC_TABLE_GRIDDED,
             training_event_freq_matrix=this_freq_matrix
         )
 
         self.assertTrue(_compare_advanced_score_tables(
-            this_score_table_xarray, ADVANCED_SCORE_TABLE_NOT_AGGREGATED
+            this_score_table_xarray, ADVANCED_SCORE_TABLE_GRIDDED
         ))
 
-    def test_find_basic_score_file(self):
-        """Ensures correct output from find_basic_score_file."""
+    def test_find_basic_score_file_ungridded(self):
+        """Ensures correct output from find_basic_score_file.
+
+        In this case, file contains ungridded scores.
+        """
 
         this_file_name = evaluation.find_basic_score_file(
             top_directory_name=TOP_DIRECTORY_NAME,
             valid_date_string=VALID_DATE_STRING,
-            raise_error_if_missing=False
+            gridded=False, raise_error_if_missing=False
         )
 
-        self.assertTrue(this_file_name == BASIC_SCORE_FILE_NAME)
+        self.assertTrue(this_file_name == BASIC_FILE_NAME_UNGRIDDED)
 
-    def test_basic_file_name_to_date(self):
-        """Ensures correct output from basic_file_name_to_date."""
+    def test_find_basic_score_file_gridded(self):
+        """Ensures correct output from find_basic_score_file.
+
+        In this case, file contains gridded scores.
+        """
+
+        this_file_name = evaluation.find_basic_score_file(
+            top_directory_name=TOP_DIRECTORY_NAME,
+            valid_date_string=VALID_DATE_STRING,
+            gridded=True, raise_error_if_missing=False
+        )
+
+        self.assertTrue(this_file_name == BASIC_FILE_NAME_GRIDDED)
+
+    def test_basic_file_name_to_date_ungridded(self):
+        """Ensures correct output from basic_file_name_to_date.
+
+        In this case, file contains ungridded scores.
+        """
 
         self.assertTrue(
-            evaluation.basic_file_name_to_date(BASIC_SCORE_FILE_NAME) ==
+            evaluation.basic_file_name_to_date(BASIC_FILE_NAME_UNGRIDDED) ==
             VALID_DATE_STRING
         )
 
-    def test_find_advanced_score_file_year_agg(self):
+    def test_basic_file_name_to_date_gridded(self):
+        """Ensures correct output from basic_file_name_to_date.
+
+        In this case, file contains gridded scores.
+        """
+
+        self.assertTrue(
+            evaluation.basic_file_name_to_date(BASIC_FILE_NAME_GRIDDED) ==
+            VALID_DATE_STRING
+        )
+
+    def test_find_advanced_score_file_all_ungridded(self):
         """Ensures correct output from find_advanced_score_file.
 
-        In this case, file contains all hours/months and spatially aggregated
-        scores.
+        In this case, file contains ungridded scores for all hours/months.
         """
 
         this_file_name = evaluation.find_advanced_score_file(
-            directory_name=TOP_DIRECTORY_NAME, aggregated_in_space=True,
+            directory_name=TOP_DIRECTORY_NAME, gridded=False,
             month=None, hour=None, raise_error_if_missing=False
         )
 
-        self.assertTrue(this_file_name == ADVANCED_SCORE_FILE_NAME_YEAR_AGG)
+        self.assertTrue(this_file_name == ADVANCED_FILE_NAME_ALL_UNGRIDDED)
 
-    def test_find_advanced_score_file_year_not_agg(self):
+    def test_find_advanced_score_file_all_gridded(self):
         """Ensures correct output from find_advanced_score_file.
 
-        In this case, file contains all hours/months and one set of scores per
-        grid point.
+        In this case, file contains gridded scores for all hours/months.
         """
 
         this_file_name = evaluation.find_advanced_score_file(
-            directory_name=TOP_DIRECTORY_NAME, aggregated_in_space=False,
+            directory_name=TOP_DIRECTORY_NAME, gridded=True,
             month=None, hour=None, raise_error_if_missing=False
         )
 
-        self.assertTrue(this_file_name == ADVANCED_SCORE_FILE_NAME_YEAR_NOT_AGG)
+        self.assertTrue(this_file_name == ADVANCED_FILE_NAME_ALL_GRIDDED)
 
-    def test_find_advanced_score_file_hour0_agg(self):
+    def test_find_advanced_score_file_hour0_ungridded(self):
         """Ensures correct output from find_advanced_score_file.
 
-        In this case, file contains only hour 0 and spatially aggregated scores.
+        In this case, file contains ungridded scores for hour 0.
         """
 
         this_file_name = evaluation.find_advanced_score_file(
-            directory_name=TOP_DIRECTORY_NAME, aggregated_in_space=True,
+            directory_name=TOP_DIRECTORY_NAME, gridded=False,
             month=None, hour=0, raise_error_if_missing=False
         )
 
-        self.assertTrue(this_file_name == ADVANCED_SCORE_FILE_NAME_HOUR0_AGG)
+        self.assertTrue(this_file_name == ADVANCED_FILE_NAME_HOUR0_UNGRIDDED)
 
-    def test_find_advanced_score_file_hour0_not_agg(self):
+    def test_find_advanced_score_file_hour0_gridded(self):
         """Ensures correct output from find_advanced_score_file.
 
-        In this case, file contains only hour 0 and one set of scores per grid
-        cell.
+        In this case, file contains gridded scores for hour 0.
         """
 
         this_file_name = evaluation.find_advanced_score_file(
-            directory_name=TOP_DIRECTORY_NAME, aggregated_in_space=False,
+            directory_name=TOP_DIRECTORY_NAME, gridded=True,
             month=None, hour=0, raise_error_if_missing=False
         )
 
-        self.assertTrue(
-            this_file_name == ADVANCED_SCORE_FILE_NAME_HOUR0_NOT_AGG
-        )
+        self.assertTrue(this_file_name == ADVANCED_FILE_NAME_HOUR0_GRIDDED)
 
-    def test_find_advanced_score_file_month1_agg(self):
+    def test_find_advanced_score_file_month1_ungridded(self):
         """Ensures correct output from find_advanced_score_file.
 
-        In this case, file contains only January and spatially aggregated
-        scores.
+        In this case, file contains ungridded scores for month 1.
         """
 
         this_file_name = evaluation.find_advanced_score_file(
-            directory_name=TOP_DIRECTORY_NAME, aggregated_in_space=True,
+            directory_name=TOP_DIRECTORY_NAME, gridded=False,
             month=1, hour=None, raise_error_if_missing=False
         )
 
-        self.assertTrue(this_file_name == ADVANCED_SCORE_FILE_NAME_MONTH1_AGG)
+        self.assertTrue(this_file_name == ADVANCED_FILE_NAME_MONTH1_UNGRIDDED)
 
-    def test_find_advanced_score_file_month1_not_agg(self):
+    def test_find_advanced_score_file_month1_gridded(self):
         """Ensures correct output from find_advanced_score_file.
 
-        In this case, file contains only January and one set of scores per grid
-        cell.
+        In this case, file contains gridded scores for month 1.
         """
 
         this_file_name = evaluation.find_advanced_score_file(
-            directory_name=TOP_DIRECTORY_NAME, aggregated_in_space=False,
+            directory_name=TOP_DIRECTORY_NAME, gridded=True,
             month=1, hour=None, raise_error_if_missing=False
         )
 
-        self.assertTrue(
-            this_file_name == ADVANCED_SCORE_FILE_NAME_MONTH1_NOT_AGG
-        )
+        self.assertTrue(this_file_name == ADVANCED_FILE_NAME_MONTH1_GRIDDED)
 
 
 if __name__ == '__main__':

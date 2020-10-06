@@ -19,7 +19,6 @@ SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 DAYS_TO_SECONDS = 86400
 TIME_FORMAT = '%Y-%m-%d-%H%M'
 
-LATLNG_FONT_SIZE = 16
 LATLNG_COLOUR = numpy.full(3, 152. / 255)
 BORDER_COLOUR = numpy.array([139, 69, 19], dtype=float) / 255
 
@@ -92,15 +91,13 @@ INPUT_ARG_PARSER.add_argument(
 )
 
 
-def add_latlng_ticks(latitudes_deg_n, longitudes_deg_e, axes_object,
-                     font_size):
+def add_latlng_ticks(latitudes_deg_n, longitudes_deg_e, axes_object):
     """Adds tick marks for latitude and longitude to existing plot.
 
     :param latitudes_deg_n: 1-D numpy array of latitudes in plot (deg N).
     :param longitudes_deg_e: 1-D numpy array of longitudes in plot (deg E).
     :param axes_object: Axes handle (instance of
         `matplotlib.axes._subplots.AxesSubplot`).
-    :param font_size: Font size.
     """
 
     # TODO(thunderhoser): Put this method elsewhere.
@@ -128,12 +125,12 @@ def add_latlng_ticks(latitudes_deg_n, longitudes_deg_e, axes_object,
     axes_object.set_xticks(tick_longitudes_deg_e)
     axes_object.set_yticks(tick_latitudes_deg_n)
     axes_object.grid(
-        b=True, which='major', axis='both', linestyle='--', linewidth=2,
+        b=True, which='major', axis='both', linestyle='--', linewidth=1,
         color=LATLNG_COLOUR
     )
 
-    axes_object.set_xlabel(r'Longitude ($^{\circ}$E)', fontsize=font_size)
-    axes_object.set_ylabel(r'Latitude ($^{\circ}$N)', fontsize=font_size)
+    axes_object.set_xlabel(r'Longitude ($^{\circ}$E)')
+    axes_object.set_ylabel(r'Latitude ($^{\circ}$N)')
 
 
 def _plot_predictions_one_example(
@@ -162,6 +159,12 @@ def _plot_predictions_one_example(
     axes_object.plot(
         border_longitudes_deg_e, border_latitudes_deg_n, color=BORDER_COLOUR,
         linestyle='solid', linewidth=2, zorder=-1e8
+    )
+    axes_object.set_xlim(
+        numpy.min(longitudes_deg_e), numpy.max(longitudes_deg_e)
+    )
+    axes_object.set_ylim(
+        numpy.min(latitudes_deg_n), numpy.max(latitudes_deg_n)
     )
 
     i = example_index
@@ -219,7 +222,7 @@ def _plot_predictions_one_example(
 
     add_latlng_ticks(
         latitudes_deg_n=latitudes_deg_n, longitudes_deg_e=longitudes_deg_e,
-        axes_object=axes_object, font_size=LATLNG_FONT_SIZE
+        axes_object=axes_object
     )
 
     axes_object.set_title(title_string)

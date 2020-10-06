@@ -1,6 +1,7 @@
 """Computes basic evaluation scores."""
 
 import argparse
+import numpy
 from ml4convection.io import prediction_io
 from ml4convection.utils import evaluation
 
@@ -9,8 +10,10 @@ SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 INPUT_DIR_ARG_NAME = 'input_prediction_dir_name'
 FIRST_DATE_ARG_NAME = 'first_date_string'
 LAST_DATE_ARG_NAME = 'last_date_string'
+GRIDDED_ARG_NAME = 'gridded'
 MATCHING_DISTANCE_ARG_NAME = 'matching_distance_px'
 NUM_PROB_THRESHOLDS_ARG_NAME = 'num_prob_thresholds'
+PROB_THRESHOLDS_ARG_NAME = 'prob_thresholds'
 OUTPUT_DIR_ARG_NAME = 'output_dir_name'
 
 INPUT_DIR_HELP_STRING = (
@@ -22,16 +25,26 @@ DATE_HELP_STRING = (
     'period `{0:s}`...`{1:s}`.'
 ).format(FIRST_DATE_ARG_NAME, LAST_DATE_ARG_NAME)
 
+GRIDDED_HELP_STRING = (
+    'Boolean flag.  If 1, scores will be gridded (one set for each pixel).  If '
+    '0, scores will be aggregated (one set for the full domain).'
+)
 MATCHING_DISTANCE_HELP_STRING = (
     'Matching distance (pixels) for neighbourhood evaluation.'
 )
 NUM_PROB_THRESHOLDS_HELP_STRING = (
-    'Number of probability thresholds.  One contingency table will be created '
-    'for each.'
-)
+    '[used only if `{0:s}` = 0] Number of probability thresholds.  One '
+    'contingency table will be created for each.'
+).format(GRIDDED_ARG_NAME)
+
+PROB_THRESHOLDS_HELP_STRING = (
+    '[used only if `{0:s}` = 1] List of exact probability thresholds.  One '
+    'contingency table will be created for each.'
+).format(GRIDDED_ARG_NAME)
+
 OUTPUT_DIR_HELP_STRING = (
     'Name of output directory.  Results will be written here by '
-    '`evaluation.write_file`, to exact locations determined by '
+    '`evaluation.write_basic_score_file`, to exact locations determined by '
     '`evaluation.find_basic_score_file`.'
 )
 
@@ -47,6 +60,9 @@ INPUT_ARG_PARSER.add_argument(
     '--' + LAST_DATE_ARG_NAME, type=str, required=True, help=DATE_HELP_STRING
 )
 INPUT_ARG_PARSER.add_argument(
+    '--' + GRIDDED_ARG_NAME, type=int, required=True, help=GRIDDED_HELP_STRING
+)
+INPUT_ARG_PARSER.add_argument(
     '--' + MATCHING_DISTANCE_ARG_NAME, type=float, required=True,
     help=MATCHING_DISTANCE_HELP_STRING
 )
@@ -56,13 +72,18 @@ INPUT_ARG_PARSER.add_argument(
     help=NUM_PROB_THRESHOLDS_HELP_STRING
 )
 INPUT_ARG_PARSER.add_argument(
+    '--' + PROB_THRESHOLDS_ARG_NAME, type=float, nargs='+', required=False,
+    default=[-1], help=PROB_THRESHOLDS_HELP_STRING
+)
+INPUT_ARG_PARSER.add_argument(
     '--' + OUTPUT_DIR_ARG_NAME, type=str, required=True,
     help=OUTPUT_DIR_HELP_STRING
 )
 
 
 def _run(top_prediction_dir_name, first_date_string, last_date_string,
-         matching_distance_px, top_output_dir_name):
+         gridded, matching_distance_px, num_prob_thresholds, prob_thresholds,
+         top_output_dir_name):
     """Computes basic evaluation scores.
 
     This is effectively the main method.
@@ -70,7 +91,10 @@ def _run(top_prediction_dir_name, first_date_string, last_date_string,
     :param top_prediction_dir_name: See documentation at top of file.
     :param first_date_string: Same.
     :param last_date_string: Same.
+    :param gridded: Same.
     :param matching_distance_px: Same.
+    :param num_prob_thresholds: Same.
+    :param prob_thresholds: Same.
     :param top_output_dir_name: Same.
     """
 
@@ -87,23 +111,31 @@ def _run(top_prediction_dir_name, first_date_string, last_date_string,
     num_dates = len(date_strings)
 
     for i in range(num_dates):
-        this_score_table_xarray = evaluation.get_basic_scores(
-            prediction_file_name=prediction_file_names[i],
-            matching_distance_px=matching_distance_px
-        )
+        if gridded:
+            this_score_table_xarray = evaluation.get_basic_scores_gridded(
+                prediction_file_name=prediction_file_names[i],
+                matching_distance_px=matching_distance_px,
+                probability_thresholds=prob_thresholds
+            )
+        else:
+            this_score_table_xarray = evaluation.get_basic_scores_ungridded(
+                prediction_file_name=prediction_file_names[i],
+                matching_distance_px=matching_distance_px,
+                num_prob_thresholds=num_prob_thresholds
+            )
 
         this_output_file_name = evaluation.find_basic_score_file(
             top_directory_name=top_output_dir_name,
             valid_date_string=date_strings[i],
-            raise_error_if_missing=False
+            gridded=gridded, raise_error_if_missing=False
         )
 
         print('\nWriting results to file: "{0:s}"...'.format(
             this_output_file_name
         ))
-        evaluation.write_file(
-            score_table_xarray=this_score_table_xarray,
-            pickle_file_name=this_output_file_name
+        evaluation.write_basic_score_file(
+            basic_score_table_xarray=this_score_table_xarray,
+            netcdf_file_name=this_output_file_name
         )
 
         if i == num_dates - 1:
@@ -119,8 +151,15 @@ if __name__ == '__main__':
         top_prediction_dir_name=getattr(INPUT_ARG_OBJECT, INPUT_DIR_ARG_NAME),
         first_date_string=getattr(INPUT_ARG_OBJECT, FIRST_DATE_ARG_NAME),
         last_date_string=getattr(INPUT_ARG_OBJECT, LAST_DATE_ARG_NAME),
+        gridded=bool(getattr(INPUT_ARG_OBJECT, LAST_DATE_ARG_NAME)),
         matching_distance_px=getattr(
             INPUT_ARG_OBJECT, MATCHING_DISTANCE_ARG_NAME
         ),
+        num_prob_thresholds=getattr(
+            INPUT_ARG_OBJECT, NUM_PROB_THRESHOLDS_ARG_NAME
+        ),
+        prob_thresholds=numpy.array(getattr(
+            INPUT_ARG_OBJECT, PROB_THRESHOLDS_ARG_NAME
+        )),
         top_output_dir_name=getattr(INPUT_ARG_OBJECT, OUTPUT_DIR_ARG_NAME)
     )
