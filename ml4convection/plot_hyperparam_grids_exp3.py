@@ -16,7 +16,7 @@ sys.path.append(os.path.normpath(os.path.join(THIS_DIRECTORY_NAME, '..')))
 
 import pixelwise_evaluation as pixelwise_eval
 import spatial_evaluation as spatial_eval
-import plotting_utils
+import gg_plotting_utils
 import file_system_utils
 
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
@@ -101,7 +101,7 @@ def _plot_scores_2d(
         vmin=min_colour_value, vmax=max_colour_value, clip=False
     )
 
-    colour_bar_object = plotting_utils.plot_colour_bar(
+    colour_bar_object = gg_plotting_utils.plot_colour_bar(
         axes_object_or_matrix=axes_object,
         data_matrix=score_matrix[numpy.invert(numpy.isnan(score_matrix))],
         colour_map_object=colour_map_object,

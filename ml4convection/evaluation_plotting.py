@@ -13,7 +13,7 @@ THIS_DIRECTORY_NAME = os.path.dirname(os.path.realpath(
 sys.path.append(os.path.normpath(os.path.join(THIS_DIRECTORY_NAME, '..')))
 
 import error_checking
-import plotting_utils
+import gg_plotting_utils
 
 CSI_LEVELS = numpy.linspace(0, 1, num=11, dtype=float)
 PEIRCE_SCORE_LEVELS = numpy.linspace(0, 1, num=11, dtype=float)
@@ -527,7 +527,7 @@ def plot_roc_curve(axes_object, pod_by_threshold, pofd_by_threshold,
             vmax=1., axes=axes_object
         )
 
-        colour_bar_object = plotting_utils.plot_colour_bar(
+        colour_bar_object = gg_plotting_utils.plot_colour_bar(
             axes_object_or_matrix=axes_object, data_matrix=peirce_score_matrix,
             colour_map_object=this_colour_map_object,
             colour_norm_object=this_colour_norm_object,
@@ -627,7 +627,7 @@ def plot_performance_diagram(
             vmax=1., axes=axes_object
         )
 
-        colour_bar_object = plotting_utils.plot_colour_bar(
+        colour_bar_object = gg_plotting_utils.plot_colour_bar(
             axes_object_or_matrix=axes_object, data_matrix=csi_matrix,
             colour_map_object=this_colour_map_object,
             colour_norm_object=this_colour_norm_object,

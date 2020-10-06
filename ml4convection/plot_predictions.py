@@ -17,18 +17,16 @@ import number_rounding
 import time_conversion
 import file_system_utils
 import error_checking
-import plotting_utils
+import gg_plotting_utils
 import border_io
 import prediction_io
+import plotting_utils
 import prediction_plotting
 
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 
 DAYS_TO_SECONDS = 86400
 TIME_FORMAT = '%Y-%m-%d-%H%M'
-
-LATLNG_COLOUR = numpy.full(3, 152. / 255)
-BORDER_COLOUR = numpy.array([139, 69, 19], dtype=float) / 255
 
 FIGURE_RESOLUTION_DPI = 300
 FIGURE_WIDTH_INCHES = 15
@@ -99,48 +97,6 @@ INPUT_ARG_PARSER.add_argument(
 )
 
 
-def add_latlng_ticks(latitudes_deg_n, longitudes_deg_e, axes_object):
-    """Adds tick marks for latitude and longitude to existing plot.
-
-    :param latitudes_deg_n: 1-D numpy array of latitudes in plot (deg N).
-    :param longitudes_deg_e: 1-D numpy array of longitudes in plot (deg E).
-    :param axes_object: Axes handle (instance of
-        `matplotlib.axes._subplots.AxesSubplot`).
-    """
-
-    # TODO(thunderhoser): Put this method elsewhere.
-
-    tick_latitudes_deg_n = numpy.unique(
-        number_rounding.round_to_nearest(latitudes_deg_n, 2.)
-    )
-    tick_latitudes_deg_n = tick_latitudes_deg_n[
-        tick_latitudes_deg_n >= numpy.min(latitudes_deg_n)
-    ]
-    tick_latitudes_deg_n = tick_latitudes_deg_n[
-        tick_latitudes_deg_n <= numpy.max(latitudes_deg_n)
-    ]
-
-    tick_longitudes_deg_e = numpy.unique(
-        number_rounding.round_to_nearest(longitudes_deg_e, 2.)
-    )
-    tick_longitudes_deg_e = tick_longitudes_deg_e[
-        tick_longitudes_deg_e >= numpy.min(longitudes_deg_e)
-    ]
-    tick_longitudes_deg_e = tick_longitudes_deg_e[
-        tick_longitudes_deg_e <= numpy.max(longitudes_deg_e)
-    ]
-
-    axes_object.set_xticks(tick_longitudes_deg_e)
-    axes_object.set_yticks(tick_latitudes_deg_n)
-    axes_object.grid(
-        b=True, which='major', axis='both', linestyle='--', linewidth=1,
-        color=LATLNG_COLOUR
-    )
-
-    axes_object.set_xlabel(r'Longitude ($^{\circ}$E)')
-    axes_object.set_ylabel(r'Latitude ($^{\circ}$N)')
-
-
 def _plot_predictions_one_example(
         prediction_dict, example_index, border_latitudes_deg_n,
         border_longitudes_deg_e, plot_deterministic, probability_threshold,
@@ -164,15 +120,10 @@ def _plot_predictions_one_example(
         1, 1, figsize=(FIGURE_WIDTH_INCHES, FIGURE_HEIGHT_INCHES)
     )
 
-    axes_object.plot(
-        border_longitudes_deg_e, border_latitudes_deg_n, color=BORDER_COLOUR,
-        linestyle='solid', linewidth=2, zorder=-1e8
-    )
-    axes_object.set_xlim(
-        numpy.min(longitudes_deg_e), numpy.max(longitudes_deg_e)
-    )
-    axes_object.set_ylim(
-        numpy.min(latitudes_deg_n), numpy.max(latitudes_deg_n)
+    plotting_utils.plot_borders(
+        border_latitudes_deg_n=border_latitudes_deg_n,
+        border_longitudes_deg_e=border_longitudes_deg_e,
+        axes_object=axes_object
     )
 
     i = example_index
@@ -221,16 +172,17 @@ def _plot_predictions_one_example(
             prediction_plotting.get_prob_colour_scheme()
         )
 
-        plotting_utils.plot_colour_bar(
+        gg_plotting_utils.plot_colour_bar(
             axes_object_or_matrix=axes_object, data_matrix=probability_matrix,
             colour_map_object=colour_map_object,
             colour_norm_object=colour_norm_object,
             orientation_string='vertical', extend_min=False, extend_max=False
         )
 
-    add_latlng_ticks(
-        latitudes_deg_n=latitudes_deg_n, longitudes_deg_e=longitudes_deg_e,
-        axes_object=axes_object
+    plotting_utils.plot_grid_lines(
+        plot_latitudes_deg_n=latitudes_deg_n,
+        plot_longitudes_deg_e=longitudes_deg_e, axes_object=axes_object,
+        parallel_spacing_deg=2., meridian_spacing_deg=2.
     )
 
     axes_object.set_title(title_string)
@@ -253,7 +205,7 @@ def _plot_predictions_one_day(
         output_dir_name):
     """Plots predictions (and targets) for one day.
 
-    P = number of points in borders
+    P = number of points in border set
 
     :param prediction_file_name: Path to prediction file.  Will be read by
         `prediction_io.read_file`.

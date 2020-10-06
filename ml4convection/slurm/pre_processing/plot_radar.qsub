@@ -44,5 +44,4 @@ python3 -u "${CODE_DIR_NAME}/plot_radar.py" \
 --daily_times_seconds 0 7200 14400 21600 28800 36000 43200 50400 57600 64800 72000 79200 \
 --spatial_downsampling_factor=4 \
 --expand_to_satellite_grid=1 \
---plot_basemap=0 \
 --output_dir_name="${RADAR_DIR_NAME}/radar_plots"

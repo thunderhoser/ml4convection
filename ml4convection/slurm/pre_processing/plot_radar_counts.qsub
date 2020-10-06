@@ -24,5 +24,4 @@ set COUNT_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_pro
 
 python3 -u "${CODE_DIR_NAME}/plot_radar_counts.py" \
 --input_count_dir_name="${COUNT_DIR_NAME}" \
---plot_basemap=0 \
 --output_dir_name="${COUNT_DIR_NAME}/plots"
