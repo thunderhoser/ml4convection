@@ -51,6 +51,5 @@ python3 -u "${CODE_DIR_NAME}/plot_predictions.py" \
 --first_date_string="${first_date_string}" \
 --last_date_string="${last_date_string}" \
 --daily_times_seconds 0 7200 14400 21600 28800 36000 43200 50400 57600 64800 72000 79200 \
---plot_basemap=0 \
 --plot_deterministic=0 \
 --output_dir_name="${prediction_dir_name}/prediction_plots"
