@@ -15,6 +15,7 @@ from ml4convection.utils import evaluation
 from ml4convection.plotting import evaluation_plotting as eval_plotting
 
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
+TOLERANCE = 1e-6
 
 NUM_HOURS_PER_DAY = 24
 
@@ -53,8 +54,8 @@ INPUT_DIR_HELP_STRING = (
     '`evaluation.read_advanced_score_file`.'
 )
 PROB_THRESHOLD_HELP_STRING = (
-    'Probability threshold used to compute CSI, POD, and FAR.  If you do not '
-    'want to plot the aforelisted scores, leave this argument alone.'
+    'Probability threshold used to compute POD, success ratio, and CSI.  If you'
+    ' do not want to plot the aforelisted scores, leave this argument alone.'
 )
 OUTPUT_DIR_HELP_STRING = (
     'Name of output directory.  Figures will be saved here.'
@@ -230,6 +231,7 @@ def _plot_scores_as_graph(
         `matplotlib.figure.Figure`).
     :return: axes_object: Axes handle (instance of
         `matplotlib.axes._subplots.AxesSubplot`).
+    :raises: ValueError: if desired probability threshold cannot be found.
     """
 
     # Housekeeping.
@@ -259,6 +261,19 @@ def _plot_scores_as_graph(
         prob_threshold_index = numpy.argmin(numpy.absolute(
             all_prob_thresholds - probability_threshold
         ))
+        min_difference = (
+            all_prob_thresholds[prob_threshold_index] - probability_threshold
+        )
+
+        if min_difference > TOLERANCE:
+            error_string = (
+                'Cannot find desired probability threshold ({0:.6f}).  Nearest '
+                'is {1:.6f}.'
+            ).format(
+                probability_threshold, all_prob_thresholds[prob_threshold_index]
+            )
+
+            raise ValueError(error_string)
 
         y_values = numpy.array([
             t[evaluation.CSI_KEY][prob_threshold_index]
