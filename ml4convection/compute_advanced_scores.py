@@ -2,6 +2,7 @@
 
 import os
 import sys
+import copy
 import argparse
 import numpy
 
@@ -12,6 +13,7 @@ sys.path.append(os.path.normpath(os.path.join(THIS_DIRECTORY_NAME, '..')))
 
 import time_conversion
 import error_checking
+import climatology_io
 import evaluation
 
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
@@ -23,6 +25,7 @@ FIRST_DATE_ARG_NAME = 'first_date_string'
 LAST_DATE_ARG_NAME = 'last_date_string'
 MONTH_ARG_NAME = 'desired_month'
 SPLIT_BY_HOUR_ARG_NAME = 'split_by_hour'
+AGGREGATE_IN_SPACE_ARG_NAME = 'aggregate_in_space'
 CLIMO_FILE_ARG_NAME = 'input_climo_file_name'
 OUTPUT_DIR_ARG_NAME = 'output_dir_name'
 
@@ -44,10 +47,16 @@ SPLIT_BY_HOUR_HELP_STRING = (
     '[used only if `{0:s}` is left alone] Boolean flag.  If 1, will split '
     'evaluation by hour, writing one file for each hour of the day.  If 0, will'
     ' evaluate predictions for all hours.'
-)
+).format(MONTH_ARG_NAME)
+
+AGGREGATE_IN_SPACE_HELP_STRING = (
+    '[used only if `{0:s}` and `{1:s}` are left alone] Boolean flag.  If 1, '
+    'will compute each score for the full domain only.  If 0, will compute each'
+    ' score for each grid cell.'
+).format(MONTH_ARG_NAME, SPLIT_BY_HOUR_ARG_NAME)
+
 CLIMO_FILE_HELP_STRING = (
-    '[used only if evaluating by hour or month] Path to file with climatology '
-    '(hourly and monthly event frequencies in training data).'
+    'Path to file with climatology (event frequencies in training data).'
 )
 OUTPUT_DIR_HELP_STRING = (
     'Name of output directory.  Results (advanced scores) will be written here '
@@ -75,6 +84,10 @@ INPUT_ARG_PARSER.add_argument(
     help=SPLIT_BY_HOUR_HELP_STRING
 )
 INPUT_ARG_PARSER.add_argument(
+    '--' + AGGREGATE_IN_SPACE_ARG_NAME, type=int, required=False, default=1,
+    help=AGGREGATE_IN_SPACE_HELP_STRING
+)
+INPUT_ARG_PARSER.add_argument(
     '--' + CLIMO_FILE_ARG_NAME, type=str, required=False, default='',
     help=CLIMO_FILE_HELP_STRING
 )
@@ -85,7 +98,8 @@ INPUT_ARG_PARSER.add_argument(
 
 
 def _run(top_basic_score_dir_name, first_date_string, last_date_string,
-         desired_month, split_by_hour, climo_file_name, output_dir_name):
+         desired_month, split_by_hour, aggregate_in_space, climo_file_name,
+         output_dir_name):
     """Computes advanced evaluation scores.
 
     This is effectively the main method.
@@ -96,32 +110,23 @@ def _run(top_basic_score_dir_name, first_date_string, last_date_string,
     :param desired_month: Same.
     :param split_by_hour: Same.
     :param climo_file_name: Same.
+    :param aggregate_in_space: Same.
     :param output_dir_name: Same.
     """
 
     if desired_month <= 0:
         desired_month = None
 
-    event_frequency_for_month = None
-    event_frequency_by_hour = None
-
     if desired_month is not None:
         split_by_hour = False
+        error_checking.assert_is_geq(desired_month, 1)
         error_checking.assert_is_leq(desired_month, 12)
 
-        print('Reading event frequency for month {0:d} from: "{1:s}"...'.format(
-            desired_month, climo_file_name
-        ))
-        these_freqs = evaluation.read_climo_from_file(climo_file_name)[-1]
-        event_frequency_for_month = these_freqs[desired_month - 1]
+    if desired_month is not None or split_by_hour:
+        aggregate_in_space = True
 
-    if split_by_hour:
-        print('Reading event frequency by hour from: "{0:s}"...'.format(
-            climo_file_name
-        ))
-        event_frequency_by_hour = (
-            evaluation.read_climo_from_file(climo_file_name)[1]
-        )
+    print('Reading event frequencies from: "{0:s}"...'.format(climo_file_name))
+    climo_dict = climatology_io.read_file(climo_file_name)
 
     basic_score_file_names = evaluation.find_many_basic_score_files(
         top_directory_name=top_basic_score_dir_name,
@@ -163,14 +168,16 @@ def _run(top_basic_score_dir_name, first_date_string, last_date_string,
         print('Reading basic scores from: "{0:s}"...'.format(
             basic_score_file_names[i]
         ))
+        this_score_table = evaluation.read_file(basic_score_file_names[i])
+
+        if aggregate_in_space:
+            this_score_table = evaluation.aggregate_basic_scores_in_space(
+                this_score_table
+            )
 
         if not split_by_hour:
-            basic_score_table_matrix[i, 0] = evaluation.read_file(
-                basic_score_file_names[i]
-            )
+            basic_score_table_matrix[i, 0] = copy.deepcopy(this_score_table)
             continue
-
-        this_score_table = evaluation.read_file(basic_score_file_names[i])
 
         for j in range(NUM_HOURS_PER_DAY):
             basic_score_table_matrix[i, j] = (
@@ -190,27 +197,33 @@ def _run(top_basic_score_dir_name, first_date_string, last_date_string,
             j + 1, num_splits
         ))
 
-        advanced_score_table_xarray = evaluation.get_advanced_scores(
-            basic_score_table_xarray
-        )
-        t = advanced_score_table_xarray
-
         if desired_month is not None:
-            t.attrs[evaluation.TRAINING_EVENT_FREQ_KEY] = (
-                event_frequency_for_month
-            )
+            this_freq = climo_dict[climatology_io.EVENT_FREQ_BY_MONTH_KEY][
+                desired_month - 1
+            ]
+            this_freq_matrix = numpy.full((1, 1), this_freq)
+        elif split_by_hour:
+            this_freq = climo_dict[climatology_io.EVENT_FREQ_BY_HOUR_KEY][j]
+            this_freq_matrix = numpy.full((1, 1), this_freq)
+        else:
+            if aggregate_in_space:
+                this_freq = climo_dict[climatology_io.EVENT_FREQ_OVERALL_KEY][j]
+                this_freq_matrix = numpy.full((1, 1), this_freq)
+            else:
+                this_freq_matrix = (
+                    climo_dict[climatology_io.EVENT_FREQ_BY_PIXEL_KEY][j]
+                )
 
-        if split_by_hour:
-            t.attrs[evaluation.TRAINING_EVENT_FREQ_KEY] = (
-                event_frequency_by_hour[j]
-            )
-
-        advanced_score_table_xarray = t
+        advanced_score_table_xarray = evaluation.get_advanced_scores(
+            basic_score_table_xarray=basic_score_table_xarray,
+            training_event_freq_matrix=this_freq_matrix
+        )
         print(advanced_score_table_xarray)
 
         output_file_name = evaluation.find_advanced_score_file(
             directory_name=output_dir_name,
             month=desired_month, hour=j if split_by_hour else None,
+            aggregated_in_space=aggregate_in_space,
             raise_error_if_missing=False
         )
 
@@ -230,6 +243,9 @@ if __name__ == '__main__':
         last_date_string=getattr(INPUT_ARG_OBJECT, LAST_DATE_ARG_NAME),
         desired_month=getattr(INPUT_ARG_OBJECT, MONTH_ARG_NAME),
         split_by_hour=bool(getattr(INPUT_ARG_OBJECT, SPLIT_BY_HOUR_ARG_NAME)),
+        aggregate_in_space=bool(getattr(
+            INPUT_ARG_OBJECT, AGGREGATE_IN_SPACE_ARG_NAME
+        )),
         climo_file_name=getattr(INPUT_ARG_OBJECT, CLIMO_FILE_ARG_NAME),
         output_dir_name=getattr(INPUT_ARG_OBJECT, OUTPUT_DIR_ARG_NAME)
     )
