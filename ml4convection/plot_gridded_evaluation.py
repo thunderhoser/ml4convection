@@ -409,7 +409,7 @@ if __name__ == '__main__':
     _run(
         advanced_score_file_name=getattr(INPUT_ARG_OBJECT, INPUT_FILE_ARG_NAME),
         sequential_colour_map_name=getattr(
-            INPUT_ARG_OBJECT, SEQ_COLOUR_MAP_HELP_STRING
+            INPUT_ARG_OBJECT, SEQ_COLOUR_MAP_ARG_NAME
         ),
         diverging_colour_map_name=getattr(
             INPUT_ARG_OBJECT, DIV_COLOUR_MAP_ARG_NAME
