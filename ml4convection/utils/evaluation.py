@@ -842,7 +842,12 @@ def concat_basic_score_tables(basic_score_tables_xarray):
     assert len(unique_matching_distances_px) == 1
     assert len(unique_square_flags) == 1
 
-    return xarray.concat(objs=basic_score_tables_xarray, dim=TIME_DIM)
+    non_empty_tables = [
+        b for b in basic_score_tables_xarray
+        if len(b.coords[TIME_DIM].values) > 0
+    ]
+
+    return xarray.concat(objs=non_empty_tables, dim=TIME_DIM)
 
 
 def subset_basic_scores_by_hour(basic_score_table_xarray, desired_hour):
