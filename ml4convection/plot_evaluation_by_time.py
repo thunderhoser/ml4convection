@@ -17,12 +17,13 @@ sys.path.append(os.path.normpath(os.path.join(THIS_DIRECTORY_NAME, '..')))
 import time_conversion
 import gg_model_evaluation as gg_model_eval
 import file_system_utils
-import gg_plotting_utils
+import plotting_utils
 import imagemagick_utils
 import evaluation
 import evaluation_plotting as eval_plotting
 
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
+TOLERANCE = 1e-6
 
 NUM_HOURS_PER_DAY = 24
 
@@ -61,8 +62,8 @@ INPUT_DIR_HELP_STRING = (
     '`evaluation.read_advanced_score_file`.'
 )
 PROB_THRESHOLD_HELP_STRING = (
-    'Probability threshold used to compute CSI, POD, and FAR.  If you do not '
-    'want to plot the aforelisted scores, leave this argument alone.'
+    'Probability threshold used to compute POD, success ratio, and CSI.  If you'
+    ' do not want to plot the aforelisted scores, leave this argument alone.'
 )
 OUTPUT_DIR_HELP_STRING = (
     'Name of output directory.  Figures will be saved here.'
@@ -107,9 +108,9 @@ def _plot_performance_diagrams(score_tables_xarray, output_file_name):
     )
 
     for i in range(num_tables):
-        these_pod = score_tables_xarray[i][evaluation.POD_KEY].values
+        these_pod = score_tables_xarray[i][evaluation.POD_KEY].values[0, 0, :]
         these_success_ratios = (
-            score_tables_xarray[i][evaluation.SUCCESS_RATIO_KEY].values
+            score_tables_xarray[i][evaluation.SUCCESS_RATIO_KEY].values[0, 0, :]
         )
         eval_plotting.plot_performance_diagram(
             axes_object=axes_object, pod_by_threshold=these_pod,
@@ -175,10 +176,10 @@ def _plot_reliability_curves(score_tables_xarray, output_file_name):
 
     for i in range(num_tables):
         these_mean_probs = (
-            score_tables_xarray[i][evaluation.MEAN_FORECAST_PROB_KEY].values
+            score_tables_xarray[i][evaluation.MEAN_FORECAST_PROB_KEY].values[0, 0, :]
         )
         these_event_freqs = (
-            score_tables_xarray[i][evaluation.EVENT_FREQUENCY_KEY].values
+            score_tables_xarray[i][evaluation.EVENT_FREQUENCY_KEY].values[0, 0, :]
         )
         eval_plotting.plot_reliability_curve(
             axes_object=axes_object,
@@ -238,6 +239,7 @@ def _plot_scores_as_graph(
         `matplotlib.figure.Figure`).
     :return: axes_object: Axes handle (instance of
         `matplotlib.axes._subplots.AxesSubplot`).
+    :raises: ValueError: if desired probability threshold cannot be found.
     """
 
     # Housekeeping.
@@ -257,7 +259,7 @@ def _plot_scores_as_graph(
 
     if probability_threshold is None:
         y_values = numpy.array([
-            t.attrs[evaluation.FSS_KEY] for t in score_tables_xarray
+            t[evaluation.FSS_KEY][0, 0] for t in score_tables_xarray
         ])
     else:
         all_prob_thresholds = score_tables_xarray[0].coords[
@@ -267,9 +269,22 @@ def _plot_scores_as_graph(
         prob_threshold_index = numpy.argmin(numpy.absolute(
             all_prob_thresholds - probability_threshold
         ))
+        min_difference = (
+            all_prob_thresholds[prob_threshold_index] - probability_threshold
+        )
+
+        if min_difference > TOLERANCE:
+            error_string = (
+                'Cannot find desired probability threshold ({0:.6f}).  Nearest '
+                'is {1:.6f}.'
+            ).format(
+                probability_threshold, all_prob_thresholds[prob_threshold_index]
+            )
+
+            raise ValueError(error_string)
 
         y_values = numpy.array([
-            t[evaluation.CSI_KEY][prob_threshold_index]
+            t[evaluation.CSI_KEY][0, 0, prob_threshold_index]
             for t in score_tables_xarray
         ])
 
@@ -286,12 +301,12 @@ def _plot_scores_as_graph(
     # Plot second score.
     if probability_threshold is None:
         y_values = numpy.array([
-            t.attrs[evaluation.BRIER_SKILL_SCORE_KEY]
+            t[evaluation.BRIER_SKILL_SCORE_KEY][0, 0]
             for t in score_tables_xarray
         ])
     else:
         y_values = numpy.array([
-            t[evaluation.FREQUENCY_BIAS_KEY][prob_threshold_index]
+            t[evaluation.FREQUENCY_BIAS_KEY][0, 0, prob_threshold_index]
             for t in score_tables_xarray
         ])
 
@@ -310,12 +325,12 @@ def _plot_scores_as_graph(
     # Plot third score.
     if probability_threshold is None:
         y_values = numpy.array([
-            t.attrs[evaluation.BRIER_SCORE_KEY]
+            t[evaluation.BRIER_SCORE_KEY][0, 0]
             for t in score_tables_xarray
         ])
     else:
         y_values = numpy.array([
-            t[evaluation.POD_KEY][prob_threshold_index]
+            t[evaluation.POD_KEY][0, 0, prob_threshold_index]
             for t in score_tables_xarray
         ])
 
@@ -335,15 +350,15 @@ def _plot_scores_as_graph(
     if probability_threshold is None:
         y_values = numpy.array([
             gg_model_eval.get_area_under_perf_diagram(
-                pod_by_threshold=t[evaluation.POD_KEY].values,
+                pod_by_threshold=t[evaluation.POD_KEY].values[0, 0, :],
                 success_ratio_by_threshold=
-                t[evaluation.SUCCESS_RATIO_KEY].values
+                t[evaluation.SUCCESS_RATIO_KEY].values[0, 0, :]
             )
             for t in score_tables_xarray
         ])
     else:
         y_values = numpy.array([
-            t[evaluation.SUCCESS_RATIO_KEY][prob_threshold_index]
+            t[evaluation.SUCCESS_RATIO_KEY][0, 0, prob_threshold_index]
             for t in score_tables_xarray
         ])
 
@@ -505,7 +520,7 @@ def _run(input_dir_name, probability_threshold, output_dir_name):
     axes_object.set_xticklabels(hour_strings, rotation=90.)
     axes_object.set_xlabel('Hour (UTC)')
 
-    gg_plotting_utils.label_axes(
+    plotting_utils.label_axes(
         axes_object=axes_object, label_string='(a)',
         x_coord_normalized=-0.075, y_coord_normalized=1.02
     )
@@ -530,7 +545,7 @@ def _run(input_dir_name, probability_threshold, output_dir_name):
     axes_object.set_xticklabels(hour_strings, rotation=90.)
     axes_object.set_xlabel('Hour (UTC)')
 
-    gg_plotting_utils.label_axes(
+    plotting_utils.label_axes(
         axes_object=axes_object, label_string='(b)',
         x_coord_normalized=-0.075, y_coord_normalized=1.02
     )
@@ -558,7 +573,7 @@ def _run(input_dir_name, probability_threshold, output_dir_name):
     axes_object.set_xticks(months - 1)
     axes_object.set_xticklabels(month_strings, rotation=90.)
 
-    gg_plotting_utils.label_axes(
+    plotting_utils.label_axes(
         axes_object=axes_object, label_string='(c)',
         x_coord_normalized=-0.075, y_coord_normalized=1.02
     )
@@ -582,7 +597,7 @@ def _run(input_dir_name, probability_threshold, output_dir_name):
     axes_object.set_xticks(months - 1)
     axes_object.set_xticklabels(month_strings, rotation=90.)
 
-    gg_plotting_utils.label_axes(
+    plotting_utils.label_axes(
         axes_object=axes_object, label_string='(d)',
         x_coord_normalized=-0.075, y_coord_normalized=1.02
     )
