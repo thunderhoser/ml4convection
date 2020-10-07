@@ -111,7 +111,7 @@ THIRD_ERODED_MASK_MATRIX = numpy.array([
 
 # The following constants are used to test _match_actual_convection_one_time,
 # _match_predicted_convection_one_time, _get_reliability_components_one_time,
-# _get_fss_components_one_time.
+# _get_fss_components_one_time, _get_bss_components_one_time.
 ACTUAL_TARGET_MATRIX = numpy.array([
     [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
     [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
@@ -317,6 +317,11 @@ FIRST_REFERENCE_SSE_MATRIX = PROBABILITY_MATRIX ** 2 + ACTUAL_TARGET_MATRIX ** 2
 FIRST_REFERENCE_SSE_MATRIX[MASK_MATRIX == 0] = numpy.nan
 FIRST_ACTUAL_SSE_MATRIX = FIRST_REFERENCE_SSE_MATRIX + 0.
 
+# The following constants are used to test _get_bss_components_one_time.
+TRAINING_EVENT_FREQUENCY = 0.01
+FIRST_CLIMO_SSE_MATRIX = (TRAINING_EVENT_FREQUENCY - ACTUAL_TARGET_MATRIX) ** 2
+FIRST_CLIMO_SSE_MATRIX[MASK_MATRIX == 0] = numpy.nan
+
 # The following constants are used to test _get_pod, _get_success_ratio,
 # _get_csi, and _get_frequency_bias.
 CONTINGENCY_TABLE_DICT = {
@@ -348,7 +353,6 @@ PREDICTION_DICT = {
 
 MODEL_FILE_NAME = 'foo.bar'
 MATCHING_DISTANCE_PX = 0.
-TRAINING_EVENT_FREQUENCY = 0.01
 SQUARE_FSS_FILTER = True
 
 PROB_THRESHOLDS = numpy.array([
@@ -415,22 +419,9 @@ FIRST_MAIN_DICT = {
         (THESE_DIM, THIS_NUM_FALSE_NEG_MATRIX + 0)
 }
 
-THESE_DIM = (
-    evaluation.TIME_DIM, evaluation.LATITUDE_DIM, evaluation.LONGITUDE_DIM,
-    evaluation.RELIABILITY_BIN_DIM
-)
-NEW_DICT = {
-    evaluation.EXAMPLE_COUNT_KEY: (
-        THESE_DIM, numpy.expand_dims(FIRST_EXAMPLE_COUNT_MATRIX, axis=0)
-    ),
-    evaluation.SUMMED_FORECAST_PROB_KEY: (
-        THESE_DIM, numpy.expand_dims(FIRST_SUMMED_PROB_MATRIX, axis=0)
-    ),
-    evaluation.POSITIVE_EXAMPLE_COUNT_KEY: (
-        THESE_DIM, numpy.expand_dims(FIRST_POS_EXAMPLE_COUNT_MATRIX, axis=0)
-    )
-}
-FIRST_MAIN_DICT.update(NEW_DICT)
+THIS_EXAMPLE_COUNT_MATRIX = numpy.invert(
+    numpy.isnan(FIRST_CLIMO_SSE_MATRIX)
+).astype(int)
 
 THESE_DIM = (
     evaluation.TIME_DIM, evaluation.LATITUDE_DIM, evaluation.LONGITUDE_DIM
@@ -441,7 +432,28 @@ NEW_DICT = {
     ),
     evaluation.REFERENCE_SSE_KEY: (
         THESE_DIM, numpy.expand_dims(FIRST_REFERENCE_SSE_MATRIX, axis=0)
+    ),
+    evaluation.BRIER_ACTUAL_SSE_KEY: (
+        THESE_DIM, numpy.expand_dims(FIRST_ACTUAL_SSE_MATRIX, axis=0)
+    ),
+    evaluation.CLIMO_SSE_KEY: (
+        THESE_DIM, numpy.expand_dims(FIRST_CLIMO_SSE_MATRIX, axis=0)
+    ),
+    evaluation.EXAMPLE_COUNT_KEY: (
+        THESE_DIM, numpy.expand_dims(THIS_EXAMPLE_COUNT_MATRIX, axis=0)
     )
+}
+FIRST_MAIN_DICT.update(NEW_DICT)
+
+FIRST_TRAINING_FREQ_MATRIX = numpy.full(
+    FIRST_CLIMO_SSE_MATRIX.shape, TRAINING_EVENT_FREQUENCY
+)
+FIRST_TRAINING_FREQ_MATRIX[MASK_MATRIX == 0] = numpy.nan
+
+THESE_DIM = (evaluation.LATITUDE_DIM, evaluation.LONGITUDE_DIM)
+NEW_DICT = {
+    evaluation.TRAINING_EVENT_FREQ_KEY:
+        (THESE_DIM, FIRST_TRAINING_FREQ_MATRIX + 0.)
 }
 FIRST_MAIN_DICT.update(NEW_DICT)
 
@@ -497,22 +509,9 @@ CONCAT_MAIN_DICT = {
     )
 }
 
-THESE_DIM = (
-    evaluation.TIME_DIM, evaluation.LATITUDE_DIM, evaluation.LONGITUDE_DIM,
-    evaluation.RELIABILITY_BIN_DIM
-)
-NEW_DICT = {
-    evaluation.EXAMPLE_COUNT_KEY: (
-        THESE_DIM, numpy.stack([FIRST_EXAMPLE_COUNT_MATRIX] * 2, axis=0)
-    ),
-    evaluation.SUMMED_FORECAST_PROB_KEY: (
-        THESE_DIM, numpy.stack([FIRST_SUMMED_PROB_MATRIX] * 2, axis=0)
-    ),
-    evaluation.POSITIVE_EXAMPLE_COUNT_KEY: (
-        THESE_DIM, numpy.stack([FIRST_POS_EXAMPLE_COUNT_MATRIX] * 2, axis=0)
-    )
-}
-CONCAT_MAIN_DICT.update(NEW_DICT)
+THIS_EXAMPLE_COUNT_MATRIX = numpy.invert(
+    numpy.isnan(FIRST_CLIMO_SSE_MATRIX)
+).astype(int)
 
 THESE_DIM = (
     evaluation.TIME_DIM, evaluation.LATITUDE_DIM, evaluation.LONGITUDE_DIM
@@ -523,7 +522,23 @@ NEW_DICT = {
     ),
     evaluation.REFERENCE_SSE_KEY: (
         THESE_DIM, numpy.stack([FIRST_REFERENCE_SSE_MATRIX] * 2, axis=0)
+    ),
+    evaluation.BRIER_ACTUAL_SSE_KEY: (
+        THESE_DIM, numpy.stack([FIRST_ACTUAL_SSE_MATRIX] * 2, axis=0)
+    ),
+    evaluation.CLIMO_SSE_KEY: (
+        THESE_DIM, numpy.stack([FIRST_CLIMO_SSE_MATRIX] * 2, axis=0)
+    ),
+    evaluation.EXAMPLE_COUNT_KEY: (
+        THESE_DIM, numpy.stack([THIS_EXAMPLE_COUNT_MATRIX] * 2, axis=0)
     )
+}
+CONCAT_MAIN_DICT.update(NEW_DICT)
+
+THESE_DIM = (evaluation.LATITUDE_DIM, evaluation.LONGITUDE_DIM)
+NEW_DICT = {
+    evaluation.TRAINING_EVENT_FREQ_KEY:
+        (THESE_DIM, FIRST_TRAINING_FREQ_MATRIX + 0.)
 }
 CONCAT_MAIN_DICT.update(NEW_DICT)
 
@@ -606,25 +621,9 @@ MAIN_DICT_SMALL_GRID = {
         (THESE_DIM, THIS_NUM_FALSE_NEG_MATRIX + 0)
 }
 
-THESE_DIM = (
-    evaluation.TIME_DIM, evaluation.LATITUDE_DIM, evaluation.LONGITUDE_DIM,
-    evaluation.RELIABILITY_BIN_DIM
-)
-NEW_DICT = {
-    evaluation.EXAMPLE_COUNT_KEY: (
-        THESE_DIM,
-        numpy.expand_dims(FIRST_EXAMPLE_COUNT_MATRIX[2:9, 3:9, :], axis=0)
-    ),
-    evaluation.SUMMED_FORECAST_PROB_KEY: (
-        THESE_DIM,
-        numpy.expand_dims(FIRST_SUMMED_PROB_MATRIX[2:9, 3:9, :], axis=0)
-    ),
-    evaluation.POSITIVE_EXAMPLE_COUNT_KEY: (
-        THESE_DIM,
-        numpy.expand_dims(FIRST_POS_EXAMPLE_COUNT_MATRIX[2:9, 3:9, :], axis=0)
-    )
-}
-MAIN_DICT_SMALL_GRID.update(NEW_DICT)
+THIS_EXAMPLE_COUNT_MATRIX = numpy.invert(
+    numpy.isnan(FIRST_CLIMO_SSE_MATRIX)
+).astype(int)
 
 THESE_DIM = (
     evaluation.TIME_DIM, evaluation.LATITUDE_DIM, evaluation.LONGITUDE_DIM
@@ -636,7 +635,26 @@ NEW_DICT = {
     evaluation.REFERENCE_SSE_KEY: (
         THESE_DIM,
         numpy.expand_dims(FIRST_REFERENCE_SSE_MATRIX[2:9, 3:9], axis=0)
+    ),
+    evaluation.BRIER_ACTUAL_SSE_KEY: (
+        THESE_DIM,
+        numpy.expand_dims(FIRST_ACTUAL_SSE_MATRIX[2:9, 3:9], axis=0)
+    ),
+    evaluation.CLIMO_SSE_KEY: (
+        THESE_DIM,
+        numpy.expand_dims(FIRST_CLIMO_SSE_MATRIX[2:9, 3:9], axis=0)
+    ),
+    evaluation.EXAMPLE_COUNT_KEY: (
+        THESE_DIM,
+        numpy.expand_dims(THIS_EXAMPLE_COUNT_MATRIX[2:9, 3:9], axis=0)
     )
+}
+MAIN_DICT_SMALL_GRID.update(NEW_DICT)
+
+THESE_DIM = (evaluation.LATITUDE_DIM, evaluation.LONGITUDE_DIM)
+NEW_DICT = {
+    evaluation.TRAINING_EVENT_FREQ_KEY:
+        (THESE_DIM, FIRST_TRAINING_FREQ_MATRIX[2:9, 3:9])
 }
 MAIN_DICT_SMALL_GRID.update(NEW_DICT)
 
@@ -645,11 +663,9 @@ SMALL_BASIC_TABLE_GRIDDED = xarray.Dataset(
     attrs=FIRST_BASIC_TABLE_GRIDDED.attrs
 )
 
-# The following constants are used to test aggregate_basic_scores_in_space.
+# The following constants are used to test get_basic_scores_ungridded.
 METADATA_DICT_UNGRIDDED = {
     evaluation.TIME_DIM: VALID_TIMES_UNIX_SEC,
-    evaluation.LATITUDE_DIM: numpy.array([numpy.nan]),
-    evaluation.LONGITUDE_DIM: numpy.array([numpy.nan]),
     evaluation.PROBABILITY_THRESHOLD_DIM: PROB_THRESHOLDS,
     evaluation.RELIABILITY_BIN_DIM: RELIABILITY_BIN_INDICES
 }
@@ -664,23 +680,18 @@ THIS_NUM_FALSE_POS_MATRIX = numpy.array(
     [76, 36, 33, 27, 24, 18, 15, 9, 6, 3, 3, 0], dtype=int
 )
 
-for _ in range(3):
-    THIS_NUM_AO_TRUE_POS_MATRIX = numpy.expand_dims(
-        THIS_NUM_AO_TRUE_POS_MATRIX, axis=0
-    )
-    THIS_NUM_FALSE_NEG_MATRIX = numpy.expand_dims(
-        THIS_NUM_FALSE_NEG_MATRIX, axis=0
-    )
-    THIS_NUM_FALSE_POS_MATRIX = numpy.expand_dims(
-        THIS_NUM_FALSE_POS_MATRIX, axis=0
-    )
-
+THIS_NUM_AO_TRUE_POS_MATRIX = numpy.expand_dims(
+    THIS_NUM_AO_TRUE_POS_MATRIX, axis=0
+)
+THIS_NUM_FALSE_NEG_MATRIX = numpy.expand_dims(
+    THIS_NUM_FALSE_NEG_MATRIX, axis=0
+)
+THIS_NUM_FALSE_POS_MATRIX = numpy.expand_dims(
+    THIS_NUM_FALSE_POS_MATRIX, axis=0
+)
 THIS_NUM_PO_TRUE_POS_MATRIX = THIS_NUM_AO_TRUE_POS_MATRIX + 0
 
-THESE_DIM = (
-    evaluation.TIME_DIM, evaluation.LATITUDE_DIM, evaluation.LONGITUDE_DIM,
-    evaluation.PROBABILITY_THRESHOLD_DIM
-)
+THESE_DIM = (evaluation.TIME_DIM, evaluation.PROBABILITY_THRESHOLD_DIM)
 MAIN_DICT_UNGRIDDED = {
     evaluation.NUM_ACTUAL_ORIENTED_TP_KEY:
         (THESE_DIM, THIS_NUM_AO_TRUE_POS_MATRIX + 0),
@@ -708,34 +719,30 @@ EVENT_FREQ_MATRIX_UNGRIDDED = numpy.array([
     16. / 56, 0, 0, 0, 0, 0, 0, 0, 0, 0
 ])
 
-for _ in range(3):
-    TOTAL_COUNT_MATRIX_UNGRIDDED = numpy.expand_dims(
-        TOTAL_COUNT_MATRIX_UNGRIDDED, axis=0
-    )
-    MEAN_PROB_MATRIX_UNGRIDDED = numpy.expand_dims(
-        MEAN_PROB_MATRIX_UNGRIDDED, axis=0
-    )
-    SUMMED_PROB_MATRIX_UNGRIDDED = numpy.expand_dims(
-        SUMMED_PROB_MATRIX_UNGRIDDED, axis=0
-    )
-    POS_COUNT_MATRIX_UNGRIDDED = numpy.expand_dims(
-        POS_COUNT_MATRIX_UNGRIDDED, axis=0
-    )
-    EVENT_FREQ_MATRIX_UNGRIDDED = numpy.expand_dims(
-        EVENT_FREQ_MATRIX_UNGRIDDED, axis=0
-    )
+TOTAL_COUNT_MATRIX_UNGRIDDED = numpy.expand_dims(
+    TOTAL_COUNT_MATRIX_UNGRIDDED, axis=0
+)
+MEAN_PROB_MATRIX_UNGRIDDED = numpy.expand_dims(
+    MEAN_PROB_MATRIX_UNGRIDDED, axis=0
+)
+SUMMED_PROB_MATRIX_UNGRIDDED = numpy.expand_dims(
+    SUMMED_PROB_MATRIX_UNGRIDDED, axis=0
+)
+POS_COUNT_MATRIX_UNGRIDDED = numpy.expand_dims(
+    POS_COUNT_MATRIX_UNGRIDDED, axis=0
+)
+EVENT_FREQ_MATRIX_UNGRIDDED = numpy.expand_dims(
+    EVENT_FREQ_MATRIX_UNGRIDDED, axis=0
+)
 
 REF_SSE_MATRIX_UNGRIDDED = numpy.full(
-    (1, 1, 1), numpy.nansum(FIRST_REFERENCE_SSE_MATRIX)
+    1, numpy.nansum(FIRST_REFERENCE_SSE_MATRIX)
 )
 ACTUAL_SSE_MATRIX_UNGRIDDED = numpy.full(
-    (1, 1, 1), numpy.nansum(FIRST_ACTUAL_SSE_MATRIX)
+    1, numpy.nansum(FIRST_ACTUAL_SSE_MATRIX)
 )
 
-THESE_DIM = (
-    evaluation.TIME_DIM, evaluation.LATITUDE_DIM, evaluation.LONGITUDE_DIM,
-    evaluation.RELIABILITY_BIN_DIM
-)
+THESE_DIM = (evaluation.TIME_DIM, evaluation.RELIABILITY_BIN_DIM)
 NEW_DICT = {
     evaluation.EXAMPLE_COUNT_KEY: (THESE_DIM, TOTAL_COUNT_MATRIX_UNGRIDDED + 0),
     evaluation.SUMMED_FORECAST_PROB_KEY:
@@ -745,9 +752,7 @@ NEW_DICT = {
 }
 MAIN_DICT_UNGRIDDED.update(NEW_DICT)
 
-THESE_DIM = (
-    evaluation.TIME_DIM, evaluation.LATITUDE_DIM, evaluation.LONGITUDE_DIM
-)
+THESE_DIM = (evaluation.TIME_DIM,)
 NEW_DICT = {
     evaluation.ACTUAL_SSE_KEY: (THESE_DIM, ACTUAL_SSE_MATRIX_UNGRIDDED + 0.),
     evaluation.REFERENCE_SSE_KEY: (THESE_DIM, REF_SSE_MATRIX_UNGRIDDED + 0.),
@@ -759,13 +764,51 @@ BASIC_SCORE_TABLE_UNGRIDDED = xarray.Dataset(
     attrs=FIRST_BASIC_TABLE_GRIDDED.attrs
 )
 
-# The following constants are used to test get_advanced_scores for ungridded
-# data.
+# The following constants are used to test aggregate_basic_scores_in_space.
+METADATA_DICT_AGGREGATED = {
+    evaluation.TIME_DIM: VALID_TIMES_UNIX_SEC,
+    evaluation.PROBABILITY_THRESHOLD_DIM: PROB_THRESHOLDS
+}
+
+THESE_DIM = (evaluation.TIME_DIM, evaluation.PROBABILITY_THRESHOLD_DIM)
+MAIN_DICT_AGGREGATED = {
+    evaluation.NUM_ACTUAL_ORIENTED_TP_KEY:
+        (THESE_DIM, THIS_NUM_AO_TRUE_POS_MATRIX + 0),
+    evaluation.NUM_PREDICTION_ORIENTED_TP_KEY:
+        (THESE_DIM, THIS_NUM_PO_TRUE_POS_MATRIX + 0),
+    evaluation.NUM_FALSE_POSITIVES_KEY:
+        (THESE_DIM, THIS_NUM_FALSE_POS_MATRIX + 0),
+    evaluation.NUM_FALSE_NEGATIVES_KEY:
+        (THESE_DIM, THIS_NUM_FALSE_NEG_MATRIX + 0)
+}
+
+CLIMO_SSE_MATRIX_UNGRIDDED = numpy.full(1, numpy.nansum(FIRST_CLIMO_SSE_MATRIX))
+THIS_SUM = numpy.sum(
+    numpy.invert(numpy.isnan(FIRST_CLIMO_SSE_MATRIX))
+)
+THIS_EXAMPLE_COUNT_MATRIX = numpy.full(1, THIS_SUM, dtype=int)
+
+THESE_DIM = (evaluation.TIME_DIM,)
+NEW_DICT = {
+    evaluation.BRIER_ACTUAL_SSE_KEY:
+        (THESE_DIM, ACTUAL_SSE_MATRIX_UNGRIDDED + 0.),
+    evaluation.CLIMO_SSE_KEY: (THESE_DIM, CLIMO_SSE_MATRIX_UNGRIDDED + 0.),
+    evaluation.EXAMPLE_COUNT_KEY: (THESE_DIM, THIS_EXAMPLE_COUNT_MATRIX + 0),
+    evaluation.ACTUAL_SSE_KEY: (THESE_DIM, ACTUAL_SSE_MATRIX_UNGRIDDED + 0.),
+    evaluation.REFERENCE_SSE_KEY: (THESE_DIM, REF_SSE_MATRIX_UNGRIDDED + 0.),
+}
+MAIN_DICT_AGGREGATED.update(NEW_DICT)
+
+BASIC_SCORE_TABLE_AGGREGATED = xarray.Dataset(
+    data_vars=MAIN_DICT_AGGREGATED, coords=METADATA_DICT_AGGREGATED,
+    attrs=FIRST_BASIC_TABLE_GRIDDED.attrs
+)
+
+# The following constants are used to test get_advanced_scores_ungridded.
 METADATA_DICT_ADVANCED_UNGRIDDED = {
-    evaluation.LATITUDE_DIM: numpy.array([numpy.nan]),
-    evaluation.LONGITUDE_DIM: numpy.array([numpy.nan]),
     evaluation.PROBABILITY_THRESHOLD_DIM: PROB_THRESHOLDS,
-    evaluation.RELIABILITY_BIN_DIM: RELIABILITY_BIN_INDICES
+    evaluation.RELIABILITY_BIN_DIM: RELIABILITY_BIN_INDICES,
+    evaluation.SINGLETON_DIM: numpy.array([0], dtype=int)
 }
 
 THIS_NUM_AO_TRUE_POS_MATRIX = numpy.sum(
@@ -810,30 +853,7 @@ THIS_BIAS_MATRIX = numpy.array([
     evaluation._get_frequency_bias(t) for t in THESE_CONTINGENCY_TABLES
 ])
 
-for _ in range(2):
-    THIS_POD_MATRIX = numpy.expand_dims(THIS_POD_MATRIX, axis=0)
-    THIS_SUCCESS_RATIO_MATRIX = numpy.expand_dims(
-        THIS_SUCCESS_RATIO_MATRIX, axis=0
-    )
-    THIS_CSI_MATRIX = numpy.expand_dims(THIS_CSI_MATRIX, axis=0)
-    THIS_BIAS_MATRIX = numpy.expand_dims(THIS_BIAS_MATRIX, axis=0)
-    THIS_NUM_AO_TRUE_POS_MATRIX = numpy.expand_dims(
-        THIS_NUM_AO_TRUE_POS_MATRIX, axis=0
-    )
-    THIS_NUM_PO_TRUE_POS_MATRIX = numpy.expand_dims(
-        THIS_NUM_PO_TRUE_POS_MATRIX, axis=0
-    )
-    THIS_NUM_FALSE_POS_MATRIX = numpy.expand_dims(
-        THIS_NUM_FALSE_POS_MATRIX, axis=0
-    )
-    THIS_NUM_FALSE_NEG_MATRIX = numpy.expand_dims(
-        THIS_NUM_FALSE_NEG_MATRIX, axis=0
-    )
-
-THESE_DIM = (
-    evaluation.LATITUDE_DIM, evaluation.LONGITUDE_DIM,
-    evaluation.PROBABILITY_THRESHOLD_DIM
-)
+THESE_DIM = (evaluation.PROBABILITY_THRESHOLD_DIM,)
 MAIN_DICT_ADVANCED_UNGRIDDED = {
     evaluation.NUM_ACTUAL_ORIENTED_TP_KEY:
         (THESE_DIM, THIS_NUM_AO_TRUE_POS_MATRIX + 0),
@@ -849,10 +869,7 @@ MAIN_DICT_ADVANCED_UNGRIDDED = {
     evaluation.FREQUENCY_BIAS_KEY: (THESE_DIM, THIS_BIAS_MATRIX + 0.)
 }
 
-THESE_DIM = (
-    evaluation.LATITUDE_DIM, evaluation.LONGITUDE_DIM,
-    evaluation.RELIABILITY_BIN_DIM
-)
+THESE_DIM = (evaluation.RELIABILITY_BIN_DIM,)
 NEW_DICT = {
     evaluation.EXAMPLE_COUNT_KEY:
         (THESE_DIM, TOTAL_COUNT_MATRIX_UNGRIDDED[0, ...]),
@@ -871,44 +888,45 @@ THIS_BSS_DICT = gg_model_eval.get_brier_skill_score(
 )
 
 THIS_BRIER_SCORE_MATRIX = numpy.full(
-    (1, 1), THIS_BSS_DICT[gg_model_eval.BRIER_SCORE_KEY]
+    1, THIS_BSS_DICT[gg_model_eval.BRIER_SCORE_KEY]
 )
-THIS_BSS_MATRIX = numpy.full((1, 1), THIS_BSS_DICT[gg_model_eval.BSS_KEY])
+THIS_BSS_MATRIX = numpy.full(1, THIS_BSS_DICT[gg_model_eval.BSS_KEY])
 THIS_RELIABILITY_MATRIX = numpy.full(
-    (1, 1), THIS_BSS_DICT[gg_model_eval.RELIABILITY_KEY]
+    1, THIS_BSS_DICT[gg_model_eval.RELIABILITY_KEY]
 )
 THIS_RESOLUTION_MATRIX = numpy.full(
-    (1, 1), THIS_BSS_DICT[gg_model_eval.RESOLUTION_KEY]
+    1, THIS_BSS_DICT[gg_model_eval.RESOLUTION_KEY]
 )
 
 THIS_FSS = numpy.ravel(
     1. - ACTUAL_SSE_MATRIX_UNGRIDDED / REF_SSE_MATRIX_UNGRIDDED
 )
-THIS_FSS_MATRIX = numpy.full((1, 1), THIS_FSS)
-THIS_TRAINING_FREQ_MATRIX = numpy.full((1, 1), TRAINING_EVENT_FREQUENCY)
+THIS_FSS_MATRIX = numpy.full(1, THIS_FSS)
+THIS_TRAINING_FREQ_MATRIX = numpy.full(1, TRAINING_EVENT_FREQUENCY)
 
-THESE_DIM = (evaluation.LATITUDE_DIM, evaluation.LONGITUDE_DIM)
+THESE_DIM = (evaluation.SINGLETON_DIM,)
 NEW_DICT = {
     evaluation.BRIER_SCORE_KEY: (THESE_DIM, THIS_BRIER_SCORE_MATRIX + 0.),
     evaluation.BRIER_SKILL_SCORE_KEY: (THESE_DIM, THIS_BSS_MATRIX + 0.),
     evaluation.RELIABILITY_KEY: (THESE_DIM, THIS_RELIABILITY_MATRIX + 0.),
     evaluation.RESOLUTION_KEY: (THESE_DIM, THIS_RESOLUTION_MATRIX + 0.),
     evaluation.FSS_KEY: (THESE_DIM, THIS_FSS_MATRIX + 0.),
-    evaluation.TRAINING_EVENT_FREQ_KEY: (THESE_DIM, THIS_TRAINING_FREQ_MATRIX + 0.)
+    evaluation.TRAINING_EVENT_FREQ_KEY:
+        (THESE_DIM, THIS_TRAINING_FREQ_MATRIX + 0.)
 }
 MAIN_DICT_ADVANCED_UNGRIDDED.update(NEW_DICT)
 
 ADVANCED_SCORE_TABLE_UNGRIDDED = xarray.Dataset(
-    data_vars=MAIN_DICT_ADVANCED_UNGRIDDED, coords=METADATA_DICT_ADVANCED_UNGRIDDED,
+    data_vars=MAIN_DICT_ADVANCED_UNGRIDDED,
+    coords=METADATA_DICT_ADVANCED_UNGRIDDED,
     attrs=FIRST_BASIC_TABLE_GRIDDED.attrs
 )
 
-# The following constants are used to test get_advanced_scores for gridded data.
+# The following constants are used to test get_advanced_scores_gridded.
 METADATA_DICT_ADVANCED_GRIDDED = {
     evaluation.LATITUDE_DIM: LATITUDES_DEG_N,
     evaluation.LONGITUDE_DIM: LONGITUDES_DEG_E,
-    evaluation.PROBABILITY_THRESHOLD_DIM: PROB_THRESHOLDS,
-    evaluation.RELIABILITY_BIN_DIM: RELIABILITY_BIN_INDICES
+    evaluation.PROBABILITY_THRESHOLD_DIM: PROB_THRESHOLDS
 }
 
 THIS_NUM_AO_TRUE_POS_MATRIX = numpy.sum(
@@ -977,85 +995,57 @@ MAIN_DICT_ADVANCED_GRIDDED = {
     evaluation.FREQUENCY_BIAS_KEY: (THESE_DIM, THIS_BIAS_MATRIX + 0.)
 }
 
-THIS_EXAMPLE_COUNT_MATRIX = 2 * FIRST_EXAMPLE_COUNT_MATRIX
-THIS_MEAN_PROB_MATRIX = FIRST_SUMMED_PROB_MATRIX + 0.
-
-TEMP_MATRIX = FIRST_EXAMPLE_COUNT_MATRIX.astype(float)
-TEMP_MATRIX[TEMP_MATRIX == 0] = numpy.nan
-THIS_EVENT_FREQ_MATRIX = (
-    FIRST_POS_EXAMPLE_COUNT_MATRIX.astype(float) / TEMP_MATRIX
+THIS_ACTUAL_SSE_MATRIX = numpy.nansum(
+    CONCAT_MAIN_DICT[evaluation.BRIER_ACTUAL_SSE_KEY][1], axis=0
 )
-
-THESE_DIM = (
-    evaluation.LATITUDE_DIM, evaluation.LONGITUDE_DIM,
-    evaluation.RELIABILITY_BIN_DIM
+THIS_CLIMO_SSE_MATRIX = numpy.nansum(
+    CONCAT_MAIN_DICT[evaluation.CLIMO_SSE_KEY][1], axis=0
 )
+THIS_EXAMPLE_COUNT_MATRIX = numpy.invert(
+    numpy.isnan(CONCAT_MAIN_DICT[evaluation.BRIER_ACTUAL_SSE_KEY][1])
+).astype(int)
+
+THIS_EXAMPLE_COUNT_MATRIX = numpy.sum(THIS_EXAMPLE_COUNT_MATRIX, axis=0)
+
+THESE_DIM = (evaluation.LATITUDE_DIM, evaluation.LONGITUDE_DIM)
 NEW_DICT = {
-    evaluation.EXAMPLE_COUNT_KEY: (THESE_DIM, THIS_EXAMPLE_COUNT_MATRIX + 0),
-    evaluation.MEAN_FORECAST_PROB_KEY: (THESE_DIM, THIS_MEAN_PROB_MATRIX + 0.),
-    evaluation.EVENT_FREQUENCY_KEY: (THESE_DIM, THIS_EVENT_FREQ_MATRIX + 0.)
+    evaluation.BRIER_ACTUAL_SSE_KEY: (THESE_DIM, THIS_ACTUAL_SSE_MATRIX + 0.),
+    evaluation.CLIMO_SSE_KEY: (THESE_DIM, THIS_CLIMO_SSE_MATRIX + 0.),
+    evaluation.EXAMPLE_COUNT_KEY: (THESE_DIM, THIS_EXAMPLE_COUNT_MATRIX + 0)
 }
 MAIN_DICT_ADVANCED_GRIDDED.update(NEW_DICT)
 
 THIS_NUM_ROWS = len(LATITUDES_DEG_N)
 THIS_NUM_COLUMNS = len(LONGITUDES_DEG_E)
-THIS_BSS_DICT_MATRIX = numpy.full(
-    (THIS_NUM_ROWS, THIS_NUM_COLUMNS), '', dtype=object
+THIS_BRIER_SCORE_MATRIX = numpy.full(
+    (THIS_NUM_ROWS, THIS_NUM_COLUMNS), numpy.nan
+)
+THIS_BSS_MATRIX = numpy.full(
+    (THIS_NUM_ROWS, THIS_NUM_COLUMNS), numpy.nan
 )
 
 for r in range(THIS_NUM_ROWS):
     for c in range(THIS_NUM_COLUMNS):
-        if numpy.all(THIS_EXAMPLE_COUNT_MATRIX[r, c, :] == 0):
-            THIS_BSS_DICT_MATRIX[r, c] = {
-                gg_model_eval.BRIER_SCORE_KEY: numpy.nan,
-                gg_model_eval.BSS_KEY: numpy.nan,
-                gg_model_eval.RELIABILITY_KEY: numpy.nan,
-                gg_model_eval.RESOLUTION_KEY: numpy.nan
-            }
-
+        if THIS_EXAMPLE_COUNT_MATRIX[r, c] == 0:
             continue
 
-        THIS_BSS_DICT_MATRIX[r, c] = gg_model_eval.get_brier_skill_score(
-            mean_forecast_prob_by_bin=THIS_MEAN_PROB_MATRIX[r, c, :],
-            mean_observed_label_by_bin=THIS_EVENT_FREQ_MATRIX[r, c, :],
-            num_examples_by_bin=THIS_EXAMPLE_COUNT_MATRIX[r, c, :],
-            climatology=TRAINING_EVENT_FREQUENCY
+        THIS_BRIER_SCORE_MATRIX[r, c] = (
+            THIS_ACTUAL_SSE_MATRIX[r, c] /
+            THIS_EXAMPLE_COUNT_MATRIX[r, c]
+        )
+        THIS_BSS_MATRIX[r, c] = 1. - (
+            THIS_ACTUAL_SSE_MATRIX[r, c] / THIS_CLIMO_SSE_MATRIX[r, c]
         )
 
-THIS_BRIER_SCORE_MATRIX = numpy.array([
-    d[gg_model_eval.BRIER_SCORE_KEY]
-    for d in numpy.ravel(THIS_BSS_DICT_MATRIX)
-])
-THIS_BSS_MATRIX = numpy.array([
-    d[gg_model_eval.BSS_KEY] for d in numpy.ravel(THIS_BSS_DICT_MATRIX)
-])
-THIS_RELIABILITY_MATRIX = numpy.array([
-    d[gg_model_eval.RELIABILITY_KEY] for d in numpy.ravel(THIS_BSS_DICT_MATRIX)
-])
-THIS_RESOLUTION_MATRIX = numpy.array([
-    d[gg_model_eval.RESOLUTION_KEY] for d in numpy.ravel(THIS_BSS_DICT_MATRIX)
-])
-
-THESE_DIM = THIS_BSS_DICT_MATRIX.shape
-THIS_BRIER_SCORE_MATRIX = numpy.reshape(THIS_BRIER_SCORE_MATRIX, THESE_DIM)
-THIS_BSS_MATRIX = numpy.reshape(THIS_BSS_MATRIX, THESE_DIM)
-THIS_RELIABILITY_MATRIX = numpy.reshape(THIS_RELIABILITY_MATRIX, THESE_DIM)
-THIS_RESOLUTION_MATRIX = numpy.reshape(THIS_RESOLUTION_MATRIX, THESE_DIM)
-
 THIS_FSS_MATRIX = 1. - FIRST_ACTUAL_SSE_MATRIX / FIRST_REFERENCE_SSE_MATRIX
-THIS_TRAINING_FREQ_MATRIX = numpy.full(
-    (THIS_NUM_ROWS, THIS_NUM_COLUMNS), TRAINING_EVENT_FREQUENCY
-)
 
 THESE_DIM = (evaluation.LATITUDE_DIM, evaluation.LONGITUDE_DIM)
 NEW_DICT = {
     evaluation.BRIER_SCORE_KEY: (THESE_DIM, THIS_BRIER_SCORE_MATRIX + 0.),
     evaluation.BRIER_SKILL_SCORE_KEY: (THESE_DIM, THIS_BSS_MATRIX + 0.),
-    evaluation.RELIABILITY_KEY: (THESE_DIM, THIS_RELIABILITY_MATRIX + 0.),
-    evaluation.RESOLUTION_KEY: (THESE_DIM, THIS_RESOLUTION_MATRIX + 0.),
     evaluation.FSS_KEY: (THESE_DIM, THIS_FSS_MATRIX + 0.),
     evaluation.TRAINING_EVENT_FREQ_KEY:
-        (THESE_DIM, THIS_TRAINING_FREQ_MATRIX + 0.)
+        (THESE_DIM, FIRST_TRAINING_FREQ_MATRIX + 0.)
 }
 MAIN_DICT_ADVANCED_GRIDDED.update(NEW_DICT)
 
@@ -1087,8 +1077,9 @@ def _compare_basic_score_tables(first_table, second_table):
     :return: are_tables_equal: Boolean flag.
     """
 
+    gridded = evaluation.LATITUDE_DIM in first_table.coords
+
     float_keys = [
-        evaluation.SUMMED_FORECAST_PROB_KEY,
         evaluation.ACTUAL_SSE_KEY, evaluation.REFERENCE_SSE_KEY
     ]
     integer_keys = [
@@ -1096,11 +1087,31 @@ def _compare_basic_score_tables(first_table, second_table):
         evaluation.NUM_PREDICTION_ORIENTED_TP_KEY,
         evaluation.NUM_FALSE_POSITIVES_KEY,
         evaluation.NUM_FALSE_NEGATIVES_KEY,
-        evaluation.EXAMPLE_COUNT_KEY,
+        evaluation.EXAMPLE_COUNT_KEY
+    ]
+
+    if gridded:
+        float_keys += [
+            evaluation.BRIER_ACTUAL_SSE_KEY, evaluation.CLIMO_SSE_KEY,
+            evaluation.TRAINING_EVENT_FREQ_KEY
+        ]
+    else:
+        float_keys += [evaluation.SUMMED_FORECAST_PROB_KEY]
+        integer_keys += [evaluation.POSITIVE_EXAMPLE_COUNT_KEY]
+
+    maybe_missing_keys = [
+        evaluation.SUMMED_FORECAST_PROB_KEY,
         evaluation.POSITIVE_EXAMPLE_COUNT_KEY
     ]
 
     for this_key in float_keys:
+        if (
+                this_key in maybe_missing_keys and
+                this_key not in first_table and
+                this_key not in second_table
+        ):
+            continue
+
         if not numpy.allclose(
                 first_table[this_key].values, second_table[this_key].values,
                 atol=TOLERANCE, equal_nan=True
@@ -1108,18 +1119,36 @@ def _compare_basic_score_tables(first_table, second_table):
             return False
 
     for this_key in integer_keys:
+        if (
+                this_key in maybe_missing_keys and
+                this_key not in first_table and
+                this_key not in second_table
+        ):
+            continue
+
         if not numpy.array_equal(
                 first_table[this_key].values, second_table[this_key].values
         ):
             return False
 
-    float_keys = [
-        evaluation.PROBABILITY_THRESHOLD_DIM, evaluation.LATITUDE_DIM,
-        evaluation.LONGITUDE_DIM
-    ]
-    integer_keys = [evaluation.TIME_DIM, evaluation.RELIABILITY_BIN_DIM]
+    float_keys = [evaluation.PROBABILITY_THRESHOLD_DIM]
+    integer_keys = [evaluation.TIME_DIM]
+
+    if gridded:
+        float_keys += [evaluation.LATITUDE_DIM, evaluation.LONGITUDE_DIM]
+    else:
+        integer_keys += [evaluation.RELIABILITY_BIN_DIM]
+
+    maybe_missing_keys = [evaluation.RELIABILITY_BIN_DIM]
 
     for this_key in float_keys:
+        if (
+                this_key in maybe_missing_keys and
+                this_key not in first_table and
+                this_key not in second_table
+        ):
+            continue
+
         if not numpy.allclose(
                 first_table.coords[this_key].values,
                 second_table.coords[this_key].values,
@@ -1128,6 +1157,13 @@ def _compare_basic_score_tables(first_table, second_table):
             return False
 
     for this_key in integer_keys:
+        if (
+                this_key in maybe_missing_keys and
+                this_key not in first_table and
+                this_key not in second_table
+        ):
+            continue
+
         if not numpy.array_equal(
                 first_table.coords[this_key].values,
                 second_table.coords[this_key].values
@@ -1159,12 +1195,12 @@ def _compare_advanced_score_tables(first_table, second_table):
     :return: are_tables_equal: Boolean flag.
     """
 
+    gridded = evaluation.LATITUDE_DIM in first_table.coords
+
     float_keys = [
         evaluation.POD_KEY, evaluation.SUCCESS_RATIO_KEY,
         evaluation.CSI_KEY, evaluation.FREQUENCY_BIAS_KEY,
-        evaluation.EVENT_FREQUENCY_KEY, evaluation.MEAN_FORECAST_PROB_KEY,
         evaluation.BRIER_SCORE_KEY, evaluation.BRIER_SKILL_SCORE_KEY,
-        evaluation.RELIABILITY_KEY, evaluation.RESOLUTION_KEY,
         evaluation.FSS_KEY, evaluation.TRAINING_EVENT_FREQ_KEY
     ]
     integer_keys = [
@@ -1174,6 +1210,16 @@ def _compare_advanced_score_tables(first_table, second_table):
         evaluation.NUM_FALSE_NEGATIVES_KEY,
         evaluation.EXAMPLE_COUNT_KEY
     ]
+
+    if gridded:
+        float_keys += [
+            evaluation.BRIER_ACTUAL_SSE_KEY, evaluation.CLIMO_SSE_KEY
+        ]
+    else:
+        float_keys += [
+            evaluation.EVENT_FREQUENCY_KEY, evaluation.MEAN_FORECAST_PROB_KEY,
+            evaluation.RELIABILITY_KEY, evaluation.RESOLUTION_KEY
+        ]
 
     for this_key in float_keys:
         if not numpy.allclose(
@@ -1188,11 +1234,13 @@ def _compare_advanced_score_tables(first_table, second_table):
         ):
             return False
 
-    float_keys = [
-        evaluation.LATITUDE_DIM, evaluation.LONGITUDE_DIM,
-        evaluation.PROBABILITY_THRESHOLD_DIM
-    ]
-    integer_keys = [evaluation.RELIABILITY_BIN_DIM]
+    float_keys = [evaluation.PROBABILITY_THRESHOLD_DIM]
+    integer_keys = []
+
+    if gridded:
+        float_keys += [evaluation.LATITUDE_DIM, evaluation.LONGITUDE_DIM]
+    else:
+        integer_keys = [evaluation.RELIABILITY_BIN_DIM]
 
     for this_key in float_keys:
         if not numpy.allclose(
@@ -1505,6 +1553,35 @@ class EvaluationTests(unittest.TestCase):
             atol=TOLERANCE, equal_nan=True
         ))
 
+    def test_get_bss_components_first(self):
+        """Ensures correct output from _get_bss_components_one_time.
+
+        In this case, using first matching distance.
+        """
+
+        this_event_freq_matrix = numpy.full(
+            PROBABILITY_MATRIX.shape, TRAINING_EVENT_FREQUENCY
+        )
+
+        this_actual_sse_matrix, this_climo_sse_matrix = (
+            evaluation._get_bss_components_one_time(
+                actual_target_matrix=ACTUAL_TARGET_MATRIX,
+                probability_matrix=PROBABILITY_MATRIX,
+                training_event_freq_matrix=this_event_freq_matrix,
+                matching_distance_px=FIRST_MATCHING_DISTANCE_PX,
+                eroded_eval_mask_matrix=MASK_MATRIX
+            )
+        )
+
+        self.assertTrue(numpy.allclose(
+            this_actual_sse_matrix, FIRST_ACTUAL_SSE_MATRIX,
+            atol=TOLERANCE, equal_nan=True
+        ))
+        self.assertTrue(numpy.allclose(
+            this_climo_sse_matrix, FIRST_CLIMO_SSE_MATRIX,
+            atol=TOLERANCE, equal_nan=True
+        ))
+
     def test_get_pod(self):
         """Ensures correct output from _get_pod."""
 
@@ -1544,8 +1621,8 @@ class EvaluationTests(unittest.TestCase):
             prediction_file_name=None,
             matching_distance_px=MATCHING_DISTANCE_PX,
             probability_thresholds=PROB_THRESHOLDS,
+            training_event_freq_matrix=FIRST_TRAINING_FREQ_MATRIX,
             square_fss_filter=SQUARE_FSS_FILTER,
-            num_bins_for_reliability=NUM_BINS_FOR_RELIABILITY,
             test_mode=True, prediction_dict=PREDICTION_DICT,
             eval_mask_matrix=MASK_MATRIX, model_file_name=MODEL_FILE_NAME
         )
@@ -1633,7 +1710,7 @@ class EvaluationTests(unittest.TestCase):
         )
 
         self.assertTrue(_compare_basic_score_tables(
-            this_score_table_xarray, BASIC_SCORE_TABLE_UNGRIDDED
+            this_score_table_xarray, BASIC_SCORE_TABLE_AGGREGATED
         ))
 
     def test_get_basic_scores_ungridded(self):
@@ -1654,15 +1731,11 @@ class EvaluationTests(unittest.TestCase):
         ))
 
     def test_get_advanced_scores_ungridded(self):
-        """Ensures correct output from get_advanced_scores.
+        """Ensures correct output from get_advanced_scores_ungridded."""
 
-        In this case, advanced scores are ungridded.
-        """
-
-        this_score_table_xarray = evaluation.get_advanced_scores(
+        this_score_table_xarray = evaluation.get_advanced_scores_ungridded(
             basic_score_table_xarray=BASIC_SCORE_TABLE_UNGRIDDED,
-            training_event_freq_matrix=
-            numpy.full((1, 1), TRAINING_EVENT_FREQUENCY)
+            training_event_frequency=TRAINING_EVENT_FREQUENCY
         )
 
         self.assertTrue(_compare_advanced_score_tables(
@@ -1670,20 +1743,10 @@ class EvaluationTests(unittest.TestCase):
         ))
 
     def test_get_advanced_scores_gridded(self):
-        """Ensures correct output from get_advanced_scores.
+        """Ensures correct output from get_advanced_scores_gridded."""
 
-        In this case, advanced scores are gridded.
-        """
-
-        this_num_rows = len(LATITUDES_DEG_N)
-        this_num_columns = len(LONGITUDES_DEG_E)
-        this_freq_matrix = numpy.full(
-            (this_num_rows, this_num_columns), TRAINING_EVENT_FREQUENCY
-        )
-
-        this_score_table_xarray = evaluation.get_advanced_scores(
-            basic_score_table_xarray=CONCAT_BASIC_TABLE_GRIDDED,
-            training_event_freq_matrix=this_freq_matrix
+        this_score_table_xarray = evaluation.get_advanced_scores_gridded(
+            basic_score_table_xarray=CONCAT_BASIC_TABLE_GRIDDED
         )
 
         self.assertTrue(_compare_advanced_score_tables(
