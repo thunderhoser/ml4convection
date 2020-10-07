@@ -234,6 +234,12 @@ def _plot_one_score(
     colour_bar_object.set_ticks(tick_values)
     colour_bar_object.set_ticklabels(tick_strings)
 
+    plotting_utils.plot_grid_lines(
+        plot_latitudes_deg_n=latitudes_deg_n,
+        plot_longitudes_deg_e=longitudes_deg_e, axes_object=axes_object,
+        parallel_spacing_deg=2., meridian_spacing_deg=2.
+    )
+
     if title_string is not None:
         axes_object.set_title(title_string)
 
