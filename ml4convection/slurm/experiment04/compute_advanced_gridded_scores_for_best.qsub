@@ -46,5 +46,4 @@ python3 -u "${CODE_DIR_NAME}/compute_advanced_scores.py" \
 --desired_month=-1 \
 --split_by_hour=0 \
 --gridded=1 \
---input_climo_file_name="${TOP_TARGET_DIR_NAME}/climo_dilation-distance-px=1.000000.p" \
 --output_dir_name="${evaluation_dir_name}"

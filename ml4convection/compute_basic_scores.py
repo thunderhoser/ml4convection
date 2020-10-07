@@ -11,6 +11,7 @@ THIS_DIRECTORY_NAME = os.path.dirname(os.path.realpath(
 sys.path.append(os.path.normpath(os.path.join(THIS_DIRECTORY_NAME, '..')))
 
 import prediction_io
+import climatology_io
 import evaluation
 
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
@@ -22,6 +23,7 @@ GRIDDED_ARG_NAME = 'gridded'
 MATCHING_DISTANCE_ARG_NAME = 'matching_distance_px'
 NUM_PROB_THRESHOLDS_ARG_NAME = 'num_prob_thresholds'
 PROB_THRESHOLDS_ARG_NAME = 'prob_thresholds'
+CLIMO_FILE_ARG_NAME = 'input_climo_file_name'
 OUTPUT_DIR_ARG_NAME = 'output_dir_name'
 
 INPUT_DIR_HELP_STRING = (
@@ -48,6 +50,11 @@ NUM_PROB_THRESHOLDS_HELP_STRING = (
 PROB_THRESHOLDS_HELP_STRING = (
     '[used only if `{0:s}` = 1] List of exact probability thresholds.  One '
     'contingency table will be created for each.'
+).format(GRIDDED_ARG_NAME)
+
+CLIMO_FILE_HELP_STRING = (
+    '[used only if `{0:s}` = 1] Path to file with climatology (event '
+    'frequencies in training data).'
 ).format(GRIDDED_ARG_NAME)
 
 OUTPUT_DIR_HELP_STRING = (
@@ -84,6 +91,10 @@ INPUT_ARG_PARSER.add_argument(
     default=[-1], help=PROB_THRESHOLDS_HELP_STRING
 )
 INPUT_ARG_PARSER.add_argument(
+    '--' + CLIMO_FILE_ARG_NAME, type=str, required=False, default='',
+    help=CLIMO_FILE_HELP_STRING
+)
+INPUT_ARG_PARSER.add_argument(
     '--' + OUTPUT_DIR_ARG_NAME, type=str, required=True,
     help=OUTPUT_DIR_HELP_STRING
 )
@@ -91,7 +102,7 @@ INPUT_ARG_PARSER.add_argument(
 
 def _run(top_prediction_dir_name, first_date_string, last_date_string,
          gridded, matching_distance_px, num_prob_thresholds, prob_thresholds,
-         top_output_dir_name):
+         climo_file_name, top_output_dir_name):
     """Computes basic evaluation scores.
 
     This is effectively the main method.
@@ -103,6 +114,7 @@ def _run(top_prediction_dir_name, first_date_string, last_date_string,
     :param matching_distance_px: Same.
     :param num_prob_thresholds: Same.
     :param prob_thresholds: Same.
+    :param climo_file_name: Same.
     :param top_output_dir_name: Same.
     """
 
@@ -118,12 +130,24 @@ def _run(top_prediction_dir_name, first_date_string, last_date_string,
     ]
     num_dates = len(date_strings)
 
+    if gridded:
+        print('Reading event frequencies from: "{0:s}"...'.format(
+            climo_file_name
+        ))
+        climo_dict = climatology_io.read_file(climo_file_name)
+        training_event_freq_matrix = (
+            climo_dict[climatology_io.EVENT_FREQ_BY_PIXEL_KEY]
+        )
+    else:
+        training_event_freq_matrix = None
+
     for i in range(num_dates):
         if gridded:
             this_score_table_xarray = evaluation.get_basic_scores_gridded(
                 prediction_file_name=prediction_file_names[i],
                 matching_distance_px=matching_distance_px,
-                probability_thresholds=prob_thresholds
+                probability_thresholds=prob_thresholds,
+                training_event_freq_matrix=training_event_freq_matrix
             )
         else:
             this_score_table_xarray = evaluation.get_basic_scores_ungridded(
@@ -169,5 +193,6 @@ if __name__ == '__main__':
         prob_thresholds=numpy.array(getattr(
             INPUT_ARG_OBJECT, PROB_THRESHOLDS_ARG_NAME
         )),
+        climo_file_name=getattr(INPUT_ARG_OBJECT, CLIMO_FILE_ARG_NAME),
         top_output_dir_name=getattr(INPUT_ARG_OBJECT, OUTPUT_DIR_ARG_NAME)
     )

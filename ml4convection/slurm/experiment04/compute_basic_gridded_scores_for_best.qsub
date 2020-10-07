@@ -52,4 +52,5 @@ python3 -u "${CODE_DIR_NAME}/compute_basic_scores.py" \
 --gridded=1 \
 --matching_distance_px=1 \
 --prob_thresholds 0.22 \
+--input_climo_file_name="${TOP_TARGET_DIR_NAME}/climo_dilation-distance-px=1.000000.p" \
 --output_dir_name="${prediction_dir_name}/evaluation"
