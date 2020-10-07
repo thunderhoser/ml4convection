@@ -173,6 +173,7 @@ def _plot_one_score(
         )
         min_colour_value = 0.
         max_colour_value = 1. + this_offset
+        print(max_colour_value)
 
         colour_map_object, colour_norm_object = _get_bias_colour_scheme(
             colour_map_name=colour_map_name, max_colour_value=max_colour_value
@@ -181,15 +182,18 @@ def _plot_one_score(
         colour_map_object = pyplot.get_cmap(colour_map_name)
 
         if maybe_negative:
-            min_colour_value = -1.
+            max_colour_value = numpy.nanpercentile(
+                numpy.absolute(score_matrix), MAX_COLOUR_PERCENTILE
+            )
+            min_colour_value = -1 * max_colour_value
         else:
+            max_colour_value = numpy.nanpercentile(
+                score_matrix, MAX_COLOUR_PERCENTILE
+            )
             min_colour_value = numpy.nanpercentile(
                 score_matrix, 100. - MAX_COLOUR_PERCENTILE
             )
 
-        max_colour_value = numpy.nanpercentile(
-            score_matrix, MAX_COLOUR_PERCENTILE
-        )
         colour_norm_object = pyplot.Normalize(
             vmin=min_colour_value, vmax=max_colour_value
         )
