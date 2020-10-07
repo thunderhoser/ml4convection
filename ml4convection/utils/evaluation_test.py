@@ -1068,8 +1068,8 @@ ADVANCED_SCORE_TABLE_GRIDDED = xarray.Dataset(
 # basic_file_name_to_date, and find_advanced_score_file.
 TOP_DIRECTORY_NAME = 'foo'
 VALID_DATE_STRING = '19670502'
-BASIC_FILE_NAME_UNGRIDDED = 'foo/1967/basic_scores_gridded=0_19670502.p'
-BASIC_FILE_NAME_GRIDDED = 'foo/1967/basic_scores_gridded=1_19670502.p'
+BASIC_FILE_NAME_UNGRIDDED = 'foo/1967/basic_scores_gridded=0_19670502.nc'
+BASIC_FILE_NAME_GRIDDED = 'foo/1967/basic_scores_gridded=1_19670502.nc'
 
 ADVANCED_FILE_NAME_ALL_UNGRIDDED = 'foo/advanced_scores_gridded=0.p'
 ADVANCED_FILE_NAME_ALL_GRIDDED = 'foo/advanced_scores_gridded=1.p'

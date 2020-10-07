@@ -122,17 +122,17 @@ def _run(advanced_score_file_name, output_dir_name):
         mean_observations=a[evaluation.EVENT_FREQUENCY_KEY].values[0, 0, :],
         example_counts=a[evaluation.EXAMPLE_COUNT_KEY].values[0, 0, :],
         mean_value_in_training=
-        a.attrs[evaluation.TRAINING_EVENT_FREQ_KEY][0, 0],
+        a[evaluation.TRAINING_EVENT_FREQ_KEY].values[0, 0],
         min_value_to_plot=0., max_value_to_plot=1.
     )
 
     title_string = (
         'BS = {0:.3f} ... BSS = {1:.3f} ... REL = {2:.3f} ... RES = {3:.3f}'
     ).format(
-        a.attrs[evaluation.BRIER_SCORE_KEY],
-        a.attrs[evaluation.BRIER_SKILL_SCORE_KEY],
-        a.attrs[evaluation.RELIABILITY_KEY],
-        a.attrs[evaluation.RESOLUTION_KEY]
+        a[evaluation.BRIER_SCORE_KEY].values[0, 0],
+        a[evaluation.BRIER_SKILL_SCORE_KEY].values[0, 0],
+        a[evaluation.RELIABILITY_KEY].values[0, 0],
+        a[evaluation.RESOLUTION_KEY].values[0, 0]
     )
     axes_object.set_title(title_string)
 

@@ -1230,7 +1230,7 @@ def find_basic_score_file(top_directory_name, valid_date_string, gridded,
     _ = time_conversion.string_to_unix_sec(valid_date_string, DATE_FORMAT)
 
     basic_score_file_name = (
-        '{0:s}/{1:s}/basic_scores_gridded={2:d}_{3:s}.p'
+        '{0:s}/{1:s}/basic_scores_gridded={2:d}_{3:s}.nc'
     ).format(
         top_directory_name, valid_date_string[:4], int(gridded),
         valid_date_string
