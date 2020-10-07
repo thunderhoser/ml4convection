@@ -1,0 +1,45 @@
+#!/bin/tcsh
+
+#SBATCH --job-name="plot_gridded_evaluation_for_best"
+#SBATCH --partition="fge"
+#SBATCH --account="rda-ghpcs"
+#SBATCH --qos="batch"
+#SBATCH --ntasks=1
+#SBATCH --nodes=1
+#SBATCH --cpus-per-task=1
+#SBATCH --mem=8G
+##SBATCH --nodes=1
+##SBATCH --ntasks=1
+##SBATCH --cpus-per-task=1
+##SBATCH --ntasks-per-node=1
+#SBATCH --time=01:00:00
+#SBATCH --exclude=h28n12
+##SBATCH --exclude=h31n03,h28n12
+##SBATCH --exclude=h29n01,h26n05,h28n06,h29n07,h30n03,h30n15
+#SBATCH --mail-type=BEGIN,END,FAIL
+#SBATCH --mail-user=ryan.lagerquist@noaa.gov
+#SBATCH --output=plot_gridded_evaluation_for_best_%A.out
+
+module load cuda/10.1
+source /scratch2/BMC/gsd-hpcs/Jebb.Q.Stewart/conda3.7/etc/profile.d/conda.csh
+conda activate base
+
+set CODE_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_standalone/ml4convection"
+set TOP_MODEL_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_models/experiment04"
+
+set HALF_WINDOW_SIZE_PX=5
+set CONV_LAYER_DROPOUT_RATE=0
+set L2_WEIGHT=0.000316
+
+set half_window_size_string=`printf "%d" $HALF_WINDOW_SIZE_PX`
+set conv_layer_dropout_string=`printf "%.3f" $CONV_LAYER_DROPOUT_RATE`
+set l2_weight_string=`printf "%.6f" $L2_WEIGHT`
+
+set model_dir_name="${TOP_MODEL_DIR_NAME}/fss-half-window-size-px=${half_window_size_string}_conv-dropout=${conv_layer_dropout_string}_l2-weight=${l2_weight_string}"
+set advanced_score_file_name="${model_dir_name}/validation/evaluation/advanced_scores_gridded=1.p"
+set output_dir_name="${model_dir_name}/validation/evaluation/advanced_scores_gridded=1"
+
+python3 -u "${CODE_DIR_NAME}/plot_gridded_evaluation.py" \
+--input_advanced_score_file_name="${advanced_score_file_name}" \
+--probability_threshold=0.22 \
+--output_dir_name="${output_dir_name}"
