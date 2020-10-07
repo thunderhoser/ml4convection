@@ -168,8 +168,9 @@ def _plot_one_score(
     )
 
     if is_frequency_bias:
-        this_offset = numpy.nanpercentile(
-            numpy.absolute(score_matrix - 1.), MAX_COLOUR_PERCENTILE
+        this_offset = numpy.percentile(
+            numpy.absolute(score_matrix[numpy.isfinite(score_matrix)] - 1.),
+            MAX_COLOUR_PERCENTILE
         )
         min_colour_value = 0.
         max_colour_value = 1. + this_offset
