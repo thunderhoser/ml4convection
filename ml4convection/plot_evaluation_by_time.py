@@ -17,7 +17,7 @@ sys.path.append(os.path.normpath(os.path.join(THIS_DIRECTORY_NAME, '..')))
 import time_conversion
 import gg_model_evaluation as gg_model_eval
 import file_system_utils
-import plotting_utils
+import gg_plotting_utils
 import imagemagick_utils
 import evaluation
 import evaluation_plotting as eval_plotting
@@ -520,7 +520,7 @@ def _run(input_dir_name, probability_threshold, output_dir_name):
     axes_object.set_xticklabels(hour_strings, rotation=90.)
     axes_object.set_xlabel('Hour (UTC)')
 
-    plotting_utils.label_axes(
+    gg_plotting_utils.label_axes(
         axes_object=axes_object, label_string='(a)',
         x_coord_normalized=-0.075, y_coord_normalized=1.02
     )
@@ -545,7 +545,7 @@ def _run(input_dir_name, probability_threshold, output_dir_name):
     axes_object.set_xticklabels(hour_strings, rotation=90.)
     axes_object.set_xlabel('Hour (UTC)')
 
-    plotting_utils.label_axes(
+    gg_plotting_utils.label_axes(
         axes_object=axes_object, label_string='(b)',
         x_coord_normalized=-0.075, y_coord_normalized=1.02
     )
@@ -573,7 +573,7 @@ def _run(input_dir_name, probability_threshold, output_dir_name):
     axes_object.set_xticks(months - 1)
     axes_object.set_xticklabels(month_strings, rotation=90.)
 
-    plotting_utils.label_axes(
+    gg_plotting_utils.label_axes(
         axes_object=axes_object, label_string='(c)',
         x_coord_normalized=-0.075, y_coord_normalized=1.02
     )
@@ -597,7 +597,7 @@ def _run(input_dir_name, probability_threshold, output_dir_name):
     axes_object.set_xticks(months - 1)
     axes_object.set_xticklabels(month_strings, rotation=90.)
 
-    plotting_utils.label_axes(
+    gg_plotting_utils.label_axes(
         axes_object=axes_object, label_string='(d)',
         x_coord_normalized=-0.075, y_coord_normalized=1.02
     )
