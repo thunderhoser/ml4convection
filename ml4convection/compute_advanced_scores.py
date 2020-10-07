@@ -308,6 +308,7 @@ def _run(top_basic_score_dir_name, first_date_string, last_date_string,
             num_subgrids_per_dim=num_subgrids_per_dim
         )
         print(SEPARATOR_STRING)
+        print(basic_score_table_xarray)
 
         advanced_score_table_xarray = evaluation.get_advanced_scores_gridded(
             basic_score_table_xarray=basic_score_table_xarray
