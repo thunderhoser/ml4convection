@@ -1077,6 +1077,9 @@ def get_advanced_scores_gridded(basic_score_table_xarray):
     training_event_freq_matrix = (
         basic_score_table_xarray[TRAINING_EVENT_FREQ_KEY].values
     )
+    if len(training_event_freq_matrix.shape) == 3:
+        training_event_freq_matrix = [0, ...]
+
     print(training_event_freq_matrix.shape)
     print(num_grid_rows)
     print(num_grid_columns)
