@@ -214,8 +214,7 @@ def _plot_one_score(
             axes_object_or_matrix=axes_object, data_matrix=score_matrix,
             colour_map_object=colour_map_object,
             colour_norm_object=colour_norm_object,
-            orientation_string='vertical', fraction_of_axis_length=0.8,
-            extend_min=False, extend_max=True
+            orientation_string='vertical', extend_min=False, extend_max=True
         )
 
         tick_values = colour_bar_object.get_ticks()
@@ -226,7 +225,7 @@ def _plot_one_score(
             axes_object_or_matrix=axes_object, data_matrix=score_matrix,
             colour_map_object=colour_map_object,
             min_value=min_colour_value, max_value=max_colour_value,
-            orientation_string='vertical', fraction_of_axis_length=0.8,
+            orientation_string='vertical',
             extend_min=is_bss or min_colour_value > TOLERANCE,
             extend_max=max_colour_value < 1. - TOLERANCE
         )
