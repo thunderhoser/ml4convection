@@ -55,20 +55,13 @@ def _run(advanced_score_file_name, output_dir_name):
         advanced_score_file_name
     )
 
-    num_grid_rows = len(
-        advanced_score_table_xarray.coords[evaluation.LATITUDE_DIM].values
-    )
-    num_grid_columns = len(
-        advanced_score_table_xarray.coords[evaluation.LONGITUDE_DIM].values
-    )
+    gridded = evaluation.LATITUDE_DIM in advanced_score_table_xarray.coords
 
-    if num_grid_rows * num_grid_columns > 1:
-        error_string = (
+    if gridded:
+        raise ValueError(
             'File should contain ungridded scores (aggregated over the full '
-            'domain).  Instead, contains scores at {0:d} grid points.'
-        ).format(num_grid_rows * num_grid_columns)
-
-        raise ValueError(error_string)
+            'domain).'
+        )
 
     # Plot performance diagram.
     figure_object, axes_object = pyplot.subplots(
@@ -78,20 +71,16 @@ def _run(advanced_score_file_name, output_dir_name):
 
     eval_plotting.plot_performance_diagram(
         axes_object=axes_object,
-        pod_by_threshold=a[evaluation.POD_KEY].values[0, 0, :],
-        success_ratio_by_threshold=
-        a[evaluation.SUCCESS_RATIO_KEY].values[0, 0, :]
+        pod_by_threshold=a[evaluation.POD_KEY].values,
+        success_ratio_by_threshold=a[evaluation.SUCCESS_RATIO_KEY].values
     )
 
     area_under_curve = gg_model_eval.get_area_under_perf_diagram(
-        pod_by_threshold=a[evaluation.POD_KEY].values[0, 0, :],
-        success_ratio_by_threshold=
-        a[evaluation.SUCCESS_RATIO_KEY].values[0, 0, :]
+        pod_by_threshold=a[evaluation.POD_KEY].values,
+        success_ratio_by_threshold=a[evaluation.SUCCESS_RATIO_KEY].values
     )
-    max_csi = numpy.nanmax(a[evaluation.CSI_KEY].values[0, 0, :])
-    best_threshold_index = numpy.nanargmax(
-        a[evaluation.CSI_KEY].values[0, 0, :]
-    )
+    max_csi = numpy.nanmax(a[evaluation.CSI_KEY].values)
+    best_threshold_index = numpy.nanargmax(a[evaluation.CSI_KEY].values)
     best_prob_threshold = a.coords[evaluation.PROBABILITY_THRESHOLD_DIM].values[
         best_threshold_index
     ]
@@ -118,21 +107,20 @@ def _run(advanced_score_file_name, output_dir_name):
     )
     eval_plotting.plot_attributes_diagram(
         figure_object=figure_object, axes_object=axes_object,
-        mean_predictions=a[evaluation.MEAN_FORECAST_PROB_KEY].values[0, 0, :],
-        mean_observations=a[evaluation.EVENT_FREQUENCY_KEY].values[0, 0, :],
-        example_counts=a[evaluation.EXAMPLE_COUNT_KEY].values[0, 0, :],
-        mean_value_in_training=
-        a[evaluation.TRAINING_EVENT_FREQ_KEY].values[0, 0],
+        mean_predictions=a[evaluation.MEAN_FORECAST_PROB_KEY].values,
+        mean_observations=a[evaluation.EVENT_FREQUENCY_KEY].values,
+        example_counts=a[evaluation.EXAMPLE_COUNT_KEY].values,
+        mean_value_in_training=a[evaluation.TRAINING_EVENT_FREQ_KEY].values[0],
         min_value_to_plot=0., max_value_to_plot=1.
     )
 
     title_string = (
         'BS = {0:.3f} ... BSS = {1:.3f} ... REL = {2:.3f} ... RES = {3:.3f}'
     ).format(
-        a[evaluation.BRIER_SCORE_KEY].values[0, 0],
-        a[evaluation.BRIER_SKILL_SCORE_KEY].values[0, 0],
-        a[evaluation.RELIABILITY_KEY].values[0, 0],
-        a[evaluation.RESOLUTION_KEY].values[0, 0]
+        a[evaluation.BRIER_SCORE_KEY].values[0],
+        a[evaluation.BRIER_SKILL_SCORE_KEY].values[0],
+        a[evaluation.RELIABILITY_KEY].values[0],
+        a[evaluation.RESOLUTION_KEY].values[0]
     )
     axes_object.set_title(title_string)
 

@@ -100,9 +100,9 @@ def _plot_performance_diagrams(score_tables_xarray, output_file_name):
     )
 
     for i in range(num_tables):
-        these_pod = score_tables_xarray[i][evaluation.POD_KEY].values[0, 0, :]
+        these_pod = score_tables_xarray[i][evaluation.POD_KEY].values
         these_success_ratios = (
-            score_tables_xarray[i][evaluation.SUCCESS_RATIO_KEY].values[0, 0, :]
+            score_tables_xarray[i][evaluation.SUCCESS_RATIO_KEY].values
         )
         eval_plotting.plot_performance_diagram(
             axes_object=axes_object, pod_by_threshold=these_pod,
@@ -168,10 +168,10 @@ def _plot_reliability_curves(score_tables_xarray, output_file_name):
 
     for i in range(num_tables):
         these_mean_probs = (
-            score_tables_xarray[i][evaluation.MEAN_FORECAST_PROB_KEY].values[0, 0, :]
+            score_tables_xarray[i][evaluation.MEAN_FORECAST_PROB_KEY].values
         )
         these_event_freqs = (
-            score_tables_xarray[i][evaluation.EVENT_FREQUENCY_KEY].values[0, 0, :]
+            score_tables_xarray[i][evaluation.EVENT_FREQUENCY_KEY].values
         )
         eval_plotting.plot_reliability_curve(
             axes_object=axes_object,
@@ -251,7 +251,7 @@ def _plot_scores_as_graph(
 
     if probability_threshold is None:
         y_values = numpy.array([
-            t[evaluation.FSS_KEY][0, 0] for t in score_tables_xarray
+            t[evaluation.FSS_KEY][0] for t in score_tables_xarray
         ])
     else:
         all_prob_thresholds = score_tables_xarray[0].coords[
@@ -276,7 +276,7 @@ def _plot_scores_as_graph(
             raise ValueError(error_string)
 
         y_values = numpy.array([
-            t[evaluation.CSI_KEY][0, 0, prob_threshold_index]
+            t[evaluation.CSI_KEY][prob_threshold_index]
             for t in score_tables_xarray
         ])
 
@@ -293,12 +293,12 @@ def _plot_scores_as_graph(
     # Plot second score.
     if probability_threshold is None:
         y_values = numpy.array([
-            t[evaluation.BRIER_SKILL_SCORE_KEY][0, 0]
+            t[evaluation.BRIER_SKILL_SCORE_KEY][0]
             for t in score_tables_xarray
         ])
     else:
         y_values = numpy.array([
-            t[evaluation.FREQUENCY_BIAS_KEY][0, 0, prob_threshold_index]
+            t[evaluation.FREQUENCY_BIAS_KEY][prob_threshold_index]
             for t in score_tables_xarray
         ])
 
@@ -317,12 +317,12 @@ def _plot_scores_as_graph(
     # Plot third score.
     if probability_threshold is None:
         y_values = numpy.array([
-            t[evaluation.BRIER_SCORE_KEY][0, 0]
+            t[evaluation.BRIER_SCORE_KEY][0]
             for t in score_tables_xarray
         ])
     else:
         y_values = numpy.array([
-            t[evaluation.POD_KEY][0, 0, prob_threshold_index]
+            t[evaluation.POD_KEY][prob_threshold_index]
             for t in score_tables_xarray
         ])
 
@@ -342,15 +342,15 @@ def _plot_scores_as_graph(
     if probability_threshold is None:
         y_values = numpy.array([
             gg_model_eval.get_area_under_perf_diagram(
-                pod_by_threshold=t[evaluation.POD_KEY].values[0, 0, :],
+                pod_by_threshold=t[evaluation.POD_KEY].values,
                 success_ratio_by_threshold=
-                t[evaluation.SUCCESS_RATIO_KEY].values[0, 0, :]
+                t[evaluation.SUCCESS_RATIO_KEY].values
             )
             for t in score_tables_xarray
         ])
     else:
         y_values = numpy.array([
-            t[evaluation.SUCCESS_RATIO_KEY][0, 0, prob_threshold_index]
+            t[evaluation.SUCCESS_RATIO_KEY][prob_threshold_index]
             for t in score_tables_xarray
         ])
 

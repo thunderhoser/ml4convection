@@ -764,46 +764,6 @@ BASIC_SCORE_TABLE_UNGRIDDED = xarray.Dataset(
     attrs=FIRST_BASIC_TABLE_GRIDDED.attrs
 )
 
-# The following constants are used to test aggregate_basic_scores_in_space.
-METADATA_DICT_AGGREGATED = {
-    evaluation.TIME_DIM: VALID_TIMES_UNIX_SEC,
-    evaluation.PROBABILITY_THRESHOLD_DIM: PROB_THRESHOLDS
-}
-
-THESE_DIM = (evaluation.TIME_DIM, evaluation.PROBABILITY_THRESHOLD_DIM)
-MAIN_DICT_AGGREGATED = {
-    evaluation.NUM_ACTUAL_ORIENTED_TP_KEY:
-        (THESE_DIM, THIS_NUM_AO_TRUE_POS_MATRIX + 0),
-    evaluation.NUM_PREDICTION_ORIENTED_TP_KEY:
-        (THESE_DIM, THIS_NUM_PO_TRUE_POS_MATRIX + 0),
-    evaluation.NUM_FALSE_POSITIVES_KEY:
-        (THESE_DIM, THIS_NUM_FALSE_POS_MATRIX + 0),
-    evaluation.NUM_FALSE_NEGATIVES_KEY:
-        (THESE_DIM, THIS_NUM_FALSE_NEG_MATRIX + 0)
-}
-
-CLIMO_SSE_MATRIX_UNGRIDDED = numpy.full(1, numpy.nansum(FIRST_CLIMO_SSE_MATRIX))
-THIS_SUM = numpy.sum(
-    numpy.invert(numpy.isnan(FIRST_CLIMO_SSE_MATRIX))
-)
-THIS_EXAMPLE_COUNT_MATRIX = numpy.full(1, THIS_SUM, dtype=int)
-
-THESE_DIM = (evaluation.TIME_DIM,)
-NEW_DICT = {
-    evaluation.BRIER_ACTUAL_SSE_KEY:
-        (THESE_DIM, ACTUAL_SSE_MATRIX_UNGRIDDED + 0.),
-    evaluation.CLIMO_SSE_KEY: (THESE_DIM, CLIMO_SSE_MATRIX_UNGRIDDED + 0.),
-    evaluation.EXAMPLE_COUNT_KEY: (THESE_DIM, THIS_EXAMPLE_COUNT_MATRIX + 0),
-    evaluation.ACTUAL_SSE_KEY: (THESE_DIM, ACTUAL_SSE_MATRIX_UNGRIDDED + 0.),
-    evaluation.REFERENCE_SSE_KEY: (THESE_DIM, REF_SSE_MATRIX_UNGRIDDED + 0.),
-}
-MAIN_DICT_AGGREGATED.update(NEW_DICT)
-
-BASIC_SCORE_TABLE_AGGREGATED = xarray.Dataset(
-    data_vars=MAIN_DICT_AGGREGATED, coords=METADATA_DICT_AGGREGATED,
-    attrs=FIRST_BASIC_TABLE_GRIDDED.attrs
-)
-
 # The following constants are used to test get_advanced_scores_ungridded.
 METADATA_DICT_ADVANCED_UNGRIDDED = {
     evaluation.PROBABILITY_THRESHOLD_DIM: PROB_THRESHOLDS,
@@ -1099,19 +1059,7 @@ def _compare_basic_score_tables(first_table, second_table):
         float_keys += [evaluation.SUMMED_FORECAST_PROB_KEY]
         integer_keys += [evaluation.POSITIVE_EXAMPLE_COUNT_KEY]
 
-    maybe_missing_keys = [
-        evaluation.SUMMED_FORECAST_PROB_KEY,
-        evaluation.POSITIVE_EXAMPLE_COUNT_KEY
-    ]
-
     for this_key in float_keys:
-        if (
-                this_key in maybe_missing_keys and
-                this_key not in first_table and
-                this_key not in second_table
-        ):
-            continue
-
         if not numpy.allclose(
                 first_table[this_key].values, second_table[this_key].values,
                 atol=TOLERANCE, equal_nan=True
@@ -1119,13 +1067,6 @@ def _compare_basic_score_tables(first_table, second_table):
             return False
 
     for this_key in integer_keys:
-        if (
-                this_key in maybe_missing_keys and
-                this_key not in first_table and
-                this_key not in second_table
-        ):
-            continue
-
         if not numpy.array_equal(
                 first_table[this_key].values, second_table[this_key].values
         ):
@@ -1139,16 +1080,7 @@ def _compare_basic_score_tables(first_table, second_table):
     else:
         integer_keys += [evaluation.RELIABILITY_BIN_DIM]
 
-    maybe_missing_keys = [evaluation.RELIABILITY_BIN_DIM]
-
     for this_key in float_keys:
-        if (
-                this_key in maybe_missing_keys and
-                this_key not in first_table and
-                this_key not in second_table
-        ):
-            continue
-
         if not numpy.allclose(
                 first_table.coords[this_key].values,
                 second_table.coords[this_key].values,
@@ -1157,13 +1089,6 @@ def _compare_basic_score_tables(first_table, second_table):
             return False
 
     for this_key in integer_keys:
-        if (
-                this_key in maybe_missing_keys and
-                this_key not in first_table and
-                this_key not in second_table
-        ):
-            continue
-
         if not numpy.array_equal(
                 first_table.coords[this_key].values,
                 second_table.coords[this_key].values
@@ -1700,17 +1625,6 @@ class EvaluationTests(unittest.TestCase):
 
         self.assertTrue(_compare_basic_score_tables(
             this_score_table_xarray, SMALL_BASIC_TABLE_GRIDDED
-        ))
-
-    def test_aggregate_basic_scores_in_space(self):
-        """Ensures correct output from aggregate_basic_scores_in_space."""
-
-        this_score_table_xarray = evaluation.aggregate_basic_scores_in_space(
-            FIRST_BASIC_TABLE_GRIDDED
-        )
-
-        self.assertTrue(_compare_basic_score_tables(
-            this_score_table_xarray, BASIC_SCORE_TABLE_AGGREGATED
         ))
 
     def test_get_basic_scores_ungridded(self):

@@ -274,7 +274,8 @@ def _run(advanced_score_file_name, sequential_colour_map_name,
     )
 
     _plot_one_score(
-        score_matrix=advanced_score_table_xarray[evaluation.BRIER_SCORE_KEY],
+        score_matrix=
+        advanced_score_table_xarray[evaluation.BRIER_SCORE_KEY].values,
         advanced_score_table_xarray=advanced_score_table_xarray,
         border_latitudes_deg_n=border_latitudes_deg_n,
         border_longitudes_deg_e=border_longitudes_deg_e,
@@ -286,7 +287,7 @@ def _run(advanced_score_file_name, sequential_colour_map_name,
 
     _plot_one_score(
         score_matrix=
-        advanced_score_table_xarray[evaluation.BRIER_SKILL_SCORE_KEY],
+        advanced_score_table_xarray[evaluation.BRIER_SKILL_SCORE_KEY].values,
         advanced_score_table_xarray=advanced_score_table_xarray,
         border_latitudes_deg_n=border_latitudes_deg_n,
         border_longitudes_deg_e=border_longitudes_deg_e,
@@ -297,7 +298,7 @@ def _run(advanced_score_file_name, sequential_colour_map_name,
     )
 
     _plot_one_score(
-        score_matrix=advanced_score_table_xarray[evaluation.FSS_KEY],
+        score_matrix=advanced_score_table_xarray[evaluation.FSS_KEY].values,
         advanced_score_table_xarray=advanced_score_table_xarray,
         border_latitudes_deg_n=border_latitudes_deg_n,
         border_longitudes_deg_e=border_longitudes_deg_e,
@@ -310,7 +311,7 @@ def _run(advanced_score_file_name, sequential_colour_map_name,
 
     _plot_one_score(
         score_matrix=
-        advanced_score_table_xarray[evaluation.TRAINING_EVENT_FREQ_KEY],
+        advanced_score_table_xarray[evaluation.TRAINING_EVENT_FREQ_KEY].values,
         advanced_score_table_xarray=advanced_score_table_xarray,
         border_latitudes_deg_n=border_latitudes_deg_n,
         border_longitudes_deg_e=border_longitudes_deg_e,
@@ -348,7 +349,7 @@ def _run(advanced_score_file_name, sequential_colour_map_name,
     a = advanced_score_table_xarray
 
     _plot_one_score(
-        score_matrix=a[evaluation.POD_KEY][..., prob_threshold_index],
+        score_matrix=a[evaluation.POD_KEY].values[..., prob_threshold_index],
         advanced_score_table_xarray=a,
         border_latitudes_deg_n=border_latitudes_deg_n,
         border_longitudes_deg_e=border_longitudes_deg_e,
@@ -359,7 +360,8 @@ def _run(advanced_score_file_name, sequential_colour_map_name,
     )
 
     _plot_one_score(
-        score_matrix=a[evaluation.SUCCESS_RATIO_KEY][..., prob_threshold_index],
+        score_matrix=
+        a[evaluation.SUCCESS_RATIO_KEY].values[..., prob_threshold_index],
         advanced_score_table_xarray=a,
         border_latitudes_deg_n=border_latitudes_deg_n,
         border_longitudes_deg_e=border_longitudes_deg_e,
@@ -371,7 +373,7 @@ def _run(advanced_score_file_name, sequential_colour_map_name,
 
     _plot_one_score(
         score_matrix=
-        a[evaluation.FREQUENCY_BIAS_KEY][..., prob_threshold_index],
+        a[evaluation.FREQUENCY_BIAS_KEY].values[..., prob_threshold_index],
         advanced_score_table_xarray=a,
         border_latitudes_deg_n=border_latitudes_deg_n,
         border_longitudes_deg_e=border_longitudes_deg_e,
@@ -382,7 +384,7 @@ def _run(advanced_score_file_name, sequential_colour_map_name,
     )
 
     _plot_one_score(
-        score_matrix=a[evaluation.CSI_KEY][..., prob_threshold_index],
+        score_matrix=a[evaluation.CSI_KEY].values[..., prob_threshold_index],
         advanced_score_table_xarray=a,
         border_latitudes_deg_n=border_latitudes_deg_n,
         border_longitudes_deg_e=border_longitudes_deg_e,

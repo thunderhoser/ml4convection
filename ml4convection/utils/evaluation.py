@@ -1027,67 +1027,6 @@ def subset_basic_scores_by_space(
     return basic_score_table_xarray.isel(indexers=good_index_dict, drop=False)
 
 
-def aggregate_basic_scores_in_space(basic_score_table_xarray):
-    """Aggregates basic scores in space.
-
-    :param basic_score_table_xarray: xarray table in format created by
-        `get_basic_scores_gridded`.
-    :return: basic_score_table_xarray: Equivalent xarray table in format created
-        by `get_basic_scores_ungridded`.
-    """
-
-    # Create new table.
-    metadata_dict = dict()
-
-    for this_key in [TIME_DIM, PROBABILITY_THRESHOLD_DIM]:
-        metadata_dict[this_key] = (
-            basic_score_table_xarray.coords[this_key].values
-        )
-
-    num_times = len(metadata_dict[TIME_DIM])
-    num_prob_thresholds = len(metadata_dict[PROBABILITY_THRESHOLD_DIM])
-
-    these_dim = (TIME_DIM, PROBABILITY_THRESHOLD_DIM)
-    this_array = numpy.full((num_times, num_prob_thresholds), 0, dtype=int)
-    main_data_dict = {
-        NUM_ACTUAL_ORIENTED_TP_KEY: (these_dim, this_array + 0),
-        NUM_PREDICTION_ORIENTED_TP_KEY: (these_dim, this_array + 0),
-        NUM_FALSE_NEGATIVES_KEY: (these_dim, this_array + 0),
-        NUM_FALSE_POSITIVES_KEY: (these_dim, this_array + 0)
-    }
-
-    these_dim = (TIME_DIM,)
-    this_float_array = numpy.full(num_times, numpy.nan)
-    this_integer_array = numpy.full(num_times, 0, dtype=int)
-    new_dict = {
-        ACTUAL_SSE_KEY: (these_dim, this_float_array + 0.),
-        REFERENCE_SSE_KEY: (these_dim, this_float_array + 0.),
-        BRIER_ACTUAL_SSE_KEY: (these_dim, this_float_array + 0.),
-        CLIMO_SSE_KEY: (these_dim, this_float_array + 0.),
-        EXAMPLE_COUNT_KEY: (these_dim, this_integer_array + 0)
-    }
-    main_data_dict.update(new_dict)
-
-    new_score_table_xarray = xarray.Dataset(
-        data_vars=main_data_dict, coords=metadata_dict,
-        attrs=basic_score_table_xarray.attrs
-    )
-
-    main_keys = [
-        NUM_ACTUAL_ORIENTED_TP_KEY, NUM_PREDICTION_ORIENTED_TP_KEY,
-        NUM_FALSE_POSITIVES_KEY, NUM_FALSE_NEGATIVES_KEY,
-        ACTUAL_SSE_KEY, REFERENCE_SSE_KEY, BRIER_ACTUAL_SSE_KEY, CLIMO_SSE_KEY,
-        EXAMPLE_COUNT_KEY
-    ]
-
-    for this_key in main_keys:
-        new_score_table_xarray[this_key].values = numpy.nansum(
-            basic_score_table_xarray[this_key].values, axis=(1, 2)
-        )
-
-    return new_score_table_xarray
-
-
 def get_advanced_scores_gridded(basic_score_table_xarray):
     """Computes gridded advanced scores from gridded basic scores.
 
