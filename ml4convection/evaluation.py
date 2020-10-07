@@ -1077,12 +1077,8 @@ def get_advanced_scores_gridded(basic_score_table_xarray):
     training_event_freq_matrix = (
         basic_score_table_xarray[TRAINING_EVENT_FREQ_KEY].values
     )
-    if not isinstance(training_event_freq_matrix, numpy.ndarray):
-        training_event_freq_matrix = training_event_freq_matrix[1]
-
     print(training_event_freq_matrix.shape)
-    print(num_grid_rows)
-    print(num_grid_columns)
+    print(training_event_freq_matrix[0, ...].shape)
 
     these_dim = (LATITUDE_DIM, LONGITUDE_DIM)
     this_integer_array = numpy.full(
@@ -1098,7 +1094,7 @@ def get_advanced_scores_gridded(basic_score_table_xarray):
         BRIER_SCORE_KEY: (these_dim, this_float_array + 0.),
         BRIER_SKILL_SCORE_KEY: (these_dim, this_float_array + 0.),
         FSS_KEY: (these_dim, this_float_array + 0.),
-        TRAINING_EVENT_FREQ_KEY: (these_dim, training_event_freq_matrix + 0.)
+        TRAINING_EVENT_FREQ_KEY: (these_dim, training_event_freq_matrix[0, ...])
     }
     main_data_dict.update(new_dict)
 
