@@ -51,5 +51,5 @@ python3 -u "${CODE_DIR_NAME}/compute_basic_scores.py" \
 --last_date_string="${last_date_string}" \
 --gridded=1 \
 --matching_distance_px=1 \
---prob_thresholds -1 \
+--prob_thresholds 0.22 \
 --output_dir_name="${prediction_dir_name}/evaluation"
