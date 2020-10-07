@@ -191,6 +191,8 @@ def _run(top_basic_score_dir_name, first_date_string, last_date_string,
         basic_score_table_xarray = evaluation.concat_basic_score_tables(
             basic_score_table_matrix[:, j]
         )
+        if gridded:
+            del basic_score_table_matrix
 
         print((
             '\nComputing advanced scores for {0:d}th of {1:d} splits...'
