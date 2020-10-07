@@ -174,7 +174,6 @@ def _plot_one_score(
         )
         min_colour_value = 0.
         max_colour_value = 1. + this_offset
-        print(max_colour_value)
 
         colour_map_object, colour_norm_object = _get_bias_colour_scheme(
             colour_map_name=colour_map_name, max_colour_value=max_colour_value
@@ -304,6 +303,9 @@ def _run(advanced_score_file_name, sequential_colour_map_name,
         title_string='Brier score'
     )
 
+    print(numpy.nanmin(advanced_score_table_xarray[evaluation.BRIER_SKILL_SCORE_KEY].values))
+    print(numpy.nanmax(advanced_score_table_xarray[evaluation.BRIER_SKILL_SCORE_KEY].values))
+
     _plot_one_score(
         score_matrix=
         advanced_score_table_xarray[evaluation.BRIER_SKILL_SCORE_KEY].values,
@@ -322,7 +324,7 @@ def _run(advanced_score_file_name, sequential_colour_map_name,
         border_latitudes_deg_n=border_latitudes_deg_n,
         border_longitudes_deg_e=border_longitudes_deg_e,
         colour_map_name=diverging_colour_map_name,
-        is_frequency_bias=False, maybe_negative=True,
+        is_frequency_bias=False, maybe_negative=False,
         output_file_name=
         '{0:s}/fractions_skill_score.jpg'.format(output_dir_name),
         title_string='Fractions skill score'
