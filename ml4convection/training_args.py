@@ -18,6 +18,7 @@ INPUT_MODEL_FILE_ARG_NAME = 'input_model_file_name'
 OUTPUT_MODEL_DIR_ARG_NAME = 'output_model_dir_name'
 BAND_NUMBERS_ARG_NAME = 'band_numbers'
 LEAD_TIME_ARG_NAME = 'lead_time_seconds'
+LAG_TIMES_ARG_NAME = 'lag_times_seconds'
 FIRST_TRAIN_DATE_ARG_NAME = 'first_training_date_string'
 LAST_TRAIN_DATE_ARG_NAME = 'last_training_date_string'
 FIRST_VALIDN_DATE_ARG_NAME = 'first_validn_date_string'
@@ -64,6 +65,7 @@ BAND_NUMBERS_HELP_STRING = (
 )
 
 LEAD_TIME_HELP_STRING = 'Lead time for prediction.'
+LAG_TIMES_HELP_STRING = 'Lag times for prediction.'
 
 TRAIN_DATE_HELP_STRING = (
     'Date (format "yyyymmdd").  The training period will consist of valid times'
@@ -139,6 +141,10 @@ def add_input_args(parser_object):
     parser_object.add_argument(
         '--' + LEAD_TIME_ARG_NAME, type=int, required=True,
         help=LEAD_TIME_HELP_STRING
+    )
+    parser_object.add_argument(
+        '--' + LAG_TIMES_ARG_NAME, type=int, nargs='+', required=False,
+        default=[0], help=LAG_TIMES_HELP_STRING
     )
     parser_object.add_argument(
         '--' + FIRST_TRAIN_DATE_ARG_NAME, type=str, required=False,

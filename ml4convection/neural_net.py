@@ -14,11 +14,9 @@ THIS_DIRECTORY_NAME = os.path.dirname(os.path.realpath(
 ))
 sys.path.append(os.path.normpath(os.path.join(THIS_DIRECTORY_NAME, '..')))
 
-import time_conversion
 import file_system_utils
 import error_checking
 import custom_metrics
-import radar_io
 import satellite_io
 import example_io
 import general_utils
@@ -98,6 +96,7 @@ BATCH_SIZE_KEY = 'num_examples_per_batch'
 MAX_DAILY_EXAMPLES_KEY = 'max_examples_per_day_in_batch'
 BAND_NUMBERS_KEY = 'band_numbers'
 LEAD_TIME_KEY = 'lead_time_seconds'
+LAG_TIMES_KEY = 'lag_times_seconds'
 FIRST_VALID_DATE_KEY = 'first_valid_date_string'
 LAST_VALID_DATE_KEY = 'last_valid_date_string'
 NORMALIZE_FLAG_KEY = 'normalize'
@@ -109,6 +108,7 @@ DEFAULT_GENERATOR_OPTION_DICT = {
     BATCH_SIZE_KEY: 256,
     MAX_DAILY_EXAMPLES_KEY: 64,
     BAND_NUMBERS_KEY: satellite_io.BAND_NUMBERS,
+    LAG_TIMES_KEY: numpy.array([0], dtype=int),
     NORMALIZE_FLAG_KEY: True,
     UNIFORMIZE_FLAG_KEY: True
 }
@@ -143,7 +143,7 @@ LONGITUDES_KEY = 'longitudes_deg_e'
 def _check_generator_args(option_dict):
     """Error-checks input arguments for generator.
 
-    :param option_dict: See doc for `generator_from_raw_files`.
+    :param option_dict: See doc for `generator_from_preprocessed_files`.
     :return: option_dict: Same as input, except defaults may have been added.
     """
 
@@ -162,9 +162,13 @@ def _check_generator_args(option_dict):
     error_checking.assert_is_geq(option_dict[MAX_DAILY_EXAMPLES_KEY], 2)
     error_checking.assert_is_integer(option_dict[LEAD_TIME_KEY])
     error_checking.assert_is_geq(option_dict[LEAD_TIME_KEY], 0)
-    error_checking.assert_is_less_than(
-        option_dict[LEAD_TIME_KEY], DAYS_TO_SECONDS
+    error_checking.assert_is_integer_numpy_array(option_dict[LAG_TIMES_KEY])
+    error_checking.assert_is_geq_numpy_array(option_dict[LAG_TIMES_KEY], 0)
+
+    max_time_diff_seconds = numpy.max(
+        option_dict[LAG_TIMES_KEY] + option_dict[LEAD_TIME_KEY]
     )
+    error_checking.assert_is_less_than(max_time_diff_seconds, DAYS_TO_SECONDS)
 
     return option_dict
 
@@ -195,11 +199,57 @@ def _check_inference_args(predictor_matrix, num_examples_per_batch, verbose):
     return num_examples_per_batch
 
 
+def _reshape_predictor_matrix(predictor_matrix, num_lag_times):
+    """Reshapes predictor matrix to account for lag times.
+
+    E = number of examples
+    M = number of rows in grid
+    N = number of columns in grid
+    B = number of spectral bands
+    L = number of lag times
+
+    :param predictor_matrix: numpy array (EL x M x N x B) of predictors.
+    :param num_lag_times: Number of lag times.
+    :return: predictor_matrix: numpy array (E x M x N x BL) of predictors.
+    :raises: ValueError: if length of first axis of predictor matrix is not an
+        integer multiple of L.
+    """
+
+    # Check for errors.
+    first_axis_length = predictor_matrix.shape[0]
+    num_examples = float(first_axis_length) / num_lag_times
+    this_diff = numpy.absolute(numpy.round(num_examples) - num_examples)
+
+    if this_diff > TOLERANCE:
+        error_string = (
+            'Length of first axis of predictor matrix ({0:d}) must be an '
+            'integer multiple of the number of lag times ({1:d}).'
+        ).format(first_axis_length, num_lag_times)
+
+        raise ValueError(error_string)
+
+    # Do actual stuff.
+    num_bands = predictor_matrix.shape[-1]
+
+    predictor_matrix_by_lag = [
+        predictor_matrix[j::num_lag_times, ...] for j in range(num_lag_times)
+    ]
+    predictor_matrix = numpy.stack(predictor_matrix_by_lag, axis=-1)
+
+    num_channels = num_bands * num_lag_times
+    these_dim = predictor_matrix.shape[:-2] + (num_channels,)
+    return numpy.reshape(predictor_matrix, these_dim)
+
+
 def _read_preprocessed_inputs_one_day(
         valid_date_string, predictor_file_names, band_numbers,
         normalize, uniformize, target_file_names, lead_time_seconds,
-        num_examples_to_read, return_coords):
+        lag_times_seconds, num_examples_to_read, return_coords):
     """Reads pre-processed inputs (predictor and target files) for one day.
+
+    E = number of examples
+    M = number of rows in grid
+    N = number of columns in grid
 
     :param valid_date_string: Valid date (format "yyyymmdd").
     :param predictor_file_names: 1-D list of paths to predictor files (readable
@@ -210,10 +260,20 @@ def _read_preprocessed_inputs_one_day(
     :param target_file_names: 1-D list of paths to target files (readable by
         `example_io.read_target_file`).
     :param lead_time_seconds: See doc for `generator_from_preprocessed_files`.
+    :param lag_times_seconds: Same.
     :param num_examples_to_read: Number of examples to read.
     :param return_coords: Boolean flag.  If True, will return latitudes and
         longitudes for grid points.
-    :return: data_dict: See doc for `_read_raw_inputs_one_day`.
+
+    :return: data_dict: Dictionary with the following keys.
+    data_dict['predictor_matrix']: See doc for
+        `generator_from_preprocessed_files`.
+    data_dict['target_matrix']: Same.
+    data_dict['valid_times_unix_sec']: length-E numpy array of valid times.
+    data_dict['latitudes_deg_n']: length-M numpy array of latitudes (deg N).
+        If `return_coords == False`, this is None.
+    data_dict['longitudes_deg_e']: length-N numpy array of longitudes (deg E).
+        If `return_coords == False`, this is None.
     """
 
     uniformize = uniformize and normalize
@@ -230,7 +290,7 @@ def _read_preprocessed_inputs_one_day(
     index = predictor_date_strings.index(valid_date_string)
     desired_predictor_file_names = [predictor_file_names[index]]
 
-    if lead_time_seconds > 0:
+    if lead_time_seconds > 0 or numpy.any(lag_times_seconds > 0):
         desired_predictor_file_names.insert(0, predictor_file_names[index - 1])
 
     print('Reading data from: "{0:s}"...'.format(desired_target_file_name))
@@ -268,28 +328,36 @@ def _read_preprocessed_inputs_one_day(
     )
 
     valid_times_unix_sec = target_dict[example_io.VALID_TIMES_KEY]
-    init_times_unix_sec = valid_times_unix_sec - lead_time_seconds
 
-    good_flags = numpy.array([
-        t in predictor_dict[example_io.VALID_TIMES_KEY]
-        for t in init_times_unix_sec
-    ], dtype=bool)
+    num_valid_times = len(valid_times_unix_sec)
+    num_lag_times = len(lag_times_seconds)
+    init_time_matrix_unix_sec = numpy.full(
+        (num_valid_times, num_lag_times), -1, dtype=int
+    )
 
-    if not numpy.any(good_flags):
+    for i in range(num_valid_times):
+        these_init_times_unix_sec = (
+            valid_times_unix_sec[i] - lead_time_seconds - lag_times_seconds
+        )
+
+        if not all([
+                t in predictor_dict[example_io.VALID_TIMES_KEY]
+                for t in these_init_times_unix_sec
+        ]):
+            continue
+
+        init_time_matrix_unix_sec[i, :] = these_init_times_unix_sec
+
+    good_indices = numpy.where(
+        numpy.all(init_time_matrix_unix_sec >= 0, axis=1)
+    )[0]
+
+    if len(good_indices) == 0:
         return None
 
-    good_indices = numpy.where(good_flags)[0]
     valid_times_unix_sec = valid_times_unix_sec[good_indices]
-    init_times_unix_sec = init_times_unix_sec[good_indices]
-
-    predictor_dict = example_io.subset_by_time(
-        predictor_dict=predictor_dict,
-        desired_times_unix_sec=init_times_unix_sec
-    )[0]
-    target_dict = example_io.subset_by_time(
-        target_dict=target_dict, desired_times_unix_sec=init_times_unix_sec
-    )[1]
-    num_examples = len(good_indices)
+    init_time_matrix_unix_sec = init_time_matrix_unix_sec[good_indices, :]
+    num_examples = len(valid_times_unix_sec)
 
     if num_examples >= num_examples_to_read:
         desired_indices = numpy.linspace(
@@ -298,10 +366,20 @@ def _read_preprocessed_inputs_one_day(
         desired_indices = numpy.random.choice(
             desired_indices, size=num_examples_to_read, replace=False
         )
-        predictor_dict, target_dict = example_io.subset_by_index(
-            predictor_dict=predictor_dict, target_dict=target_dict,
-            desired_indices=desired_indices
+
+        valid_times_unix_sec = valid_times_unix_sec[desired_indices]
+        init_time_matrix_unix_sec = (
+            init_time_matrix_unix_sec[desired_indices, :]
         )
+
+    predictor_dict = example_io.subset_by_time(
+        predictor_or_target_dict=predictor_dict,
+        desired_times_unix_sec=numpy.ravel(init_time_matrix_unix_sec)
+    )[0]
+    target_dict = example_io.subset_by_time(
+        predictor_or_target_dict=target_dict,
+        desired_times_unix_sec=valid_times_unix_sec
+    )[0]
 
     if normalize:
         if uniformize:
@@ -317,6 +395,9 @@ def _read_preprocessed_inputs_one_day(
             predictor_dict[example_io.PREDICTOR_MATRIX_UNNORM_KEY]
         )
 
+    predictor_matrix = _reshape_predictor_matrix(
+        predictor_matrix=predictor_matrix, num_lag_times=num_lag_times
+    )
     target_matrix = target_dict[example_io.TARGET_MATRIX_KEY]
 
     print('Number of target values in batch = {0:d} ... mean = {1:.3g}'.format(
@@ -382,16 +463,20 @@ def _write_metafile(
 
 
 def _find_days_with_preprocessed_inputs(
-        predictor_file_names, target_file_names, lead_time_seconds):
+        predictor_file_names, target_file_names, lead_time_seconds,
+        lag_times_seconds):
     """Finds days with pre-processed inputs (both predictor and target file).
 
     :param predictor_file_names: See doc for
         `_read_preprocessed_inputs_one_day`.
     :param target_file_names: Same.
     :param lead_time_seconds: Same.
+    :param lag_times_seconds: Same.
     :return: valid_date_strings: List of valid dates (target dates) for which
         both predictors and targets exist, in format "yyyymmdd".
     """
+
+    max_time_diff_seconds = numpy.max(lag_times_seconds) + lead_time_seconds
 
     predictor_date_strings = [
         example_io.file_name_to_date(f) for f in predictor_file_names
@@ -405,7 +490,7 @@ def _find_days_with_preprocessed_inputs(
         if this_target_date_string not in predictor_date_strings:
             continue
 
-        if lead_time_seconds > 0:
+        if max_time_diff_seconds > 0:
             if (
                     general_utils.get_previous_date(this_target_date_string)
                     not in predictor_date_strings
@@ -443,6 +528,7 @@ def create_data_from_preprocessed_files(option_dict, return_coords=False):
     option_dict['top_target_dir_name']: Same.
     option_dict['band_numbers']: Same.
     option_dict['lead_time_seconds']: Same.
+    option_dict['lag_times_seconds']: Same.
     option_dict['valid_date_string']: Valid date (format "yyyymmdd").  Will
         create examples with targets valid on this day.
     option_dict['normalize']: See doc for `generator_from_preprocessed_files`.
@@ -459,19 +545,17 @@ def create_data_from_preprocessed_files(option_dict, return_coords=False):
     top_target_dir_name = option_dict[TARGET_DIRECTORY_KEY]
     band_numbers = option_dict[BAND_NUMBERS_KEY]
     lead_time_seconds = option_dict[LEAD_TIME_KEY]
+    lag_times_seconds = option_dict[LAG_TIMES_KEY]
     valid_date_string = option_dict[VALID_DATE_KEY]
     normalize = option_dict[NORMALIZE_FLAG_KEY]
     uniformize = option_dict[UNIFORMIZE_FLAG_KEY]
 
-    if lead_time_seconds == 0:
-        first_init_date_string = copy.deepcopy(valid_date_string)
+    if lead_time_seconds > 0 or numpy.any(lag_times_seconds > 0):
+        first_init_date_string = general_utils.get_previous_date(
+            valid_date_string
+        )
     else:
-        valid_date_unix_sec = time_conversion.string_to_unix_sec(
-            valid_date_string, DATE_FORMAT
-        )
-        first_init_date_string = time_conversion.unix_sec_to_string(
-            valid_date_unix_sec - DAYS_TO_SECONDS, DATE_FORMAT
-        )
+        first_init_date_string = copy.deepcopy(valid_date_string)
 
     predictor_file_names = example_io.find_many_predictor_files(
         top_directory_name=top_predictor_dir_name,
@@ -491,7 +575,9 @@ def create_data_from_preprocessed_files(option_dict, return_coords=False):
 
     valid_date_strings = _find_days_with_preprocessed_inputs(
         predictor_file_names=predictor_file_names,
-        target_file_names=target_file_names, lead_time_seconds=lead_time_seconds
+        target_file_names=target_file_names,
+        lead_time_seconds=lead_time_seconds,
+        lag_times_seconds=lag_times_seconds
     )
 
     if len(valid_date_strings) == 0:
@@ -503,12 +589,18 @@ def create_data_from_preprocessed_files(option_dict, return_coords=False):
         band_numbers=band_numbers, normalize=normalize, uniformize=uniformize,
         target_file_names=target_file_names,
         lead_time_seconds=lead_time_seconds,
+        lag_times_seconds=lag_times_seconds,
         num_examples_to_read=int(1e6), return_coords=return_coords
     )
 
 
 def generator_from_preprocessed_files(option_dict):
     """Generates training data from pre-processed (predictor and target) files.
+
+    E = number of examples per batch
+    M = number of rows in grid
+    N = number of columns in grid
+    C = number of channels (num spectral bands * num lag times)
 
     :param option_dict: Dictionary with the following keys.
     option_dict['top_predictor_dir_name']: Name of top-level directory with
@@ -518,21 +610,30 @@ def generator_from_preprocessed_files(option_dict):
     option_dict['top_target_dir_name']: Name of top-level directory with
         targets.  Files therein will be found by `example_io.find_target_file`
         and read by `example_io.read_target_file`.
-    option_dict['num_examples_per_batch']: See doc for
-        `generator_from_raw_files`.
-    option_dict['max_examples_per_day_in_batch']: Same.
-    option_dict['band_numbers']: Same.
-    option_dict['lead_time_seconds']: Same.
-    option_dict['first_valid_date_string']: Same.
-    option_dict['last_valid_date_string']: Same.
+    option_dict['num_examples_per_batch']: Batch size.
+    option_dict['max_examples_per_day_in_batch']: Max number of examples from
+        the same day in one batch.
+    option_dict['band_numbers']: 1-D numpy array of band numbers (integers) for
+        satellite data.  Will use only these spectral bands as predictors.
+    option_dict['lead_time_seconds']: Lead time (valid time minus forecast
+        time).
+    option_dict['lag_times_seconds']: 1-D numpy array of lag times.  Each lag
+        time is forecast time minus predictor time, so must be >= 0.
+    option_dict['first_valid_date_string']: First valid date (format
+        "yyyymmdd").  Will not generate examples with earlier valid times.
+    option_dict['last_valid_date_string']: Last valid date (format
+        "yyyymmdd").  Will not generate examples with later valid times.
     option_dict['normalize']: Boolean flag.  If True (False), will use
         normalized (unnormalized) predictors.
     option_dict['uniformize']: [used only if `normalize == True`]
         Boolean flag.  If True, will use uniformized and normalized predictors.
         If False, will use only normalized predictors.
 
-    :return: predictor_matrix: See doc for `generator_from_raw_files`.
-    :return: target_matrix: See doc for `generator_from_raw_files`.
+    :return: predictor_matrix: E-by-M-by-N-by-C numpy array of predictor values,
+        based on satellite data.
+    :return: target_matrix: E-by-M-by-N-by-1 numpy array of target values
+        (integers in 0...1, indicating whether or not convection occurs at
+        the given lead time).
     :raises: ValueError: if no valid date can be found for which predictors and
         targets are available.
     """
@@ -545,17 +646,18 @@ def generator_from_preprocessed_files(option_dict):
     max_examples_per_day_in_batch = option_dict[MAX_DAILY_EXAMPLES_KEY]
     band_numbers = option_dict[BAND_NUMBERS_KEY]
     lead_time_seconds = option_dict[LEAD_TIME_KEY]
+    lag_times_seconds = option_dict[LAG_TIMES_KEY]
     first_valid_date_string = option_dict[FIRST_VALID_DATE_KEY]
     last_valid_date_string = option_dict[LAST_VALID_DATE_KEY]
     normalize = option_dict[NORMALIZE_FLAG_KEY]
     uniformize = option_dict[UNIFORMIZE_FLAG_KEY]
 
-    if lead_time_seconds == 0:
-        first_init_date_string = copy.deepcopy(first_valid_date_string)
-    else:
+    if lead_time_seconds > 0 or numpy.any(lag_times_seconds > 0):
         first_init_date_string = general_utils.get_previous_date(
             first_valid_date_string
         )
+    else:
+        first_init_date_string = copy.deepcopy(first_valid_date_string)
 
     predictor_file_names = example_io.find_many_predictor_files(
         top_directory_name=top_predictor_dir_name,
@@ -573,7 +675,9 @@ def generator_from_preprocessed_files(option_dict):
 
     valid_date_strings = _find_days_with_preprocessed_inputs(
         predictor_file_names=predictor_file_names,
-        target_file_names=target_file_names, lead_time_seconds=lead_time_seconds
+        target_file_names=target_file_names,
+        lead_time_seconds=lead_time_seconds,
+        lag_times_seconds=lag_times_seconds
     )
 
     if len(valid_date_strings) == 0:
@@ -606,6 +710,7 @@ def generator_from_preprocessed_files(option_dict):
                 normalize=normalize, uniformize=uniformize,
                 target_file_names=target_file_names,
                 lead_time_seconds=lead_time_seconds,
+                lag_times_seconds=lag_times_seconds,
                 num_examples_to_read=num_examples_to_read, return_coords=False
             )
 
@@ -883,6 +988,16 @@ def read_metafile(dill_file_name):
     if FSS_HALF_WINDOW_SIZE_KEY not in metadata_dict:
         metadata_dict[FSS_HALF_WINDOW_SIZE_KEY] = None
 
+    training_option_dict = metadata_dict[TRAINING_OPTIONS_KEY]
+    validation_option_dict = metadata_dict[VALIDATION_OPTIONS_KEY]
+
+    if LAG_TIMES_KEY not in training_option_dict:
+        training_option_dict[LAG_TIMES_KEY] = numpy.array([0], dtype=int)
+        validation_option_dict[LAG_TIMES_KEY] = numpy.array([0], dtype=int)
+
+    metadata_dict[TRAINING_OPTIONS_KEY] = training_option_dict
+    metadata_dict[VALIDATION_OPTIONS_KEY] = validation_option_dict
+
     missing_keys = list(set(METADATA_KEYS) - set(metadata_dict.keys()))
     if len(missing_keys) == 0:
         return metadata_dict
@@ -905,7 +1020,8 @@ def apply_model(
 
     :param model_object: Trained neural net (instance of `keras.models.Model` or
         `keras.models.Sequential`).
-    :param predictor_matrix: See output doc for `generator_from_raw_files`.
+    :param predictor_matrix: See output doc for
+        `generator_from_preprocessed_files`.
     :param num_examples_per_batch: Batch size.
     :param verbose: Boolean flag.  If True, will print progress messages.
     :return: forecast_prob_matrix: E-by-M-by-N numpy array of forecast event

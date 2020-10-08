@@ -870,96 +870,69 @@ def subset_predictors_by_band(predictor_dict, band_numbers):
     return predictor_dict
 
 
-def subset_by_time(desired_times_unix_sec, predictor_dict=None,
-                   target_dict=None):
-    """Subsets predictor and target data by time.
+def subset_by_time(predictor_or_target_dict, desired_times_unix_sec):
+    """Subsets predictor or target data by time.
 
     T = number of desired times
 
+    :param predictor_or_target_dict: Dictionary with keys listed in either
+        `read_predictor_file` or `read_target_file`.
     :param desired_times_unix_sec: length-T numpy array of desired times.
-    :param predictor_dict: See doc for `read_predictor_file`.
-    :param target_dict: See doc for `read_target_file`.
-    :return: predictor_dict: Same as input but maybe with fewer examples.
-    :return: target_dict: Same as input but maybe with fewer examples.
-    :raises: ValueError: if `predictor_dict is None and target_dict is None`.
+    :return: predictor_or_target_dict: Same as input but maybe with fewer
+        examples.
+    :return: desired_indices: length-T numpy array with indices corresponding to
+        desired times.
     """
-
-    if predictor_dict is None and target_dict is None:
-        raise ValueError(
-            'At least one of predictor_dict and target_dict must be specified.'
-        )
 
     error_checking.assert_is_numpy_array(
         desired_times_unix_sec, num_dimensions=1
     )
     error_checking.assert_is_integer_numpy_array(desired_times_unix_sec)
 
-    if predictor_dict is not None:
-        these_indices = numpy.array([
-            numpy.where(predictor_dict[VALID_TIMES_KEY] == t)[0][0]
-            for t in desired_times_unix_sec
-        ], dtype=int)
+    desired_indices = numpy.array([
+        numpy.where(predictor_or_target_dict[VALID_TIMES_KEY] == t)[0][0]
+        for t in desired_times_unix_sec
+    ], dtype=int)
 
-        predictor_dict = subset_by_index(
-            predictor_dict=predictor_dict, desired_indices=these_indices
-        )[0]
+    predictor_or_target_dict = subset_by_index(
+        predictor_or_target_dict=predictor_or_target_dict,
+        desired_indices=desired_indices
+    )
 
-    if target_dict is not None:
-        these_indices = numpy.array([
-            numpy.where(target_dict[VALID_TIMES_KEY] == t)[0][0]
-            for t in desired_times_unix_sec
-        ], dtype=int)
-
-        target_dict = subset_by_index(
-            target_dict=target_dict, desired_indices=these_indices
-        )[1]
-
-    return predictor_dict, target_dict
+    return predictor_or_target_dict, desired_indices
 
 
-def subset_by_index(desired_indices, predictor_dict=None, target_dict=None):
-    """Subsets predictor and target data by time index.
+def subset_by_index(predictor_or_target_dict, desired_indices):
+    """Subsets predictor or target data by index.
 
+    :param predictor_or_target_dict: Dictionary with keys listed in either
+        `read_predictor_file` or `read_target_file`.
     :param desired_indices: 1-D numpy array of desired indices.
-    :param predictor_dict: See doc for `read_predictor_file`.
-    :param target_dict: See doc for `read_target_file`.
-    :return: predictor_dict: Same as input but maybe with fewer examples.
-    :return: target_dict: Same as input but maybe with fewer examples.
-    :raises: ValueError: if `predictor_dict is None and target_dict is None`.
+    :return: predictor_or_target_dict: Same as input but maybe with fewer
+        examples.
     """
 
     error_checking.assert_is_numpy_array(desired_indices, num_dimensions=1)
     error_checking.assert_is_integer_numpy_array(desired_indices)
     error_checking.assert_is_geq_numpy_array(desired_indices, 0)
+    error_checking.assert_is_less_than_numpy_array(
+        desired_indices, len(predictor_or_target_dict[VALID_TIMES_KEY])
+    )
 
-    if predictor_dict is not None and target_dict is not None:
-        error_checking.assert_equals(
-            len(predictor_dict[VALID_TIMES_KEY]),
-            len(target_dict[VALID_TIMES_KEY])
+    if PREDICTOR_MATRIX_UNNORM_KEY in predictor_or_target_dict:
+        expected_keys = ONE_PER_PREDICTOR_TIME_KEYS
+    else:
+        expected_keys = ONE_PER_TARGET_TIME_KEYS
+
+    for this_key in expected_keys:
+        if predictor_or_target_dict[this_key] is None:
+            continue
+
+        predictor_or_target_dict[this_key] = (
+            predictor_or_target_dict[this_key][desired_indices, ...]
         )
 
-    if predictor_dict is not None:
-        error_checking.assert_is_less_than_numpy_array(
-            desired_indices, len(predictor_dict[VALID_TIMES_KEY])
-        )
-
-        for this_key in ONE_PER_PREDICTOR_TIME_KEYS:
-            if predictor_dict[this_key] is None:
-                continue
-
-            predictor_dict[this_key] = (
-                predictor_dict[this_key][desired_indices, ...]
-            )
-
-    if target_dict is not None:
-        error_checking.assert_is_less_than_numpy_array(
-            desired_indices, len(target_dict[VALID_TIMES_KEY])
-        )
-
-        for this_key in ONE_PER_TARGET_TIME_KEYS:
-            target_dict[this_key] = target_dict[this_key][desired_indices, ...]
-
-    return predictor_dict, target_dict
+    return predictor_or_target_dict
 
 
 def concat_predictor_data(predictor_dicts):
