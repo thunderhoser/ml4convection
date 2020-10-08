@@ -35,7 +35,7 @@ DATE_HELP_STRING = (
 
 NUM_SUBGRIDS_HELP_STRING = (
     'Number of subgrids per dimension.  Basic scores will be read in K^2 '
-    'pieces, where K = `{1:s}`.'
+    'pieces, where K = `{0:s}`.'
 ).format(NUM_SUBGRIDS_ARG_NAME)
 
 OUTPUT_DIR_HELP_STRING = (
