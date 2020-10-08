@@ -1,11 +1,10 @@
-"""Computes advanced evaluation scores."""
+"""Computes advanced evaluation scores sans grid (combined over full domain)."""
 
 import os
 import sys
 import copy
 import argparse
 import numpy
-import xarray
 
 THIS_DIRECTORY_NAME = os.path.dirname(os.path.realpath(
     os.path.join(os.getcwd(), os.path.expanduser(__file__))
@@ -27,9 +26,7 @@ FIRST_DATE_ARG_NAME = 'first_date_string'
 LAST_DATE_ARG_NAME = 'last_date_string'
 MONTH_ARG_NAME = 'desired_month'
 SPLIT_BY_HOUR_ARG_NAME = 'split_by_hour'
-GRIDDED_ARG_NAME = 'gridded'
 CLIMO_FILE_ARG_NAME = 'input_climo_file_name'
-NUM_SUBGRIDS_ARG_NAME = 'num_subgrids_per_dim'
 OUTPUT_DIR_ARG_NAME = 'output_dir_name'
 
 INPUT_DIR_HELP_STRING = (
@@ -52,20 +49,9 @@ SPLIT_BY_HOUR_HELP_STRING = (
     ' evaluate predictions for all hours.'
 ).format(MONTH_ARG_NAME)
 
-GRIDDED_HELP_STRING = (
-    'Boolean flag.  If 1, scores will be gridded (one set for each pixel).  If '
-    '0, scores will be aggregated (one set for the full domain).'
-)
 CLIMO_FILE_HELP_STRING = (
-    '[used only if `{0:s}` = 0] Path to file with climatology (event '
-    'frequencies in training data).'
-).format(GRIDDED_ARG_NAME)
-
-NUM_SUBGRIDS_HELP_STRING = (
-    '[used only if `{0:s}` = 0] Number of subgrids per dimension.  Basic scores'
-    ' will be read in K^2 pieces, where K = `{1:s}`.'
-).format(GRIDDED_ARG_NAME, NUM_SUBGRIDS_ARG_NAME)
-
+    'Path to file with climatology (event frequencies in training data).'
+)
 OUTPUT_DIR_HELP_STRING = (
     'Name of output directory.  Results (advanced scores) will be written here '
     'by `evaluation.write_advanced_score_file`, to exact locations determined '
@@ -92,15 +78,8 @@ INPUT_ARG_PARSER.add_argument(
     help=SPLIT_BY_HOUR_HELP_STRING
 )
 INPUT_ARG_PARSER.add_argument(
-    '--' + GRIDDED_ARG_NAME, type=int, required=True, help=GRIDDED_HELP_STRING
-)
-INPUT_ARG_PARSER.add_argument(
     '--' + CLIMO_FILE_ARG_NAME, type=str, required=False, default='',
     help=CLIMO_FILE_HELP_STRING
-)
-INPUT_ARG_PARSER.add_argument(
-    '--' + NUM_SUBGRIDS_ARG_NAME, type=int, required=False, default=3,
-    help=NUM_SUBGRIDS_HELP_STRING
 )
 INPUT_ARG_PARSER.add_argument(
     '--' + OUTPUT_DIR_ARG_NAME, type=str, required=True,
@@ -108,133 +87,9 @@ INPUT_ARG_PARSER.add_argument(
 )
 
 
-def _get_subgrid_indices(num_grid_rows, num_grid_columns, num_subgrids_per_dim):
-    """Returns indices (first/last row and column) for each subgrid.
-
-    K = number of subgrids per dimension
-
-    :param num_grid_rows: Number of rows in full grid.
-    :param num_grid_columns: Number of columns in full grid.
-    :param num_subgrids_per_dim: Number of subgrids per dimension.
-    :return: start_row_indices: length-K numpy array of indices.
-    :return: end_row_indices: Same.
-    :return: start_column_indices: Same.
-    :return: end_column_indices: Same.
-    """
-
-    row_indices = numpy.linspace(
-        0, num_grid_rows - 1, num=num_subgrids_per_dim + 1, dtype=float
-    )
-    row_indices = numpy.round(row_indices).astype(int)
-    end_row_indices = row_indices[1:]
-    start_row_indices = row_indices[:-1] + 1
-    start_row_indices[0] = 0
-
-    column_indices = numpy.linspace(
-        0, num_grid_columns - 1, num=num_subgrids_per_dim + 1, dtype=float
-    )
-    column_indices = numpy.round(column_indices).astype(int)
-    end_column_indices = column_indices[1:]
-    start_column_indices = column_indices[:-1] + 1
-    start_column_indices[0] = 0
-
-    return (
-        start_row_indices, end_row_indices,
-        start_column_indices, end_column_indices
-    )
-
-
-def _read_basic_scores_gridded(basic_score_file_names, num_subgrids_per_dim):
-    """Reads basic scores on grid.
-
-    :param basic_score_file_names: 1-D list of paths to input files (will be
-        read by `evaluation.read_basic_score_file`).
-    :param num_subgrids_per_dim: See documentation at top of file.
-    :return: basic_score_table_xarray: xarray table in format returned by
-        `evaluation.read_basic_score_file`.
-    """
-
-    first_score_table = evaluation.read_basic_score_file(
-        basic_score_file_names[0]
-    )
-
-    num_grid_rows = len(
-        first_score_table.coords[evaluation.LATITUDE_DIM].values
-    )
-    num_grid_columns = len(
-        first_score_table.coords[evaluation.LONGITUDE_DIM].values
-    )
-
-    error_checking.assert_is_geq(num_subgrids_per_dim, 0)
-    error_checking.assert_is_leq(
-        num_subgrids_per_dim, min([num_grid_rows, num_grid_columns])
-    )
-
-    (
-        start_row_indices, end_row_indices,
-        start_column_indices, end_column_indices
-    ) = _get_subgrid_indices(
-        num_grid_rows=num_grid_rows, num_grid_columns=num_grid_columns,
-        num_subgrids_per_dim=num_subgrids_per_dim
-    )
-
-    basic_score_table_matrix = numpy.full(
-        (num_subgrids_per_dim, num_subgrids_per_dim), '', dtype=object
-    )
-    num_dates = len(basic_score_file_names)
-
-    for j in range(num_subgrids_per_dim):
-        for k in range(num_subgrids_per_dim):
-            these_score_tables = [None] * num_dates
-
-            for i in range(num_dates):
-                print('Reading basic scores from: "{0:s}"...'.format(
-                    basic_score_file_names[i]
-                ))
-                these_score_tables[i] = evaluation.read_basic_score_file(
-                    basic_score_file_names[i]
-                )
-
-                print((
-                    'Subsetting rows {0:d}-{1:d} and columns {2:d}-{3:d}...'
-                ).format(
-                    start_row_indices[j], end_row_indices[j],
-                    start_column_indices[k], end_column_indices[k]
-                ))
-
-                these_score_tables[i] = evaluation.subset_basic_scores_by_space(
-                    basic_score_table_xarray=these_score_tables[i],
-                    first_grid_row=start_row_indices[j],
-                    last_grid_row=end_row_indices[j],
-                    first_grid_column=start_column_indices[k],
-                    last_grid_column=end_column_indices[k]
-                )
-
-            basic_score_table_matrix[j, k] = (
-                evaluation.concat_basic_score_tables(these_score_tables)
-            )
-            del these_score_tables
-
-            if j == k == num_subgrids_per_dim - 1:
-                pass
-
-            print(MINOR_SEPARATOR_STRING)
-
-    these_tables = [
-        xarray.concat(
-            objs=basic_score_table_matrix[j, ...].tolist(),
-            dim=evaluation.LONGITUDE_DIM
-        )
-        for j in range(num_subgrids_per_dim)
-    ]
-
-    return xarray.concat(objs=these_tables, dim=evaluation.LATITUDE_DIM)
-
-
 def _run(top_basic_score_dir_name, first_date_string, last_date_string,
-         desired_month, split_by_hour, gridded, climo_file_name,
-         num_subgrids_per_dim, output_dir_name):
-    """Computes advanced evaluation scores.
+         desired_month, split_by_hour, climo_file_name, output_dir_name):
+    """Computes advanced eval scores sans grid (combined over full domain).
 
     This is effectively the main method.
 
@@ -243,9 +98,7 @@ def _run(top_basic_score_dir_name, first_date_string, last_date_string,
     :param last_date_string: Same.
     :param desired_month: Same.
     :param split_by_hour: Same.
-    :param gridded: Same.
     :param climo_file_name: Same.
-    :param num_subgrids_per_dim: Same.
     :param output_dir_name: Same.
     """
 
@@ -257,23 +110,16 @@ def _run(top_basic_score_dir_name, first_date_string, last_date_string,
         error_checking.assert_is_geq(desired_month, 1)
         error_checking.assert_is_leq(desired_month, 12)
 
-    if desired_month is not None or split_by_hour:
-        gridded = False
-
-    if gridded:
-        climo_dict = dict()
-        error_checking.assert_is_geq(num_subgrids_per_dim, 1)
-    else:
-        print('Reading event frequencies from: "{0:s}"...'.format(
-            climo_file_name
-        ))
-        climo_dict = climatology_io.read_file(climo_file_name)
+    print('Reading event frequencies from: "{0:s}"...'.format(
+        climo_file_name
+    ))
+    climo_dict = climatology_io.read_file(climo_file_name)
 
     basic_score_file_names = evaluation.find_many_basic_score_files(
         top_directory_name=top_basic_score_dir_name,
         first_date_string=first_date_string,
         last_date_string=last_date_string,
-        gridded=gridded, raise_error_if_any_missing=False
+        gridded=False, raise_error_if_any_missing=False
     )
     date_strings = [
         evaluation.basic_file_name_to_date(f) for f in basic_score_file_names
@@ -299,36 +145,6 @@ def _run(top_basic_score_dir_name, first_date_string, last_date_string,
         del dates_unix_sec, months
 
     print(SEPARATOR_STRING)
-
-    # TODO(thunderhoser): Split this into two scripts, one for gridded scores
-    # and one for ungridded.
-    if gridded:
-        basic_score_table_xarray = _read_basic_scores_gridded(
-            basic_score_file_names=basic_score_file_names,
-            num_subgrids_per_dim=num_subgrids_per_dim
-        )
-        print(SEPARATOR_STRING)
-        print(basic_score_table_xarray)
-
-        advanced_score_table_xarray = evaluation.get_advanced_scores_gridded(
-            basic_score_table_xarray=basic_score_table_xarray
-        )
-        print(advanced_score_table_xarray)
-
-        output_file_name = evaluation.find_advanced_score_file(
-            directory_name=output_dir_name,
-            month=None, hour=None, gridded=True, raise_error_if_missing=False
-        )
-
-        print('\nWriting advanced scores to: "{0:s}"...'.format(
-            output_file_name
-        ))
-        evaluation.write_advanced_score_file(
-            advanced_score_table_xarray=advanced_score_table_xarray,
-            pickle_file_name=output_file_name
-        )
-
-        return
 
     num_dates = len(date_strings)
     num_splits = NUM_HOURS_PER_DAY if split_by_hour else 1
@@ -419,8 +235,6 @@ if __name__ == '__main__':
         last_date_string=getattr(INPUT_ARG_OBJECT, LAST_DATE_ARG_NAME),
         desired_month=getattr(INPUT_ARG_OBJECT, MONTH_ARG_NAME),
         split_by_hour=bool(getattr(INPUT_ARG_OBJECT, SPLIT_BY_HOUR_ARG_NAME)),
-        gridded=bool(getattr(INPUT_ARG_OBJECT, GRIDDED_ARG_NAME)),
         climo_file_name=getattr(INPUT_ARG_OBJECT, CLIMO_FILE_ARG_NAME),
-        num_subgrids_per_dim=getattr(INPUT_ARG_OBJECT, NUM_SUBGRIDS_ARG_NAME),
         output_dir_name=getattr(INPUT_ARG_OBJECT, OUTPUT_DIR_ARG_NAME)
     )

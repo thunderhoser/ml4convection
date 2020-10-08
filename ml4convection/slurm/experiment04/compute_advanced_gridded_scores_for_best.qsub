@@ -39,12 +39,9 @@ set l2_weight_string=`printf "%.6f" $L2_WEIGHT`
 set model_dir_name="${TOP_MODEL_DIR_NAME}/fss-half-window-size-px=${half_window_size_string}_conv-dropout=${conv_layer_dropout_string}_l2-weight=${l2_weight_string}"
 set evaluation_dir_name="${model_dir_name}/validation/evaluation"
 
-python3 -u "${CODE_DIR_NAME}/compute_advanced_scores.py" \
+python3 -u "${CODE_DIR_NAME}/compute_advanced_scores_gridded.py" \
 --input_basic_score_dir_name="${evaluation_dir_name}" \
 --first_date_string="20170101" \
---last_date_string="20170131" \
---desired_month=-1 \
---split_by_hour=0 \
---gridded=1 \
+--last_date_string="20170107" \
 --num_subgrids_per_dim=3 \
 --output_dir_name="${evaluation_dir_name}"
