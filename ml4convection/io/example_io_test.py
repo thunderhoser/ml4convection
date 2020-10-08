@@ -582,102 +582,62 @@ class ExampleIoTests(unittest.TestCase):
             this_predictor_dict, PREDICTOR_DICT_SUBSET_BY_BAND
         ))
 
-    def test_subset_by_time_predictors_only(self):
+    def test_subset_by_time_predictors(self):
         """Ensures correct output from subset_by_time.
 
         In this case, using predictors only.
         """
 
         this_predictor_dict = example_io.subset_by_time(
-            predictor_dict=copy.deepcopy(PREDICTOR_DICT_ALL_EXAMPLES),
-            target_dict=None, desired_times_unix_sec=DESIRED_TIMES_UNIX_SEC
+            predictor_or_target_dict=copy.deepcopy(PREDICTOR_DICT_ALL_EXAMPLES),
+            desired_times_unix_sec=DESIRED_TIMES_UNIX_SEC
         )[0]
 
         self.assertTrue(_compare_predictor_dicts(
             this_predictor_dict, PREDICTOR_DICT_SUBSET_BY_TIME
         ))
 
-    def test_subset_by_time_targets_only(self):
+    def test_subset_by_time_targets(self):
         """Ensures correct output from subset_by_time.
 
         In this case, using targets only.
         """
 
         this_target_dict = example_io.subset_by_time(
-            predictor_dict=None,
-            target_dict=copy.deepcopy(TARGET_DICT_ALL_EXAMPLES),
+            predictor_or_target_dict=copy.deepcopy(TARGET_DICT_ALL_EXAMPLES),
             desired_times_unix_sec=DESIRED_TIMES_UNIX_SEC
-        )[1]
+        )[0]
 
         self.assertTrue(_compare_target_dicts(
             this_target_dict, TARGET_DICT_SUBSET_BY_TIME
         ))
 
-    def test_subset_by_time_both(self):
-        """Ensures correct output from subset_by_time.
-
-        In this case, using both predictors and targets.
-        """
-
-        this_predictor_dict, this_target_dict = example_io.subset_by_time(
-            predictor_dict=copy.deepcopy(PREDICTOR_DICT_ALL_EXAMPLES),
-            target_dict=copy.deepcopy(TARGET_DICT_ALL_EXAMPLES),
-            desired_times_unix_sec=DESIRED_TIMES_UNIX_SEC
-        )
-
-        self.assertTrue(_compare_predictor_dicts(
-            this_predictor_dict, PREDICTOR_DICT_SUBSET_BY_TIME
-        ))
-        self.assertTrue(_compare_target_dicts(
-            this_target_dict, TARGET_DICT_SUBSET_BY_TIME
-        ))
-
-    def test_subset_by_index_predictors_only(self):
+    def test_subset_by_index_predictors(self):
         """Ensures correct output from subset_by_index.
 
         In this case, using predictors only.
         """
 
         this_predictor_dict = example_io.subset_by_index(
-            predictor_dict=copy.deepcopy(PREDICTOR_DICT_ALL_EXAMPLES),
-            target_dict=None, desired_indices=DESIRED_INDICES
-        )[0]
-
-        self.assertTrue(_compare_predictor_dicts(
-            this_predictor_dict, PREDICTOR_DICT_SUBSET_BY_INDEX
-        ))
-
-    def test_subset_by_index_targets_only(self):
-        """Ensures correct output from subset_by_index.
-
-        In this case, using targets only.
-        """
-
-        this_target_dict = example_io.subset_by_index(
-            predictor_dict=None,
-            target_dict=copy.deepcopy(TARGET_DICT_ALL_EXAMPLES),
-            desired_indices=DESIRED_INDICES
-        )[1]
-
-        self.assertTrue(_compare_target_dicts(
-            this_target_dict, TARGET_DICT_SUBSET_BY_INDEX
-        ))
-
-    def test_subset_by_index_both(self):
-        """Ensures correct output from subset_by_index.
-
-        In this case, using both predictors and targets.
-        """
-
-        this_predictor_dict, this_target_dict = example_io.subset_by_index(
-            predictor_dict=copy.deepcopy(PREDICTOR_DICT_ALL_EXAMPLES),
-            target_dict=copy.deepcopy(TARGET_DICT_ALL_EXAMPLES),
+            predictor_or_target_dict=copy.deepcopy(PREDICTOR_DICT_ALL_EXAMPLES),
             desired_indices=DESIRED_INDICES
         )
 
         self.assertTrue(_compare_predictor_dicts(
             this_predictor_dict, PREDICTOR_DICT_SUBSET_BY_INDEX
         ))
+
+    def test_subset_by_index_targets(self):
+        """Ensures correct output from subset_by_index.
+
+        In this case, using targets only.
+        """
+
+        this_target_dict = example_io.subset_by_index(
+            predictor_or_target_dict=copy.deepcopy(TARGET_DICT_ALL_EXAMPLES),
+            desired_indices=DESIRED_INDICES
+        )
+
         self.assertTrue(_compare_target_dicts(
             this_target_dict, TARGET_DICT_SUBSET_BY_INDEX
         ))
