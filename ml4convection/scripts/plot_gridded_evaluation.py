@@ -115,7 +115,7 @@ def _get_bias_colour_scheme(colour_map_name, max_colour_value):
 def _plot_one_score(
         score_matrix, advanced_score_table_xarray, border_latitudes_deg_n,
         border_longitudes_deg_e, colour_map_name, is_frequency_bias,
-        maybe_negative, output_file_name, title_string=None, panel_letter=None):
+        is_bss, output_file_name, title_string=None, panel_letter=None):
     """Plots one score on 2-D georeferenced grid.
 
     M = number of rows in grid
@@ -131,8 +131,7 @@ def _plot_one_score(
         `matplotlib.pyplot.get_cmap`).
     :param is_frequency_bias: Boolean flag.  If True, the score being plotted is
         frequency bias.
-    :param maybe_negative: Boolean flag.  If True, the score being plotted may
-        be negative.
+    :param is_bss: Boolean flag.  If True, Brier skill score is being plotted.
     :param output_file_name: Path to output file (figure will be saved here).
     :param title_string: Title (will be added above figure).  If you do not want
         a title, make this None.
@@ -160,8 +159,9 @@ def _plot_one_score(
     )
 
     if is_frequency_bias:
-        this_offset = numpy.nanpercentile(
-            numpy.absolute(score_matrix - 1.), MAX_COLOUR_PERCENTILE
+        this_offset = numpy.percentile(
+            numpy.absolute(score_matrix[numpy.isfinite(score_matrix)] - 1.),
+            MAX_COLOUR_PERCENTILE
         )
         min_colour_value = 0.
         max_colour_value = 1. + this_offset
@@ -172,16 +172,20 @@ def _plot_one_score(
     else:
         colour_map_object = pyplot.get_cmap(colour_map_name)
 
-        if maybe_negative:
-            min_colour_value = -1.
+        if is_bss:
+            max_colour_value = numpy.nanpercentile(
+                numpy.absolute(score_matrix), MAX_COLOUR_PERCENTILE
+            )
+            max_colour_value = min([max_colour_value, 1.])
+            min_colour_value = -1 * max_colour_value
         else:
+            max_colour_value = numpy.nanpercentile(
+                score_matrix, MAX_COLOUR_PERCENTILE
+            )
             min_colour_value = numpy.nanpercentile(
                 score_matrix, 100. - MAX_COLOUR_PERCENTILE
             )
 
-        max_colour_value = numpy.nanpercentile(
-            score_matrix, MAX_COLOUR_PERCENTILE
-        )
         colour_norm_object = pyplot.Normalize(
             vmin=min_colour_value, vmax=max_colour_value
         )
@@ -202,29 +206,34 @@ def _plot_one_score(
             axes_object_or_matrix=axes_object, data_matrix=score_matrix,
             colour_map_object=colour_map_object,
             colour_norm_object=colour_norm_object,
-            orientation_string='vertical', fraction_of_axis_length=0.8,
-            extend_min=False, extend_max=True
+            orientation_string='vertical', extend_min=False, extend_max=True
         )
 
         tick_values = colour_bar_object.get_ticks()
-        tick_strings = ['{0:.1g}'.format(v) for v in tick_values]
+        tick_strings = ['{0:.2g}'.format(v) for v in tick_values]
         # tick_strings = ['{0:.1f}'.format(v) for v in tick_values]
     else:
         colour_bar_object = gg_plotting_utils.plot_linear_colour_bar(
             axes_object_or_matrix=axes_object, data_matrix=score_matrix,
             colour_map_object=colour_map_object,
             min_value=min_colour_value, max_value=max_colour_value,
-            orientation_string='vertical', fraction_of_axis_length=0.8,
-            extend_min=maybe_negative or min_colour_value > TOLERANCE,
+            orientation_string='vertical',
+            extend_min=is_bss or min_colour_value > TOLERANCE,
             extend_max=max_colour_value < 1. - TOLERANCE
         )
 
         tick_values = colour_bar_object.get_ticks()
-        tick_strings = ['{0:.1g}'.format(v) for v in tick_values]
+        tick_strings = ['{0:.2g}'.format(v) for v in tick_values]
         # tick_strings = ['{0:.2f}'.format(v) for v in tick_values]
 
     colour_bar_object.set_ticks(tick_values)
     colour_bar_object.set_ticklabels(tick_strings)
+
+    plotting_utils.plot_grid_lines(
+        plot_latitudes_deg_n=latitudes_deg_n,
+        plot_longitudes_deg_e=longitudes_deg_e, axes_object=axes_object,
+        parallel_spacing_deg=2., meridian_spacing_deg=2.
+    )
 
     if title_string is not None:
         axes_object.set_title(title_string)
@@ -280,7 +289,7 @@ def _run(advanced_score_file_name, sequential_colour_map_name,
         border_latitudes_deg_n=border_latitudes_deg_n,
         border_longitudes_deg_e=border_longitudes_deg_e,
         colour_map_name=sequential_colour_map_name,
-        is_frequency_bias=False, maybe_negative=False,
+        is_frequency_bias=False, is_bss=False,
         output_file_name='{0:s}/brier_score.jpg'.format(output_dir_name),
         title_string='Brier score'
     )
@@ -292,7 +301,7 @@ def _run(advanced_score_file_name, sequential_colour_map_name,
         border_latitudes_deg_n=border_latitudes_deg_n,
         border_longitudes_deg_e=border_longitudes_deg_e,
         colour_map_name=diverging_colour_map_name,
-        is_frequency_bias=False, maybe_negative=True,
+        is_frequency_bias=False, is_bss=True,
         output_file_name='{0:s}/brier_skill_score.jpg'.format(output_dir_name),
         title_string='Brier skill score'
     )
@@ -302,8 +311,8 @@ def _run(advanced_score_file_name, sequential_colour_map_name,
         advanced_score_table_xarray=advanced_score_table_xarray,
         border_latitudes_deg_n=border_latitudes_deg_n,
         border_longitudes_deg_e=border_longitudes_deg_e,
-        colour_map_name=diverging_colour_map_name,
-        is_frequency_bias=False, maybe_negative=True,
+        colour_map_name=sequential_colour_map_name,
+        is_frequency_bias=False, is_bss=False,
         output_file_name=
         '{0:s}/fractions_skill_score.jpg'.format(output_dir_name),
         title_string='Fractions skill score'
@@ -316,7 +325,7 @@ def _run(advanced_score_file_name, sequential_colour_map_name,
         border_latitudes_deg_n=border_latitudes_deg_n,
         border_longitudes_deg_e=border_longitudes_deg_e,
         colour_map_name=sequential_colour_map_name,
-        is_frequency_bias=False, maybe_negative=False,
+        is_frequency_bias=False, is_bss=False,
         output_file_name=
         '{0:s}/climo_event_frequency.jpg'.format(output_dir_name),
         title_string='Climatological event frequency (in training data)'
@@ -354,7 +363,7 @@ def _run(advanced_score_file_name, sequential_colour_map_name,
         border_latitudes_deg_n=border_latitudes_deg_n,
         border_longitudes_deg_e=border_longitudes_deg_e,
         colour_map_name=sequential_colour_map_name,
-        is_frequency_bias=False, maybe_negative=False,
+        is_frequency_bias=False, is_bss=False,
         output_file_name='{0:s}/pod.jpg'.format(output_dir_name),
         title_string='Probability of detection'
     )
@@ -366,7 +375,7 @@ def _run(advanced_score_file_name, sequential_colour_map_name,
         border_latitudes_deg_n=border_latitudes_deg_n,
         border_longitudes_deg_e=border_longitudes_deg_e,
         colour_map_name=sequential_colour_map_name,
-        is_frequency_bias=False, maybe_negative=False,
+        is_frequency_bias=False, is_bss=False,
         output_file_name='{0:s}/success_ratio.jpg'.format(output_dir_name),
         title_string='Success ratio'
     )
@@ -378,7 +387,7 @@ def _run(advanced_score_file_name, sequential_colour_map_name,
         border_latitudes_deg_n=border_latitudes_deg_n,
         border_longitudes_deg_e=border_longitudes_deg_e,
         colour_map_name=bias_colour_map_name,
-        is_frequency_bias=True, maybe_negative=False,
+        is_frequency_bias=True, is_bss=False,
         output_file_name='{0:s}/frequency_bias.jpg'.format(output_dir_name),
         title_string='Frequency bias'
     )
@@ -389,7 +398,7 @@ def _run(advanced_score_file_name, sequential_colour_map_name,
         border_latitudes_deg_n=border_latitudes_deg_n,
         border_longitudes_deg_e=border_longitudes_deg_e,
         colour_map_name=sequential_colour_map_name,
-        is_frequency_bias=False, maybe_negative=False,
+        is_frequency_bias=False, is_bss=False,
         output_file_name='{0:s}/csi.jpg'.format(output_dir_name),
         title_string='Critical success index'
     )
@@ -401,7 +410,7 @@ if __name__ == '__main__':
     _run(
         advanced_score_file_name=getattr(INPUT_ARG_OBJECT, INPUT_FILE_ARG_NAME),
         sequential_colour_map_name=getattr(
-            INPUT_ARG_OBJECT, SEQ_COLOUR_MAP_HELP_STRING
+            INPUT_ARG_OBJECT, SEQ_COLOUR_MAP_ARG_NAME
         ),
         diverging_colour_map_name=getattr(
             INPUT_ARG_OBJECT, DIV_COLOUR_MAP_ARG_NAME

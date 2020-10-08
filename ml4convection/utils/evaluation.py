@@ -1071,6 +1071,12 @@ def get_advanced_scores_gridded(basic_score_table_xarray):
         basic_score_table_xarray[TRAINING_EVENT_FREQ_KEY].values
     )
 
+    try:
+        if len(training_event_freq_matrix.shape) == 3:
+            training_event_freq_matrix = training_event_freq_matrix[0, ...]
+    except:
+        training_event_freq_matrix = training_event_freq_matrix[0, ...]
+
     these_dim = (LATITUDE_DIM, LONGITUDE_DIM)
     this_integer_array = numpy.full(
         (num_grid_rows, num_grid_columns), 0, dtype=int
