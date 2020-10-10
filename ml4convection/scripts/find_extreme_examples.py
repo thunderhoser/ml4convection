@@ -2,12 +2,16 @@
 
 import argparse
 import numpy
+from gewittergefahr.gg_utils import number_rounding
+from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import error_checking
 from ml4convection.utils import evaluation
 
 TOLERANCE = 1e-6
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
+MINOR_SEPARATOR_STRING = '\n\n' + '-' * 50 + '\n\n'
 
+DAYS_TO_SECONDS = 86400
 MAX_TIME_STEPS_PER_DAY = 144
 
 MOST_ACTUAL_CONVECTION_NAME = 'most_actual_convection'
@@ -159,17 +163,17 @@ def _read_scores_one_day(input_file_name):
 
     :param input_file_name: Path to input file (will be read by
         `evaluation.read_basic_score_file`).
-    :return: result_dict: Dictionary with the following keys.
-    result_dict['valid_times_unix_sec']: length-T numpy array of valid times.
-    result_dict['actual_convective_px_counts']: length-T numpy array with
+    :return: score_dict: Dictionary with the following keys.
+    score_dict['valid_times_unix_sec']: length-T numpy array of valid times.
+    score_dict['actual_convective_px_counts']: length-T numpy array with
         numbers of actual convective pixels.
-    result_dict['predicted_convective_px_counts']: length-T numpy array with
+    score_dict['predicted_convective_px_counts']: length-T numpy array with
         numbers of predicted convective pixels.
-    result_dict['pod_values']: length-T numpy array of POD values.
-    result_dict['success_ratios']: length-T numpy array of success ratios.
-    result_dict['csi_values']: length-T numpy array of CSI values.
-    result_dict['fss_values']: length-T numpy array of FSS values.
-    result_dict['brier_scores']: length-T numpy array of Brier scores.
+    score_dict['pod_values']: length-T numpy array of POD values.
+    score_dict['success_ratios']: length-T numpy array of success ratios.
+    score_dict['csi_values']: length-T numpy array of CSI values.
+    score_dict['fss_values']: length-T numpy array of FSS values.
+    score_dict['brier_scores']: length-T numpy array of Brier scores.
     """
 
     basic_score_table_xarray = evaluation.read_basic_score_file(input_file_name)
@@ -227,6 +231,308 @@ def _read_scores_one_day(input_file_name):
     }
 
 
+def _find_extreme_examples_one_set(
+        scores, valid_times_unix_sec, num_examples_desired, find_highest,
+        set_name):
+    """Finds one set of extreme examples.
+
+    T = number of time steps
+    E = number of extreme examples to find
+
+    :param scores: length-T numpy array of scores.
+    :param valid_times_unix_sec: length-T numpy array of valid times.
+    :param num_examples_desired: E in the above discussion.
+    :param find_highest: Boolean flag.  If True (False), will find the E
+        examples with the highest (lowest) scores.
+    :param set_name: Name of set.
+    :return: desired_times_unix_sec: length-E numpy array of desired times.
+    """
+
+    if find_highest:
+        scores[numpy.isnan(scores)] = -numpy.inf
+        sort_indices = numpy.argsort(-1 * scores)
+    else:
+        scores[numpy.isnan(scores)] = numpy.inf
+        sort_indices = numpy.argsort(scores)
+
+    desired_indices = sort_indices[:num_examples_desired]
+
+    print('Scores in set "{0:s}":\n{1:s}'.format(
+        set_name, str(scores[desired_indices])
+    ))
+
+    return valid_times_unix_sec[desired_indices]
+
+
+def _find_extreme_examples_all_sets(
+        score_dict, set_names, num_examples_per_set):
+    """Finds each set of extreme examples.
+
+    :param score_dict: Dictionary in format returned by `_read_scores_one_day`.
+    :param set_names: See documentation at top of file.
+    :param num_examples_per_set: Same.
+    :return: set_to_valid_times_unix_sec: Dictionary, where each key is a set
+        name and the corresponding value is a 1-D numpy array of valid times.
+    """
+
+    set_to_valid_times_unix_sec = dict()
+    all_times_unix_sec = score_dict[VALID_TIMES_KEY]
+
+    if MOST_ACTUAL_CONVECTION_NAME in set_names:
+        set_to_valid_times_unix_sec[MOST_ACTUAL_CONVECTION_NAME] = (
+            _find_extreme_examples_one_set(
+                scores=score_dict[ACTUAL_COUNTS_KEY] + 0,
+                valid_times_unix_sec=all_times_unix_sec,
+                find_highest=True, num_examples_desired=num_examples_per_set,
+                set_name=MOST_ACTUAL_CONVECTION_NAME
+            )
+        )
+
+        print(MINOR_SEPARATOR_STRING)
+
+    if LEAST_ACTUAL_CONVECTION_NAME in set_names:
+        set_to_valid_times_unix_sec[LEAST_ACTUAL_CONVECTION_NAME] = (
+            _find_extreme_examples_one_set(
+                scores=score_dict[ACTUAL_COUNTS_KEY] + 0,
+                valid_times_unix_sec=all_times_unix_sec,
+                find_highest=False, num_examples_desired=num_examples_per_set,
+                set_name=LEAST_ACTUAL_CONVECTION_NAME
+            )
+        )
+
+        print(MINOR_SEPARATOR_STRING)
+
+    if MOST_PREDICTED_CONVECTION_NAME in set_names:
+        set_to_valid_times_unix_sec[MOST_PREDICTED_CONVECTION_NAME] = (
+            _find_extreme_examples_one_set(
+                scores=score_dict[PREDICTED_COUNTS_KEY] + 0,
+                valid_times_unix_sec=all_times_unix_sec,
+                find_highest=True, num_examples_desired=num_examples_per_set,
+                set_name=MOST_PREDICTED_CONVECTION_NAME
+            )
+        )
+
+        print(MINOR_SEPARATOR_STRING)
+
+    if LEAST_PREDICTED_CONVECTION_NAME in set_names:
+        set_to_valid_times_unix_sec[LEAST_PREDICTED_CONVECTION_NAME] = (
+            _find_extreme_examples_one_set(
+                scores=score_dict[PREDICTED_COUNTS_KEY] + 0,
+                valid_times_unix_sec=all_times_unix_sec,
+                find_highest=False, num_examples_desired=num_examples_per_set,
+                set_name=LEAST_PREDICTED_CONVECTION_NAME
+            )
+        )
+
+        print(MINOR_SEPARATOR_STRING)
+
+    if HIGHEST_POD_NAME in set_names:
+        set_to_valid_times_unix_sec[HIGHEST_POD_NAME] = (
+            _find_extreme_examples_one_set(
+                scores=score_dict[POD_VALUES_KEY] + 0,
+                valid_times_unix_sec=all_times_unix_sec,
+                find_highest=True, num_examples_desired=num_examples_per_set,
+                set_name=HIGHEST_POD_NAME
+            )
+        )
+
+        print(MINOR_SEPARATOR_STRING)
+
+    if LOWEST_POD_NAME in set_names:
+        set_to_valid_times_unix_sec[LOWEST_POD_NAME] = (
+            _find_extreme_examples_one_set(
+                scores=score_dict[POD_VALUES_KEY] + 0,
+                valid_times_unix_sec=all_times_unix_sec,
+                find_highest=False, num_examples_desired=num_examples_per_set,
+                set_name=LOWEST_POD_NAME
+            )
+        )
+
+        print(MINOR_SEPARATOR_STRING)
+
+    if HIGHEST_SUCCESS_RATIO_NAME in set_names:
+        set_to_valid_times_unix_sec[HIGHEST_SUCCESS_RATIO_NAME] = (
+            _find_extreme_examples_one_set(
+                scores=score_dict[SUCCESS_RATIOS_KEY] + 0,
+                valid_times_unix_sec=all_times_unix_sec,
+                find_highest=True, num_examples_desired=num_examples_per_set,
+                set_name=HIGHEST_SUCCESS_RATIO_NAME
+            )
+        )
+
+        print(MINOR_SEPARATOR_STRING)
+
+    if LOWEST_SUCCESS_RATIO_NAME in set_names:
+        set_to_valid_times_unix_sec[LOWEST_SUCCESS_RATIO_NAME] = (
+            _find_extreme_examples_one_set(
+                scores=score_dict[SUCCESS_RATIOS_KEY] + 0,
+                valid_times_unix_sec=all_times_unix_sec,
+                find_highest=False, num_examples_desired=num_examples_per_set,
+                set_name=LOWEST_SUCCESS_RATIO_NAME
+            )
+        )
+
+        print(MINOR_SEPARATOR_STRING)
+
+    if HIGHEST_CSI_NAME in set_names:
+        set_to_valid_times_unix_sec[HIGHEST_CSI_NAME] = (
+            _find_extreme_examples_one_set(
+                scores=score_dict[CSI_VALUES_KEY] + 0,
+                valid_times_unix_sec=all_times_unix_sec,
+                find_highest=True, num_examples_desired=num_examples_per_set,
+                set_name=HIGHEST_CSI_NAME
+            )
+        )
+
+        print(MINOR_SEPARATOR_STRING)
+
+    if LOWEST_CSI_NAME in set_names:
+        set_to_valid_times_unix_sec[LOWEST_CSI_NAME] = (
+            _find_extreme_examples_one_set(
+                scores=score_dict[CSI_VALUES_KEY] + 0,
+                valid_times_unix_sec=all_times_unix_sec,
+                find_highest=False, num_examples_desired=num_examples_per_set,
+                set_name=LOWEST_CSI_NAME
+            )
+        )
+
+        print(MINOR_SEPARATOR_STRING)
+
+    if HIGHEST_FSS_NAME in set_names:
+        set_to_valid_times_unix_sec[HIGHEST_FSS_NAME] = (
+            _find_extreme_examples_one_set(
+                scores=score_dict[FSS_VALUES_KEY] + 0,
+                valid_times_unix_sec=all_times_unix_sec,
+                find_highest=True, num_examples_desired=num_examples_per_set,
+                set_name=HIGHEST_FSS_NAME
+            )
+        )
+
+        print(MINOR_SEPARATOR_STRING)
+
+    if LOWEST_FSS_NAME in set_names:
+        set_to_valid_times_unix_sec[LOWEST_FSS_NAME] = (
+            _find_extreme_examples_one_set(
+                scores=score_dict[FSS_VALUES_KEY] + 0,
+                valid_times_unix_sec=all_times_unix_sec,
+                find_highest=False, num_examples_desired=num_examples_per_set,
+                set_name=LOWEST_FSS_NAME
+            )
+        )
+
+        print(MINOR_SEPARATOR_STRING)
+
+    if HIGHEST_BRIER_SCORE_NAME in set_names:
+        set_to_valid_times_unix_sec[HIGHEST_BRIER_SCORE_NAME] = (
+            _find_extreme_examples_one_set(
+                scores=score_dict[BRIER_SCORES_KEY] + 0,
+                valid_times_unix_sec=all_times_unix_sec,
+                find_highest=True, num_examples_desired=num_examples_per_set,
+                set_name=HIGHEST_BRIER_SCORE_NAME
+            )
+        )
+
+        print(MINOR_SEPARATOR_STRING)
+
+    if LOWEST_BRIER_SCORE_NAME in set_names:
+        set_to_valid_times_unix_sec[LOWEST_BRIER_SCORE_NAME] = (
+            _find_extreme_examples_one_set(
+                scores=score_dict[BRIER_SCORES_KEY] + 0,
+                valid_times_unix_sec=all_times_unix_sec,
+                find_highest=False, num_examples_desired=num_examples_per_set,
+                set_name=LOWEST_BRIER_SCORE_NAME
+            )
+        )
+
+        print(MINOR_SEPARATOR_STRING)
+
+    return set_to_valid_times_unix_sec
+
+
+def _write_output_files(set_to_valid_times_unix_sec, top_input_dir_name,
+                        output_dir_name):
+    """Writes output files (one basic-score file per set).
+
+    :param set_to_valid_times_unix_sec: Dictionary created by
+        `_find_extreme_examples_all_sets`.
+    :param top_input_dir_name: See documentation at top of file.
+    :param output_dir_name: Same.
+    :raises: ValueError: if cannot find all desired examples.
+    """
+
+    desired_times_unix_sec = numpy.concatenate([
+        t for t in set_to_valid_times_unix_sec.values()
+    ])
+    desired_dates_unix_sec = numpy.unique(number_rounding.floor_to_nearest(
+        desired_times_unix_sec, DAYS_TO_SECONDS
+    ))
+    desired_date_strings = [
+        time_conversion.unix_sec_to_string(t, evaluation.DATE_FORMAT)
+        for t in desired_dates_unix_sec
+    ]
+
+    set_to_basic_score_tables = dict()
+    set_names = list(set_to_valid_times_unix_sec.keys())
+    for this_name in set_names:
+        set_to_basic_score_tables[this_name] = []
+
+    for this_date_string in desired_date_strings:
+        input_file_name = evaluation.find_basic_score_file(
+            top_directory_name=top_input_dir_name,
+            valid_date_string=this_date_string,
+            gridded=False, raise_error_if_missing=True
+        )
+
+        print('Reading data from: "{0:s}"...'.format(input_file_name))
+        basic_score_table_xarray = evaluation.read_basic_score_file(
+            input_file_name
+        )
+
+        for this_name in set_names:
+            these_flags = numpy.array([
+                t in set_to_valid_times_unix_sec[this_name] for t in
+                basic_score_table_xarray.coords[evaluation.TIME_DIM].values
+            ], dtype=bool)
+
+            if not numpy.any(these_flags):
+                continue
+
+            this_basic_score_table = basic_score_table_xarray.isel(
+                indexers={evaluation.TIME_DIM: numpy.where(these_flags)[0]},
+                drop=False
+            )
+            set_to_basic_score_tables[this_name].append(this_basic_score_table)
+
+    print(SEPARATOR_STRING)
+
+    for this_name in set_names:
+        basic_score_table_xarray = evaluation.concat_basic_score_tables(
+            set_to_basic_score_tables[this_name]
+        )
+
+        num_examples_found = len(
+            basic_score_table_xarray.coords[evaluation.TIME_DIM].values
+        )
+        num_examples_desired = len(set_to_valid_times_unix_sec[this_name])
+
+        if num_examples_found != num_examples_desired:
+            error_string = (
+                'Expected {0:d} examples for set "{1:s}"; found {2:d} examples.'
+            ).format(num_examples_desired, this_name, num_examples_found)
+
+            raise ValueError(error_string)
+
+        output_file_name = '{0:s}/basic_scores_{1:s}.nc'.format(
+            output_dir_name, this_name.replace('_', '-')
+        )
+
+        print('Writing results to: "{0:s}"...'.format(output_file_name))
+        evaluation.write_basic_score_file(
+            basic_score_table_xarray=basic_score_table_xarray,
+            netcdf_file_name=output_file_name
+        )
+
+
 def _run(top_input_dir_name, first_date_string, last_date_string,
          num_examples_per_set, set_names, output_dir_name):
     """Finds extreme examples (best and worst predictions) for one model.
@@ -262,22 +568,24 @@ def _run(top_input_dir_name, first_date_string, last_date_string,
     num_days = len(input_file_names)
     num_times = MAX_TIME_STEPS_PER_DAY * num_days
 
-    valid_times_unix_sec = numpy.full(num_times, -1, dtype=int)
-    actual_convective_px_counts = numpy.full(num_times, -1, dtype=int)
-    predicted_convective_px_counts = numpy.full(num_times, -1, dtype=int)
-    pod_values = numpy.full(num_times, numpy.nan)
-    success_ratios = numpy.full(num_times, numpy.nan)
-    csi_values = numpy.full(num_times, numpy.nan)
-    fss_values = numpy.full(num_times, numpy.nan)
-    brier_scores = numpy.full(num_times, numpy.nan)
+    score_dict = {
+        VALID_TIMES_KEY: numpy.full(num_times, -1, dtype=int),
+        ACTUAL_COUNTS_KEY: numpy.full(num_times, -1, dtype=int),
+        PREDICTED_COUNTS_KEY: numpy.full(num_times, -1, dtype=int),
+        POD_VALUES_KEY: numpy.full(num_times, numpy.nan),
+        SUCCESS_RATIOS_KEY: numpy.full(num_times, numpy.nan),
+        CSI_VALUES_KEY: numpy.full(num_times, numpy.nan),
+        FSS_VALUES_KEY: numpy.full(num_times, numpy.nan),
+        BRIER_SCORES_KEY: numpy.full(num_times, numpy.nan)
+    }
 
     num_times_read = 0
 
     for i in range(num_days):
         print('Reading data from: "{0:s}"...'.format(input_file_names[i]))
-        this_result_dict = _read_scores_one_day(input_file_names[i])
+        this_score_dict = _read_scores_one_day(input_file_names[i])
 
-        this_num_times = len(this_result_dict[VALID_TIMES_KEY])
+        this_num_times = len(this_score_dict[VALID_TIMES_KEY])
         first_time_index = num_times_read + 0
         last_time_index = first_time_index + this_num_times - 1
         num_times_read += this_num_times
@@ -286,36 +594,24 @@ def _run(top_input_dir_name, first_date_string, last_date_string,
             first_time_index, last_time_index, num=this_num_times, dtype=int
         )
 
-        valid_times_unix_sec[time_indices] = this_result_dict[VALID_TIMES_KEY]
-        actual_convective_px_counts[time_indices] = (
-            this_result_dict[ACTUAL_COUNTS_KEY]
-        )
-        predicted_convective_px_counts[time_indices] = (
-            this_result_dict[PREDICTED_COUNTS_KEY]
-        )
-        pod_values[time_indices] = this_result_dict[POD_VALUES_KEY]
-        success_ratios[time_indices] = this_result_dict[SUCCESS_RATIOS_KEY]
-        csi_values[time_indices] = this_result_dict[CSI_VALUES_KEY]
-        fss_values[time_indices] = this_result_dict[FSS_VALUES_KEY]
-        brier_scores[time_indices] = this_result_dict[BRIER_SCORES_KEY]
+        for this_key in score_dict:
+            score_dict[this_key][time_indices] = this_score_dict[this_key]
 
     print(SEPARATOR_STRING)
 
-    valid_times_unix_sec = valid_times_unix_sec[:num_times_read]
-    actual_convective_px_counts = actual_convective_px_counts[:num_times_read]
-    predicted_convective_px_counts = (
-        predicted_convective_px_counts[:num_times_read]
-    )
-    pod_values = pod_values[:num_times_read]
-    success_ratios = success_ratios[:num_times_read]
-    csi_values = csi_values[:num_times_read]
-    fss_values = fss_values[:num_times_read]
-    brier_scores = brier_scores[:num_times_read]
+    for this_key in score_dict:
+        score_dict[this_key] = score_dict[this_key][:num_times_read]
 
-    # _find_extreme_examples_one_set(
-    #     scores=actual_convective_px_counts,
-    #     find_highest=True, num_examples_desired=num_examples_per_set
-    # )
+    set_to_valid_times_unix_sec = _find_extreme_examples_all_sets(
+        score_dict=score_dict, set_names=set_names,
+        num_examples_per_set=num_examples_per_set
+    )
+    print(SEPARATOR_STRING)
+
+    _write_output_files(
+        set_to_valid_times_unix_sec=set_to_valid_times_unix_sec,
+        top_input_dir_name=top_input_dir_name, output_dir_name=output_dir_name
+    )
 
 
 if __name__ == '__main__':
