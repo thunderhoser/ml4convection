@@ -233,7 +233,7 @@ def _read_scores_one_day(input_file_name):
             mean_observed_label_by_bin=event_frequency_matrix[i, :],
             num_examples_by_bin=example_count_matrix[i, :],
             climatology=0.01
-        )[[gg_model_eval.BRIER_SCORE_KEY]]
+        )[gg_model_eval.BRIER_SCORE_KEY]
 
     return {
         VALID_TIMES_KEY: valid_times_unix_sec,
