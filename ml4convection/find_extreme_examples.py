@@ -12,6 +12,7 @@ sys.path.append(os.path.normpath(os.path.join(THIS_DIRECTORY_NAME, '..')))
 
 import number_rounding
 import time_conversion
+import gg_model_evaluation as gg_model_eval
 import error_checking
 import evaluation
 
@@ -213,19 +214,26 @@ def _read_scores_one_day(input_file_name):
 
     example_count_matrix = t[evaluation.EXAMPLE_COUNT_KEY].values.astype(float)
     example_count_matrix[example_count_matrix == 0] = numpy.nan
-
-    diff_matrix = (
-        t[evaluation.SUMMED_FORECAST_PROB_KEY].values -
-        t[evaluation.POSITIVE_EXAMPLE_COUNT_KEY].values
+    mean_forecast_prob_matrix = (
+        t[evaluation.SUMMED_FORECAST_PROB_KEY].values / example_count_matrix
     )
-    mse_matrix = (diff_matrix / example_count_matrix) ** 2
-
-    mse_matrix[numpy.isnan(mse_matrix)] = 0.
+    event_frequency_matrix = (
+        t[evaluation.POSITIVE_EXAMPLE_COUNT_KEY].values.astype(float) /
+        example_count_matrix
+    )
     example_count_matrix[numpy.isnan(example_count_matrix)] = 0
+    example_count_matrix = numpy.round(example_count_matrix).astype(int)
 
-    brier_scores = numpy.average(
-        mse_matrix, weights=example_count_matrix, axis=1
-    )
+    num_times = len(valid_times_unix_sec)
+    brier_scores = numpy.full(num_times, numpy.nan)
+
+    for i in range(num_times):
+        brier_scores[i] = gg_model_eval.get_brier_skill_score(
+            mean_forecast_prob_by_bin=mean_forecast_prob_matrix[i, :],
+            mean_observed_label_by_bin=event_frequency_matrix[i, :],
+            num_examples_by_bin=example_count_matrix[i, :],
+            climatology=0.01
+        )[[gg_model_eval.BRIER_SCORE_KEY]]
 
     return {
         VALID_TIMES_KEY: valid_times_unix_sec,
