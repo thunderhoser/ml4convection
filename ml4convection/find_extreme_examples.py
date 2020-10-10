@@ -476,6 +476,7 @@ def _write_output_files(set_to_valid_times_unix_sec, top_input_dir_name,
     desired_dates_unix_sec = numpy.unique(number_rounding.floor_to_nearest(
         desired_times_unix_sec, DAYS_TO_SECONDS
     ))
+    desired_dates_unix_sec = desired_dates_unix_sec.astype(int)
     desired_date_strings = [
         time_conversion.unix_sec_to_string(t, evaluation.DATE_FORMAT)
         for t in desired_dates_unix_sec
