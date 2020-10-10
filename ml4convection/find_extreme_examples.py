@@ -256,6 +256,8 @@ def _find_extreme_examples_one_set(
     :return: desired_times_unix_sec: length-E numpy array of desired times.
     """
 
+    scores = scores.astype(float)
+
     if find_highest:
         scores[numpy.isnan(scores)] = -numpy.inf
         sort_indices = numpy.argsort(-1 * scores)
