@@ -1,25 +1,25 @@
 #!/bin/tcsh
 
-#SBATCH --job-name="compute_basic_ungridded_scores_may-aug_patch"
+#SBATCH --job-name="plot_evaluation_for_best"
 #SBATCH --partition="fge"
 #SBATCH --account="rda-ghpcs"
 #SBATCH --qos="batch"
 #SBATCH --ntasks=1
 #SBATCH --nodes=1
 #SBATCH --cpus-per-task=1
-#SBATCH --mem=16G
+#SBATCH --mem=8G
 ##SBATCH --nodes=1
 ##SBATCH --ntasks=1
 ##SBATCH --cpus-per-task=1
 ##SBATCH --ntasks-per-node=1
-#SBATCH --time=24:00:00
-#SBATCH --array=145,156,164,165,175
+#SBATCH --time=01:00:00
+#SBATCH --array=1-175
 #SBATCH --exclude=h28n12
 ##SBATCH --exclude=h31n03,h28n12
 ##SBATCH --exclude=h29n01,h26n05,h28n06,h29n07,h30n03,h30n15
 #SBATCH --mail-type=BEGIN,END,FAIL
 #SBATCH --mail-user=ryan.lagerquist@noaa.gov
-#SBATCH --output=compute_basic_ungridded_scores_may-aug_patch_%A_%a.out
+#SBATCH --output=plot_evaluation_for_best_%A_%a.out
 
 module load cuda/10.1
 source /scratch2/BMC/gsd-hpcs/Jebb.Q.Stewart/conda3.7/etc/profile.d/conda.csh
@@ -40,13 +40,9 @@ set conv_layer_dropout_string=`printf "%.3f" $conv_layer_dropout_rate`
 set l2_weight_string=`printf "%.10f" $l2_weight`
 
 set model_dir_name="${TOP_MODEL_DIR_NAME}/lag-times-sec=${lag_time_string}_conv-dropout=${conv_layer_dropout_string}_l2-weight=${l2_weight_string}"
-set prediction_dir_name="${model_dir_name}/validation"
+set advanced_score_file_name="${model_dir_name}/validation/evaluation/advanced_scores_gridded=0.p"
+set output_dir_name="${model_dir_name}/validation/evaluation/advanced_scores_gridded=0"
 
-python3 -u "${CODE_DIR_NAME}/compute_basic_scores.py" \
---input_prediction_dir_name="${prediction_dir_name}" \
---first_date_string="20170501" \
---last_date_string="20170831" \
---gridded=0 \
---matching_distance_px=1 \
---num_prob_thresholds=101 \
---output_dir_name="${prediction_dir_name}/evaluation"
+python3 -u "${CODE_DIR_NAME}/plot_evaluation.py" \
+--input_advanced_score_file_name="${advanced_score_file_name}" \
+--output_dir_name="${output_dir_name}"

@@ -376,13 +376,10 @@ def _read_preprocessed_inputs_one_day(
         predictor_or_target_dict=predictor_dict,
         desired_times_unix_sec=numpy.ravel(init_time_matrix_unix_sec)
     )[0]
-    print(predictor_dict[example_io.VALID_TIMES_KEY])
-
     target_dict = example_io.subset_by_time(
         predictor_or_target_dict=target_dict,
         desired_times_unix_sec=valid_times_unix_sec
     )[0]
-    print(target_dict[example_io.VALID_TIMES_KEY])
 
     if normalize:
         if uniformize:
