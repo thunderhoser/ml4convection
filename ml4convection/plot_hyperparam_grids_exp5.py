@@ -184,7 +184,7 @@ def _run(experiment_dir_name):
         for j in range(num_dropout_rates):
             for k in range(num_l2_weights):
                 this_score_file_name = (
-                    '{0:s}/lag-times-sec={1:2}_conv-dropout={2:.3f}_'
+                    '{0:s}/lag-times-sec={1:s}_conv-dropout={2:.3f}_'
                     'l2-weight={3:.10f}/validation/evaluation/'
                     'advanced_scores_gridded=0.p'
                 ).format(
