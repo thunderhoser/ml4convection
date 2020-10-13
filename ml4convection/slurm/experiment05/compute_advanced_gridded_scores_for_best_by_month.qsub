@@ -1,52 +1,60 @@
 #!/bin/tcsh
 
-#SBATCH --job-name="plot_gridded_evaluation_for_best"
+#SBATCH --job-name="compute_advanced_gridded_scores_for_best_by_month"
 #SBATCH --partition="fge"
 #SBATCH --account="rda-ghpcs"
 #SBATCH --qos="batch"
 #SBATCH --ntasks=1
 #SBATCH --nodes=1
 #SBATCH --cpus-per-task=1
-#SBATCH --mem=8G
+#SBATCH --mem=200G
 ##SBATCH --nodes=1
 ##SBATCH --ntasks=1
 ##SBATCH --cpus-per-task=1
 ##SBATCH --ntasks-per-node=1
-#SBATCH --time=01:00:00
+#SBATCH --time=24:00:00
 #SBATCH --array=1-3
 #SBATCH --exclude=h28n12
 ##SBATCH --exclude=h31n03,h28n12
 ##SBATCH --exclude=h29n01,h26n05,h28n06,h29n07,h30n03,h30n15
 #SBATCH --mail-type=BEGIN,END,FAIL
 #SBATCH --mail-user=ryan.lagerquist@noaa.gov
-#SBATCH --output=plot_gridded_evaluation_for_best_%A_%a.out
+#SBATCH --output=compute_advanced_gridded_scores_for_best_by_month_%A_%a.out
 
 module load cuda/10.1
 source /scratch2/BMC/gsd-hpcs/Jebb.Q.Stewart/conda3.7/etc/profile.d/conda.csh
 conda activate base
 
 set CODE_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_standalone/ml4convection"
-set TOP_MODEL_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_models/experiment05"
+set TOP_MODEL_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_models/experiment06"
 
 set LAG_TIME_STRINGS=("0-600-1200" "0-600-1200-1800-2400" "0-600-1200")
 set CONV_LAYER_DROPOUT_RATES=(0.000 0.000 0.050)
 set L2_WEIGHTS=(0.0001000000 0.0001000000 0.0001000000)
-set PROBABILITY_THRESHOLDS=(0.18 0.17 0.23)
 
 set lag_time_string="${LAG_TIME_STRINGS[$SLURM_ARRAY_TASK_ID]}"
 set conv_layer_dropout_rate=${CONV_LAYER_DROPOUT_RATES[$SLURM_ARRAY_TASK_ID]}
 set l2_weight=${L2_WEIGHTS[$SLURM_ARRAY_TASK_ID]}
-set prob_threshold=${PROBABILITY_THRESHOLDS[$SLURM_ARRAY_TASK_ID]}
 
 set conv_layer_dropout_string=`printf "%.3f" $conv_layer_dropout_rate`
 set l2_weight_string=`printf "%.10f" $l2_weight`
-set prob_threshold_string=`printf "%.3f" $prob_threshold`
 
 set model_dir_name="${TOP_MODEL_DIR_NAME}/lag-times-sec=${lag_time_string}_conv-dropout=${conv_layer_dropout_string}_l2-weight=${l2_weight_string}"
-set advanced_score_file_name="${model_dir_name}/validation/evaluation/advanced_scores_gridded=1.p"
-set output_dir_name="${model_dir_name}/validation/evaluation/advanced_scores_gridded=1"
+set evaluation_dir_name="${model_dir_name}/validation/evaluation"
 
-python3 -u "${CODE_DIR_NAME}/plot_gridded_evaluation.py" \
---input_advanced_score_file_name="${advanced_score_file_name}" \
---probability_threshold=${prob_threshold_string} \
---output_dir_name="${output_dir_name}"
+set FIRST_DATE_STRINGS=("20170101" "20170201" "20170301" "20170401" "20170501" "20170601" "20170701" "20170801" "20170901" "20171001" "20171101" "20171201")
+set LAST_DATE_STRINGS=("20170131" "20170228" "20170331" "20170430" "20170531" "20170630" "20170731" "20170831" "20170930" "20171031" "20171130" "20171224")
+set MONTH_STRINGS=("201701" "201702" "201703" "201704" "201705" "201706" "201707" "201708" "201709" "201710" "201711" "201712")
+
+set i=1
+
+while ($i <= ${#MONTH_STRINGS})
+    python3 -u "${CODE_DIR_NAME}/compute_advanced_scores_gridded.py" \
+    --input_basic_score_dir_name="${evaluation_dir_name}" \
+    --first_date_string="${FIRST_DATE_STRINGS[$i]}" \
+    --last_date_string="${LAST_DATE_STRINGS[$i]}" \
+    --num_subgrids_per_dim=3 \
+    --output_dir_name="${evaluation_dir_name}/${MONTHS[$i]}"
+
+    @ i = $i + 1
+end
