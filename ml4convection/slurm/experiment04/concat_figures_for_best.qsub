@@ -45,15 +45,15 @@ set conv_layer_dropout_string=`printf "%.3f" $CONV_LAYER_DROPOUT_RATE`
 set l2_weight_string=`printf "%.6f" $L2_WEIGHT`
 
 set model_dir_name="${TOP_MODEL_DIR_NAME}/fss-half-window-size-px=${half_window_size_string}_conv-dropout=${conv_layer_dropout_string}_l2-weight=${l2_weight_string}"
-set model_file_name="${model_dir_name}/model.h5"
+set model_metafile_name="${model_dir_name}/model_metadata.dill"
 set prediction_figure_dir_name="${model_dir_name}/validation/prediction_plots"
 
 python3 -u "${CODE_DIR_NAME}/concat_figures.py" \
 --prediction_figure_dir_name="${prediction_figure_dir_name}" \
 --refl_figure_dir_name="${REFL_FIGURE_DIR_NAME}" \
 --satellite_figure_dir_name="${SATELLITE_FIGURE_DIR_NAME}" \
---band_numbers 8 9 10 11 13 14 16 \
+--model_metafile_name="${model_metafile_name}" \
 --first_date_string="${first_date_string}" \
 --last_date_string="${last_date_string}" \
---daily_times_seconds 0 7200 14400 21600 28800 36000 43200 50400 57600 64800 72000 79200 \
+--daily_valid_times_seconds 0 7200 14400 21600 28800 36000 43200 50400 57600 64800 72000 79200 \
 --output_dir_name="${prediction_figure_dir_name}/concat"
