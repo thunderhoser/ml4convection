@@ -23,6 +23,7 @@ import neural_net
 
 DAYS_TO_SECONDS = 86400
 TIME_FORMAT = '%Y-%m-%d-%H%M'
+MONTH_FORMAT = '%Y%m'
 
 CONCAT_FIGURE_SIZE_PX = int(1e7)
 
@@ -204,12 +205,16 @@ def _find_input_files(
                     valid_times_unix_sec[i] - lag_times_seconds[k],
                     TIME_FORMAT
                 )
+                this_month_string = time_conversion.unix_sec_to_string(
+                    valid_times_unix_sec[i] - lag_times_seconds[k],
+                    MONTH_FORMAT
+                )
 
                 satellite_fig_file_name_matrix[i, j, k] = (
-                    '{0:s}/band{1:02d}/brightness-temperature_band{1:02d}'
-                    '_{2:s}.jpg'
+                    '{0:s}/{1:s}/brightness-temperature_{2:s}_band{3:02d}.jpg'
                 ).format(
-                    satellite_figure_dir_name, band_numbers[j], this_time_string
+                    satellite_figure_dir_name, this_month_string,
+                    this_time_string, band_numbers[j]
                 )
 
     bad_file_names = [

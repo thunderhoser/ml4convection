@@ -27,6 +27,7 @@ SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 
 DAYS_TO_SECONDS = 86400
 TIME_FORMAT = '%Y-%m-%d-%H%M'
+MONTH_FORMAT = '%Y%m'
 
 FIGURE_RESOLUTION_DPI = 300
 FIGURE_WIDTH_INCHES = 15
@@ -156,10 +157,14 @@ def _plot_one_satellite_image(
 
     axes_object.set_title(title_string)
 
+    month_string = time_conversion.unix_sec_to_string(
+        valid_time_unix_sec, MONTH_FORMAT
+    )
+
     output_file_name = (
-        '{0:s}/band{1:02d}/brightness-temperature_band{1:02d}_{2:s}.jpg'
+        '{0:s}/{1:s}/brightness-temperature_{2:s}_band{3:02d}.jpg'
     ).format(
-        top_output_dir_name, band_number, valid_time_string
+        top_output_dir_name, month_string, valid_time_string, band_number
     )
     file_system_utils.mkdir_recursive_if_necessary(file_name=output_file_name)
 
