@@ -328,6 +328,7 @@ def _run(top_reflectivity_dir_name, top_echo_classifn_dir_name,
         reflectivity_dict = radar_io.read_reflectivity_file(
             netcdf_file_name=input_file_names[i], fill_nans=True
         )
+        print('FOO')
 
         if top_echo_classifn_dir_name is None:
             echo_classifn_dict = None
