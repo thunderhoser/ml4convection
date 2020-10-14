@@ -39,7 +39,7 @@ set prob_threshold=${PROBABILITY_THRESHOLDS[$SLURM_ARRAY_TASK_ID]}
 set l2_weight_string=`printf "%.10f" $l2_weight`
 set prob_threshold_string=`printf "%.3f" $prob_threshold`
 
-set model_dir_name="${TOP_MODEL_DIR_NAME}/lag-times-sec=${lag_time_string_with_dash}_l2-weight=${l2_weight_string}"
+set model_dir_name="${TOP_MODEL_DIR_NAME}/lag-times-sec=${lag_time_string}_l2-weight=${l2_weight_string}"
 set evaluation_dir_name="${model_dir_name}/validation/evaluation"
 
 python3 -u "${CODE_DIR_NAME}/plot_evaluation_by_time.py" \

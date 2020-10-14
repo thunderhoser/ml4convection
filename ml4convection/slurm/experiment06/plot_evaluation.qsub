@@ -35,7 +35,7 @@ set lag_time_string="${LAG_TIME_STRINGS[$SLURM_ARRAY_TASK_ID]}"
 set l2_weight=${L2_WEIGHTS[$SLURM_ARRAY_TASK_ID]}
 set l2_weight_string=`printf "%.10f" $l2_weight`
 
-set model_dir_name="${TOP_MODEL_DIR_NAME}/lag-times-sec=${lag_time_string_with_dash}_l2-weight=${l2_weight_string}"
+set model_dir_name="${TOP_MODEL_DIR_NAME}/lag-times-sec=${lag_time_string}_l2-weight=${l2_weight_string}"
 set advanced_score_file_name="${model_dir_name}/validation/evaluation/advanced_scores_gridded=0.p"
 set output_dir_name="${model_dir_name}/validation/evaluation/advanced_scores_gridded=0"
 
