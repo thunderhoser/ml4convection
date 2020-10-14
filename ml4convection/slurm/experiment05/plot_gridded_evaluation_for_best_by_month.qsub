@@ -48,8 +48,8 @@ set MONTH_STRINGS=("201701" "201702" "201703" "201704" "201705" "201706" "201707
 set i=1
 
 while ($i <= ${#MONTH_STRINGS})
-    set this_score_file_name="${model_dir_name}/validation/evaluation/${MONTHS[$i]}/advanced_scores_gridded=1.p"
-    set this_output_dir_name="${model_dir_name}/validation/evaluation/${MONTHS[$i]}/advanced_scores_gridded=1"
+    set this_score_file_name="${model_dir_name}/validation/evaluation/${MONTH_STRINGS[$i]}/advanced_scores_gridded=1.p"
+    set this_output_dir_name="${model_dir_name}/validation/evaluation/${MONTH_STRINGS[$i]}/advanced_scores_gridded=1"
 
     python3 -u "${CODE_DIR_NAME}/plot_gridded_evaluation.py" \
     --input_advanced_score_file_name="${this_score_file_name}" \
