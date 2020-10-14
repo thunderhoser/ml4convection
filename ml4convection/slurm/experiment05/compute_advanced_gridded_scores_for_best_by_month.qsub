@@ -54,7 +54,7 @@ while ($i <= ${#MONTH_STRINGS})
     --first_date_string="${FIRST_DATE_STRINGS[$i]}" \
     --last_date_string="${LAST_DATE_STRINGS[$i]}" \
     --num_subgrids_per_dim=3 \
-    --output_dir_name="${evaluation_dir_name}/${MONTHS[$i]}"
+    --output_dir_name="${evaluation_dir_name}/${MONTH_STRINGS[$i]}"
 
     @ i = $i + 1
 end
