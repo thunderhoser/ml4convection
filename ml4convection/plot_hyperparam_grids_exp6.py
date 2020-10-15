@@ -225,95 +225,93 @@ def _run(experiment_dir_name):
 
     _print_ranking_one_score(score_matrix=bss_matrix, score_name='BSS')
     print(SEPARATOR_STRING)
+        
+    # Plot AUPD.
+    figure_object, axes_object = _plot_scores_2d(
+        score_matrix=aupd_matrix,
+        min_colour_value=numpy.nanpercentile(aupd_matrix, 1),
+        max_colour_value=numpy.nanpercentile(aupd_matrix, 99),
+        x_tick_labels=x_tick_labels, y_tick_labels=y_tick_labels,
+        colour_map_object=DEFAULT_COLOUR_MAP_OBJECT
+    )
 
-    for i in range(num_lag_time_sets):
+    axes_object.set_xlabel(x_axis_label)
+    axes_object.set_ylabel(y_axis_label)
+    axes_object.set_title('Area under performance diagram (AUPD)')
+    figure_file_name = '{0:s}/aupd_grid.jpg'.format(experiment_dir_name)
 
-        # Plot AUPD for [i]th set of lag times.
-        figure_object, axes_object = _plot_scores_2d(
-            score_matrix=aupd_matrix[i, ...],
-            min_colour_value=numpy.nanpercentile(aupd_matrix, 1),
-            max_colour_value=numpy.nanpercentile(aupd_matrix, 99),
-            x_tick_labels=x_tick_labels, y_tick_labels=y_tick_labels,
-            colour_map_object=DEFAULT_COLOUR_MAP_OBJECT
-        )
+    print('Saving figure to: "{0:s}"...'.format(figure_file_name))
+    figure_object.savefig(
+        figure_file_name, dpi=FIGURE_RESOLUTION_DPI,
+        pad_inches=0, bbox_inches='tight'
+    )
+    pyplot.close(figure_object)
 
-        axes_object.set_xlabel(x_axis_label)
-        axes_object.set_ylabel(y_axis_label)
-        axes_object.set_title('Area under performance diagram (AUPD)')
-        figure_file_name = '{0:s}/aupd_grid.jpg'.format(experiment_dir_name)
+    # Plot max CSI.
+    figure_object, axes_object = _plot_scores_2d(
+        score_matrix=max_csi_matrix,
+        min_colour_value=numpy.nanpercentile(max_csi_matrix, 1),
+        max_colour_value=numpy.nanpercentile(max_csi_matrix, 99),
+        x_tick_labels=x_tick_labels, y_tick_labels=y_tick_labels,
+        colour_map_object=DEFAULT_COLOUR_MAP_OBJECT
+    )
 
-        print('Saving figure to: "{0:s}"...'.format(figure_file_name))
-        figure_object.savefig(
-            figure_file_name, dpi=FIGURE_RESOLUTION_DPI,
-            pad_inches=0, bbox_inches='tight'
-        )
-        pyplot.close(figure_object)
+    axes_object.set_xlabel(x_axis_label)
+    axes_object.set_ylabel(y_axis_label)
+    axes_object.set_title('Max critical success index (CSI)')
+    figure_file_name = '{0:s}/csi_grid.jpg'.format(experiment_dir_name)
 
-        # Plot max CSI for [i]th set of lag times.
-        figure_object, axes_object = _plot_scores_2d(
-            score_matrix=max_csi_matrix[i, ...],
-            min_colour_value=numpy.nanpercentile(max_csi_matrix, 1),
-            max_colour_value=numpy.nanpercentile(max_csi_matrix, 99),
-            x_tick_labels=x_tick_labels, y_tick_labels=y_tick_labels,
-            colour_map_object=DEFAULT_COLOUR_MAP_OBJECT
-        )
+    print('Saving figure to: "{0:s}"...'.format(figure_file_name))
+    figure_object.savefig(
+        figure_file_name, dpi=FIGURE_RESOLUTION_DPI,
+        pad_inches=0, bbox_inches='tight'
+    )
+    pyplot.close(figure_object)
 
-        axes_object.set_xlabel(x_axis_label)
-        axes_object.set_ylabel(y_axis_label)
-        axes_object.set_title('Max critical success index (CSI)')
-        figure_file_name = '{0:s}/csi_grid.jpg'.format(experiment_dir_name)
+    # Plot FSS.
+    figure_object, axes_object = _plot_scores_2d(
+        score_matrix=fss_matrix,
+        min_colour_value=numpy.nanpercentile(fss_matrix, 1),
+        max_colour_value=numpy.nanpercentile(fss_matrix, 99),
+        x_tick_labels=x_tick_labels, y_tick_labels=y_tick_labels,
+        colour_map_object=DEFAULT_COLOUR_MAP_OBJECT
+    )
 
-        print('Saving figure to: "{0:s}"...'.format(figure_file_name))
-        figure_object.savefig(
-            figure_file_name, dpi=FIGURE_RESOLUTION_DPI,
-            pad_inches=0, bbox_inches='tight'
-        )
-        pyplot.close(figure_object)
+    axes_object.set_xlabel(x_axis_label)
+    axes_object.set_ylabel(y_axis_label)
+    axes_object.set_title('Fractions skill score (FSS)')
+    figure_file_name = '{0:s}/fss_grid.jpg'.format(experiment_dir_name)
 
-        # Plot FSS for [i]th set of lag times.
-        figure_object, axes_object = _plot_scores_2d(
-            score_matrix=fss_matrix[i, ...],
-            min_colour_value=numpy.nanpercentile(fss_matrix, 1),
-            max_colour_value=numpy.nanpercentile(fss_matrix, 99),
-            x_tick_labels=x_tick_labels, y_tick_labels=y_tick_labels,
-            colour_map_object=DEFAULT_COLOUR_MAP_OBJECT
-        )
+    print('Saving figure to: "{0:s}"...'.format(figure_file_name))
+    figure_object.savefig(
+        figure_file_name, dpi=FIGURE_RESOLUTION_DPI,
+        pad_inches=0, bbox_inches='tight'
+    )
+    pyplot.close(figure_object)
 
-        axes_object.set_xlabel(x_axis_label)
-        axes_object.set_ylabel(y_axis_label)
-        axes_object.set_title('Fractions skill score (FSS)')
-        figure_file_name = '{0:s}/fss_grid.jpg'.format(experiment_dir_name)
+    # Plot BSS.
+    this_max_value = numpy.nanpercentile(numpy.absolute(bss_matrix), 99.)
+    this_max_value = min([this_max_value, 1.])
+    this_min_value = -1 * this_max_value
 
-        print('Saving figure to: "{0:s}"...'.format(figure_file_name))
-        figure_object.savefig(
-            figure_file_name, dpi=FIGURE_RESOLUTION_DPI,
-            pad_inches=0, bbox_inches='tight'
-        )
-        pyplot.close(figure_object)
+    figure_object, axes_object = _plot_scores_2d(
+        score_matrix=bss_matrix,
+        min_colour_value=this_min_value, max_colour_value=this_max_value,
+        x_tick_labels=x_tick_labels, y_tick_labels=y_tick_labels,
+        colour_map_object=BSS_COLOUR_MAP_OBJECT
+    )
 
-        # Plot BSS for [i]th set of lag times.
-        this_max_value = numpy.nanpercentile(numpy.absolute(bss_matrix), 99.)
-        this_max_value = min([this_max_value, 1.])
-        this_min_value = -1 * this_max_value
+    axes_object.set_xlabel(x_axis_label)
+    axes_object.set_ylabel(y_axis_label)
+    axes_object.set_title('Brier skill score (BSS)')
+    figure_file_name = '{0:s}/bss_grid.jpg'.format(experiment_dir_name)
 
-        figure_object, axes_object = _plot_scores_2d(
-            score_matrix=bss_matrix[i, ...],
-            min_colour_value=this_min_value, max_colour_value=this_max_value,
-            x_tick_labels=x_tick_labels, y_tick_labels=y_tick_labels,
-            colour_map_object=BSS_COLOUR_MAP_OBJECT
-        )
-
-        axes_object.set_xlabel(x_axis_label)
-        axes_object.set_ylabel(y_axis_label)
-        axes_object.set_title('Brier skill score (BSS)')
-        figure_file_name = '{0:s}/bss_grid.jpg'.format(experiment_dir_name)
-
-        print('Saving figure to: "{0:s}"...'.format(figure_file_name))
-        figure_object.savefig(
-            figure_file_name, dpi=FIGURE_RESOLUTION_DPI,
-            pad_inches=0, bbox_inches='tight'
-        )
-        pyplot.close(figure_object)
+    print('Saving figure to: "{0:s}"...'.format(figure_file_name))
+    figure_object.savefig(
+        figure_file_name, dpi=FIGURE_RESOLUTION_DPI,
+        pad_inches=0, bbox_inches='tight'
+    )
+    pyplot.close(figure_object)
 
 
 if __name__ == '__main__':
