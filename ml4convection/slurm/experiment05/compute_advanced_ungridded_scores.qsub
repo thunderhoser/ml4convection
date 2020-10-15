@@ -19,7 +19,7 @@
 ##SBATCH --exclude=h29n01,h26n05,h28n06,h29n07,h30n03,h30n15
 #SBATCH --mail-type=BEGIN,END,FAIL
 #SBATCH --mail-user=ryan.lagerquist@noaa.gov
-#SBATCH --output=compute_advanced_ungridded_scores_%A.out
+#SBATCH --output=compute_advanced_ungridded_scores_%A_%a.out
 
 module load cuda/10.1
 source /scratch2/BMC/gsd-hpcs/Jebb.Q.Stewart/conda3.7/etc/profile.d/conda.csh
