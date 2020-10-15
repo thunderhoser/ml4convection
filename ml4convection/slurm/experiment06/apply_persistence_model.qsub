@@ -31,7 +31,7 @@ set TOP_OUTPUT_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convectio
 set FIRST_VALIDN_DATE_STRING="20170101"
 set LAST_VALIDN_DATE_STRING="20171224"
 
-python3 -u "${CODE_DIR_NAME}/apply_neural_net.py" \
+python3 -u "${CODE_DIR_NAME}/apply_persistence_model.py" \
 --input_target_dir_name="${TOP_TARGET_DIR_NAME}" \
 --lead_time_seconds=3600 \
 --smoothing_radius_px=1 \
