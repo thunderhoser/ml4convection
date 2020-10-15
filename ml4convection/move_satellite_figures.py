@@ -120,18 +120,19 @@ def _run(top_input_dir_name, first_date_string, last_date_string,
             this_output_file_name = (
                 '{0:s}/{1:s}/brightness-temperature_{2:s}_band{3:02d}.jpg'
             ).format(
-                top_output_dir_name, valid_time_strings[i][:10],
+                top_output_dir_name,
+                valid_time_strings[i][:10].replace('-', ''),
                 valid_time_strings[i], BAND_NUMBERS[j]
             )
 
-            # file_system_utils.mkdir_recursive_if_necessary(
-            #     file_name=this_output_file_name
-            # )
+            file_system_utils.mkdir_recursive_if_necessary(
+                file_name=this_output_file_name
+            )
 
             print('Moving file from "{0:s}" to "{1:s}"...'.format(
                 this_input_file_name, this_output_file_name
             ))
-            # shutil.move(this_input_file_name, this_output_file_name)
+            shutil.move(this_input_file_name, this_output_file_name)
 
 
 if __name__ == '__main__':
