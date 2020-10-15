@@ -42,7 +42,7 @@ set model_dir_name="${TOP_MODEL_DIR_NAME}/smoothing_radius_px=${smoothing_radius
 python3 -u "${CODE_DIR_NAME}/apply_persistence_model.py" \
 --input_target_dir_name="${TOP_TARGET_DIR_NAME}" \
 --lead_time_seconds=3600 \
---smoothing_radius_px=smoothing_radius_string \
+--smoothing_radius_px=${smoothing_radius_string} \
 --first_valid_date_string="${FIRST_VALIDN_DATE_STRING}" \
 --last_valid_date_string="${LAST_VALIDN_DATE_STRING}" \
 --output_dir_name="${model_dir_name}"
