@@ -175,7 +175,7 @@ def _run(experiment_dir_name):
         for d in CONV_LAYER_DROPOUT_RATES
     ]
     x_tick_labels = [
-        r'10${0:.1f}$'.format(numpy.log10(w)) for w in L2_WEIGHTS
+        r'10$^{0:.1f}$'.format(numpy.log10(w)) for w in L2_WEIGHTS
     ]
     y_axis_label = 'Conv-layer dropout rate'
     x_axis_label = r'L$_{2}$ weight'

@@ -38,13 +38,13 @@ LAG_TIME_STRINGS_MINUTES = [
 L2_WEIGHTS = numpy.logspace(-7, -3, num=17)
 
 DEFAULT_FONT_SIZE = 20
-X_TICK_LABEL_FONT_SIZE = 12
+Y_TICK_LABEL_FONT_SIZE = 8
 
 pyplot.rc('font', size=DEFAULT_FONT_SIZE)
 pyplot.rc('axes', titlesize=DEFAULT_FONT_SIZE)
 pyplot.rc('axes', labelsize=DEFAULT_FONT_SIZE)
-pyplot.rc('xtick', labelsize=X_TICK_LABEL_FONT_SIZE)
-pyplot.rc('ytick', labelsize=DEFAULT_FONT_SIZE)
+pyplot.rc('xtick', labelsize=DEFAULT_FONT_SIZE)
+pyplot.rc('ytick', labelsize=Y_TICK_LABEL_FONT_SIZE)
 pyplot.rc('legend', fontsize=DEFAULT_FONT_SIZE)
 pyplot.rc('figure', titlesize=DEFAULT_FONT_SIZE)
 
@@ -179,7 +179,7 @@ def _run(experiment_dir_name):
 
     y_tick_labels = [s.replace('-', ', ') for s in LAG_TIME_STRINGS_MINUTES]
     x_tick_labels = [
-        r'10${0:.2f}$'.format(numpy.log10(w)) for w in L2_WEIGHTS
+        r'10$^{0:.2f}$'.format(numpy.log10(w)) for w in L2_WEIGHTS
     ]
     y_axis_label = 'Lag times (minutes)'
     x_axis_label = r'L$_{2}$ weight'
