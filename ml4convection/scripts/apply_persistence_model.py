@@ -1,0 +1,253 @@
+"""Applies persistence model."""
+
+import argparse
+import numpy
+from gewittergefahr.gg_utils import general_utils
+from gewittergefahr.gg_utils import error_checking
+from ml4convection.io import example_io
+from ml4convection.io import prediction_io
+
+TARGET_DIR_ARG_NAME = 'input_target_dir_name'
+LEAD_TIME_ARG_NAME = 'lead_time_seconds'
+SMOOTHING_RADIUS_ARG_NAME = 'smoothing_radius_px'
+FIRST_DATE_ARG_NAME = 'first_valid_date_string'
+LAST_DATE_ARG_NAME = 'last_valid_date_string'
+OUTPUT_DIR_ARG_NAME = 'output_dir_name'
+
+TARGET_DIR_HELP_STRING = (
+    'Name of top-level directory with targets.  Files therein will be found '
+    'by `example_io.find_target_file` and read by '
+    '`example_io.read_target_file`.'
+)
+LEAD_TIME_HELP_STRING = 'Lead time for predictions.'
+SMOOTHING_RADIUS_HELP_STRING = (
+    'Radius for Gaussian smoother (number of pixels).  Will be used to turn '
+    'labels at forecast (initialization) time into probabilities.'
+)
+DATE_HELP_STRING = (
+    'Date (format "yyyymmdd").  The model will be applied to valid times '
+    '(target times) from the period `{0:s}`...`{1:s}`.'
+).format(FIRST_DATE_ARG_NAME, LAST_DATE_ARG_NAME)
+
+OUTPUT_DIR_HELP_STRING = (
+    'Name of output directory.  Predictions will be written by '
+    '`prediction_io.write_file`, to exact locations therein determined by '
+    '`prediction_io.find_file`.'
+)
+
+INPUT_ARG_PARSER = argparse.ArgumentParser()
+INPUT_ARG_PARSER.add_argument(
+    '--' + TARGET_DIR_ARG_NAME, type=str, required=True,
+    help=TARGET_DIR_HELP_STRING
+)
+INPUT_ARG_PARSER.add_argument(
+    '--' + LEAD_TIME_ARG_NAME, type=int, required=True,
+    help=LEAD_TIME_HELP_STRING
+)
+INPUT_ARG_PARSER.add_argument(
+    '--' + SMOOTHING_RADIUS_ARG_NAME, type=float, required=True,
+    help=SMOOTHING_RADIUS_HELP_STRING
+)
+INPUT_ARG_PARSER.add_argument(
+    '--' + FIRST_DATE_ARG_NAME, type=str, required=True, help=DATE_HELP_STRING
+)
+INPUT_ARG_PARSER.add_argument(
+    '--' + LAST_DATE_ARG_NAME, type=str, required=True, help=DATE_HELP_STRING
+)
+INPUT_ARG_PARSER.add_argument(
+    '--' + OUTPUT_DIR_ARG_NAME, type=str, required=True,
+    help=OUTPUT_DIR_HELP_STRING
+)
+
+
+def _make_dummy_model_file_name(lead_time_seconds, smoothing_radius_px):
+    """Creates dummy file name for persistence model.
+
+    :param lead_time_seconds: See documentation at top of file.
+    :param smoothing_radius_px: Same.
+    :return: dummy_model_file_name: Path to dummy file.
+    """
+
+    return 'lead-time-sec={0:05d}_smoothing-radius-px={1:.10f}'.format(
+        lead_time_seconds, smoothing_radius_px
+    )
+
+
+def _make_predictions_one_day(
+        target_file_names, valid_date_string, lead_time_seconds,
+        smoothing_radius_px):
+    """Makes predictions for one day.
+
+    :param target_file_names: 1-D list of paths to target files.  Will be read
+        by `example_io.read_target_file`.
+    :param valid_date_string: Valid date (format "yyyymmdd").
+    :param lead_time_seconds: See documentation at top of file.
+    :param smoothing_radius_px: Same.
+    :return: prediction_dict: Dictionary with the following keys.
+    prediction_dict['target_matrix']: See doc for `prediction_io.write_file`.
+    prediction_dict['forecast_probability_matrix']: Same.
+    prediction_dict['valid_times_unix_sec']: Same.
+    prediction_dict['latitudes_deg_n']: Same.
+    prediction_dict['longitudes_deg_e']: Same.
+    """
+
+    target_date_strings = [
+        example_io.file_name_to_date(f) for f in target_file_names
+    ]
+    valid_date_index = target_date_strings.index(valid_date_string)
+    init_date_indices = numpy.array([valid_date_index], dtype=int)
+
+    if lead_time_seconds > 0 and valid_date_index != 0:
+        init_date_indices = numpy.concatenate((
+            init_date_indices - 1, init_date_indices
+        ))
+
+    print('Reading data from: "{0:s}"...'.format(
+        target_file_names[valid_date_index]
+    ))
+    valid_target_dict = example_io.read_target_file(
+        target_file_names[valid_date_index]
+    )
+
+    init_target_dicts = []
+
+    for this_index in init_date_indices:
+        print('Reading data from: "{0:s}"...'.format(
+            target_file_names[this_index]
+        ))
+        this_dict = example_io.read_target_file(target_file_names[this_index])
+        init_target_dicts.append(this_dict)
+
+    init_target_dict = example_io.concat_target_data(init_target_dicts)
+
+    desired_valid_times_unix_sec = valid_target_dict[example_io.VALID_TIMES_KEY]
+    desired_init_times_unix_sec = (
+        desired_valid_times_unix_sec - lead_time_seconds
+    )
+    good_flags = numpy.array([
+        t in init_target_dict[example_io.VALID_TIMES_KEY]
+        for t in desired_init_times_unix_sec
+    ], dtype=bool)
+
+    good_indices = numpy.where(good_flags)[0]
+    valid_times_unix_sec = desired_valid_times_unix_sec[good_indices]
+    init_times_unix_sec = desired_init_times_unix_sec[good_indices]
+
+    valid_target_dict = example_io.subset_by_time(
+        predictor_or_target_dict=valid_target_dict,
+        desired_times_unix_sec=valid_times_unix_sec
+    )[0]
+    init_target_dict = example_io.subset_by_time(
+        predictor_or_target_dict=init_target_dict,
+        desired_times_unix_sec=init_times_unix_sec
+    )[0]
+
+    forecast_prob_matrix = (
+        init_target_dict[example_io.TARGET_MATRIX_KEY].astype(float)
+    )
+    num_examples = forecast_prob_matrix.shape[0]
+
+    if smoothing_radius_px > 0:
+        print((
+            'Applying Gaussian smoother with e-folding radius = {0:f} pixels...'
+        ).format(
+            smoothing_radius_px
+        ))
+
+        for i in range(num_examples):
+            forecast_prob_matrix[i, ...] = general_utils.apply_gaussian_filter(
+                input_matrix=forecast_prob_matrix[i, ...],
+                e_folding_radius_grid_cells=smoothing_radius_px
+            )
+
+    return {
+        prediction_io.TARGET_MATRIX_KEY:
+            valid_target_dict[example_io.TARGET_MATRIX_KEY],
+        prediction_io.PROBABILITY_MATRIX_KEY: forecast_prob_matrix,
+        prediction_io.VALID_TIMES_KEY:
+            valid_target_dict[example_io.VALID_TIMES_KEY],
+        prediction_io.LATITUDES_KEY:
+            valid_target_dict[example_io.LATITUDES_KEY],
+        prediction_io.LONGITUDES_KEY:
+            valid_target_dict[example_io.LONGITUDES_KEY],
+    }
+
+
+def _run(top_target_dir_name, lead_time_seconds, smoothing_radius_px,
+         first_valid_date_string, last_valid_date_string, top_output_dir_name):
+    """Applies persistence model.
+
+    This is effectively the main method.
+
+    :param top_target_dir_name: See documentation at top of file.
+    :param lead_time_seconds: Same.
+    :param smoothing_radius_px: Same.
+    :param first_valid_date_string: Same.
+    :param last_valid_date_string: Same.
+    :param top_output_dir_name: Same.
+    """
+
+    error_checking.assert_is_geq(lead_time_seconds, 0)
+    error_checking.assert_is_geq(smoothing_radius_px, 0.)
+
+    target_file_names = example_io.find_many_target_files(
+        top_directory_name=top_target_dir_name,
+        first_date_string=first_valid_date_string,
+        last_date_string=last_valid_date_string,
+        raise_error_if_all_missing=True,
+        raise_error_if_any_missing=False
+    )
+
+    valid_date_strings = [
+        example_io.file_name_to_date(f) for f in target_file_names
+    ]
+
+    dummy_model_file_name = _make_dummy_model_file_name(
+        lead_time_seconds=lead_time_seconds,
+        smoothing_radius_px=smoothing_radius_px
+    )
+
+    for this_valid_date_string in valid_date_strings:
+        this_prediction_dict = _make_predictions_one_day(
+            target_file_names=target_file_names,
+            valid_date_string=this_valid_date_string,
+            lead_time_seconds=lead_time_seconds,
+            smoothing_radius_px=smoothing_radius_px
+        )
+
+        this_output_file_name = prediction_io.find_file(
+            top_directory_name=top_output_dir_name,
+            valid_date_string=this_valid_date_string,
+            raise_error_if_missing=False
+        )
+
+        print('Writing predictions to: "{0:s}"...\n'.format(
+            this_output_file_name
+        ))
+        prediction_io.write_file(
+            netcdf_file_name=this_output_file_name,
+            target_matrix=
+            this_prediction_dict[prediction_io.TARGET_MATRIX_KEY],
+            forecast_probability_matrix=
+            this_prediction_dict[prediction_io.PROBABILITY_MATRIX_KEY],
+            valid_times_unix_sec=
+            this_prediction_dict[prediction_io.VALID_TIMES_KEY],
+            latitudes_deg_n=this_prediction_dict[prediction_io.LATITUDES_KEY],
+            longitudes_deg_e=this_prediction_dict[prediction_io.LONGITUDES_KEY],
+            model_file_name=dummy_model_file_name
+        )
+
+
+if __name__ == '__main__':
+    INPUT_ARG_OBJECT = INPUT_ARG_PARSER.parse_args()
+
+    _run(
+        top_target_dir_name=getattr(INPUT_ARG_OBJECT, TARGET_DIR_ARG_NAME),
+        lead_time_seconds=getattr(INPUT_ARG_OBJECT, LEAD_TIME_ARG_NAME),
+        smoothing_radius_px=getattr(
+            INPUT_ARG_OBJECT, SMOOTHING_RADIUS_ARG_NAME
+        ),
+        first_valid_date_string=getattr(INPUT_ARG_OBJECT, FIRST_DATE_ARG_NAME),
+        last_valid_date_string=getattr(INPUT_ARG_OBJECT, LAST_DATE_ARG_NAME),
+        top_output_dir_name=getattr(INPUT_ARG_OBJECT, OUTPUT_DIR_ARG_NAME)
+    )

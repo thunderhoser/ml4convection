@@ -983,3 +983,53 @@ def concat_predictor_data(predictor_dicts):
             ), axis=0)
 
     return predictor_dict
+
+
+def concat_target_data(target_dicts):
+    """Concatenates many dictionaries with target data into one.
+
+    :param target_dicts: List of dictionaries, each in the format returned by
+        `read_target_file`.
+    :return: target_dict: Single dictionary, also in the format returned by
+        `read_target_file`.
+    :raises: ValueError: if any two dictionaries have different masks,
+        latitudes, or longitudes.
+    """
+
+    target_dict = copy.deepcopy(target_dicts[0])
+    keys_to_match = [LATITUDES_KEY, LONGITUDES_KEY, MASK_FILE_KEY]
+
+    for i in range(1, len(target_dicts)):
+        for this_key in keys_to_match:
+            if this_key == MASK_FILE_KEY:
+                if target_dict[this_key] == target_dicts[i][this_key]:
+                    continue
+            else:
+                if numpy.allclose(
+                        target_dict[this_key], target_dicts[i][this_key],
+                        atol=TOLERANCE
+                ):
+                    continue
+
+            error_string = (
+                '1st and {0:d}th dictionaries have different values for '
+                '"{1:s}".  1st dictionary:\n{2:s}\n\n'
+                '{0:d}th dictionary:\n{3:s}'
+            ).format(
+                i + 1, this_key,
+                str(target_dict[this_key]),
+                str(target_dicts[i][this_key])
+            )
+
+            raise ValueError(error_string)
+
+    for i in range(1, len(target_dicts)):
+        for this_key in ONE_PER_TARGET_TIME_KEYS:
+            if target_dict[this_key] is None:
+                continue
+
+            target_dict[this_key] = numpy.concatenate((
+                target_dict[this_key], target_dicts[i][this_key]
+            ), axis=0)
+
+    return target_dict
