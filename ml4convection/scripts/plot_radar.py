@@ -320,6 +320,10 @@ def _run(top_reflectivity_dir_name, top_echo_classifn_dir_name,
         reflectivity_dict = radar_io.read_reflectivity_file(
             netcdf_file_name=input_file_names[i], fill_nans=True
         )
+        reflectivity_dict[radar_io.REFLECTIVITY_KEY] = numpy.nanmax(
+            reflectivity_dict[radar_io.REFLECTIVITY_KEY], axis=-1, keepdims=True
+        )
+        reflectivity_dict[radar_io.HEIGHTS_KEY] = numpy.array([0.])
 
         if top_echo_classifn_dir_name is None:
             echo_classifn_dict = None

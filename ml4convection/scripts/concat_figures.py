@@ -16,7 +16,6 @@ from ml4convection.machine_learning import neural_net
 
 DAYS_TO_SECONDS = 86400
 TIME_FORMAT = '%Y-%m-%d-%H%M'
-MONTH_FORMAT = '%Y%m'
 
 CONCAT_FIGURE_SIZE_PX = int(1e7)
 
@@ -181,6 +180,7 @@ def _find_input_files(
 
     training_option_dict = model_metadata_dict[neural_net.TRAINING_OPTIONS_KEY]
     band_numbers = training_option_dict[neural_net.BAND_NUMBERS_KEY]
+    lead_time_seconds = training_option_dict[neural_net.LEAD_TIME_KEY]
     lag_times_seconds = training_option_dict[neural_net.LAG_TIMES_KEY]
 
     num_valid_times = len(valid_time_strings)
@@ -195,18 +195,15 @@ def _find_input_files(
         for j in range(num_bands):
             for k in range(num_lag_times):
                 this_time_string = time_conversion.unix_sec_to_string(
-                    valid_times_unix_sec[i] - lag_times_seconds[k],
+                    valid_times_unix_sec[i] - lag_times_seconds[k] -
+                    lead_time_seconds,
                     TIME_FORMAT
-                )
-                this_month_string = time_conversion.unix_sec_to_string(
-                    valid_times_unix_sec[i] - lag_times_seconds[k],
-                    MONTH_FORMAT
                 )
 
                 satellite_fig_file_name_matrix[i, j, k] = (
                     '{0:s}/{1:s}/brightness-temperature_{2:s}_band{3:02d}.jpg'
                 ).format(
-                    satellite_figure_dir_name, this_month_string,
+                    satellite_figure_dir_name, this_time_string[:10],
                     this_time_string, band_numbers[j]
                 )
 
