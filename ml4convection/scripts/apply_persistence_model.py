@@ -4,14 +4,18 @@ import argparse
 import numpy
 from gewittergefahr.gg_utils import general_utils
 from gewittergefahr.gg_utils import error_checking
+from ml4convection.io import radar_io
+from ml4convection.io import twb_satellite_io
 from ml4convection.io import example_io
 from ml4convection.io import prediction_io
+from ml4convection.machine_learning import neural_net
 
 TARGET_DIR_ARG_NAME = 'input_target_dir_name'
 LEAD_TIME_ARG_NAME = 'lead_time_seconds'
 SMOOTHING_RADIUS_ARG_NAME = 'smoothing_radius_px'
 FIRST_DATE_ARG_NAME = 'first_valid_date_string'
 LAST_DATE_ARG_NAME = 'last_valid_date_string'
+DUMMY_MODEL_FILE_ARG_NAME = 'output_dummy_model_file_name'
 OUTPUT_DIR_ARG_NAME = 'output_dir_name'
 
 TARGET_DIR_HELP_STRING = (
@@ -29,6 +33,10 @@ DATE_HELP_STRING = (
     '(target times) from the period `{0:s}`...`{1:s}`.'
 ).format(FIRST_DATE_ARG_NAME, LAST_DATE_ARG_NAME)
 
+DUMMY_MODEL_FILE_HELP_STRING = (
+    'Path to dummy file for persistence model.  This file will not actually be '
+    'created, but an accompanying metafile will be created.'
+)
 OUTPUT_DIR_HELP_STRING = (
     'Name of output directory.  Predictions will be written by '
     '`prediction_io.write_file`, to exact locations therein determined by '
@@ -55,21 +63,56 @@ INPUT_ARG_PARSER.add_argument(
     '--' + LAST_DATE_ARG_NAME, type=str, required=True, help=DATE_HELP_STRING
 )
 INPUT_ARG_PARSER.add_argument(
+    '--' + DUMMY_MODEL_FILE_ARG_NAME, type=str, required=True,
+    help=DUMMY_MODEL_FILE_ARG_NAME
+)
+INPUT_ARG_PARSER.add_argument(
     '--' + OUTPUT_DIR_ARG_NAME, type=str, required=True,
     help=OUTPUT_DIR_HELP_STRING
 )
 
 
-def _make_dummy_model_file_name(lead_time_seconds, smoothing_radius_px):
-    """Creates dummy file name for persistence model.
+def _write_metafile(target_file_names, dummy_model_file_name):
+    """Writes metafile (readable by `neural_net.read_metafile`).
 
-    :param lead_time_seconds: See documentation at top of file.
-    :param smoothing_radius_px: Same.
-    :return: dummy_model_file_name: Path to dummy file.
+    :param target_file_names: 1-D list of paths to target files.  Will be read
+        by `example_io.read_target_file`.
+    :param dummy_model_file_name: See documentation at top of file.
     """
 
-    return 'lead-time-sec={0:05d}_smoothing-radius-px={1:.10f}'.format(
-        lead_time_seconds, smoothing_radius_px
+    first_target_dict = example_io.read_target_file(target_file_names[0])
+    mask_file_name = first_target_dict[example_io.MASK_FILE_KEY]
+
+    print('Reading mask from: "{0:s}"...'.format(mask_file_name))
+    mask_dict = radar_io.read_mask_file(mask_file_name)
+    mask_dict = radar_io.expand_to_satellite_grid(any_radar_dict=mask_dict)
+
+    num_grid_rows = len(first_target_dict[example_io.LATITUDES_KEY])
+    num_grid_rows_possible = len(twb_satellite_io.GRID_LATITUDES_DEG_N)
+    spatial_downsampling_factor = int(numpy.round(
+        float(num_grid_rows_possible) / num_grid_rows
+    ))
+
+    if spatial_downsampling_factor > 1:
+        mask_dict = radar_io.downsample_in_space(
+            any_radar_dict=mask_dict,
+            downsampling_factor=spatial_downsampling_factor
+        )
+
+    mask_matrix = mask_dict[radar_io.MASK_MATRIX_KEY]
+
+    metafile_name = neural_net.find_metafile(
+        model_file_name=dummy_model_file_name, raise_error_if_missing=False
+    )
+    print('Writing metafile to: "{0:s}"...'.format(metafile_name))
+
+    neural_net._write_metafile(
+        dill_file_name=metafile_name, num_epochs=100,
+        num_training_batches_per_epoch=100, training_option_dict=dict(),
+        num_validation_batches_per_epoch=100, validation_option_dict=dict(),
+        do_early_stopping=True, plateau_lr_multiplier=0.6,
+        class_weights=None, fss_half_window_size_px=1.,
+        mask_matrix=mask_matrix
     )
 
 
@@ -174,7 +217,8 @@ def _make_predictions_one_day(
 
 
 def _run(top_target_dir_name, lead_time_seconds, smoothing_radius_px,
-         first_valid_date_string, last_valid_date_string, top_output_dir_name):
+         first_valid_date_string, last_valid_date_string, dummy_model_file_name,
+         top_output_dir_name):
     """Applies persistence model.
 
     This is effectively the main method.
@@ -184,6 +228,7 @@ def _run(top_target_dir_name, lead_time_seconds, smoothing_radius_px,
     :param smoothing_radius_px: Same.
     :param first_valid_date_string: Same.
     :param last_valid_date_string: Same.
+    :param dummy_model_file_name: Same.
     :param top_output_dir_name: Same.
     """
 
@@ -198,14 +243,15 @@ def _run(top_target_dir_name, lead_time_seconds, smoothing_radius_px,
         raise_error_if_any_missing=False
     )
 
+    _write_metafile(
+        target_file_names=target_file_names,
+        dummy_model_file_name=dummy_model_file_name
+    )
+    print('\n')
+
     valid_date_strings = [
         example_io.file_name_to_date(f) for f in target_file_names
     ]
-
-    dummy_model_file_name = _make_dummy_model_file_name(
-        lead_time_seconds=lead_time_seconds,
-        smoothing_radius_px=smoothing_radius_px
-    )
 
     for this_valid_date_string in valid_date_strings:
         this_prediction_dict = _make_predictions_one_day(
@@ -249,5 +295,8 @@ if __name__ == '__main__':
         ),
         first_valid_date_string=getattr(INPUT_ARG_OBJECT, FIRST_DATE_ARG_NAME),
         last_valid_date_string=getattr(INPUT_ARG_OBJECT, LAST_DATE_ARG_NAME),
+        dummy_model_file_name=getattr(
+            INPUT_ARG_OBJECT, DUMMY_MODEL_FILE_ARG_NAME
+        ),
         top_output_dir_name=getattr(INPUT_ARG_OBJECT, OUTPUT_DIR_ARG_NAME)
     )
