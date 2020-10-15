@@ -151,7 +151,7 @@ def _print_ranking_one_score(score_matrix, score_name):
 
         print((
             '{0:d}th-highest {1:s} = {2:.4g} ... lag times (seconds) = {3:s} '
-            '... conv-layer dropout rate = {4:.3f} ... L_2 weight = 10^{5:.1f}'
+            '... L_2 weight = 10^{4:.1f}'
         ).format(
             k + 1, score_name, score_matrix[i, j],
             LAG_TIME_STRINGS_SEC[i], numpy.log10(L2_WEIGHTS[j])
