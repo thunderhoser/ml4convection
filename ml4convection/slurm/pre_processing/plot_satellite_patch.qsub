@@ -27,9 +27,6 @@ conda activate base
 set CODE_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_standalone/ml4convection"
 set SATELLITE_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_project/satellite_data"
 
-set first_date_string=${FIRST_DATE_STRINGS[$SLURM_ARRAY_TASK_ID]}
-set last_date_string=${LAST_DATE_STRINGS[$SLURM_ARRAY_TASK_ID]}
-
 python3 -u "${CODE_DIR_NAME}/plot_satellite.py" \
 --input_satellite_dir_name="${SATELLITE_DIR_NAME}" \
 --first_date_string="20161231" \
