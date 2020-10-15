@@ -203,7 +203,8 @@ def _find_input_files(
                 satellite_fig_file_name_matrix[i, j, k] = (
                     '{0:s}/{1:s}/brightness-temperature_{2:s}_band{3:02d}.jpg'
                 ).format(
-                    satellite_figure_dir_name, this_time_string[:10],
+                    satellite_figure_dir_name,
+                    this_time_string[:10].replace('-', ''),
                     this_time_string, band_numbers[j]
                 )
 
