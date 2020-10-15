@@ -43,7 +43,7 @@ X_TICK_LABEL_FONT_SIZE = 12
 pyplot.rc('font', size=DEFAULT_FONT_SIZE)
 pyplot.rc('axes', titlesize=DEFAULT_FONT_SIZE)
 pyplot.rc('axes', labelsize=DEFAULT_FONT_SIZE)
-pyplot.rc('xtick', labelsize=DEFAULT_FONT_SIZE)
+pyplot.rc('xtick', labelsize=X_TICK_LABEL_FONT_SIZE)
 pyplot.rc('ytick', labelsize=DEFAULT_FONT_SIZE)
 pyplot.rc('legend', fontsize=DEFAULT_FONT_SIZE)
 pyplot.rc('figure', titlesize=DEFAULT_FONT_SIZE)
@@ -121,9 +121,7 @@ def _plot_scores_2d(
     tick_values = colour_bar_object.get_ticks()
     tick_strings = ['{0:.2g}'.format(v) for v in tick_values]
     colour_bar_object.set_ticks(tick_values)
-    colour_bar_object.set_ticklabels(
-        tick_strings, fontsize=X_TICK_LABEL_FONT_SIZE
-    )
+    colour_bar_object.set_ticklabels(tick_strings)
 
     return figure_object, axes_object
 
@@ -151,7 +149,7 @@ def _print_ranking_one_score(score_matrix, score_name):
 
         print((
             '{0:d}th-highest {1:s} = {2:.4g} ... lag times (seconds) = {3:s} '
-            '... L_2 weight = 10^{4:.1f}'
+            '... L_2 weight = 10^{4:.2f}'
         ).format(
             k + 1, score_name, score_matrix[i, j],
             LAG_TIME_STRINGS_SEC[i], numpy.log10(L2_WEIGHTS[j])
@@ -181,7 +179,7 @@ def _run(experiment_dir_name):
 
     y_tick_labels = [s.replace('-', ', ') for s in LAG_TIME_STRINGS_MINUTES]
     x_tick_labels = [
-        r'10${0:.1f}$'.format(numpy.log10(w)) for w in L2_WEIGHTS
+        r'10${0:.2f}$'.format(numpy.log10(w)) for w in L2_WEIGHTS
     ]
     y_axis_label = 'Lag times (minutes)'
     x_axis_label = r'L$_{2}$ weight'
