@@ -27,62 +27,6 @@ def _apply_max_filter(input_tensor, half_window_size_px, test_mode):
     )
 
 
-def _match_predicted_convection(
-        target_tensor, prediction_tensor, half_window_size_px, test_mode):
-    """Matches each point with predicted convection to actual convection.
-
-    :param target_tensor: Tensor of target (actual) values.
-    :param prediction_tensor: Tensor of predicted values.
-    :param half_window_size_px: See doc for `_apply_max_filter`.
-    :param test_mode: Leave this alone.
-    :return: num_prediction_oriented_true_positives: Number of prediction-
-        oriented true positives.
-    :return: num_false_positives: Number of false positives.
-    """
-
-    filtered_target_tensor = _apply_max_filter(
-        input_tensor=target_tensor, half_window_size_px=half_window_size_px,
-        test_mode=test_mode
-    )
-
-    num_prediction_oriented_true_positives = K.sum(
-        filtered_target_tensor * prediction_tensor
-    )
-    num_false_positives = K.sum(
-        (1 - filtered_target_tensor) * prediction_tensor
-    )
-
-    return num_prediction_oriented_true_positives, num_false_positives
-
-
-def _match_actual_convection(
-        target_tensor, prediction_tensor, half_window_size_px, test_mode):
-    """Matches each point with actual convection to prediction convection.
-
-    :param target_tensor: Tensor of target (actual) values.
-    :param prediction_tensor: Tensor of predicted values.
-    :param half_window_size_px: See doc for `_apply_max_filter`.
-    :param test_mode: Leave this alone.
-    :return: num_actual_oriented_true_positives: Number of actual-oriented true
-        positives.
-    :return: num_false_negatives: Number of false negatives.
-    """
-
-    filtered_prediction_tensor = _apply_max_filter(
-        input_tensor=prediction_tensor, half_window_size_px=half_window_size_px,
-        test_mode=test_mode
-    )
-
-    num_actual_oriented_true_positives = K.sum(
-        target_tensor * filtered_prediction_tensor
-    )
-    num_false_negatives = K.sum(
-        target_tensor * (1 - filtered_prediction_tensor)
-    )
-
-    return num_actual_oriented_true_positives, num_false_negatives
-
-
 def pod(half_window_size_px, function_name=None, test_mode=False):
     """Creates function to compute probability of detection.
 
@@ -306,6 +250,7 @@ def dice_coeff(half_window_size_px, function_name=None, test_mode=False):
             half_window_size_px=half_window_size_px, test_mode=test_mode
         )
 
+        # TODO(thunderhoser): Do I need to specify axes here?
         intersection_tensor = K.sum(
             filtered_target_tensor * filtered_prediction_tensor, axis=(1, 2, 3)
         )
@@ -354,6 +299,7 @@ def iou(half_window_size_px, function_name=None, test_mode=False):
             half_window_size_px=half_window_size_px, test_mode=test_mode
         )
 
+        # TODO(thunderhoser): Do I need to specify axes here?
         intersection_tensor = K.sum(
             filtered_target_tensor * filtered_prediction_tensor, axis=(1, 2, 3)
         )
@@ -453,6 +399,8 @@ def focal_loss(
     :return: loss: Function (defined below).
     """
 
+    # TODO(thunderhoser): Need unit test to check exact values.
+
     error_checking.assert_is_integer(half_window_size_px)
     error_checking.assert_is_geq(half_window_size_px, 0)
     error_checking.assert_is_greater(training_event_freq, 0.)
@@ -480,23 +428,25 @@ def focal_loss(
             half_window_size_px=half_window_size_px, test_mode=test_mode
         )
 
-        filtered_prediction_tensor = K.clip(
-            filtered_prediction_tensor, K.epsilon(), 1. - K.epsilon()
-        )
-        probability_tensor = tensorflow.where(
+        error_tensor = tensorflow.where(
             K.equal(filtered_target_tensor, 1),
-            filtered_prediction_tensor, 1. - filtered_prediction_tensor
+            1. - filtered_prediction_tensor, filtered_prediction_tensor
+        )
+        error_tensor = K.clip(
+            error_tensor, min_value=K.epsilon(), max_value=1. - K.epsilon()
         )
 
-        alpha_tensor = training_event_freq * K.ones_like(filtered_target_tensor)
-        alpha_tensor = tensorflow.where(
-            K.equal(filtered_target_tensor, 1), alpha_tensor, 1. - alpha_tensor
+        weight_tensor_for_class_imbalance = tensorflow.where(
+            K.equal(filtered_target_tensor, 1),
+            1. - training_event_freq, training_event_freq
         )
 
-        cross_entropy_tensor = -K.log(probability_tensor)
-        weight_tensor = alpha_tensor * K.pow(
-            (1. - probability_tensor), focusing_factor
+        cross_entropy_tensor = -K.log(1. - error_tensor)
+        weight_tensor = (
+            weight_tensor_for_class_imbalance * error_tensor ** focusing_factor
         )
+
+        # TODO(thunderhoser): Do I need to specify axes here?
         return K.mean(K.sum(weight_tensor * cross_entropy_tensor, axis=0))
 
     if function_name is not None:
