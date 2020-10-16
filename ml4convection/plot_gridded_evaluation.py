@@ -22,6 +22,7 @@ import evaluation
 import plotting_utils
 
 TOLERANCE = 1e-6
+SMALL_NUMBER = 0.01
 DUMMY_FIELD_NAME = 'reflectivity_column_max_dbz'
 
 MAX_COLOUR_PERCENTILE = 99.
@@ -171,6 +172,7 @@ def _plot_one_score(
             numpy.absolute(score_matrix[numpy.isfinite(score_matrix)] - 1.),
             MAX_COLOUR_PERCENTILE
         )
+        this_offset = max([this_offset, SMALL_NUMBER])
         min_colour_value = 0.
         max_colour_value = 1. + this_offset
 
@@ -193,6 +195,10 @@ def _plot_one_score(
             min_colour_value = numpy.nanpercentile(
                 score_matrix, 100. - MAX_COLOUR_PERCENTILE
             )
+
+        max_colour_value = max([
+            max_colour_value, min_colour_value + SMALL_NUMBER
+        ])
 
         colour_norm_object = pyplot.Normalize(
             vmin=min_colour_value, vmax=max_colour_value
