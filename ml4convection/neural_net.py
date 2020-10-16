@@ -16,6 +16,7 @@ sys.path.append(os.path.normpath(os.path.join(THIS_DIRECTORY_NAME, '..')))
 
 import file_system_utils
 import error_checking
+import gg_custom_metrics
 import custom_metrics
 import satellite_io
 import example_io
@@ -62,34 +63,79 @@ FSS_FUNCTION_SIZE7 = custom_losses.fractions_skill_score(
     function_name='fss_15by15'
 )
 
+BIAS_FUNCTION_SIZE1 = custom_metrics.frequency_bias(
+    half_window_size_px=1, function_name='bias_3by3'
+)
+BIAS_FUNCTION_SIZE2 = custom_metrics.frequency_bias(
+    half_window_size_px=2, function_name='bias_5by5'
+)
+BIAS_FUNCTION_SIZE3 = custom_metrics.frequency_bias(
+    half_window_size_px=3, function_name='bias_7by7'
+)
+
+CSI_FUNCTION_SIZE1 = custom_metrics.csi(
+    half_window_size_px=1, function_name='csi_3by3'
+)
+CSI_FUNCTION_SIZE2 = custom_metrics.csi(
+    half_window_size_px=2, function_name='csi_5by5'
+)
+CSI_FUNCTION_SIZE3 = custom_metrics.csi(
+    half_window_size_px=3, function_name='csi_7by7'
+)
+
+DICE_FUNCTION_SIZE1 = custom_metrics.dice_coeff(
+    half_window_size_px=1, function_name='dice_coeff_3by3'
+)
+DICE_FUNCTION_SIZE2 = custom_metrics.dice_coeff(
+    half_window_size_px=2, function_name='dice_coeff_5by5'
+)
+DICE_FUNCTION_SIZE3 = custom_metrics.dice_coeff(
+    half_window_size_px=3, function_name='dice_coeff_7by7'
+)
+
+IOU_FUNCTION_SIZE1 = custom_metrics.iou(
+    half_window_size_px=1, function_name='iou_3by3'
+)
+IOU_FUNCTION_SIZE2 = custom_metrics.iou(
+    half_window_size_px=2, function_name='iou_5by5'
+)
+IOU_FUNCTION_SIZE3 = custom_metrics.iou(
+    half_window_size_px=3, function_name='iou_7by7'
+)
+
 METRIC_FUNCTION_LIST = [
-    custom_metrics.accuracy, custom_metrics.binary_accuracy,
-    custom_metrics.binary_csi, custom_metrics.binary_frequency_bias,
-    custom_metrics.binary_pod, custom_metrics.binary_pofd,
-    custom_metrics.binary_peirce_score, custom_metrics.binary_success_ratio,
-    custom_metrics.binary_focn,
     FSS_FUNCTION_SIZE1, FSS_FUNCTION_SIZE2, FSS_FUNCTION_SIZE3,
-    FSS_FUNCTION_SIZE4, FSS_FUNCTION_SIZE5, FSS_FUNCTION_SIZE6,
-    FSS_FUNCTION_SIZE7
+    CSI_FUNCTION_SIZE1, CSI_FUNCTION_SIZE2, CSI_FUNCTION_SIZE3,
+    BIAS_FUNCTION_SIZE1, BIAS_FUNCTION_SIZE2, BIAS_FUNCTION_SIZE3,
+    DICE_FUNCTION_SIZE1, DICE_FUNCTION_SIZE2, DICE_FUNCTION_SIZE3,
+    IOU_FUNCTION_SIZE1, IOU_FUNCTION_SIZE2, IOU_FUNCTION_SIZE3
 ]
 
 METRIC_FUNCTION_DICT = {
-    'accuracy': custom_metrics.accuracy,
-    'binary_accuracy': custom_metrics.binary_accuracy,
-    'binary_csi': custom_metrics.binary_csi,
-    'binary_frequency_bias': custom_metrics.binary_frequency_bias,
-    'binary_pod': custom_metrics.binary_pod,
-    'binary_pofd': custom_metrics.binary_pofd,
-    'binary_peirce_score': custom_metrics.binary_peirce_score,
-    'binary_success_ratio': custom_metrics.binary_success_ratio,
-    'binary_focn': custom_metrics.binary_focn,
+    'accuracy': gg_custom_metrics.accuracy,
+    'binary_accuracy': gg_custom_metrics.binary_accuracy,
+    'binary_csi': gg_custom_metrics.binary_csi,
+    'binary_frequency_bias': gg_custom_metrics.binary_frequency_bias,
+    'binary_pod': gg_custom_metrics.binary_pod,
+    'binary_pofd': gg_custom_metrics.binary_pofd,
+    'binary_peirce_score': gg_custom_metrics.binary_peirce_score,
+    'binary_success_ratio': gg_custom_metrics.binary_success_ratio,
+    'binary_focn': gg_custom_metrics.binary_focn,
     'fss_3by3': FSS_FUNCTION_SIZE1,
     'fss_5by5': FSS_FUNCTION_SIZE2,
     'fss_7by7': FSS_FUNCTION_SIZE3,
-    'fss_9by9': FSS_FUNCTION_SIZE4,
-    'fss_11by11': FSS_FUNCTION_SIZE5,
-    'fss_13by13': FSS_FUNCTION_SIZE6,
-    'fss_15by15': FSS_FUNCTION_SIZE7
+    'csi_3by3': CSI_FUNCTION_SIZE1,
+    'csi_5by5': CSI_FUNCTION_SIZE2,
+    'csi_7by7': CSI_FUNCTION_SIZE3,
+    'bias_3by3': BIAS_FUNCTION_SIZE1,
+    'bias_5by5': BIAS_FUNCTION_SIZE2,
+    'bias_7by7': BIAS_FUNCTION_SIZE3,
+    'dice_coeff_3by3': DICE_FUNCTION_SIZE1,
+    'dice_coeff_5by5': DICE_FUNCTION_SIZE2,
+    'dice_coeff_7by7': DICE_FUNCTION_SIZE3,
+    'iou_3by3': IOU_FUNCTION_SIZE1,
+    'iou_5by5': IOU_FUNCTION_SIZE2,
+    'iou_7by7': IOU_FUNCTION_SIZE3
 }
 
 BATCH_SIZE_KEY = 'num_examples_per_batch'

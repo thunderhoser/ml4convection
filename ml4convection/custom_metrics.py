@@ -1,317 +1,463 @@
-"""Performance metrics used to monitor Keras model while training.
+"""Custom metrics for Keras models."""
 
-WARNING: these metrics have the following properties, which some users may find
-undesirable.
+import os
+import sys
+import tensorflow
+from tensorflow.keras import backend as K
 
-[1] Used only for monitoring, not to serve as loss functions.
-[2] Binary metrics treat the highest class as the positive class, all others as
-    the negative class.  In other words, binary metrics are for "highest class
-    vs. all".
-[3] Metrics are usually based on a contingency table, which contains
-    deterministic forecasts.  However, metrics in this module are based only on
-    probabilistic forecasts (it would take too long to compute metrics at
-    various probability thresholds during training).
+THIS_DIRECTORY_NAME = os.path.dirname(os.path.realpath(
+    os.path.join(os.getcwd(), os.path.expanduser(__file__))
+))
+sys.path.append(os.path.normpath(os.path.join(THIS_DIRECTORY_NAME, '..')))
 
---- NOTATION ---
+import error_checking
 
-Throughout this module, I will use the following letters to denote elements of
-the contingency table (even though, as mentioned above, there are no actual
-contingency tables).
-
-a = number of true positives ("hits")
-b = number of false positives ("false alarms")
-c = number of false negatives ("misses")
-d = number of true negatives ("correct nulls")
-
-E = number of examples
-K = number of classes (possible values of target variable)
-
---- FORMAT 1: BINARY CLASSIFICATION ---
-
-target_tensor: length-E tensor of target values (observed classes).  If
-    target_tensor[i] = k, the [i]th example belongs to the [k]th class.
-
-forecast_probability_tensor: length-E tensor of forecast probabilities.
-    forecast_probability_tensor[i] = forecast probability that the [i]th example
-    belongs to class 1 (as opposed to 0).
-
---- FORMAT 2: NON-BINARY CLASSIFICATION ---
-
-target_tensor: E-by-K tensor of target values (observed classes).  If
-    target_tensor[i, k] = 1, the [i]th example belongs to the [k]th class.
-
-forecast_probability_tensor: E-by-K tensor of forecast probabilities.
-    forecast_probability_tensor[i, k] = forecast probability that the [i]th
-    example belongs to the [k]th class.
-"""
-
-import keras.backend as K
+TOLERANCE = 1e-6
 
 
-def _get_num_tensor_dimensions(input_tensor):
-    """Returns number of dimensions in tensor.
+def _apply_max_filter(input_tensor, half_window_size_px, test_mode):
+    """Applies maximum-filter to tensor.
 
     :param input_tensor: Keras tensor.
-    :return: num_dimensions: Number of dimensions.
+    :param half_window_size_px: Number of pixels in half of filter window (on
+        either side of center).  If this argument is K, the window size will be
+        (1 + 2 * K) by (1 + 2 * K).
+    :param test_mode: Leave this alone.
+    :return: output_tensor: Filtered version of `input_tensor`.
     """
 
-    return len(input_tensor.get_shape().as_list())
-
-
-def _get_num_true_positives(target_tensor, forecast_probability_tensor):
-    """Returns number of true positives ("a" in the docstring).
-
-    :param target_tensor: See docstring for the 2 possible formats.
-    :param forecast_probability_tensor: Same.
-    :return: num_true_positives: Number of true positives.
-    """
-
-    num_dimensions = _get_num_tensor_dimensions(target_tensor)
-
-    if num_dimensions == 2:
-        return K.sum(K.clip(
-            target_tensor[..., -1] * forecast_probability_tensor[..., -1],
-            0., 1.
-        ))
-
-    return K.sum(K.clip(
-        target_tensor * forecast_probability_tensor, 0., 1.
-    ))
-
-
-def _get_num_false_positives(target_tensor, forecast_probability_tensor):
-    """Returns number of false positives ("b" in the docstring).
-
-    :param target_tensor: See docstring for the 2 possible formats.
-    :param forecast_probability_tensor: Same.
-    :return: num_false_positives: Number of false positives.
-    """
-
-    num_dimensions = _get_num_tensor_dimensions(target_tensor)
-
-    if num_dimensions == 2:
-        product_tensor = (
-            (1. - target_tensor[..., -1]) * forecast_probability_tensor[..., -1]
-        )
-
-        return K.sum(K.clip(product_tensor, 0., 1.))
-
-    return K.sum(K.clip(
-        (1. - target_tensor) * forecast_probability_tensor, 0., 1.
-    ))
-
-
-def _get_num_false_negatives(target_tensor, forecast_probability_tensor):
-    """Returns number of false negatives ("c" in the docstring).
-
-    :param target_tensor: See docstring for the 2 possible formats.
-    :param forecast_probability_tensor: Same.
-    :return: num_false_negatives: Number of false negatives.
-    """
-
-    num_dimensions = _get_num_tensor_dimensions(target_tensor)
-
-    if num_dimensions == 2:
-        product_tensor = (
-            target_tensor[..., -1] * (1. - forecast_probability_tensor[..., -1])
-        )
-
-        return K.sum(K.clip(product_tensor, 0., 1.))
-
-    return K.sum(K.clip(
-        target_tensor * (1. - forecast_probability_tensor), 0., 1.
-    ))
-
-
-def _get_num_true_negatives(target_tensor, forecast_probability_tensor):
-    """Returns number of false negatives ("d" in the docstring).
-
-    :param target_tensor: See docstring for the 2 possible formats.
-    :param forecast_probability_tensor: Same.
-    :return: num_true_negatives: Number of true negatives.
-    """
-
-    num_dimensions = _get_num_tensor_dimensions(target_tensor)
-
-    if num_dimensions == 2:
-        product_tensor = (
-            (1. - target_tensor[..., -1]) *
-            (1. - forecast_probability_tensor[..., -1])
-        )
-
-        return K.sum(K.clip(product_tensor,0., 1.))
-
-    return K.sum(K.clip(
-        (1. - target_tensor) * (1. - forecast_probability_tensor), 0., 1.
-    ))
-
-
-def accuracy(target_tensor, forecast_probability_tensor):
-    """Returns accuracy.
-
-    :param target_tensor: See docstring for the 2 possible formats.
-    :param forecast_probability_tensor: Same.
-    :return: accuracy: Accuracy.
-    """
-
-    return K.mean(K.clip(target_tensor * forecast_probability_tensor, 0., 1.))
-
-
-def binary_accuracy(target_tensor, forecast_probability_tensor):
-    """Returns binary accuracy ([a + d] / [a + b + c + d]).
-
-    :param target_tensor: See docstring for the 2 possible formats.
-    :param forecast_probability_tensor: Same.
-    :return: binary_accuracy: Binary accuracy.
-    """
-
-    a = _get_num_true_positives(target_tensor, forecast_probability_tensor)
-    b = _get_num_false_positives(target_tensor, forecast_probability_tensor)
-    c = _get_num_false_negatives(target_tensor, forecast_probability_tensor)
-    d = _get_num_true_negatives(target_tensor, forecast_probability_tensor)
-
-    return (a + d) / (a + b + c + d + K.epsilon())
-
-
-def binary_csi(target_tensor, forecast_probability_tensor):
-    """Returns binary critical success index (a / [a + b + c]).
-
-    :param target_tensor: See docstring for the 2 possible formats.
-    :param forecast_probability_tensor: Same.
-    :return: binary_csi: Binary CSI.
-    """
-
-    a = _get_num_true_positives(target_tensor, forecast_probability_tensor)
-    b = _get_num_false_positives(target_tensor, forecast_probability_tensor)
-    c = _get_num_false_negatives(target_tensor, forecast_probability_tensor)
-
-    return a / (a + b + c + K.epsilon())
-
-
-def binary_frequency_bias(target_tensor, forecast_probability_tensor):
-    """Returns binary frequency bias ([a + b] / [a + c]).
-
-    :param target_tensor: See docstring for the 2 possible formats.
-    :param forecast_probability_tensor: Same.
-    :return: binary_frequency_bias: Binary frequency bias.
-    """
-
-    a = _get_num_true_positives(target_tensor, forecast_probability_tensor)
-    b = _get_num_false_positives(target_tensor, forecast_probability_tensor)
-    c = _get_num_false_negatives(target_tensor, forecast_probability_tensor)
-
-    return (a + b) / (a + c + K.epsilon())
-
-
-def binary_pod(target_tensor, forecast_probability_tensor):
-    """Returns binary probability of detection (a / [a + c]).
-
-    :param target_tensor: See docstring for the 2 possible formats.
-    :param forecast_probability_tensor: Same.
-    :return: binary_pod: Binary POD.
-    """
-
-    a = _get_num_true_positives(target_tensor, forecast_probability_tensor)
-    c = _get_num_false_negatives(target_tensor, forecast_probability_tensor)
-
-    return a / (a + c + K.epsilon())
-
-
-def binary_fom(target_tensor, forecast_probability_tensor):
-    """Returns binary frequency of misses (c / [a + c]).
-
-    :param target_tensor: See docstring for the 2 possible formats.
-    :param forecast_probability_tensor: Same.
-    :return: binary_fom: Binary FOM.
-    """
-
-    return 1. - binary_pod(target_tensor, forecast_probability_tensor)
-
-
-def binary_pofd(target_tensor, forecast_probability_tensor):
-    """Returns binary probability of false detection (b / [b + d]).
-
-    :param target_tensor: See docstring for the 2 possible formats.
-    :param forecast_probability_tensor: Same.
-    :return: binary_pofd: Binary POFD.
-    """
-
-    b = _get_num_false_positives(target_tensor, forecast_probability_tensor)
-    d = _get_num_true_negatives(target_tensor, forecast_probability_tensor)
-
-    return b / (b + d + K.epsilon())
-
-
-def binary_peirce_score(target_tensor, forecast_probability_tensor):
-    """Returns binary Peirce score.
-
-    :param target_tensor: See docstring for the 2 possible formats.
-    :param forecast_probability_tensor: Same.
-    :return: binary_peirce_score: Binary Peirce score.
-    """
-
-    return (
-        binary_pod(target_tensor, forecast_probability_tensor) -
-        binary_pofd(target_tensor, forecast_probability_tensor)
+    window_size_px = 2 * half_window_size_px + 1
+
+    return K.pool2d(
+        x=input_tensor, pool_mode='max',
+        pool_size=(window_size_px, window_size_px), strides=(1, 1),
+        padding='same' if test_mode else 'valid', data_format='channels_last'
     )
 
 
-def binary_npv(target_tensor, forecast_probability_tensor):
-    """Returns binary negative predictive value (d / [b + d]).
+def pod(half_window_size_px, function_name=None, test_mode=False):
+    """Creates function to compute probability of detection.
 
-    :param target_tensor: See docstring for the 2 possible formats.
-    :param forecast_probability_tensor: Same.
-    :return: binary_npv: Binary NPV.
+    :param half_window_size_px: See doc for `_apply_max_filter`.
+    :param function_name: Function name (string).
+    :param test_mode: Leave this alone.
+    :return: pod_function: Function (defined below).
     """
 
-    return 1. - binary_pofd(target_tensor, forecast_probability_tensor)
+    error_checking.assert_is_integer(half_window_size_px)
+    error_checking.assert_is_geq(half_window_size_px, 0)
+    error_checking.assert_is_boolean(test_mode)
+
+    if function_name is not None:
+        error_checking.assert_is_string(function_name)
+
+    def pod_function(target_tensor, prediction_tensor):
+        """Computes probability of detection.
+
+        :param target_tensor: Tensor of target (actual) values.
+        :param prediction_tensor: Tensor of predicted values.
+        :return: pod: Probability of detection.
+        """
+
+        filtered_prediction_tensor = _apply_max_filter(
+            input_tensor=prediction_tensor,
+            half_window_size_px=half_window_size_px, test_mode=test_mode
+        )
+
+        num_actual_oriented_true_positives = K.sum(
+            target_tensor * filtered_prediction_tensor
+        )
+        num_false_negatives = K.sum(
+            target_tensor * (1 - filtered_prediction_tensor)
+        )
+
+        denominator = (
+            num_actual_oriented_true_positives + num_false_negatives +
+            K.epsilon()
+        )
+        return num_actual_oriented_true_positives / denominator
+
+    if function_name is not None:
+        pod_function.__name__ = function_name
+
+    return pod_function
 
 
-def binary_success_ratio(target_tensor, forecast_probability_tensor):
-    """Returns binary success ratio (a / [a + b]).
+def success_ratio(half_window_size_px, function_name=None, test_mode=False):
+    """Creates function to compute success ratio.
 
-    :param target_tensor: See docstring for the 2 possible formats.
-    :param forecast_probability_tensor: Same.
-    :return: binary_success_ratio: Binary success ratio.
+    :param half_window_size_px: See doc for `_apply_max_filter`.
+    :param function_name: Function name (string).
+    :param test_mode: Leave this alone.
+    :return: success_ratio_function: Function (defined below).
     """
 
-    a = _get_num_true_positives(target_tensor, forecast_probability_tensor)
-    b = _get_num_false_positives(target_tensor, forecast_probability_tensor)
+    error_checking.assert_is_integer(half_window_size_px)
+    error_checking.assert_is_geq(half_window_size_px, 0)
+    error_checking.assert_is_boolean(test_mode)
 
-    return a / (a + b + K.epsilon())
+    if function_name is not None:
+        error_checking.assert_is_string(function_name)
+
+    def success_ratio_function(target_tensor, prediction_tensor):
+        """Computes success ratio.
+
+        :param target_tensor: Tensor of target (actual) values.
+        :param prediction_tensor: Tensor of predicted values.
+        :return: success_ratio: Success ratio.
+        """
+
+        filtered_target_tensor = _apply_max_filter(
+            input_tensor=target_tensor, half_window_size_px=half_window_size_px,
+            test_mode=test_mode
+        )
+
+        num_prediction_oriented_true_positives = K.sum(
+            filtered_target_tensor * prediction_tensor
+        )
+        num_false_positives = K.sum(
+            (1 - filtered_target_tensor) * prediction_tensor
+        )
+
+        denominator = (
+            num_prediction_oriented_true_positives + num_false_positives +
+            K.epsilon()
+        )
+        return num_prediction_oriented_true_positives / denominator
+
+    if function_name is not None:
+        success_ratio_function.__name__ = function_name
+
+    return success_ratio_function
 
 
-def binary_far(target_tensor, forecast_probability_tensor):
-    """Returns binary false-alarm rate (b / [a + b]).
+def frequency_bias(half_window_size_px, function_name=None, test_mode=False):
+    """Creates function to compute frequency bias.
 
-    :param target_tensor: See docstring for the 2 possible formats.
-    :param forecast_probability_tensor: Same.
-    :return: binary_far: Binary false-alarm rate.
+    :param half_window_size_px: See doc for `_apply_max_filter`.
+    :param function_name: Function name (string).
+    :param test_mode: Leave this alone.
+    :return: frequency_bias_function: Function (defined below).
     """
 
-    return 1. - binary_success_ratio(target_tensor, forecast_probability_tensor)
+    error_checking.assert_is_integer(half_window_size_px)
+    error_checking.assert_is_geq(half_window_size_px, 0)
+    error_checking.assert_is_boolean(test_mode)
+
+    if function_name is not None:
+        error_checking.assert_is_string(function_name)
+
+    def frequency_bias_function(target_tensor, prediction_tensor):
+        """Computes frequency bias.
+
+        :param target_tensor: Tensor of target (actual) values.
+        :param prediction_tensor: Tensor of predicted values.
+        :return: frequency_bias: Frequency bias.
+        """
+
+        pod_function = pod(
+            half_window_size_px=half_window_size_px, test_mode=test_mode
+        )
+        pod_value = pod_function(
+            target_tensor=target_tensor, prediction_tensor=prediction_tensor
+        )
+
+        success_ratio_function = success_ratio(
+            half_window_size_px=half_window_size_px, test_mode=test_mode
+        )
+        success_ratio_value = success_ratio_function(
+            target_tensor=target_tensor, prediction_tensor=prediction_tensor
+        )
+
+        return pod_value / (success_ratio_value + K.epsilon())
+
+    if function_name is not None:
+        frequency_bias_function.__name__ = function_name
+
+    return frequency_bias_function
 
 
-def binary_dfr(target_tensor, forecast_probability_tensor):
-    """Returns binary detection-failure ratio (c / [c + d]).
+def csi(half_window_size_px, function_name=None, test_mode=False):
+    """Creates function to compute critical success index.
 
-    :param target_tensor: See docstring for the 2 possible formats.
-    :param forecast_probability_tensor: Same.
-    :return: binary_dfr: Binary DFR.
+    :param half_window_size_px: See doc for `_apply_max_filter`.
+    :param function_name: Function name (string).
+    :param test_mode: Leave this alone.
+    :return: csi_function: Function (defined below).
     """
 
-    c = _get_num_false_negatives(target_tensor, forecast_probability_tensor)
-    d = _get_num_true_negatives(target_tensor, forecast_probability_tensor)
+    error_checking.assert_is_integer(half_window_size_px)
+    error_checking.assert_is_geq(half_window_size_px, 0)
+    error_checking.assert_is_boolean(test_mode)
 
-    return c / (c + d + K.epsilon())
+    if function_name is not None:
+        error_checking.assert_is_string(function_name)
+
+    def csi_function(target_tensor, prediction_tensor):
+        """Computes critical success index.
+
+        :param target_tensor: Tensor of target (actual) values.
+        :param prediction_tensor: Tensor of predicted values.
+        :return: csi: Critical success index.
+        """
+
+        pod_function = pod(
+            half_window_size_px=half_window_size_px, test_mode=test_mode
+        )
+        pod_value = K.epsilon() + pod_function(
+            target_tensor=target_tensor, prediction_tensor=prediction_tensor
+        )
+
+        success_ratio_function = success_ratio(
+            half_window_size_px=half_window_size_px, test_mode=test_mode
+        )
+        success_ratio_value = K.epsilon() + success_ratio_function(
+            target_tensor=target_tensor, prediction_tensor=prediction_tensor
+        )
+
+        return (pod_value ** -1 + success_ratio_value ** -1 - 1) ** -1
+
+    if function_name is not None:
+        csi_function.__name__ = function_name
+
+    return csi_function
 
 
-def binary_focn(target_tensor, forecast_probability_tensor):
-    """Returns binary frequency of correct nulls (d / [c + d]).
+def dice_coeff(half_window_size_px, function_name=None, test_mode=False):
+    """Creates function to compute Dice coefficient.
 
-    :param target_tensor: See docstring for the 2 possible formats.
-    :param forecast_probability_tensor: Same.
-    :return: binary_focn: Binary FOCN.
+    :param half_window_size_px: See doc for `_apply_max_filter`.
+    :param function_name: Function name (string).
+    :param test_mode: Leave this alone.
+    :return: dice_function: Function (defined below).
     """
 
-    return 1. - binary_dfr(target_tensor, forecast_probability_tensor)
+    # TODO(thunderhoser): Need _check_input_args... maybe.
+
+    error_checking.assert_is_integer(half_window_size_px)
+    error_checking.assert_is_geq(half_window_size_px, 0)
+    error_checking.assert_is_boolean(test_mode)
+
+    if function_name is not None:
+        error_checking.assert_is_string(function_name)
+
+    def dice_function(target_tensor, prediction_tensor):
+        """Computes Dice coefficient.
+
+        :param target_tensor: Tensor of target (actual) values.
+        :param prediction_tensor: Tensor of predicted values.
+        :return: dice_coeff: Dice coefficient.
+        """
+
+        filtered_target_tensor = _apply_max_filter(
+            input_tensor=target_tensor,
+            half_window_size_px=half_window_size_px, test_mode=test_mode
+        )
+        filtered_prediction_tensor = _apply_max_filter(
+            input_tensor=prediction_tensor,
+            half_window_size_px=half_window_size_px, test_mode=test_mode
+        )
+
+        # TODO(thunderhoser): Do I need to specify axes here?
+        intersection_tensor = K.sum(
+            filtered_target_tensor * filtered_prediction_tensor, axis=(1, 2, 3)
+        )
+        num_pixels_tensor = K.sum(
+            K.ones_like(filtered_target_tensor), axis=(1, 2, 3)
+        )
+
+        return K.mean(2 * intersection_tensor / num_pixels_tensor)
+
+    if function_name is not None:
+        dice_function.__name__ = function_name
+
+    return dice_function
+
+
+def iou(half_window_size_px, function_name=None, test_mode=False):
+    """Creates function to compute intersection over union.
+
+    :param half_window_size_px: See doc for `_apply_max_filter`.
+    :param function_name: Function name (string).
+    :param test_mode: Leave this alone.
+    :return: iou_function: Function (defined below).
+    """
+
+    error_checking.assert_is_integer(half_window_size_px)
+    error_checking.assert_is_geq(half_window_size_px, 0)
+    error_checking.assert_is_boolean(test_mode)
+
+    if function_name is not None:
+        error_checking.assert_is_string(function_name)
+
+    def iou_function(target_tensor, prediction_tensor):
+        """Computes intersection over union.
+
+        :param target_tensor: Tensor of target (actual) values.
+        :param prediction_tensor: Tensor of predicted values.
+        :return: iou: Intersection over union.
+        """
+
+        filtered_target_tensor = _apply_max_filter(
+            input_tensor=target_tensor,
+            half_window_size_px=half_window_size_px, test_mode=test_mode
+        )
+        filtered_prediction_tensor = _apply_max_filter(
+            input_tensor=prediction_tensor,
+            half_window_size_px=half_window_size_px, test_mode=test_mode
+        )
+
+        # TODO(thunderhoser): Do I need to specify axes here?
+        intersection_tensor = K.sum(
+            filtered_target_tensor * filtered_prediction_tensor, axis=(1, 2, 3)
+        )
+        union_tensor = (
+            K.sum(filtered_target_tensor, axis=(1, 2, 3)) +
+            K.sum(filtered_prediction_tensor, axis=(1, 2, 3)) -
+            intersection_tensor
+        )
+
+        return K.mean(
+            intersection_tensor / (union_tensor + K.epsilon())
+        )
+
+    if function_name is not None:
+        iou_function.__name__ = function_name
+
+    return iou_function
+
+
+def tversky_coeff(
+        half_window_size_px, false_positive_weight, false_negative_weight,
+        function_name=None, test_mode=False):
+    """Creates function to compute Tversky coefficient (weighted CSI).
+
+    :param half_window_size_px: See doc for `_apply_max_filter`.
+    :param false_positive_weight: Weight for false positives.
+    :param false_negative_weight: Weight for false negatives.
+    :param function_name: Function name (string).
+    :param test_mode: Leave this alone.
+    :return: tversky_function: Function (defined below).
+    """
+
+    error_checking.assert_is_integer(half_window_size_px)
+    error_checking.assert_is_geq(half_window_size_px, 0)
+    error_checking.assert_is_greater(false_positive_weight, 0.)
+    error_checking.assert_is_greater(false_negative_weight, 0.)
+    error_checking.assert_is_boolean(test_mode)
+
+    if function_name is not None:
+        error_checking.assert_is_string(function_name)
+
+    def tversky_function(target_tensor, prediction_tensor):
+        """Computes Tversky coefficient.
+
+        :param target_tensor: Tensor of target (actual) values.
+        :param prediction_tensor: Tensor of predicted values.
+        :return: tversky_coeff: Tversky coefficient.
+        """
+
+        filtered_target_tensor = _apply_max_filter(
+            input_tensor=target_tensor,
+            half_window_size_px=half_window_size_px, test_mode=test_mode
+        )
+        filtered_prediction_tensor = _apply_max_filter(
+            input_tensor=prediction_tensor,
+            half_window_size_px=half_window_size_px, test_mode=test_mode
+        )
+
+        num_true_positives = false_positive_weight * K.sum(
+            filtered_prediction_tensor * filtered_target_tensor
+        )
+        num_false_positives = false_positive_weight * K.sum(
+            filtered_prediction_tensor * (1. - filtered_target_tensor)
+        )
+        num_false_negatives = false_negative_weight * K.sum(
+            filtered_target_tensor * (1. - filtered_prediction_tensor)
+        )
+
+        denominator = (
+            num_false_positives + num_false_negatives + num_true_positives +
+            K.epsilon()
+        )
+
+        return num_true_positives / denominator
+
+    if function_name is not None:
+        tversky_function.__name__ = function_name
+
+    return tversky_function
+
+
+def focal_loss(
+        half_window_size_px, training_event_freq, focusing_factor,
+        function_name=None, test_mode=False):
+    """Creates function to compute focal loss.
+
+    Paper reference: https://arxiv.org/pdf/1708.02002.pdf
+    Code reference: https://github.com/umbertogriffo/focal-loss-keras/blob/
+                    master/src/loss_function/losses.py
+
+    :param half_window_size_px: See doc for `_apply_max_filter`.
+    :param training_event_freq: Event frequency (positive-class frequency) in
+        training data.
+    :param focusing_factor: Focusing factor (gamma in referenced paper).
+    :param function_name: Function name (string).
+    :param test_mode: Leave this alone.
+    :return: loss: Function (defined below).
+    """
+
+    # TODO(thunderhoser): Need unit test to check exact values.
+
+    error_checking.assert_is_integer(half_window_size_px)
+    error_checking.assert_is_geq(half_window_size_px, 0)
+    error_checking.assert_is_greater(training_event_freq, 0.)
+    error_checking.assert_is_less_than(training_event_freq, 1.)
+    error_checking.assert_is_geq(focusing_factor, 1.)
+    error_checking.assert_is_boolean(test_mode)
+
+    if function_name is not None:
+        error_checking.assert_is_string(function_name)
+
+    def loss(target_tensor, prediction_tensor):
+        """Computes loss.
+
+        :param target_tensor: Tensor of target (actual) values.
+        :param prediction_tensor: Tensor of predicted values.
+        :return: loss: Focal loss.
+        """
+
+        filtered_target_tensor = _apply_max_filter(
+            input_tensor=target_tensor,
+            half_window_size_px=half_window_size_px, test_mode=test_mode
+        )
+        filtered_prediction_tensor = _apply_max_filter(
+            input_tensor=prediction_tensor,
+            half_window_size_px=half_window_size_px, test_mode=test_mode
+        )
+
+        error_tensor = tensorflow.where(
+            K.equal(filtered_target_tensor, 1),
+            1. - filtered_prediction_tensor, filtered_prediction_tensor
+        )
+        error_tensor = K.clip(
+            error_tensor, min_value=K.epsilon(), max_value=1. - K.epsilon()
+        )
+
+        weight_tensor_for_class_imbalance = tensorflow.where(
+            K.equal(filtered_target_tensor, 1),
+            1. - training_event_freq, training_event_freq
+        )
+
+        cross_entropy_tensor = -K.log(1. - error_tensor)
+        weight_tensor = (
+            weight_tensor_for_class_imbalance * error_tensor ** focusing_factor
+        )
+
+        # TODO(thunderhoser): Do I need to specify axes here?
+        return K.mean(K.sum(weight_tensor * cross_entropy_tensor, axis=0))
+
+    if function_name is not None:
+        loss.__name__ = function_name
+
+    return loss
