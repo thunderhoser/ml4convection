@@ -37,7 +37,7 @@ set SMOOTHING_RADII_PX=(0 1 2 3 4 5)
 set smoothing_radius_px=${SMOOTHING_RADII_PX[$SLURM_ARRAY_TASK_ID]}
 set smoothing_radius_string=`printf "%.10f" $smoothing_radius_px`
 
-set model_dir_name="${TOP_MODEL_DIR_NAME}/smoothing_radius_px=${smoothing_radius_string}/validation"
+set model_dir_name="${TOP_MODEL_DIR_NAME}/smoothing_radius_px=${smoothing_radius_string}"
 
 python3 -u "${CODE_DIR_NAME}/apply_persistence_model.py" \
 --input_target_dir_name="${TOP_TARGET_DIR_NAME}" \
@@ -45,4 +45,5 @@ python3 -u "${CODE_DIR_NAME}/apply_persistence_model.py" \
 --smoothing_radius_px=${smoothing_radius_string} \
 --first_valid_date_string="${FIRST_VALIDN_DATE_STRING}" \
 --last_valid_date_string="${LAST_VALIDN_DATE_STRING}" \
---output_dir_name="${model_dir_name}"
+--output_dummy_model_file_name="${model_dir_name}/model.h5" \
+--output_dir_name="${model_dir_name}/validation"
