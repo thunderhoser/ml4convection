@@ -4,6 +4,7 @@ import os
 import sys
 import numpy
 from scipy.ndimage import distance_transform_edt
+from scipy.interpolate import LinearNDInterpolator
 
 THIS_DIRECTORY_NAME = os.path.dirname(os.path.realpath(
     os.path.join(os.getcwd(), os.path.expanduser(__file__))
@@ -90,3 +91,29 @@ def fill_nans(data_matrix):
         numpy.isnan(data_matrix), return_distances=False, return_indices=True
     )
     return data_matrix[tuple(indices)]
+
+
+def fill_nans_by_interp(data_matrix):
+    """Fills NaN's in a multi-dimensional grid via linear interpolation.
+
+    Code adapted from Stefan van der Welt:
+
+    https://stackoverflow.com/questions/21690608/
+    numpy-inpaint-nans-interpolate-and-extrapolate
+
+    :param data_matrix: 2-D numpy array of floats.
+    :return: data_matrix: Same as input but without NaN's.
+    """
+
+    error_checking.assert_is_real_numpy_array(data_matrix)
+    assert len(data_matrix.shape) > 1
+
+    good_flag_matrix = 1 - numpy.isnan(data_matrix).astype(int)
+    good_index_matrix = numpy.array(numpy.nonzero(good_flag_matrix)).T
+    good_values = data_matrix[good_flag_matrix == 1]
+
+    interp_object = LinearNDInterpolator(good_index_matrix, good_values)
+    all_index_tuples = list(numpy.ndindex(data_matrix.shape))
+    interp_values = interp_object(all_index_tuples)
+
+    return numpy.reshape(interp_values, data_matrix.shape)
