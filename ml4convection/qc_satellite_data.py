@@ -160,11 +160,14 @@ def _qc_data_one_time(
 
     brightness_temp_matrix_kelvins = orig_temp_matrix_kelvins + 0.
     brightness_temp_matrix_kelvins[flag_matrix == True] = numpy.nan
+    print(numpy.sum(numpy.isnan(brightness_temp_matrix_kelvins)))
+
     brightness_temp_matrix_kelvins = general_utils.fill_nans_by_interp(
         brightness_temp_matrix_kelvins
     )
+    print(numpy.sum(numpy.isnan(brightness_temp_matrix_kelvins)))
 
-    if not numpy.any(brightness_temp_matrix_kelvins):
+    if not numpy.any(numpy.isnan(brightness_temp_matrix_kelvins)):
         return brightness_temp_matrix_kelvins
 
     return general_utils.fill_nans(brightness_temp_matrix_kelvins)
