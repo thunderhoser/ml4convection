@@ -25,6 +25,7 @@ PEAKEDNESS_NEIGH_ARG_NAME = 'peakedness_neigh_metres'
 MAX_PEAKEDNESS_HEIGHT_ARG_NAME = 'max_peakedness_height_m_asl'
 MIN_ECHO_TOP_ARG_NAME = 'min_echo_top_m_asl'
 ECHO_TOP_LEVEL_ARG_NAME = 'echo_top_level_dbz'
+MIN_SIZE_ARG_NAME = 'min_size_pixels'
 MIN_REFL_CRITERION1_ARG_NAME = 'min_refl_criterion1_dbz'
 MIN_REFL_CRITERION5_ARG_NAME = 'min_refl_criterion5_dbz'
 MIN_REFL_AML_ARG_NAME = 'min_reflectivity_aml_dbz'
@@ -52,6 +53,7 @@ MIN_ECHO_TOP_HELP_STRING = (
 ECHO_TOP_LEVEL_HELP_STRING = (
     'Critical reflectivity (used to compute echo top for criterion 3).'
 )
+MIN_SIZE_HELP_STRING = 'Minimum connected-region size.'
 MIN_REFL_CRITERION1_HELP_STRING = (
     'Minimum composite (column-max) reflectivity for criterion 1.  To exclude '
     'this criterion, make the value negative.'
@@ -102,6 +104,11 @@ INPUT_ARG_PARSER.add_argument(
     help=ECHO_TOP_LEVEL_HELP_STRING
 )
 INPUT_ARG_PARSER.add_argument(
+    '--' + MIN_SIZE_ARG_NAME, type=int, required=False,
+    default=echo_classifn.DEFAULT_OPTION_DICT[echo_classifn.MIN_SIZE_KEY],
+    help=MIN_SIZE_HELP_STRING
+)
+INPUT_ARG_PARSER.add_argument(
     '--' + MIN_REFL_CRITERION1_ARG_NAME, type=float, required=False,
     default=DEFAULT_OPTION_DICT[
         echo_classifn.MIN_COMPOSITE_REFL_CRITERION1_KEY
@@ -128,8 +135,9 @@ INPUT_ARG_PARSER.add_argument(
 
 def _run_for_one_day(
         radar_file_name, peakedness_neigh_metres, max_peakedness_height_m_asl,
-        min_echo_top_m_asl, echo_top_level_dbz, min_refl_criterion1_dbz,
-        min_refl_criterion5_dbz, min_reflectivity_aml_dbz, output_file_name):
+        min_echo_top_m_asl, echo_top_level_dbz, min_size_pixels,
+        min_refl_criterion1_dbz, min_refl_criterion5_dbz,
+        min_reflectivity_aml_dbz, output_file_name):
     """Runs echo classification for one day.
 
     :param radar_file_name: Path to input file (will be read by
@@ -138,6 +146,7 @@ def _run_for_one_day(
     :param max_peakedness_height_m_asl: Same.
     :param min_echo_top_m_asl: Same.
     :param echo_top_level_dbz: Same.
+    :param min_size_pixels: Same.
     :param min_refl_criterion1_dbz: Same.
     :param min_refl_criterion5_dbz: Same.
     :param min_reflectivity_aml_dbz: Same.
@@ -152,6 +161,7 @@ def _run_for_one_day(
         echo_classifn.HALVE_RESOLUTION_KEY: False,
         echo_classifn.MIN_ECHO_TOP_KEY: min_echo_top_m_asl,
         echo_classifn.ECHO_TOP_LEVEL_KEY: echo_top_level_dbz,
+        echo_classifn.MIN_SIZE_KEY: min_size_pixels,
         echo_classifn.MIN_COMPOSITE_REFL_CRITERION1_KEY:
             min_refl_criterion1_dbz,
         echo_classifn.MIN_COMPOSITE_REFL_CRITERION5_KEY:
@@ -222,9 +232,9 @@ def _run_for_one_day(
 
 def _run(top_radar_dir_name, first_date_string, last_date_string,
          peakedness_neigh_metres, max_peakedness_height_m_asl,
-         min_echo_top_m_asl, echo_top_level_dbz, min_refl_criterion1_dbz,
-         min_refl_criterion5_dbz, min_reflectivity_aml_dbz,
-         top_output_dir_name):
+         min_echo_top_m_asl, echo_top_level_dbz, min_size_pixels,
+         min_refl_criterion1_dbz, min_refl_criterion5_dbz,
+         min_reflectivity_aml_dbz, top_output_dir_name):
     """Runs echo classification to separate convective from non-convective.
 
     This is effectively the main method.
@@ -236,6 +246,7 @@ def _run(top_radar_dir_name, first_date_string, last_date_string,
     :param max_peakedness_height_m_asl: Same.
     :param min_echo_top_m_asl: Same.
     :param echo_top_level_dbz: Same.
+    :param min_size_pixels: Same.
     :param min_refl_criterion1_dbz: Same.
     :param min_refl_criterion5_dbz: Same.
     :param min_reflectivity_aml_dbz: Same.
@@ -268,6 +279,7 @@ def _run(top_radar_dir_name, first_date_string, last_date_string,
             max_peakedness_height_m_asl=max_peakedness_height_m_asl,
             min_echo_top_m_asl=min_echo_top_m_asl,
             echo_top_level_dbz=echo_top_level_dbz,
+            min_size_pixels=min_size_pixels,
             min_refl_criterion1_dbz=min_refl_criterion1_dbz,
             min_refl_criterion5_dbz=min_refl_criterion5_dbz,
             min_reflectivity_aml_dbz=min_reflectivity_aml_dbz,
@@ -292,6 +304,7 @@ if __name__ == '__main__':
         ),
         min_echo_top_m_asl=getattr(INPUT_ARG_OBJECT, MIN_ECHO_TOP_ARG_NAME),
         echo_top_level_dbz=getattr(INPUT_ARG_OBJECT, ECHO_TOP_LEVEL_ARG_NAME),
+        min_size_pixels=getattr(INPUT_ARG_OBJECT, MIN_SIZE_ARG_NAME),
         min_refl_criterion1_dbz=getattr(
             INPUT_ARG_OBJECT, MIN_REFL_CRITERION1_ARG_NAME
         ),

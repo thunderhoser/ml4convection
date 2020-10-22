@@ -12,6 +12,7 @@ H = number of depths (unique grid-point heights)
 import os
 import sys
 import numpy
+from scipy.ndimage import label as label_image
 from scipy.ndimage.filters import median_filter, convolve
 
 THIS_DIRECTORY_NAME = os.path.dirname(os.path.realpath(
@@ -52,6 +53,7 @@ MAX_PEAKEDNESS_HEIGHT_KEY = 'max_peakedness_height_m_asl'
 HALVE_RESOLUTION_KEY = 'halve_resolution_for_peakedness'
 MIN_ECHO_TOP_KEY = 'min_echo_top_m_asl'
 ECHO_TOP_LEVEL_KEY = 'echo_top_level_dbz'
+MIN_SIZE_KEY = 'min_size_pixels'
 MIN_COMPOSITE_REFL_CRITERION1_KEY = 'min_composite_refl_criterion1_dbz'
 MIN_COMPOSITE_REFL_CRITERION5_KEY = 'min_composite_refl_criterion5_dbz'
 MIN_COMPOSITE_REFL_AML_KEY = 'min_composite_refl_aml_dbz'
@@ -62,6 +64,7 @@ DEFAULT_OPTION_DICT = {
     HALVE_RESOLUTION_KEY: False,
     MIN_ECHO_TOP_KEY: 10000.,
     ECHO_TOP_LEVEL_KEY: 25.,
+    MIN_SIZE_KEY: 5,
     MIN_COMPOSITE_REFL_CRITERION1_KEY: 25.,
     MIN_COMPOSITE_REFL_CRITERION5_KEY: 25.,
     MIN_COMPOSITE_REFL_AML_KEY: 45.
@@ -98,6 +101,9 @@ def _check_input_args(option_dict):
         option_dict[MIN_ECHO_TOP_KEY]
     ))
     option_dict[ECHO_TOP_LEVEL_KEY] = float(option_dict[ECHO_TOP_LEVEL_KEY])
+    option_dict[MIN_SIZE_KEY] = int(numpy.round(
+        option_dict[MIN_SIZE_KEY]
+    ))
     option_dict[MIN_COMPOSITE_REFL_CRITERION5_KEY] = float(
         option_dict[MIN_COMPOSITE_REFL_CRITERION5_KEY]
     )
@@ -110,6 +116,7 @@ def _check_input_args(option_dict):
     error_checking.assert_is_boolean(option_dict[HALVE_RESOLUTION_KEY])
     error_checking.assert_is_greater(option_dict[MIN_ECHO_TOP_KEY], 0)
     error_checking.assert_is_greater(option_dict[ECHO_TOP_LEVEL_KEY], 0.)
+    error_checking.assert_is_greater(option_dict[MIN_SIZE_KEY], 1)
     error_checking.assert_is_greater(
         option_dict[MIN_COMPOSITE_REFL_CRITERION5_KEY], 0.
     )
@@ -377,29 +384,32 @@ def _apply_convective_criterion3(
     )
 
 
-def _apply_convective_criterion4(convective_flag_matrix):
+def _apply_convective_criterion4(convective_flag_matrix, min_size_pixels):
     """Applies criterion 4 for convective classification.
 
-    Criterion 4 states: if pixel (i, j) is marked convective but none of its
-    neighbours are marked convective, (i, j) is not actually convective.
+    Criterion 4 states: if pixel (i, j) is marked convective but is not part of
+    a connected region with size of >= K pixels, (i, j) is not actually
+    convective.
 
     :param convective_flag_matrix: M-by-N numpy array of Boolean flags (True
         if convective, False if not).
+    :param min_size_pixels: Minimum size of connected region.
     :return: convective_flag_matrix: Updated version of input.
     """
 
-    weight_matrix = numpy.full((3, 3), 1.)
-    weight_matrix = weight_matrix / weight_matrix.size
+    region_id_matrix = label_image(
+        convective_flag_matrix.astype(int), structure=numpy.full((3, 3), 1.)
+    )[0]
+    num_regions = numpy.max(region_id_matrix)
 
-    average_matrix = convolve(
-        convective_flag_matrix.astype(float), weights=weight_matrix,
-        mode='constant', cval=0.
-    )
+    for i in range(num_regions):
+        these_indices = numpy.where(region_id_matrix == i + 1)
+        if len(these_indices[0]) >= min_size_pixels:
+            continue
 
-    return numpy.logical_and(
-        convective_flag_matrix,
-        average_matrix > weight_matrix[0, 0] + TOLERANCE
-    )
+        convective_flag_matrix[these_indices] = False
+
+    return convective_flag_matrix
 
 
 def _apply_convective_criterion5(
@@ -466,6 +476,8 @@ def find_convective_pixels(reflectivity_matrix_dbz, grid_metadata_dict,
         used for criterion 3.
     option_dict['echo_top_level_dbz'] Critical reflectivity (used to compute
         echo top for criterion 3).
+    option_dict['min_size_pixels']: Minimum connected-region size (for criterion
+        4).
     option_dict['min_composite_refl_criterion1_dbz'] Minimum composite
         (column-max) reflectivity for criterion 1.  This may be None.
     option_dict['min_composite_refl_criterion5_dbz'] Minimum composite
@@ -490,6 +502,7 @@ def find_convective_pixels(reflectivity_matrix_dbz, grid_metadata_dict,
     max_peakedness_height_m_asl = option_dict[MAX_PEAKEDNESS_HEIGHT_KEY]
     min_echo_top_m_asl = option_dict[MIN_ECHO_TOP_KEY]
     echo_top_level_dbz = option_dict[ECHO_TOP_LEVEL_KEY]
+    min_size_pixels = option_dict[MIN_SIZE_KEY]
     min_composite_refl_criterion1_dbz = (
         option_dict[MIN_COMPOSITE_REFL_CRITERION1_KEY]
     )
@@ -571,7 +584,8 @@ def find_convective_pixels(reflectivity_matrix_dbz, grid_metadata_dict,
 
     print('Applying criterion 4 for convective classification...')
     convective_flag_matrix = _apply_convective_criterion4(
-        convective_flag_matrix
+        convective_flag_matrix=convective_flag_matrix,
+        min_size_pixels=min_size_pixels
     )
 
     print('Number of convective pixels = {0:d}'.format(
