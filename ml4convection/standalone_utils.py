@@ -13,7 +13,8 @@ sys.path.append(os.path.normpath(os.path.join(THIS_DIRECTORY_NAME, '..')))
 import error_checking
 
 
-def do_2d_pooling(feature_matrix, do_max_pooling, window_size_px=2):
+def do_2d_pooling(feature_matrix, do_max_pooling, window_size_px=2,
+                  stride_length_px=None, pad_edges=False):
     """Pools 2-D feature maps.
 
     E = number of examples
@@ -26,23 +27,33 @@ def do_2d_pooling(feature_matrix, do_max_pooling, window_size_px=2):
     :param feature_matrix: E-by-M-by-N-by-C numpy array of feature values.
     :param do_max_pooling: Boolean flag.  If True, will do max-pooling.  If
         False, will do average-pooling.
-    :param window_size_px: Window size (pixels).  This will be the number of
-        rows and columns in the pooling window.
+    :param window_size_px: Window size (pixels).  The pooling window will be
+        K rows x K columns, where K = `window_size_px`.
+    :param stride_length_px: Stride length (pixels).  The pooling window will
+        move k rows or columns with each stride, where k = `stride_length_px`.
+    :param pad_edges: See doc for `do_2d_convolution`.
     :return: feature_matrix: E-by-m-by-n-by-C numpy array of new feature values.
     """
 
     error_checking.assert_is_numpy_array_without_nan(feature_matrix)
     error_checking.assert_is_numpy_array(feature_matrix, num_dimensions=4)
     error_checking.assert_is_boolean(do_max_pooling)
+    error_checking.assert_is_boolean(pad_edges)
     error_checking.assert_is_integer(window_size_px)
     error_checking.assert_is_geq(window_size_px, 2)
+
+    if stride_length_px is None:
+        stride_length_px = window_size_px
+
+    error_checking.assert_is_integer(stride_length_px)
+    error_checking.assert_is_geq(stride_length_px, 1)
 
     feature_tensor = K.pool2d(
         x=K.variable(feature_matrix),
         pool_mode='max' if do_max_pooling else 'avg',
         pool_size=(window_size_px, window_size_px),
-        strides=(window_size_px, window_size_px),
-        padding='valid', data_format='channels_last'
+        strides=(stride_length_px, stride_length_px),
+        padding='same' if pad_edges else 'valid', data_format='channels_last'
     )
 
     return feature_tensor.numpy()
