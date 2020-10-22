@@ -4,7 +4,6 @@ import os
 import argparse
 import numpy
 from scipy.ndimage import label as label_image
-from scipy.interpolate import LinearNDInterpolator
 from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import error_checking
 from ml4convection.io import satellite_io
@@ -83,29 +82,6 @@ INPUT_ARG_PARSER.add_argument(
 )
 
 
-def _fill_nans_by_interp(data_matrix):
-    """Fills NaN's in a 2-D grid via linear interpolation.
-
-    Code scavenged from Stefan van der Welt's answer here:
-
-    https://stackoverflow.com/questions/21690608/
-    numpy-inpaint-nans-interpolate-and-extrapolate
-
-    :param data_matrix: 2-D numpy array of floats.
-    :return: data_matrix: Same as input but without NaN's.
-    """
-
-    good_flag_matrix = 1 - numpy.isnan(data_matrix).astype(int)
-    good_index_matrix = numpy.array(numpy.nonzero(good_flag_matrix)).T
-    good_values = data_matrix[good_flag_matrix == 1]
-
-    interp_object = LinearNDInterpolator(good_index_matrix, good_values)
-    all_index_tuples = list(numpy.ndindex(data_matrix.shape))
-    interp_values = interp_object(all_index_tuples)
-
-    return numpy.reshape(interp_values, data_matrix.shape)
-
-
 def _qc_data_one_time(
         brightness_temp_matrix_kelvins, half_window_size_px,
         min_temperature_diff_kelvins, min_region_size_px):
@@ -177,7 +153,7 @@ def _qc_data_one_time(
 
     brightness_temp_matrix_kelvins = orig_temp_matrix_kelvins + 0.
     brightness_temp_matrix_kelvins[flag_matrix == True] = numpy.nan
-    brightness_temp_matrix_kelvins = _fill_nans_by_interp(
+    brightness_temp_matrix_kelvins = general_utils.fill_nans_by_interp(
         brightness_temp_matrix_kelvins
     )
 
