@@ -224,7 +224,7 @@ def _qc_data_one_day(
         satellite_io.write_file(
             netcdf_file_name=output_file_name,
             brightness_temp_matrix_kelvins=
-            satellite_dict[satellite_io.BRIGHTNESS_TEMP_KEY][[i], ...],
+            satellite_dict[satellite_io.BRIGHTNESS_TEMP_KEY][i, ...],
             latitudes_deg_n=satellite_dict[satellite_io.LATITUDES_KEY],
             longitudes_deg_e=satellite_dict[satellite_io.LONGITUDES_KEY],
             band_numbers=satellite_dict[satellite_io.BAND_NUMBERS_KEY],
