@@ -196,6 +196,31 @@ def _write_count_file(netcdf_file_name, count_matrix, latitudes_deg_n,
     dataset_object.close()
 
 
+def read_count_file(netcdf_file_name):
+    """Reads gridded difference counts from NetCDF file.
+
+    :param netcdf_file_name: Path to input file.
+    :return: count_dict: Dictionary with the following keys.
+    count_dict['count_matrix']: See doc for `_write_count_file`.
+    count_dict['latitudes_deg_n']: Same.
+    count_dict['longitudes_deg_e']: Same.
+    count_dict['band_numbers']: Same.
+    """
+
+    dataset_object = netCDF4.Dataset(netcdf_file_name)
+
+    count_dict = {
+        DIFFERENCE_COUNT_KEY:
+            dataset_object.variables[DIFFERENCE_COUNT_KEY][:],
+        LATITUDES_KEY: dataset_object.variables[LATITUDES_KEY][:],
+        LONGITUDES_KEY: dataset_object.variables[LONGITUDES_KEY][:],
+        BAND_NUMBERS_KEY: dataset_object.variables[BAND_NUMBERS_KEY][:]
+    }
+
+    dataset_object.close()
+    return count_dict
+
+
 def _run(before_qc_dir_name, after_qc_dir_name, first_date_string,
          last_date_string, output_file_name):
     """Counts changes made by satellite QC at each grid cell.
