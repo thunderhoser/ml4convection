@@ -108,29 +108,30 @@ def _qc_data_one_time(
 
     window_size_px = 2 * half_window_size_px + 1
 
-    orig_temp_matrix_kelvins = brightness_temp_matrix_kelvins + 0.
-    brightness_temp_matrix_kelvins = numpy.expand_dims(
-        brightness_temp_matrix_kelvins, axis=(0, -1)
-    )
-
     mean_kernel_matrix = numpy.full((window_size_px, window_size_px), 1.)
     mean_kernel_matrix = mean_kernel_matrix / mean_kernel_matrix.size
     mean_kernel_matrix = numpy.expand_dims(mean_kernel_matrix, axis=-1)
     mean_kernel_matrix = numpy.expand_dims(mean_kernel_matrix, axis=-1)
 
-    mean_temp_matrix_kelvins = standalone_utils.do_2d_convolution(
-        feature_matrix=brightness_temp_matrix_kelvins,
-        kernel_matrix=mean_kernel_matrix,
-        pad_edges=True, stride_length_px=1
+    this_matrix = numpy.expand_dims(
+        brightness_temp_matrix_kelvins, axis=(0, -1)
     )
+    mean_temp_matrix_kelvins = standalone_utils.do_2d_convolution(
+        feature_matrix=this_matrix, kernel_matrix=mean_kernel_matrix,
+        pad_edges=False, stride_length_px=1
+    )[0, ..., 0]
 
     j = half_window_size_px
-    mean_temp_matrix_kelvins[:, j:-j, j:-j, :] = (
-        brightness_temp_matrix_kelvins[:, j:-j, j:-j, :]
+    absolute_diff_matrix_kelvins = numpy.absolute(
+        mean_temp_matrix_kelvins - brightness_temp_matrix_kelvins[j:-j, j:-j]
+    )
+    absolute_diff_matrix_kelvins = numpy.pad(
+        absolute_diff_matrix_kelvins, pad_width=half_window_size_px,
+        mode='constant', constant_values=0.
     )
 
-    absolute_diff_matrix_kelvins = numpy.absolute(
-        mean_temp_matrix_kelvins - brightness_temp_matrix_kelvins
+    absolute_diff_matrix_kelvins = numpy.expand_dims(
+        absolute_diff_matrix_kelvins, axis=(0, -1)
     )
     absolute_diff_matrix_kelvins = standalone_utils.do_2d_pooling(
         feature_matrix=absolute_diff_matrix_kelvins, do_max_pooling=True,
@@ -156,21 +157,27 @@ def _qc_data_one_time(
     ))
 
     if not numpy.any(flag_matrix):
-        return orig_temp_matrix_kelvins
+        return brightness_temp_matrix_kelvins
 
-    brightness_temp_matrix_kelvins = orig_temp_matrix_kelvins + 0.
-    brightness_temp_matrix_kelvins[flag_matrix == True] = numpy.nan
-    print(numpy.sum(numpy.isnan(brightness_temp_matrix_kelvins)))
-
+    brightness_temp_matrix_kelvins[flag_matrix] = numpy.nan
     brightness_temp_matrix_kelvins = general_utils.fill_nans_by_interp(
         brightness_temp_matrix_kelvins
     )
-    print(numpy.sum(numpy.isnan(brightness_temp_matrix_kelvins)))
+    print('Number of NaN''s after linear interp = {0:d}'.format(
+        numpy.sum(numpy.isnan(brightness_temp_matrix_kelvins))
+    ))
 
     if not numpy.any(numpy.isnan(brightness_temp_matrix_kelvins)):
         return brightness_temp_matrix_kelvins
 
-    return general_utils.fill_nans(brightness_temp_matrix_kelvins)
+    brightness_temp_matrix_kelvins = general_utils.fill_nans(
+        brightness_temp_matrix_kelvins
+    )
+    print('Number of NaN''s after nearest-neighbour interp = {0:d}'.format(
+        numpy.sum(numpy.isnan(brightness_temp_matrix_kelvins))
+    ))
+
+    return brightness_temp_matrix_kelvins
 
 
 def _qc_data_one_day(
