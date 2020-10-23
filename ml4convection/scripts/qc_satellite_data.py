@@ -208,11 +208,11 @@ def _qc_data_one_day(
             valid_time_strings[i]
         ))
 
-        this_orig_matrix = (
+        this_matrix = (
             satellite_dict[satellite_io.BRIGHTNESS_TEMP_KEY][i, ..., band_index]
         )
         this_matrix = _qc_data_one_time(
-            brightness_temp_matrix_kelvins=this_orig_matrix + 0.,
+            brightness_temp_matrix_kelvins=this_matrix,
             half_window_size_px=half_window_size_px,
             min_temperature_diff_kelvins=min_temperature_diff_kelvins,
             min_region_size_px=min_region_size_px
