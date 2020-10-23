@@ -25,4 +25,4 @@ set COUNT_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_pro
 python3 -u "${CODE_DIR_NAME}/plot_satellite_diff_counts.py" \
 --input_count_dir_name="${COUNT_DIR_NAME}" \
 --colour_map_name="viridis" \
---output_dir_name="${COUNT_DIR_NAME}/plots"
+--output_dir_name="${COUNT_DIR_NAME}/count_2016-2018.jpg"
