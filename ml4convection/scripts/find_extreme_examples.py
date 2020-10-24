@@ -200,17 +200,20 @@ def _read_scores_one_day(input_file_name):
     pod_values, success_ratios, csi_values = _get_contingency_table_scores(t)
 
     fss_values = 1. - (
-        t[evaluation.ACTUAL_SSE_KEY].values /
-        t[evaluation.REFERENCE_SSE_KEY].values
+        t[evaluation.ACTUAL_SSE_FOR_FSS_KEY].values /
+        t[evaluation.REFERENCE_SSE_FOR_FSS_KEY].values
     )
 
-    example_count_matrix = t[evaluation.EXAMPLE_COUNT_KEY].values.astype(float)
+    example_count_matrix = (
+        t[evaluation.BINNED_NUM_EXAMPLES_KEY].values.astype(float)
+    )
     example_count_matrix[example_count_matrix == 0] = numpy.nan
+
     mean_forecast_prob_matrix = (
-        t[evaluation.SUMMED_FORECAST_PROB_KEY].values / example_count_matrix
+        t[evaluation.BINNED_SUM_PROBS_KEY].values / example_count_matrix
     )
     event_frequency_matrix = (
-        t[evaluation.POSITIVE_EXAMPLE_COUNT_KEY].values.astype(float) /
+        t[evaluation.BINNED_NUM_POSITIVES_KEY].values.astype(float) /
         example_count_matrix
     )
     example_count_matrix[numpy.isnan(example_count_matrix)] = 0

@@ -107,9 +107,9 @@ def _run(advanced_score_file_name, output_dir_name):
     )
     eval_plotting.plot_attributes_diagram(
         figure_object=figure_object, axes_object=axes_object,
-        mean_predictions=a[evaluation.MEAN_FORECAST_PROB_KEY].values,
-        mean_observations=a[evaluation.EVENT_FREQUENCY_KEY].values,
-        example_counts=a[evaluation.EXAMPLE_COUNT_KEY].values,
+        mean_predictions=a[evaluation.BINNED_MEAN_PROBS_KEY].values,
+        mean_observations=a[evaluation.BINNED_EVENT_FREQS_KEY].values,
+        example_counts=a[evaluation.BINNED_NUM_EXAMPLES_KEY].values,
         mean_value_in_training=a[evaluation.TRAINING_EVENT_FREQ_KEY].values[0],
         min_value_to_plot=0., max_value_to_plot=1.
     )

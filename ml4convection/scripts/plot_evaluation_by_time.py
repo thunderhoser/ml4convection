@@ -168,10 +168,10 @@ def _plot_reliability_curves(score_tables_xarray, output_file_name):
 
     for i in range(num_tables):
         these_mean_probs = (
-            score_tables_xarray[i][evaluation.MEAN_FORECAST_PROB_KEY].values
+            score_tables_xarray[i][evaluation.BINNED_MEAN_PROBS_KEY].values
         )
         these_event_freqs = (
-            score_tables_xarray[i][evaluation.EVENT_FREQUENCY_KEY].values
+            score_tables_xarray[i][evaluation.BINNED_EVENT_FREQS_KEY].values
         )
         eval_plotting.plot_reliability_curve(
             axes_object=axes_object,
@@ -369,7 +369,7 @@ def _plot_scores_as_graph(
     # Plot histogram.
     if plot_total_example_counts:
         y_values = numpy.array([
-            numpy.sum(t[evaluation.EXAMPLE_COUNT_KEY].values)
+            numpy.sum(t[evaluation.BINNED_NUM_EXAMPLES_KEY].values)
             for t in score_tables_xarray
         ], dtype=int)
 
@@ -377,8 +377,8 @@ def _plot_scores_as_graph(
     else:
         y_values = numpy.array([
             numpy.nansum(
-                t[evaluation.EXAMPLE_COUNT_KEY].values *
-                t[evaluation.EVENT_FREQUENCY_KEY].values
+                t[evaluation.BINNED_NUM_EXAMPLES_KEY].values *
+                t[evaluation.BINNED_EVENT_FREQS_KEY].values
             )
             for t in score_tables_xarray
         ])

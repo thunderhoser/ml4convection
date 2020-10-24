@@ -164,6 +164,21 @@ MASK_MATRIX = numpy.array([
     [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
 ], dtype=int)
 
+MEAN_PROB_MATRIX = numpy.array([
+    [0.11, 0.21, 0.31, 0.41, 0.00, 0.00, 0.00, 0.00, -1.0, -1.0, -1.0, -1.0],
+    [0.51, 0.61, 0.71, 0.81, 0.00, 0.00, 0.00, 0.00, -1.0, -1.0, -1.0, -1.0],
+    [0.21, 0.41, 0.61, 1.00, 0.00, 0.00, 0.00, 0.00, -1.0, -1.0, -1.0, -1.0],
+    [-1.0, -1.0, -1.0, -1.0, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00],
+    [-1.0, -1.0, -1.0, -1.0, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00],
+    [-1.0, -1.0, -1.0, -1.0, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00],
+    [-1.0, -1.0, -1.0, -1.0, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00],
+    [0.21, 0.41, 0.61, 1.00, 0.00, 0.00, 0.00, 0.00, 1.00, 0.61, 0.41, 0.21],
+    [0.51, 0.61, 0.71, 0.81, 0.00, 0.00, 0.00, 0.00, 0.81, 0.71, 0.61, 0.51],
+    [0.11, 0.21, 0.31, 0.41, 0.00, 0.00, 0.00, 0.00, 0.41, 0.31, 0.21, 0.11]
+])
+
+MEAN_PROB_MATRIX[MEAN_PROB_MATRIX < 0] = numpy.nan
+
 FIRST_MATCHING_DISTANCE_PX = 0.
 # FIRST_NUM_ACTUAL_ORIENTED_TP = 0
 # FIRST_NUM_FALSE_NEGATIVES = 16
@@ -427,20 +442,23 @@ THESE_DIM = (
     evaluation.TIME_DIM, evaluation.LATITUDE_DIM, evaluation.LONGITUDE_DIM
 )
 NEW_DICT = {
-    evaluation.ACTUAL_SSE_KEY: (
+    evaluation.ACTUAL_SSE_FOR_FSS_KEY: (
         THESE_DIM, numpy.expand_dims(FIRST_ACTUAL_SSE_MATRIX, axis=0)
     ),
-    evaluation.REFERENCE_SSE_KEY: (
+    evaluation.REFERENCE_SSE_FOR_FSS_KEY: (
         THESE_DIM, numpy.expand_dims(FIRST_REFERENCE_SSE_MATRIX, axis=0)
     ),
-    evaluation.BRIER_ACTUAL_SSE_KEY: (
+    evaluation.ACTUAL_SSE_FOR_BRIER_KEY: (
         THESE_DIM, numpy.expand_dims(FIRST_ACTUAL_SSE_MATRIX, axis=0)
     ),
-    evaluation.CLIMO_SSE_KEY: (
+    evaluation.CLIMO_SSE_FOR_BRIER_KEY: (
         THESE_DIM, numpy.expand_dims(FIRST_CLIMO_SSE_MATRIX, axis=0)
     ),
-    evaluation.EXAMPLE_COUNT_KEY: (
+    evaluation.TOTAL_NUM_EXAMPLES_KEY: (
         THESE_DIM, numpy.expand_dims(THIS_EXAMPLE_COUNT_MATRIX, axis=0)
+    ),
+    evaluation.MEAN_FORECAST_PROBS_KEY: (
+        THESE_DIM, numpy.expand_dims(MEAN_PROB_MATRIX, axis=0)
     )
 }
 FIRST_MAIN_DICT.update(NEW_DICT)
@@ -517,20 +535,23 @@ THESE_DIM = (
     evaluation.TIME_DIM, evaluation.LATITUDE_DIM, evaluation.LONGITUDE_DIM
 )
 NEW_DICT = {
-    evaluation.ACTUAL_SSE_KEY: (
+    evaluation.ACTUAL_SSE_FOR_FSS_KEY: (
         THESE_DIM, numpy.stack([FIRST_ACTUAL_SSE_MATRIX] * 2, axis=0)
     ),
-    evaluation.REFERENCE_SSE_KEY: (
+    evaluation.REFERENCE_SSE_FOR_FSS_KEY: (
         THESE_DIM, numpy.stack([FIRST_REFERENCE_SSE_MATRIX] * 2, axis=0)
     ),
-    evaluation.BRIER_ACTUAL_SSE_KEY: (
+    evaluation.ACTUAL_SSE_FOR_BRIER_KEY: (
         THESE_DIM, numpy.stack([FIRST_ACTUAL_SSE_MATRIX] * 2, axis=0)
     ),
-    evaluation.CLIMO_SSE_KEY: (
+    evaluation.CLIMO_SSE_FOR_BRIER_KEY: (
         THESE_DIM, numpy.stack([FIRST_CLIMO_SSE_MATRIX] * 2, axis=0)
     ),
-    evaluation.EXAMPLE_COUNT_KEY: (
+    evaluation.TOTAL_NUM_EXAMPLES_KEY: (
         THESE_DIM, numpy.stack([THIS_EXAMPLE_COUNT_MATRIX] * 2, axis=0)
+    ),
+    evaluation.MEAN_FORECAST_PROBS_KEY: (
+        THESE_DIM, numpy.stack([MEAN_PROB_MATRIX] * 2, axis=0)
     )
 }
 CONCAT_MAIN_DICT.update(NEW_DICT)
@@ -629,24 +650,27 @@ THESE_DIM = (
     evaluation.TIME_DIM, evaluation.LATITUDE_DIM, evaluation.LONGITUDE_DIM
 )
 NEW_DICT = {
-    evaluation.ACTUAL_SSE_KEY: (
+    evaluation.ACTUAL_SSE_FOR_FSS_KEY: (
         THESE_DIM, numpy.expand_dims(FIRST_ACTUAL_SSE_MATRIX[2:9, 3:9], axis=0)
     ),
-    evaluation.REFERENCE_SSE_KEY: (
+    evaluation.REFERENCE_SSE_FOR_FSS_KEY: (
         THESE_DIM,
         numpy.expand_dims(FIRST_REFERENCE_SSE_MATRIX[2:9, 3:9], axis=0)
     ),
-    evaluation.BRIER_ACTUAL_SSE_KEY: (
+    evaluation.ACTUAL_SSE_FOR_BRIER_KEY: (
         THESE_DIM,
         numpy.expand_dims(FIRST_ACTUAL_SSE_MATRIX[2:9, 3:9], axis=0)
     ),
-    evaluation.CLIMO_SSE_KEY: (
+    evaluation.CLIMO_SSE_FOR_BRIER_KEY: (
         THESE_DIM,
         numpy.expand_dims(FIRST_CLIMO_SSE_MATRIX[2:9, 3:9], axis=0)
     ),
-    evaluation.EXAMPLE_COUNT_KEY: (
+    evaluation.TOTAL_NUM_EXAMPLES_KEY: (
         THESE_DIM,
         numpy.expand_dims(THIS_EXAMPLE_COUNT_MATRIX[2:9, 3:9], axis=0)
+    ),
+    evaluation.MEAN_FORECAST_PROBS_KEY: (
+        THESE_DIM, numpy.expand_dims(MEAN_PROB_MATRIX[2:9, 3:9], axis=0)
     )
 }
 MAIN_DICT_SMALL_GRID.update(NEW_DICT)
@@ -744,18 +768,21 @@ ACTUAL_SSE_MATRIX_UNGRIDDED = numpy.full(
 
 THESE_DIM = (evaluation.TIME_DIM, evaluation.RELIABILITY_BIN_DIM)
 NEW_DICT = {
-    evaluation.EXAMPLE_COUNT_KEY: (THESE_DIM, TOTAL_COUNT_MATRIX_UNGRIDDED + 0),
-    evaluation.SUMMED_FORECAST_PROB_KEY:
+    evaluation.BINNED_NUM_EXAMPLES_KEY:
+        (THESE_DIM, TOTAL_COUNT_MATRIX_UNGRIDDED + 0),
+    evaluation.BINNED_SUM_PROBS_KEY:
         (THESE_DIM, SUMMED_PROB_MATRIX_UNGRIDDED + 0.),
-    evaluation.POSITIVE_EXAMPLE_COUNT_KEY:
+    evaluation.BINNED_NUM_POSITIVES_KEY:
         (THESE_DIM, POS_COUNT_MATRIX_UNGRIDDED + 0)
 }
 MAIN_DICT_UNGRIDDED.update(NEW_DICT)
 
 THESE_DIM = (evaluation.TIME_DIM,)
 NEW_DICT = {
-    evaluation.ACTUAL_SSE_KEY: (THESE_DIM, ACTUAL_SSE_MATRIX_UNGRIDDED + 0.),
-    evaluation.REFERENCE_SSE_KEY: (THESE_DIM, REF_SSE_MATRIX_UNGRIDDED + 0.),
+    evaluation.ACTUAL_SSE_FOR_FSS_KEY:
+        (THESE_DIM, ACTUAL_SSE_MATRIX_UNGRIDDED + 0.),
+    evaluation.REFERENCE_SSE_FOR_FSS_KEY:
+        (THESE_DIM, REF_SSE_MATRIX_UNGRIDDED + 0.),
 }
 MAIN_DICT_UNGRIDDED.update(NEW_DICT)
 
@@ -831,11 +858,11 @@ MAIN_DICT_ADVANCED_UNGRIDDED = {
 
 THESE_DIM = (evaluation.RELIABILITY_BIN_DIM,)
 NEW_DICT = {
-    evaluation.EXAMPLE_COUNT_KEY:
+    evaluation.BINNED_NUM_EXAMPLES_KEY:
         (THESE_DIM, TOTAL_COUNT_MATRIX_UNGRIDDED[0, ...]),
-    evaluation.MEAN_FORECAST_PROB_KEY:
+    evaluation.BINNED_MEAN_PROBS_KEY:
         (THESE_DIM, MEAN_PROB_MATRIX_UNGRIDDED[0, ...]),
-    evaluation.EVENT_FREQUENCY_KEY:
+    evaluation.BINNED_EVENT_FREQS_KEY:
         (THESE_DIM, EVENT_FREQ_MATRIX_UNGRIDDED[0, ...])
 }
 MAIN_DICT_ADVANCED_UNGRIDDED.update(NEW_DICT)
@@ -956,22 +983,25 @@ MAIN_DICT_ADVANCED_GRIDDED = {
 }
 
 THIS_ACTUAL_SSE_MATRIX = numpy.nansum(
-    CONCAT_MAIN_DICT[evaluation.BRIER_ACTUAL_SSE_KEY][1], axis=0
+    CONCAT_MAIN_DICT[evaluation.ACTUAL_SSE_FOR_BRIER_KEY][1], axis=0
 )
 THIS_CLIMO_SSE_MATRIX = numpy.nansum(
-    CONCAT_MAIN_DICT[evaluation.CLIMO_SSE_KEY][1], axis=0
+    CONCAT_MAIN_DICT[evaluation.CLIMO_SSE_FOR_BRIER_KEY][1], axis=0
 )
 THIS_EXAMPLE_COUNT_MATRIX = numpy.invert(
-    numpy.isnan(CONCAT_MAIN_DICT[evaluation.BRIER_ACTUAL_SSE_KEY][1])
+    numpy.isnan(CONCAT_MAIN_DICT[evaluation.ACTUAL_SSE_FOR_BRIER_KEY][1])
 ).astype(int)
 
 THIS_EXAMPLE_COUNT_MATRIX = numpy.sum(THIS_EXAMPLE_COUNT_MATRIX, axis=0)
 
 THESE_DIM = (evaluation.LATITUDE_DIM, evaluation.LONGITUDE_DIM)
 NEW_DICT = {
-    evaluation.BRIER_ACTUAL_SSE_KEY: (THESE_DIM, THIS_ACTUAL_SSE_MATRIX + 0.),
-    evaluation.CLIMO_SSE_KEY: (THESE_DIM, THIS_CLIMO_SSE_MATRIX + 0.),
-    evaluation.EXAMPLE_COUNT_KEY: (THESE_DIM, THIS_EXAMPLE_COUNT_MATRIX + 0)
+    evaluation.ACTUAL_SSE_FOR_BRIER_KEY:
+        (THESE_DIM, THIS_ACTUAL_SSE_MATRIX + 0.),
+    evaluation.CLIMO_SSE_FOR_BRIER_KEY: (THESE_DIM, THIS_CLIMO_SSE_MATRIX + 0.),
+    evaluation.TOTAL_NUM_EXAMPLES_KEY:
+        (THESE_DIM, THIS_EXAMPLE_COUNT_MATRIX + 0),
+    evaluation.MEAN_FORECAST_PROBS_KEY: (THESE_DIM, MEAN_PROB_MATRIX + 0.)
 }
 MAIN_DICT_ADVANCED_GRIDDED.update(NEW_DICT)
 
@@ -1040,24 +1070,29 @@ def _compare_basic_score_tables(first_table, second_table):
     gridded = evaluation.LATITUDE_DIM in first_table.coords
 
     float_keys = [
-        evaluation.ACTUAL_SSE_KEY, evaluation.REFERENCE_SSE_KEY
+        evaluation.ACTUAL_SSE_FOR_FSS_KEY, evaluation.REFERENCE_SSE_FOR_FSS_KEY
     ]
     integer_keys = [
         evaluation.NUM_ACTUAL_ORIENTED_TP_KEY,
         evaluation.NUM_PREDICTION_ORIENTED_TP_KEY,
         evaluation.NUM_FALSE_POSITIVES_KEY,
-        evaluation.NUM_FALSE_NEGATIVES_KEY,
-        evaluation.EXAMPLE_COUNT_KEY
+        evaluation.NUM_FALSE_NEGATIVES_KEY
     ]
 
     if gridded:
         float_keys += [
-            evaluation.BRIER_ACTUAL_SSE_KEY, evaluation.CLIMO_SSE_KEY,
-            evaluation.TRAINING_EVENT_FREQ_KEY
+            evaluation.ACTUAL_SSE_FOR_BRIER_KEY,
+            evaluation.CLIMO_SSE_FOR_BRIER_KEY,
+            evaluation.TRAINING_EVENT_FREQ_KEY,
+            evaluation.MEAN_FORECAST_PROBS_KEY
         ]
+        integer_keys += [evaluation.TOTAL_NUM_EXAMPLES_KEY]
     else:
-        float_keys += [evaluation.SUMMED_FORECAST_PROB_KEY]
-        integer_keys += [evaluation.POSITIVE_EXAMPLE_COUNT_KEY]
+        float_keys += [evaluation.BINNED_SUM_PROBS_KEY]
+        integer_keys += [
+            evaluation.BINNED_NUM_POSITIVES_KEY,
+            evaluation.BINNED_NUM_EXAMPLES_KEY
+        ]
 
     for this_key in float_keys:
         if not numpy.allclose(
@@ -1132,19 +1167,21 @@ def _compare_advanced_score_tables(first_table, second_table):
         evaluation.NUM_ACTUAL_ORIENTED_TP_KEY,
         evaluation.NUM_PREDICTION_ORIENTED_TP_KEY,
         evaluation.NUM_FALSE_POSITIVES_KEY,
-        evaluation.NUM_FALSE_NEGATIVES_KEY,
-        evaluation.EXAMPLE_COUNT_KEY
+        evaluation.NUM_FALSE_NEGATIVES_KEY
     ]
 
     if gridded:
         float_keys += [
-            evaluation.BRIER_ACTUAL_SSE_KEY, evaluation.CLIMO_SSE_KEY
+            evaluation.ACTUAL_SSE_FOR_BRIER_KEY,
+            evaluation.CLIMO_SSE_FOR_BRIER_KEY,
+            evaluation.MEAN_FORECAST_PROBS_KEY
         ]
     else:
         float_keys += [
-            evaluation.EVENT_FREQUENCY_KEY, evaluation.MEAN_FORECAST_PROB_KEY,
+            evaluation.BINNED_EVENT_FREQS_KEY, evaluation.BINNED_MEAN_PROBS_KEY,
             evaluation.RELIABILITY_KEY, evaluation.RESOLUTION_KEY
         ]
+        integer_keys += [evaluation.BINNED_NUM_EXAMPLES_KEY]
 
     for this_key in float_keys:
         if not numpy.allclose(
