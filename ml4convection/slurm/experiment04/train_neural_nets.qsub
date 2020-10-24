@@ -10,7 +10,7 @@
 #SBATCH --ntasks-per-node=8  # 8 GPUs per node
 #SBATCH --exclusive
 #SBATCH --time=24:00:00
-#SBATCH --array=1-125
+#SBATCH --array=1-125%63
 #SBATCH --exclude=h28n12
 ##SBATCH --exclude=h31n03,h28n12
 ##SBATCH --exclude=h29n01,h26n05,h28n06,h29n07,h30n03,h30n15
@@ -26,7 +26,7 @@ set CODE_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_stan
 set TEMPLATE_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_models/experiment04/templates"
 set TOP_OUTPUT_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_models/experiment04"
 
-set TRAINING_PREDICTOR_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_project/predictors"
+set TRAINING_PREDICTOR_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_project/predictors/quality_controlled"
 set VALIDN_PREDICTOR_DIR_NAME="${TRAINING_PREDICTOR_DIR_NAME}"
 set TRAINING_TARGET_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_project/targets"
 set VALIDN_TARGET_DIR_NAME="${TRAINING_TARGET_DIR_NAME}"
@@ -55,6 +55,7 @@ python3 -u "${CODE_DIR_NAME}/train_neural_net.py" \
 --input_model_file_name="${template_file_name}" \
 --output_model_dir_name="${output_dir_name}" \
 --lead_time_seconds=0 \
+--lag_times_seconds 0 \
 --normalize=1 \
 --uniformize=1 \
 --num_examples_per_batch=32 \
