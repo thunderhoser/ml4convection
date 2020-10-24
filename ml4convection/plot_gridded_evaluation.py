@@ -22,7 +22,6 @@ import evaluation
 import plotting_utils
 
 TOLERANCE = 1e-6
-SMALL_NUMBER = 0.01
 DUMMY_FIELD_NAME = 'reflectivity_column_max_dbz'
 
 MAX_COLOUR_PERCENTILE = 99.
@@ -172,7 +171,6 @@ def _plot_one_score(
             numpy.absolute(score_matrix[numpy.isfinite(score_matrix)] - 1.),
             MAX_COLOUR_PERCENTILE
         )
-        this_offset = max([this_offset, SMALL_NUMBER])
         min_colour_value = 0.
         max_colour_value = 1. + this_offset
 
@@ -195,10 +193,6 @@ def _plot_one_score(
             min_colour_value = numpy.nanpercentile(
                 score_matrix, 100. - MAX_COLOUR_PERCENTILE
             )
-
-        max_colour_value = max([
-            max_colour_value, min_colour_value + SMALL_NUMBER
-        ])
 
         colour_norm_object = pyplot.Normalize(
             vmin=min_colour_value, vmax=max_colour_value
@@ -343,6 +337,19 @@ def _run(advanced_score_file_name, sequential_colour_map_name,
         output_file_name=
         '{0:s}/climo_event_frequency.jpg'.format(output_dir_name),
         title_string='Climatological event frequency (in training data)'
+    )
+
+    _plot_one_score(
+        score_matrix=
+        advanced_score_table_xarray[evaluation.MEAN_FORECAST_PROBS_KEY].values,
+        advanced_score_table_xarray=advanced_score_table_xarray,
+        border_latitudes_deg_n=border_latitudes_deg_n,
+        border_longitudes_deg_e=border_longitudes_deg_e,
+        colour_map_name=sequential_colour_map_name,
+        is_frequency_bias=False, is_bss=False,
+        output_file_name=
+        '{0:s}/mean_forecast_prob.jpg'.format(output_dir_name),
+        title_string='Mean forecast probability'
     )
 
     if probability_threshold is None:

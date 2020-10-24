@@ -40,17 +40,19 @@ NUM_ACTUAL_ORIENTED_TP_KEY = 'num_actual_oriented_true_positives'
 NUM_PREDICTION_ORIENTED_TP_KEY = 'num_prediction_oriented_true_positives'
 NUM_FALSE_NEGATIVES_KEY = 'num_false_negatives'
 NUM_FALSE_POSITIVES_KEY = 'num_false_positives'
+TOTAL_NUM_EXAMPLES_KEY = 'total_num_examples'
+MEAN_FORECAST_PROBS_KEY = 'mean_forecast_probs'
 
-EXAMPLE_COUNT_KEY = 'num_examples'
-SUMMED_FORECAST_PROB_KEY = 'summed_forecast_prob'
-POSITIVE_EXAMPLE_COUNT_KEY = 'num_positive_examples'
-MEAN_FORECAST_PROB_KEY = 'mean_forecast_prob'
-EVENT_FREQUENCY_KEY = 'event_frequency'
+BINNED_NUM_EXAMPLES_KEY = 'num_examples_by_bin'
+BINNED_SUM_PROBS_KEY = 'sum_forecast_probs_by_bin'
+BINNED_NUM_POSITIVES_KEY = 'num_positive_examples_by_bin'
+BINNED_MEAN_PROBS_KEY = 'mean_forecast_prob_by_bin'
+BINNED_EVENT_FREQS_KEY = 'event_frequency_by_bin'
 
-ACTUAL_SSE_KEY = 'actual_sse'
-REFERENCE_SSE_KEY = 'reference_sse'
-BRIER_ACTUAL_SSE_KEY = 'actual_sse_for_brier'
-CLIMO_SSE_KEY = 'climo_sse'
+ACTUAL_SSE_FOR_FSS_KEY = 'actual_sse_for_fss'
+REFERENCE_SSE_FOR_FSS_KEY = 'reference_sse_for_fss'
+ACTUAL_SSE_FOR_BRIER_KEY = 'actual_sse_for_brier'
+CLIMO_SSE_FOR_BRIER_KEY = 'climo_sse_for_brier'
 
 MODEL_FILE_KEY = 'model_file_name'
 MATCHING_DISTANCE_KEY = 'matching_distance_px'
@@ -473,9 +475,10 @@ def _init_basic_score_table(
         this_array_2d = numpy.full((num_grid_rows, num_grid_columns), numpy.nan)
 
         new_dict = {
-            EXAMPLE_COUNT_KEY: (these_dim_3d, this_integer_array_3d + 0),
-            BRIER_ACTUAL_SSE_KEY: (these_dim_3d, this_float_array_3d + 0.),
-            CLIMO_SSE_KEY: (these_dim_3d, this_float_array_3d + 0.),
+            TOTAL_NUM_EXAMPLES_KEY: (these_dim_3d, this_integer_array_3d + 0),
+            MEAN_FORECAST_PROBS_KEY: (these_dim_3d, this_float_array_3d + 0.),
+            ACTUAL_SSE_FOR_BRIER_KEY: (these_dim_3d, this_float_array_3d + 0.),
+            CLIMO_SSE_FOR_BRIER_KEY: (these_dim_3d, this_float_array_3d + 0.),
             TRAINING_EVENT_FREQ_KEY: (these_dim_2d, this_array_2d + 0.)
         }
         main_data_dict.update(new_dict)
@@ -489,9 +492,9 @@ def _init_basic_score_table(
         )
 
         new_dict = {
-            EXAMPLE_COUNT_KEY: (these_dim, this_integer_array + 0),
-            SUMMED_FORECAST_PROB_KEY: (these_dim, this_float_array + 0.),
-            POSITIVE_EXAMPLE_COUNT_KEY: (these_dim, this_integer_array + 0)
+            BINNED_NUM_EXAMPLES_KEY: (these_dim, this_integer_array + 0),
+            BINNED_SUM_PROBS_KEY: (these_dim, this_float_array + 0.),
+            BINNED_NUM_POSITIVES_KEY: (these_dim, this_integer_array + 0)
         }
         main_data_dict.update(new_dict)
 
@@ -505,8 +508,8 @@ def _init_basic_score_table(
         this_array = numpy.full(num_times, numpy.nan)
 
     new_dict = {
-        ACTUAL_SSE_KEY: (these_dim, this_array + 0.),
-        REFERENCE_SSE_KEY: (these_dim, this_array + 0.)
+        ACTUAL_SSE_FOR_FSS_KEY: (these_dim, this_array + 0.),
+        REFERENCE_SSE_FOR_FSS_KEY: (these_dim, this_array + 0.)
     }
     main_data_dict.update(new_dict)
 
@@ -649,13 +652,13 @@ def get_basic_scores_ungridded(
             eroded_eval_mask_matrix=eroded_eval_mask_matrix
         )
 
-        basic_score_table_xarray[EXAMPLE_COUNT_KEY].values[i, :] = (
+        basic_score_table_xarray[BINNED_NUM_EXAMPLES_KEY].values[i, :] = (
             numpy.sum(this_example_count_matrix, axis=(0, 1))
         )
-        basic_score_table_xarray[SUMMED_FORECAST_PROB_KEY].values[i, :] = (
+        basic_score_table_xarray[BINNED_SUM_PROBS_KEY].values[i, :] = (
             numpy.nansum(this_summed_prob_matrix, axis=(0, 1))
         )
-        basic_score_table_xarray[POSITIVE_EXAMPLE_COUNT_KEY].values[i, :] = (
+        basic_score_table_xarray[BINNED_NUM_POSITIVES_KEY].values[i, :] = (
             numpy.sum(this_pos_example_count_matrix, axis=(0, 1))
         )
 
@@ -671,10 +674,10 @@ def get_basic_scores_ungridded(
             )
         )
 
-        basic_score_table_xarray[ACTUAL_SSE_KEY].values[i] = (
+        basic_score_table_xarray[ACTUAL_SSE_FOR_FSS_KEY].values[i] = (
             numpy.nansum(this_actual_sse_matrix)
         )
-        basic_score_table_xarray[REFERENCE_SSE_KEY].values[i] = (
+        basic_score_table_xarray[REFERENCE_SSE_FOR_FSS_KEY].values[i] = (
             numpy.nansum(this_reference_sse_matrix)
         )
 
@@ -828,8 +831,8 @@ def get_basic_scores_gridded(
 
     for i in range(num_times):
         (
-            basic_score_table_xarray[ACTUAL_SSE_KEY].values[i, ...],
-            basic_score_table_xarray[REFERENCE_SSE_KEY].values[i, ...]
+            basic_score_table_xarray[ACTUAL_SSE_FOR_FSS_KEY].values[i, ...],
+            basic_score_table_xarray[REFERENCE_SSE_FOR_FSS_KEY].values[i, ...]
         ) = _get_fss_components_one_time(
             actual_target_matrix=
             prediction_dict[prediction_io.TARGET_MATRIX_KEY][i, ...],
@@ -841,8 +844,8 @@ def get_basic_scores_gridded(
         )
 
         (
-            basic_score_table_xarray[BRIER_ACTUAL_SSE_KEY].values[i, ...],
-            basic_score_table_xarray[CLIMO_SSE_KEY].values[i, ...]
+            basic_score_table_xarray[ACTUAL_SSE_FOR_BRIER_KEY].values[i, ...],
+            basic_score_table_xarray[CLIMO_SSE_FOR_BRIER_KEY].values[i, ...]
         ) = _get_bss_components_one_time(
             actual_target_matrix=
             prediction_dict[prediction_io.TARGET_MATRIX_KEY][i, ...],
@@ -855,11 +858,19 @@ def get_basic_scores_gridded(
         )
 
         this_count_matrix = numpy.invert(numpy.isnan(
-            basic_score_table_xarray[BRIER_ACTUAL_SSE_KEY].values[i, ...]
+            basic_score_table_xarray[ACTUAL_SSE_FOR_BRIER_KEY].values[i, ...]
         )).astype(int)
 
-        basic_score_table_xarray[EXAMPLE_COUNT_KEY].values[i, ...] = (
+        basic_score_table_xarray[TOTAL_NUM_EXAMPLES_KEY].values[i, ...] = (
             this_count_matrix + 0
+        )
+
+        this_prob_matrix = (
+            prediction_dict[prediction_io.PROBABILITY_MATRIX_KEY][i, ...] + 0.
+        )
+        this_prob_matrix[eroded_eval_mask_matrix == False] = numpy.nan
+        basic_score_table_xarray[MEAN_FORECAST_PROBS_KEY].values[i, ...] = (
+            this_prob_matrix + 0.
         )
 
         for j in range(num_prob_thresholds):
@@ -1085,20 +1096,22 @@ def get_advanced_scores_gridded(basic_score_table_xarray):
         training_event_freq_matrix = training_event_freq_matrix[0, ...]
 
     these_dim = (LATITUDE_DIM, LONGITUDE_DIM)
-    this_integer_array = numpy.full(
-        (num_grid_rows, num_grid_columns), 0, dtype=int
-    )
     this_float_array = numpy.full(
         (num_grid_rows, num_grid_columns), numpy.nan
     )
+
+    mean_forecast_prob_matrix = numpy.mean(
+        basic_score_table_xarray[MEAN_FORECAST_PROBS_KEY].values, axis=0
+    )
+
     new_dict = {
-        BRIER_ACTUAL_SSE_KEY: (these_dim, this_float_array + 0),
-        CLIMO_SSE_KEY: (these_dim, this_float_array + 0.),
-        EXAMPLE_COUNT_KEY: (these_dim, this_integer_array + 0),
+        ACTUAL_SSE_FOR_BRIER_KEY: (these_dim, this_float_array + 0),
+        CLIMO_SSE_FOR_BRIER_KEY: (these_dim, this_float_array + 0.),
         BRIER_SCORE_KEY: (these_dim, this_float_array + 0.),
         BRIER_SKILL_SCORE_KEY: (these_dim, this_float_array + 0.),
         FSS_KEY: (these_dim, this_float_array + 0.),
-        TRAINING_EVENT_FREQ_KEY: (these_dim, training_event_freq_matrix + 0.)
+        TRAINING_EVENT_FREQ_KEY: (these_dim, training_event_freq_matrix + 0.),
+        MEAN_FORECAST_PROBS_KEY: (these_dim, mean_forecast_prob_matrix + 0.)
     }
     main_data_dict.update(new_dict)
 
@@ -1151,28 +1164,31 @@ def get_advanced_scores_gridded(basic_score_table_xarray):
                     i, j, k
                 ] = _get_frequency_bias(this_contingency_table)
 
-            a[BRIER_ACTUAL_SSE_KEY].values[i, j] = numpy.nansum(
-                b[BRIER_ACTUAL_SSE_KEY].values[:, i, j]
+            a[ACTUAL_SSE_FOR_BRIER_KEY].values[i, j] = numpy.nansum(
+                b[ACTUAL_SSE_FOR_BRIER_KEY].values[:, i, j]
             )
-            a[CLIMO_SSE_KEY].values[i, j] = numpy.nansum(
-                b[CLIMO_SSE_KEY].values[:, i, j]
+            a[CLIMO_SSE_FOR_BRIER_KEY].values[i, j] = numpy.nansum(
+                b[CLIMO_SSE_FOR_BRIER_KEY].values[:, i, j]
             )
-            a[EXAMPLE_COUNT_KEY].values[i, j] = numpy.sum(
-                b[EXAMPLE_COUNT_KEY].values[:, i, j]
+            this_num_examples = numpy.sum(
+                b[TOTAL_NUM_EXAMPLES_KEY].values[:, i, j]
             )
 
-            if a[EXAMPLE_COUNT_KEY].values[i, j] > 0:
+            if this_num_examples > 0:
                 a[BRIER_SCORE_KEY].values[i, j] = (
-                    a[BRIER_ACTUAL_SSE_KEY].values[i, j] /
-                    a[EXAMPLE_COUNT_KEY].values[i, j]
+                    a[ACTUAL_SSE_FOR_BRIER_KEY].values[i, j] / this_num_examples
                 )
                 a[BRIER_SKILL_SCORE_KEY].values[i, j] = 1. - (
-                    a[BRIER_ACTUAL_SSE_KEY].values[i, j] /
-                    a[CLIMO_SSE_KEY].values[i, j]
+                    a[ACTUAL_SSE_FOR_BRIER_KEY].values[i, j] /
+                    a[CLIMO_SSE_FOR_BRIER_KEY].values[i, j]
                 )
 
-            this_actual_sse = numpy.sum(b[ACTUAL_SSE_KEY].values[:, i, j])
-            this_reference_sse = numpy.sum(b[REFERENCE_SSE_KEY].values[:, i, j])
+            this_actual_sse = numpy.sum(
+                b[ACTUAL_SSE_FOR_FSS_KEY].values[:, i, j]
+            )
+            this_reference_sse = numpy.sum(
+                b[REFERENCE_SSE_FOR_FSS_KEY].values[:, i, j]
+            )
             a[FSS_KEY].values[i, j] = 1. - this_actual_sse / this_reference_sse
 
     advanced_score_table_xarray = a
@@ -1224,9 +1240,9 @@ def get_advanced_scores_ungridded(basic_score_table_xarray,
     this_integer_array = numpy.full(num_bins_for_reliability, 0, dtype=int)
     this_float_array = numpy.full(num_bins_for_reliability, numpy.nan)
     new_dict = {
-        EXAMPLE_COUNT_KEY: (these_dim, this_integer_array + 0),
-        MEAN_FORECAST_PROB_KEY: (these_dim, this_float_array + 0.),
-        EVENT_FREQUENCY_KEY: (these_dim, this_float_array + 0.)
+        BINNED_NUM_EXAMPLES_KEY: (these_dim, this_integer_array + 0),
+        BINNED_MEAN_PROBS_KEY: (these_dim, this_float_array + 0.),
+        BINNED_EVENT_FREQS_KEY: (these_dim, this_float_array + 0.)
     }
     main_data_dict.update(new_dict)
 
@@ -1289,35 +1305,37 @@ def get_advanced_scores_ungridded(basic_score_table_xarray,
         )
 
     for k in range(num_bins_for_reliability):
-        this_num_examples = numpy.sum(b[EXAMPLE_COUNT_KEY].values[:, k])
+        this_num_examples = numpy.sum(b[BINNED_NUM_EXAMPLES_KEY].values[:, k])
         if this_num_examples == 0:
             continue
 
         this_sum_forecast_probs = numpy.nansum(
-            b[SUMMED_FORECAST_PROB_KEY].values[:, k]
+            b[BINNED_SUM_PROBS_KEY].values[:, k]
         )
         this_num_positive_examples = numpy.sum(
-            b[POSITIVE_EXAMPLE_COUNT_KEY].values[:, k]
+            b[BINNED_NUM_POSITIVES_KEY].values[:, k]
         )
 
-        advanced_score_table_xarray[EXAMPLE_COUNT_KEY].values[k] = (
+        advanced_score_table_xarray[BINNED_NUM_EXAMPLES_KEY].values[k] = (
             this_num_examples
         )
-        advanced_score_table_xarray[MEAN_FORECAST_PROB_KEY].values[k] = (
+        advanced_score_table_xarray[BINNED_MEAN_PROBS_KEY].values[k] = (
             this_sum_forecast_probs / this_num_examples
         )
-        advanced_score_table_xarray[EVENT_FREQUENCY_KEY].values[k] = (
+        advanced_score_table_xarray[BINNED_EVENT_FREQS_KEY].values[k] = (
             float(this_num_positive_examples) / this_num_examples
         )
 
-    if numpy.any(advanced_score_table_xarray[EXAMPLE_COUNT_KEY].values > 0):
+    if numpy.any(
+            advanced_score_table_xarray[BINNED_NUM_EXAMPLES_KEY].values > 0
+    ):
         this_bss_dict = gg_model_eval.get_brier_skill_score(
             mean_forecast_prob_by_bin=
-            advanced_score_table_xarray[MEAN_FORECAST_PROB_KEY].values,
+            advanced_score_table_xarray[BINNED_MEAN_PROBS_KEY].values,
             mean_observed_label_by_bin=
-            advanced_score_table_xarray[EVENT_FREQUENCY_KEY].values,
+            advanced_score_table_xarray[BINNED_EVENT_FREQS_KEY].values,
             num_examples_by_bin=
-            advanced_score_table_xarray[EXAMPLE_COUNT_KEY].values,
+            advanced_score_table_xarray[BINNED_NUM_EXAMPLES_KEY].values,
             climatology=
             advanced_score_table_xarray[TRAINING_EVENT_FREQ_KEY].values[0]
         )
@@ -1335,9 +1353,11 @@ def get_advanced_scores_ungridded(basic_score_table_xarray,
             this_bss_dict[gg_model_eval.RESOLUTION_KEY]
         )
 
-    actual_sse = numpy.sum(basic_score_table_xarray[ACTUAL_SSE_KEY].values)
+    actual_sse = numpy.sum(
+        basic_score_table_xarray[ACTUAL_SSE_FOR_FSS_KEY].values
+    )
     reference_sse = numpy.sum(
-        basic_score_table_xarray[REFERENCE_SSE_KEY].values
+        basic_score_table_xarray[REFERENCE_SSE_FOR_FSS_KEY].values
     )
     advanced_score_table_xarray[FSS_KEY].values[0] = (
         1. - actual_sse / reference_sse
