@@ -2,6 +2,8 @@
 
 import os
 import sys
+import copy
+import numpy
 from tensorflow.keras import backend as K
 
 THIS_DIRECTORY_NAME = os.path.dirname(os.path.realpath(
@@ -56,9 +58,13 @@ def weighted_xentropy(class_weights):
     return loss
 
 
-def fractions_skill_score(half_window_size_px, use_as_loss_function,
-                          function_name=None, test_mode=False):
+def fractions_skill_score(
+        half_window_size_px, use_as_loss_function, mask_matrix,
+        function_name=None, test_mode=False):
     """Fractions skill score (FSS).
+
+    M = number of rows in grid
+    N = number of columns in grid
 
     :param half_window_size_px: Number of pixels (grid cells) in half of
         smoothing window (on either side of center).  If this argument is K, the
@@ -68,13 +74,18 @@ def fractions_skill_score(half_window_size_px, use_as_loss_function,
         negatively oriented.  Thus, if `use_as_loss_function == True`, will
         return 1 - FSS.  If `use_as_loss_function == False`, will return just
         FSS.
+    :param mask_matrix: M-by-N numpy array of Boolean flags.  Grid cells marked
+        "False" are masked out and not used to compute the loss.
     :param function_name: Function name (string).
     :param test_mode: Leave this alone.
     :return: loss: Loss function (defined below).
     """
 
+    error_checking.assert_is_boolean_numpy_array(mask_matrix)
+    error_checking.assert_is_numpy_array(mask_matrix, num_dimensions=2)
     error_checking.assert_is_boolean(use_as_loss_function)
     error_checking.assert_is_boolean(test_mode)
+
     if function_name is not None:
         error_checking.assert_is_string(function_name)
 
@@ -83,6 +94,18 @@ def fractions_skill_score(half_window_size_px, use_as_loss_function,
     weight_matrix = general_utils.create_mean_filter(
         half_num_rows=half_window_size_px,
         half_num_columns=half_window_size_px, num_channels=1
+    )
+
+    if test_mode:
+        eroded_mask_matrix = copy.deepcopy(mask_matrix)
+    else:
+        eroded_mask_matrix = general_utils.erode_binary_matrix(
+            binary_matrix=copy.deepcopy(mask_matrix),
+            buffer_distance_px=half_window_size_px
+        )
+
+    eroded_mask_matrix = numpy.expand_dims(
+        eroded_mask_matrix.astype(float), axis=(0, -1)
     )
 
     def loss(target_tensor, prediction_tensor):
@@ -103,6 +126,12 @@ def fractions_skill_score(half_window_size_px, use_as_loss_function,
             x=prediction_tensor, kernel=weight_matrix,
             padding='same' if test_mode else 'valid',
             strides=(1, 1), data_format='channels_last'
+        )
+
+        eroded_mask_tensor = K.variable(eroded_mask_matrix)
+        smoothed_target_tensor = smoothed_target_tensor * eroded_mask_tensor
+        smoothed_prediction_tensor = (
+            smoothed_prediction_tensor * eroded_mask_tensor
         )
 
         actual_mse = K.mean(

@@ -968,6 +968,7 @@ def read_model(hdf5_file_name):
     if fss_half_window_size_px is not None:
         custom_object_dict['loss'] = custom_losses.fractions_skill_score(
             half_window_size_px=fss_half_window_size_px,
+            mask_matrix=metadata_dict[MASK_MATRIX_KEY],
             use_as_loss_function=True
         )
     elif class_weights is not None:
