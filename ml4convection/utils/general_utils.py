@@ -3,6 +3,7 @@
 import numpy
 from scipy.ndimage import distance_transform_edt
 from scipy.interpolate import LinearNDInterpolator
+from scipy.ndimage.morphology import binary_dilation, binary_erosion
 from gewittergefahr.gg_utils import error_checking
 from gewittergefahr.gg_utils import time_conversion
 
@@ -65,6 +66,98 @@ def create_mean_filter(half_num_rows, half_num_columns, num_channels):
     return numpy.full(
         (num_rows, num_columns, num_channels, num_channels), weight
     )
+
+
+def check_2d_binary_matrix(binary_matrix):
+    """Error-checks 2-D binary matrix.
+
+    :param binary_matrix: 2-D numpy array, containing either Boolean flags or
+        integers in 0...1.
+    :return: is_boolean: Boolean flag, indicating whether or not matrix is
+        Boolean.
+    """
+
+    error_checking.assert_is_numpy_array(binary_matrix, num_dimensions=2)
+
+    try:
+        error_checking.assert_is_boolean_numpy_array(binary_matrix)
+        return True
+    except TypeError:
+        error_checking.assert_is_integer_numpy_array(binary_matrix)
+        error_checking.assert_is_geq_numpy_array(binary_matrix, 0)
+        error_checking.assert_is_leq_numpy_array(binary_matrix, 1)
+        return False
+
+
+def get_structure_matrix(buffer_distance_px):
+    """Creates structure matrix for dilation or erosion.
+
+    :param buffer_distance_px: Buffer distance (number of pixels).
+    :return: structure_matrix: 2-D numpy array of Boolean flags.
+    """
+
+    # TODO(thunderhoser): This method is implicitly tested in
+    # evaluation_test.py.
+
+    error_checking.assert_is_geq(buffer_distance_px, 0.)
+
+    half_grid_size_px = int(numpy.ceil(buffer_distance_px))
+    pixel_offsets = numpy.linspace(
+        -half_grid_size_px, half_grid_size_px, num=2 * half_grid_size_px + 1,
+        dtype=float
+    )
+
+    column_offset_matrix, row_offset_matrix = numpy.meshgrid(
+        pixel_offsets, pixel_offsets
+    )
+    distance_matrix_px = numpy.sqrt(
+        row_offset_matrix ** 2 + column_offset_matrix ** 2
+    )
+    return distance_matrix_px <= buffer_distance_px
+
+
+def dilate_binary_matrix(binary_matrix, buffer_distance_px):
+    """Dilates binary matrix.
+
+    :param binary_matrix: See doc for `check_2d_binary_matrix`.
+    :param buffer_distance_px: Buffer distance (pixels).
+    :return: dilated_binary_matrix: Dilated version of input.
+    """
+
+    # TODO(thunderhoser): This method is implicitly tested in
+    # evaluation_test.py.
+
+    check_2d_binary_matrix(binary_matrix)
+    error_checking.assert_is_geq(buffer_distance_px, 0.)
+
+    structure_matrix = get_structure_matrix(buffer_distance_px)
+    dilated_binary_matrix = binary_dilation(
+        binary_matrix.astype(int), structure=structure_matrix, iterations=1,
+        border_value=0
+    )
+    return dilated_binary_matrix.astype(binary_matrix.dtype)
+
+
+def erode_binary_matrix(binary_matrix, buffer_distance_px):
+    """Erodes binary matrix.
+
+    :param binary_matrix: See doc for `check_2d_binary_matrix`.
+    :param buffer_distance_px: Buffer distance (pixels).
+    :return: eroded_binary_matrix: Eroded version of input.
+    """
+
+    # TODO(thunderhoser): This method is implicitly tested in
+    # evaluation_test.py.
+
+    check_2d_binary_matrix(binary_matrix)
+    error_checking.assert_is_geq(buffer_distance_px, 0.)
+
+    structure_matrix = get_structure_matrix(buffer_distance_px)
+    eroded_binary_matrix = binary_erosion(
+        binary_matrix.astype(int), structure=structure_matrix, iterations=1,
+        border_value=1
+    )
+    return eroded_binary_matrix.astype(binary_matrix.dtype)
 
 
 def fill_nans(data_matrix):

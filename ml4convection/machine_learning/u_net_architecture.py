@@ -2,7 +2,6 @@
 
 import numpy
 import keras
-from keras import backend as K
 from gewittergefahr.gg_utils import error_checking
 from gewittergefahr.deep_learning import architecture_utils
 from ml4convection.machine_learning import neural_net
@@ -141,7 +140,7 @@ def _check_architecture_args(option_dict):
     return option_dict
 
 
-def create_model(option_dict, loss_function, mask_matrix=None):
+def create_model(option_dict, loss_function):
     """Creates U-net.
 
     This method sets up the architecture, loss function, and optimizer -- and
@@ -152,17 +151,11 @@ def create_model(option_dict, loss_function, mask_matrix=None):
 
     :param option_dict: See doc for `_check_architecture_args`.
     :param loss_function: Loss function.
-    :param mask_matrix: M-by-N numpy array of Boolean flags (False for masked
-        grid cells).
     :return: model_object: Instance of `keras.models.Model`, with the
         aforementioned architecture.
     """
 
     option_dict = _check_architecture_args(option_dict)
-
-    if mask_matrix is not None:
-        error_checking.assert_is_boolean_numpy_array(mask_matrix)
-        error_checking.assert_is_numpy_array(mask_matrix, num_dimensions=2)
 
     input_dimensions = option_dict[INPUT_DIMENSIONS_KEY]
     num_levels = option_dict[NUM_LEVELS_KEY]
@@ -394,13 +387,13 @@ def create_model(option_dict, loss_function, mask_matrix=None):
         alpha_for_elu=output_activ_function_alpha
     )(skip_layer_by_level[0])
 
-    if mask_matrix is not None:
-        this_matrix = numpy.expand_dims(
-            mask_matrix.astype(float), axis=(0, -1)
-        )
-        skip_layer_by_level[0] = keras.layers.Multiply()([
-            this_matrix, skip_layer_by_level[0]
-        ])
+    # if mask_matrix is not None:
+    #     this_matrix = numpy.expand_dims(
+    #         mask_matrix.astype(float), axis=(0, -1)
+    #     )
+    #     skip_layer_by_level[0] = keras.layers.Multiply()([
+    #         this_matrix, skip_layer_by_level[0]
+    #     ])
 
     model_object = keras.models.Model(
         inputs=input_layer_object, outputs=skip_layer_by_level[0]

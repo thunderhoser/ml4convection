@@ -47,6 +47,8 @@ PREDICTION_MATRIX = numpy.array([
     [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
 ])
 
+MASK_MATRIX = numpy.full(TARGET_MATRIX.shape, True, dtype=bool)
+
 TARGET_TENSOR = tensorflow.constant(TARGET_MATRIX, dtype=tensorflow.float32)
 TARGET_TENSOR = tensorflow.expand_dims(TARGET_TENSOR, 0)
 TARGET_TENSOR = tensorflow.expand_dims(TARGET_TENSOR, -1)
@@ -196,7 +198,8 @@ class CustomLossesTests(unittest.TestCase):
         """
 
         this_loss_function = custom_losses.fractions_skill_score(
-            half_window_size_px=0, use_as_loss_function=False, test_mode=True
+            half_window_size_px=0, mask_matrix=MASK_MATRIX,
+            use_as_loss_function=False, test_mode=True
         )
         this_fss = K.eval(
             this_loss_function(TARGET_TENSOR, PREDICTION_TENSOR)
@@ -213,7 +216,8 @@ class CustomLossesTests(unittest.TestCase):
         """
 
         this_loss_function = custom_losses.fractions_skill_score(
-            half_window_size_px=1, use_as_loss_function=False, test_mode=True
+            half_window_size_px=1, mask_matrix=MASK_MATRIX,
+            use_as_loss_function=False, test_mode=True
         )
         this_fss = K.eval(
             this_loss_function(TARGET_TENSOR, PREDICTION_TENSOR)
@@ -230,7 +234,8 @@ class CustomLossesTests(unittest.TestCase):
         """
 
         this_loss_function = custom_losses.fractions_skill_score(
-            half_window_size_px=2, use_as_loss_function=False, test_mode=True
+            half_window_size_px=2, mask_matrix=MASK_MATRIX,
+            use_as_loss_function=False, test_mode=True
         )
         this_fss = K.eval(
             this_loss_function(TARGET_TENSOR, PREDICTION_TENSOR)
@@ -247,7 +252,8 @@ class CustomLossesTests(unittest.TestCase):
         """
 
         this_loss_function = custom_losses.fractions_skill_score(
-            half_window_size_px=16, use_as_loss_function=False, test_mode=True
+            half_window_size_px=16, mask_matrix=MASK_MATRIX,
+            use_as_loss_function=False, test_mode=True
         )
         this_fss = K.eval(
             this_loss_function(TARGET_TENSOR, PREDICTION_TENSOR)

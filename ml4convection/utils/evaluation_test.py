@@ -7,6 +7,7 @@ import xarray
 from gewittergefahr.gg_utils import model_evaluation as gg_model_eval
 from ml4convection.io import prediction_io
 from ml4convection.utils import evaluation
+from ml4convection.utils import general_utils
 
 TOLERANCE = 1e-6
 
@@ -1245,7 +1246,7 @@ class EvaluationTests(unittest.TestCase):
         In this case, using first dilation distance.
         """
 
-        this_matrix = evaluation.dilate_binary_matrix(
+        this_matrix = general_utils.dilate_binary_matrix(
             binary_matrix=TOY_MASK_MATRIX,
             buffer_distance_px=FIRST_DILATION_DISTANCE_PX
         )
@@ -1260,7 +1261,7 @@ class EvaluationTests(unittest.TestCase):
         In this case, using second dilation distance.
         """
 
-        this_matrix = evaluation.dilate_binary_matrix(
+        this_matrix = general_utils.dilate_binary_matrix(
             binary_matrix=TOY_MASK_MATRIX,
             buffer_distance_px=SECOND_DILATION_DISTANCE_PX
         )
@@ -1275,7 +1276,7 @@ class EvaluationTests(unittest.TestCase):
         In this case, using third dilation distance.
         """
 
-        this_matrix = evaluation.dilate_binary_matrix(
+        this_matrix = general_utils.dilate_binary_matrix(
             binary_matrix=TOY_MASK_MATRIX,
             buffer_distance_px=THIRD_DILATION_DISTANCE_PX
         )
@@ -1290,7 +1291,7 @@ class EvaluationTests(unittest.TestCase):
         In this case, using fourth dilation distance.
         """
 
-        this_matrix = evaluation.dilate_binary_matrix(
+        this_matrix = general_utils.dilate_binary_matrix(
             binary_matrix=TOY_MASK_MATRIX,
             buffer_distance_px=FOURTH_DILATION_DISTANCE_PX
         )
@@ -1305,7 +1306,7 @@ class EvaluationTests(unittest.TestCase):
         In this case, using first erosion distance.
         """
 
-        this_matrix = evaluation.erode_binary_matrix(
+        this_matrix = general_utils.erode_binary_matrix(
             binary_matrix=TOY_MASK_MATRIX,
             buffer_distance_px=FIRST_DILATION_DISTANCE_PX
         )
@@ -1320,7 +1321,7 @@ class EvaluationTests(unittest.TestCase):
         In this case, using second erosion distance.
         """
 
-        this_matrix = evaluation.erode_binary_matrix(
+        this_matrix = general_utils.erode_binary_matrix(
             binary_matrix=TOY_MASK_MATRIX,
             buffer_distance_px=SECOND_DILATION_DISTANCE_PX
         )
@@ -1335,7 +1336,7 @@ class EvaluationTests(unittest.TestCase):
         In this case, using third erosion distance.
         """
 
-        this_matrix = evaluation.erode_binary_matrix(
+        this_matrix = general_utils.erode_binary_matrix(
             binary_matrix=TOY_MASK_MATRIX,
             buffer_distance_px=THIRD_DILATION_DISTANCE_PX
         )
@@ -1388,7 +1389,7 @@ class EvaluationTests(unittest.TestCase):
         In this case, using second matching distance.
         """
 
-        this_mask_matrix = evaluation.erode_binary_matrix(
+        this_mask_matrix = general_utils.erode_binary_matrix(
             binary_matrix=MASK_MATRIX,
             buffer_distance_px=SECOND_MATCHING_DISTANCE_PX
         )
@@ -1412,7 +1413,7 @@ class EvaluationTests(unittest.TestCase):
         In this case, using second matching distance.
         """
 
-        this_mask_matrix = evaluation.erode_binary_matrix(
+        this_mask_matrix = general_utils.erode_binary_matrix(
             binary_matrix=MASK_MATRIX,
             buffer_distance_px=SECOND_MATCHING_DISTANCE_PX
         )
@@ -1464,7 +1465,7 @@ class EvaluationTests(unittest.TestCase):
         In this case, using second matching distance.
         """
 
-        this_mask_matrix = evaluation.erode_binary_matrix(
+        this_mask_matrix = general_utils.erode_binary_matrix(
             binary_matrix=MASK_MATRIX,
             buffer_distance_px=SECOND_MATCHING_DISTANCE_PX
         )

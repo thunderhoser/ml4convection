@@ -7,7 +7,7 @@ from ml4convection.io import radar_io
 from ml4convection.io import example_io
 from ml4convection.io import twb_satellite_io
 from ml4convection.io import climatology_io
-from ml4convection.utils import evaluation
+from ml4convection.utils import general_utils
 
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 MINOR_SEPARATOR_STRING = '\n\n' + '-' * 50 + '\n\n'
@@ -100,7 +100,7 @@ def _run(top_target_dir_name, first_date_string, last_date_string,
     print('Eroding mask with erosion distance = {0:f} pixels...'.format(
         dilation_distance_px
     ))
-    mask_matrix = evaluation.erode_binary_matrix(
+    mask_matrix = general_utils.erode_binary_matrix(
         binary_matrix=mask_dict[radar_io.MASK_MATRIX_KEY],
         buffer_distance_px=dilation_distance_px
     )
@@ -123,7 +123,7 @@ def _run(top_target_dir_name, first_date_string, last_date_string,
         valid_times_unix_sec = target_dict[example_io.VALID_TIMES_KEY]
 
         for i in range(len(valid_times_unix_sec)):
-            target_matrix = evaluation.dilate_binary_matrix(
+            target_matrix = general_utils.dilate_binary_matrix(
                 binary_matrix=
                 target_dict[example_io.TARGET_MATRIX_KEY][i, ...],
                 buffer_distance_px=dilation_distance_px

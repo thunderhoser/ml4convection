@@ -5,7 +5,6 @@ import os.path
 import numpy
 import xarray
 from scipy.signal import convolve2d
-from scipy.ndimage.morphology import binary_dilation, binary_erosion
 from gewittergefahr.gg_utils import histograms
 from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import number_rounding
@@ -13,6 +12,7 @@ from gewittergefahr.gg_utils import model_evaluation as gg_model_eval
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
 from ml4convection.io import prediction_io
+from ml4convection.utils import general_utils
 from ml4convection.machine_learning import neural_net
 
 TOLERANCE = 1e-6
@@ -64,49 +64,6 @@ RESOLUTION_KEY = 'resolution'
 FSS_KEY = 'fractions_skill_score'
 
 
-def _check_2d_binary_matrix(binary_matrix):
-    """Error-checks 2-D binary matrix.
-
-    :param binary_matrix: 2-D numpy array, containing either Boolean flags or
-        integers in 0...1.
-    :return: is_boolean: Boolean flag, indicating whether or not matrix is
-        Boolean.
-    """
-
-    error_checking.assert_is_numpy_array(binary_matrix, num_dimensions=2)
-
-    try:
-        error_checking.assert_is_boolean_numpy_array(binary_matrix)
-        return True
-    except TypeError:
-        error_checking.assert_is_integer_numpy_array(binary_matrix)
-        error_checking.assert_is_geq_numpy_array(binary_matrix, 0)
-        error_checking.assert_is_leq_numpy_array(binary_matrix, 1)
-        return False
-
-
-def _get_structure_matrix(buffer_distance_px):
-    """Creates structure matrix for dilation or erosion.
-
-    :param buffer_distance_px: Buffer distance (number of pixels).
-    :return: structure_matrix: 2-D numpy array of Boolean flags.
-    """
-
-    half_grid_size_px = int(numpy.ceil(buffer_distance_px))
-    pixel_offsets = numpy.linspace(
-        -half_grid_size_px, half_grid_size_px, num=2*half_grid_size_px + 1,
-        dtype=float
-    )
-
-    column_offset_matrix, row_offset_matrix = numpy.meshgrid(
-        pixel_offsets, pixel_offsets
-    )
-    distance_matrix_px = numpy.sqrt(
-        row_offset_matrix ** 2 + column_offset_matrix ** 2
-    )
-    return distance_matrix_px <= buffer_distance_px
-
-
 def _match_actual_convection_one_time(
         actual_target_matrix, predicted_target_matrix, matching_distance_px,
         eroded_eval_mask_matrix):
@@ -128,7 +85,7 @@ def _match_actual_convection_one_time(
         is not predicted, 1 where actual convection occurs and is predicted).
     """
 
-    fancy_prediction_matrix = dilate_binary_matrix(
+    fancy_prediction_matrix = general_utils.dilate_binary_matrix(
         binary_matrix=predicted_target_matrix,
         buffer_distance_px=matching_distance_px
     ).astype(int)
@@ -154,7 +111,7 @@ def _match_predicted_convection_one_time(
         not occur, 1 where convection is predicted and occurs).
     """
 
-    fancy_target_matrix = dilate_binary_matrix(
+    fancy_target_matrix = general_utils.dilate_binary_matrix(
         binary_matrix=actual_target_matrix,
         buffer_distance_px=matching_distance_px
     ).astype(int)
@@ -190,7 +147,7 @@ def _get_reliability_components_one_time(
         example counts.
     """
 
-    dilated_actual_target_matrix = dilate_binary_matrix(
+    dilated_actual_target_matrix = general_utils.dilate_binary_matrix(
         binary_matrix=actual_target_matrix,
         buffer_distance_px=matching_distance_px
     ).astype(int)
@@ -248,14 +205,16 @@ def _get_fss_components_one_time(
     # anyways.
 
     if square_filter:
-        structure_matrix = _get_structure_matrix(
+        structure_matrix = general_utils.get_structure_matrix(
             numpy.round(matching_distance_px)
         )
         weight_matrix = numpy.full(
             structure_matrix.shape, 1. / structure_matrix.size
         )
     else:
-        structure_matrix = _get_structure_matrix(matching_distance_px)
+        structure_matrix = general_utils.get_structure_matrix(
+            matching_distance_px
+        )
         weight_matrix = structure_matrix.astype(float)
         weight_matrix = weight_matrix / numpy.sum(weight_matrix)
 
@@ -299,7 +258,7 @@ def _get_bss_components_one_time(
         each grid cell, obtained by always predicting climatology.
     """
 
-    dilated_actual_target_matrix = dilate_binary_matrix(
+    dilated_actual_target_matrix = general_utils.dilate_binary_matrix(
         binary_matrix=actual_target_matrix,
         buffer_distance_px=matching_distance_px
     ).astype(int)
@@ -509,44 +468,6 @@ def _init_basic_score_table(
     return xarray.Dataset(data_vars=main_data_dict, coords=metadata_dict)
 
 
-def dilate_binary_matrix(binary_matrix, buffer_distance_px):
-    """Dilates binary matrix.
-
-    :param binary_matrix: See doc for `_check_2d_binary_matrix`.
-    :param buffer_distance_px: Buffer distance (pixels).
-    :return: dilated_binary_matrix: Dilated version of input.
-    """
-
-    _check_2d_binary_matrix(binary_matrix)
-    error_checking.assert_is_geq(buffer_distance_px, 0.)
-
-    structure_matrix = _get_structure_matrix(buffer_distance_px)
-    dilated_binary_matrix = binary_dilation(
-        binary_matrix.astype(int), structure=structure_matrix, iterations=1,
-        border_value=0
-    )
-    return dilated_binary_matrix.astype(binary_matrix.dtype)
-
-
-def erode_binary_matrix(binary_matrix, buffer_distance_px):
-    """Erodes binary matrix.
-
-    :param binary_matrix: See doc for `_check_2d_binary_matrix`.
-    :param buffer_distance_px: Buffer distance (pixels).
-    :return: eroded_binary_matrix: Eroded version of input.
-    """
-
-    _check_2d_binary_matrix(binary_matrix)
-    error_checking.assert_is_geq(buffer_distance_px, 0.)
-
-    structure_matrix = _get_structure_matrix(buffer_distance_px)
-    eroded_binary_matrix = binary_erosion(
-        binary_matrix.astype(int), structure=structure_matrix, iterations=1,
-        border_value=1
-    )
-    return eroded_binary_matrix.astype(binary_matrix.dtype)
-
-
 def get_basic_scores_ungridded(
         prediction_file_name, matching_distance_px, square_fss_filter=True,
         num_prob_thresholds=DEFAULT_NUM_PROB_THRESHOLDS,
@@ -592,7 +513,7 @@ def get_basic_scores_ungridded(
         eval_mask_matrix = model_metadata_dict[neural_net.MASK_MATRIX_KEY]
 
     # Check input args.
-    _check_2d_binary_matrix(eval_mask_matrix)
+    general_utils.check_2d_binary_matrix(eval_mask_matrix)
     error_checking.assert_is_geq(matching_distance_px, 0.)
     error_checking.assert_is_boolean(square_fss_filter)
     error_checking.assert_is_integer(num_prob_thresholds)
@@ -619,7 +540,7 @@ def get_basic_scores_ungridded(
     basic_score_table_xarray.attrs[SQUARE_FSS_FILTER_KEY] = square_fss_filter
 
     # Do actual stuff.
-    eroded_eval_mask_matrix = erode_binary_matrix(
+    eroded_eval_mask_matrix = general_utils.erode_binary_matrix(
         binary_matrix=eval_mask_matrix, buffer_distance_px=matching_distance_px
     )
     valid_time_strings = [
@@ -778,7 +699,7 @@ def get_basic_scores_gridded(
         eval_mask_matrix = model_metadata_dict[neural_net.MASK_MATRIX_KEY]
 
     # Check input args.
-    _check_2d_binary_matrix(eval_mask_matrix)
+    general_utils.check_2d_binary_matrix(eval_mask_matrix)
     error_checking.assert_is_geq(matching_distance_px, 0.)
     error_checking.assert_is_boolean(square_fss_filter)
     error_checking.assert_is_numpy_array(
@@ -811,7 +732,7 @@ def get_basic_scores_gridded(
     basic_score_table_xarray.attrs[SQUARE_FSS_FILTER_KEY] = square_fss_filter
 
     # Do actual stuff.
-    eroded_eval_mask_matrix = erode_binary_matrix(
+    eroded_eval_mask_matrix = general_utils.erode_binary_matrix(
         binary_matrix=eval_mask_matrix, buffer_distance_px=matching_distance_px
     )
     valid_time_strings = [
