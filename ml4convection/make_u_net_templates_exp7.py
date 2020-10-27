@@ -90,7 +90,7 @@ def _run():
 
                 this_model_object = u_net_architecture.create_model(
                     option_dict=this_option_dict,
-                    loss_function=this_loss_function
+                    loss_function=this_loss_function, mask_matrix=mask_matrix
                 )
 
                 this_model_file_name = (
