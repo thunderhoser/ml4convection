@@ -1,10 +1,46 @@
 """Custom metrics for Keras models."""
 
+import copy
+import numpy
 import tensorflow
 from tensorflow.keras import backend as K
 from gewittergefahr.gg_utils import error_checking
+from ml4convection.utils import general_utils
 
 TOLERANCE = 1e-6
+
+
+def _check_input_args(half_window_size_px, mask_matrix, function_name,
+                      test_mode):
+    """Error-checks input arguments for any metric.
+
+    :param half_window_size_px: See doc for `pod`.
+    :param mask_matrix: Same.
+    :param function_name: Same.
+    :param test_mode: Same.
+    :return: eroded_mask_matrix: Eroded version of input.
+    """
+
+    error_checking.assert_is_integer(half_window_size_px)
+    error_checking.assert_is_geq(half_window_size_px, 0)
+    error_checking.assert_is_boolean_numpy_array(mask_matrix)
+    error_checking.assert_is_numpy_array(mask_matrix, num_dimensions=2)
+    error_checking.assert_is_boolean(test_mode)
+
+    if function_name is not None:
+        error_checking.assert_is_string(function_name)
+
+    if test_mode:
+        eroded_mask_matrix = copy.deepcopy(mask_matrix)
+    else:
+        eroded_mask_matrix = general_utils.erode_binary_matrix(
+            binary_matrix=copy.deepcopy(mask_matrix),
+            buffer_distance_px=half_window_size_px
+        )
+
+    return numpy.expand_dims(
+        eroded_mask_matrix.astype(float), axis=(0, -1)
+    )
 
 
 def _apply_max_filter(input_tensor, half_window_size_px, test_mode):
@@ -27,21 +63,24 @@ def _apply_max_filter(input_tensor, half_window_size_px, test_mode):
     )
 
 
-def pod(half_window_size_px, function_name=None, test_mode=False):
+def pod(half_window_size_px, mask_matrix, function_name=None, test_mode=False):
     """Creates function to compute probability of detection.
 
+    M = number of rows in grid
+    N = number of columns in grid
+
     :param half_window_size_px: See doc for `_apply_max_filter`.
+    :param mask_matrix: M-by-N numpy array of Boolean flags.  Grid cells marked
+        "False" are masked out and not used to compute the loss.
     :param function_name: Function name (string).
     :param test_mode: Leave this alone.
     :return: pod_function: Function (defined below).
     """
 
-    error_checking.assert_is_integer(half_window_size_px)
-    error_checking.assert_is_geq(half_window_size_px, 0)
-    error_checking.assert_is_boolean(test_mode)
-
-    if function_name is not None:
-        error_checking.assert_is_string(function_name)
+    eroded_mask_matrix = _check_input_args(
+        half_window_size_px=half_window_size_px, mask_matrix=mask_matrix,
+        function_name=function_name, test_mode=test_mode
+    )
 
     def pod_function(target_tensor, prediction_tensor):
         """Computes probability of detection.
@@ -56,11 +95,17 @@ def pod(half_window_size_px, function_name=None, test_mode=False):
             half_window_size_px=half_window_size_px, test_mode=test_mode
         )
 
+        eroded_mask_tensor = K.variable(eroded_mask_matrix)
+        masked_prediction_tensor = (
+            eroded_mask_tensor * filtered_prediction_tensor
+        )
+        masked_target_tensor = eroded_mask_tensor * target_tensor
+
         num_actual_oriented_true_positives = K.sum(
-            target_tensor * filtered_prediction_tensor
+            masked_target_tensor * masked_prediction_tensor
         )
         num_false_negatives = K.sum(
-            target_tensor * (1 - filtered_prediction_tensor)
+            masked_target_tensor * (1 - masked_prediction_tensor)
         )
 
         denominator = (
@@ -75,21 +120,21 @@ def pod(half_window_size_px, function_name=None, test_mode=False):
     return pod_function
 
 
-def success_ratio(half_window_size_px, function_name=None, test_mode=False):
+def success_ratio(half_window_size_px, mask_matrix, function_name=None,
+                  test_mode=False):
     """Creates function to compute success ratio.
 
     :param half_window_size_px: See doc for `_apply_max_filter`.
+    :param mask_matrix: See doc for `pod`.
     :param function_name: Function name (string).
     :param test_mode: Leave this alone.
     :return: success_ratio_function: Function (defined below).
     """
 
-    error_checking.assert_is_integer(half_window_size_px)
-    error_checking.assert_is_geq(half_window_size_px, 0)
-    error_checking.assert_is_boolean(test_mode)
-
-    if function_name is not None:
-        error_checking.assert_is_string(function_name)
+    eroded_mask_matrix = _check_input_args(
+        half_window_size_px=half_window_size_px, mask_matrix=mask_matrix,
+        function_name=function_name, test_mode=test_mode
+    )
 
     def success_ratio_function(target_tensor, prediction_tensor):
         """Computes success ratio.
@@ -104,11 +149,15 @@ def success_ratio(half_window_size_px, function_name=None, test_mode=False):
             test_mode=test_mode
         )
 
+        eroded_mask_tensor = K.variable(eroded_mask_matrix)
+        masked_target_tensor = eroded_mask_tensor * filtered_target_tensor
+        masked_prediction_tensor = eroded_mask_tensor * prediction_tensor
+
         num_prediction_oriented_true_positives = K.sum(
-            filtered_target_tensor * prediction_tensor
+            masked_target_tensor * masked_prediction_tensor
         )
         num_false_positives = K.sum(
-            (1 - filtered_target_tensor) * prediction_tensor
+            (1 - masked_target_tensor) * masked_prediction_tensor
         )
 
         denominator = (
@@ -123,18 +172,16 @@ def success_ratio(half_window_size_px, function_name=None, test_mode=False):
     return success_ratio_function
 
 
-def frequency_bias(half_window_size_px, function_name=None, test_mode=False):
+def frequency_bias(half_window_size_px, mask_matrix, function_name=None,
+                   test_mode=False):
     """Creates function to compute frequency bias.
 
     :param half_window_size_px: See doc for `_apply_max_filter`.
+    :param mask_matrix: See doc for `pod`.
     :param function_name: Function name (string).
     :param test_mode: Leave this alone.
     :return: frequency_bias_function: Function (defined below).
     """
-
-    error_checking.assert_is_integer(half_window_size_px)
-    error_checking.assert_is_geq(half_window_size_px, 0)
-    error_checking.assert_is_boolean(test_mode)
 
     if function_name is not None:
         error_checking.assert_is_string(function_name)
@@ -148,14 +195,16 @@ def frequency_bias(half_window_size_px, function_name=None, test_mode=False):
         """
 
         pod_function = pod(
-            half_window_size_px=half_window_size_px, test_mode=test_mode
+            half_window_size_px=half_window_size_px, mask_matrix=mask_matrix,
+            test_mode=test_mode
         )
         pod_value = pod_function(
             target_tensor=target_tensor, prediction_tensor=prediction_tensor
         )
 
         success_ratio_function = success_ratio(
-            half_window_size_px=half_window_size_px, test_mode=test_mode
+            half_window_size_px=half_window_size_px, mask_matrix=mask_matrix,
+            test_mode=test_mode
         )
         success_ratio_value = success_ratio_function(
             target_tensor=target_tensor, prediction_tensor=prediction_tensor
@@ -169,18 +218,15 @@ def frequency_bias(half_window_size_px, function_name=None, test_mode=False):
     return frequency_bias_function
 
 
-def csi(half_window_size_px, function_name=None, test_mode=False):
+def csi(half_window_size_px, mask_matrix, function_name=None, test_mode=False):
     """Creates function to compute critical success index.
 
     :param half_window_size_px: See doc for `_apply_max_filter`.
+    :param mask_matrix: See doc for `pod`.
     :param function_name: Function name (string).
     :param test_mode: Leave this alone.
     :return: csi_function: Function (defined below).
     """
-
-    error_checking.assert_is_integer(half_window_size_px)
-    error_checking.assert_is_geq(half_window_size_px, 0)
-    error_checking.assert_is_boolean(test_mode)
 
     if function_name is not None:
         error_checking.assert_is_string(function_name)
@@ -194,14 +240,16 @@ def csi(half_window_size_px, function_name=None, test_mode=False):
         """
 
         pod_function = pod(
-            half_window_size_px=half_window_size_px, test_mode=test_mode
+            half_window_size_px=half_window_size_px, mask_matrix=mask_matrix,
+            test_mode=test_mode
         )
         pod_value = K.epsilon() + pod_function(
             target_tensor=target_tensor, prediction_tensor=prediction_tensor
         )
 
         success_ratio_function = success_ratio(
-            half_window_size_px=half_window_size_px, test_mode=test_mode
+            half_window_size_px=half_window_size_px, mask_matrix=mask_matrix,
+            test_mode=test_mode
         )
         success_ratio_value = K.epsilon() + success_ratio_function(
             target_tensor=target_tensor, prediction_tensor=prediction_tensor
@@ -215,23 +263,21 @@ def csi(half_window_size_px, function_name=None, test_mode=False):
     return csi_function
 
 
-def dice_coeff(half_window_size_px, function_name=None, test_mode=False):
+def dice_coeff(half_window_size_px, mask_matrix, function_name=None,
+               test_mode=False):
     """Creates function to compute Dice coefficient.
 
     :param half_window_size_px: See doc for `_apply_max_filter`.
+    :param mask_matrix: See doc for `pod`.
     :param function_name: Function name (string).
     :param test_mode: Leave this alone.
     :return: dice_function: Function (defined below).
     """
 
-    # TODO(thunderhoser): Need _check_input_args... maybe.
-
-    error_checking.assert_is_integer(half_window_size_px)
-    error_checking.assert_is_geq(half_window_size_px, 0)
-    error_checking.assert_is_boolean(test_mode)
-
-    if function_name is not None:
-        error_checking.assert_is_string(function_name)
+    eroded_mask_matrix = _check_input_args(
+        half_window_size_px=half_window_size_px, mask_matrix=mask_matrix,
+        function_name=function_name, test_mode=test_mode
+    )
 
     def dice_function(target_tensor, prediction_tensor):
         """Computes Dice coefficient.
@@ -250,6 +296,12 @@ def dice_coeff(half_window_size_px, function_name=None, test_mode=False):
             half_window_size_px=half_window_size_px, test_mode=test_mode
         )
 
+        eroded_mask_tensor = K.variable(eroded_mask_matrix)
+        filtered_target_tensor = eroded_mask_tensor * filtered_target_tensor
+        filtered_prediction_tensor = (
+            eroded_mask_tensor * filtered_prediction_tensor
+        )
+
         # TODO(thunderhoser): Do I need to specify axes here?
         intersection_tensor = K.sum(
             filtered_target_tensor * filtered_prediction_tensor, axis=(1, 2, 3)
@@ -266,21 +318,20 @@ def dice_coeff(half_window_size_px, function_name=None, test_mode=False):
     return dice_function
 
 
-def iou(half_window_size_px, function_name=None, test_mode=False):
+def iou(half_window_size_px, mask_matrix, function_name=None, test_mode=False):
     """Creates function to compute intersection over union.
 
     :param half_window_size_px: See doc for `_apply_max_filter`.
+    :param mask_matrix: See doc for `pod`.
     :param function_name: Function name (string).
     :param test_mode: Leave this alone.
     :return: iou_function: Function (defined below).
     """
 
-    error_checking.assert_is_integer(half_window_size_px)
-    error_checking.assert_is_geq(half_window_size_px, 0)
-    error_checking.assert_is_boolean(test_mode)
-
-    if function_name is not None:
-        error_checking.assert_is_string(function_name)
+    eroded_mask_matrix = _check_input_args(
+        half_window_size_px=half_window_size_px, mask_matrix=mask_matrix,
+        function_name=function_name, test_mode=test_mode
+    )
 
     def iou_function(target_tensor, prediction_tensor):
         """Computes intersection over union.
@@ -297,6 +348,12 @@ def iou(half_window_size_px, function_name=None, test_mode=False):
         filtered_prediction_tensor = _apply_max_filter(
             input_tensor=prediction_tensor,
             half_window_size_px=half_window_size_px, test_mode=test_mode
+        )
+
+        eroded_mask_tensor = K.variable(eroded_mask_matrix)
+        filtered_target_tensor = eroded_mask_tensor * filtered_target_tensor
+        filtered_prediction_tensor = (
+            eroded_mask_tensor * filtered_prediction_tensor
         )
 
         # TODO(thunderhoser): Do I need to specify axes here?
@@ -320,11 +377,12 @@ def iou(half_window_size_px, function_name=None, test_mode=False):
 
 
 def tversky_coeff(
-        half_window_size_px, false_positive_weight, false_negative_weight,
-        function_name=None, test_mode=False):
+        half_window_size_px, mask_matrix, false_positive_weight,
+        false_negative_weight, function_name=None, test_mode=False):
     """Creates function to compute Tversky coefficient (weighted CSI).
 
     :param half_window_size_px: See doc for `_apply_max_filter`.
+    :param mask_matrix: See doc for `pod`.
     :param false_positive_weight: Weight for false positives.
     :param false_negative_weight: Weight for false negatives.
     :param function_name: Function name (string).
@@ -332,14 +390,13 @@ def tversky_coeff(
     :return: tversky_function: Function (defined below).
     """
 
-    error_checking.assert_is_integer(half_window_size_px)
-    error_checking.assert_is_geq(half_window_size_px, 0)
+    eroded_mask_matrix = _check_input_args(
+        half_window_size_px=half_window_size_px, mask_matrix=mask_matrix,
+        function_name=function_name, test_mode=test_mode
+    )
+
     error_checking.assert_is_greater(false_positive_weight, 0.)
     error_checking.assert_is_greater(false_negative_weight, 0.)
-    error_checking.assert_is_boolean(test_mode)
-
-    if function_name is not None:
-        error_checking.assert_is_string(function_name)
 
     def tversky_function(target_tensor, prediction_tensor):
         """Computes Tversky coefficient.
@@ -356,6 +413,12 @@ def tversky_coeff(
         filtered_prediction_tensor = _apply_max_filter(
             input_tensor=prediction_tensor,
             half_window_size_px=half_window_size_px, test_mode=test_mode
+        )
+
+        eroded_mask_tensor = K.variable(eroded_mask_matrix)
+        filtered_target_tensor = eroded_mask_tensor * filtered_target_tensor
+        filtered_prediction_tensor = (
+            eroded_mask_tensor * filtered_prediction_tensor
         )
 
         num_true_positives = false_positive_weight * K.sum(
@@ -382,7 +445,7 @@ def tversky_coeff(
 
 
 def focal_loss(
-        half_window_size_px, training_event_freq, focusing_factor,
+        half_window_size_px, mask_matrix, training_event_freq, focusing_factor,
         function_name=None, test_mode=False):
     """Creates function to compute focal loss.
 
@@ -391,6 +454,7 @@ def focal_loss(
                     master/src/loss_function/losses.py
 
     :param half_window_size_px: See doc for `_apply_max_filter`.
+    :param mask_matrix: See doc for `pod`.
     :param training_event_freq: Event frequency (positive-class frequency) in
         training data.
     :param focusing_factor: Focusing factor (gamma in referenced paper).
@@ -401,15 +465,14 @@ def focal_loss(
 
     # TODO(thunderhoser): Need unit test to check exact values.
 
-    error_checking.assert_is_integer(half_window_size_px)
-    error_checking.assert_is_geq(half_window_size_px, 0)
+    eroded_mask_matrix = _check_input_args(
+        half_window_size_px=half_window_size_px, mask_matrix=mask_matrix,
+        function_name=function_name, test_mode=test_mode
+    )
+
     error_checking.assert_is_greater(training_event_freq, 0.)
     error_checking.assert_is_less_than(training_event_freq, 1.)
     error_checking.assert_is_geq(focusing_factor, 1.)
-    error_checking.assert_is_boolean(test_mode)
-
-    if function_name is not None:
-        error_checking.assert_is_string(function_name)
 
     def loss(target_tensor, prediction_tensor):
         """Computes loss.
@@ -426,6 +489,12 @@ def focal_loss(
         filtered_prediction_tensor = _apply_max_filter(
             input_tensor=prediction_tensor,
             half_window_size_px=half_window_size_px, test_mode=test_mode
+        )
+
+        eroded_mask_tensor = K.variable(eroded_mask_matrix)
+        filtered_target_tensor = eroded_mask_tensor * filtered_target_tensor
+        filtered_prediction_tensor = (
+            eroded_mask_tensor * filtered_prediction_tensor
         )
 
         error_tensor = tensorflow.where(

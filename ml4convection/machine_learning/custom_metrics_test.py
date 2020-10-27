@@ -27,6 +27,8 @@ TARGET_MATRIX = numpy.array([
     [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
 ], dtype=int)
 
+MASK_MATRIX = numpy.full(TARGET_MATRIX.shape, True, dtype=bool)
+
 TARGET_MATRIX = numpy.stack((TARGET_MATRIX, TARGET_MATRIX), axis=0)
 
 PREDICTION_MATRIX = numpy.array([
@@ -187,7 +189,7 @@ class CustomMetricsTests(unittest.TestCase):
         """
 
         this_function = custom_metrics.pod(
-            half_window_size_px=0, test_mode=True
+            half_window_size_px=0, mask_matrix=MASK_MATRIX, test_mode=True
         )
         this_pod = K.eval(this_function(TARGET_TENSOR, PREDICTION_TENSOR))
 
@@ -200,7 +202,7 @@ class CustomMetricsTests(unittest.TestCase):
         """
 
         this_function = custom_metrics.pod(
-            half_window_size_px=1, test_mode=True
+            half_window_size_px=1, mask_matrix=MASK_MATRIX, test_mode=True
         )
         this_pod = K.eval(this_function(TARGET_TENSOR, PREDICTION_TENSOR))
 
@@ -213,7 +215,7 @@ class CustomMetricsTests(unittest.TestCase):
         """
 
         this_function = custom_metrics.success_ratio(
-            half_window_size_px=0, test_mode=True
+            half_window_size_px=0, mask_matrix=MASK_MATRIX, test_mode=True
         )
         this_success_ratio = K.eval(
             this_function(TARGET_TENSOR, PREDICTION_TENSOR)
@@ -230,7 +232,7 @@ class CustomMetricsTests(unittest.TestCase):
         """
 
         this_function = custom_metrics.success_ratio(
-            half_window_size_px=1, test_mode=True
+            half_window_size_px=1, mask_matrix=MASK_MATRIX, test_mode=True
         )
         this_success_ratio = K.eval(
             this_function(TARGET_TENSOR, PREDICTION_TENSOR)
@@ -247,7 +249,7 @@ class CustomMetricsTests(unittest.TestCase):
         """
 
         this_function = custom_metrics.frequency_bias(
-            half_window_size_px=0, test_mode=True
+            half_window_size_px=0, mask_matrix=MASK_MATRIX, test_mode=True
         )
         this_frequency_bias = K.eval(
             this_function(TARGET_TENSOR, PREDICTION_TENSOR)
@@ -264,7 +266,7 @@ class CustomMetricsTests(unittest.TestCase):
         """
 
         this_function = custom_metrics.frequency_bias(
-            half_window_size_px=1, test_mode=True
+            half_window_size_px=1, mask_matrix=MASK_MATRIX, test_mode=True
         )
         this_frequency_bias = K.eval(
             this_function(TARGET_TENSOR, PREDICTION_TENSOR)
@@ -281,7 +283,7 @@ class CustomMetricsTests(unittest.TestCase):
         """
 
         this_function = custom_metrics.csi(
-            half_window_size_px=0, test_mode=True
+            half_window_size_px=0, mask_matrix=MASK_MATRIX, test_mode=True
         )
         this_csi = K.eval(this_function(TARGET_TENSOR, PREDICTION_TENSOR))
 
@@ -294,7 +296,7 @@ class CustomMetricsTests(unittest.TestCase):
         """
 
         this_function = custom_metrics.csi(
-            half_window_size_px=1, test_mode=True
+            half_window_size_px=1, mask_matrix=MASK_MATRIX, test_mode=True
         )
         this_csi = K.eval(this_function(TARGET_TENSOR, PREDICTION_TENSOR))
 
@@ -307,7 +309,7 @@ class CustomMetricsTests(unittest.TestCase):
         """
 
         this_function = custom_metrics.dice_coeff(
-            half_window_size_px=0, test_mode=True
+            half_window_size_px=0, mask_matrix=MASK_MATRIX, test_mode=True
         )
         this_dice_coeff = K.eval(
             this_function(TARGET_TENSOR, PREDICTION_TENSOR)
@@ -324,7 +326,7 @@ class CustomMetricsTests(unittest.TestCase):
         """
 
         this_function = custom_metrics.dice_coeff(
-            half_window_size_px=1, test_mode=True
+            half_window_size_px=1, mask_matrix=MASK_MATRIX, test_mode=True
         )
         this_dice_coeff = K.eval(
             this_function(TARGET_TENSOR, PREDICTION_TENSOR)
@@ -341,7 +343,7 @@ class CustomMetricsTests(unittest.TestCase):
         """
 
         this_function = custom_metrics.iou(
-            half_window_size_px=0, test_mode=True
+            half_window_size_px=0, mask_matrix=MASK_MATRIX, test_mode=True
         )
         this_iou = K.eval(this_function(TARGET_TENSOR, PREDICTION_TENSOR))
 
@@ -354,7 +356,7 @@ class CustomMetricsTests(unittest.TestCase):
         """
 
         this_function = custom_metrics.iou(
-            half_window_size_px=1, test_mode=True
+            half_window_size_px=1, mask_matrix=MASK_MATRIX, test_mode=True
         )
         this_iou = K.eval(this_function(TARGET_TENSOR, PREDICTION_TENSOR))
 
@@ -367,7 +369,7 @@ class CustomMetricsTests(unittest.TestCase):
         """
 
         this_function = custom_metrics.tversky_coeff(
-            half_window_size_px=0,
+            half_window_size_px=0, mask_matrix=MASK_MATRIX,
             false_positive_weight=FALSE_POSITIVE_WEIGHT,
             false_negative_weight=FALSE_NEGATIVE_WEIGHT,
             test_mode=True
@@ -387,7 +389,7 @@ class CustomMetricsTests(unittest.TestCase):
         """
 
         this_function = custom_metrics.tversky_coeff(
-            half_window_size_px=1,
+            half_window_size_px=1, mask_matrix=MASK_MATRIX,
             false_positive_weight=FALSE_POSITIVE_WEIGHT,
             false_negative_weight=FALSE_NEGATIVE_WEIGHT,
             test_mode=True
@@ -407,7 +409,7 @@ class CustomMetricsTests(unittest.TestCase):
         """
 
         this_function = custom_metrics.focal_loss(
-            half_window_size_px=0,
+            half_window_size_px=0, mask_matrix=MASK_MATRIX,
             training_event_freq=0.5, focusing_factor=1., test_mode=True
         )
         this_focal_loss = K.eval(
