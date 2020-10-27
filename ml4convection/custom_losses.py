@@ -107,7 +107,7 @@ def fractions_skill_score(
     eroded_mask_matrix = numpy.expand_dims(
         eroded_mask_matrix.astype(float), axis=(0, -1)
     )
-    eroded_mask_tensor = K.variable(eroded_mask_matrix)
+    # eroded_mask_tensor = K.variable(eroded_mask_matrix)
 
     def loss(target_tensor, prediction_tensor):
         """Computes loss (fractions skill score).
@@ -127,9 +127,9 @@ def fractions_skill_score(
             padding='same', strides=(1, 1), data_format='channels_last'
         )
 
-        smoothed_target_tensor = smoothed_target_tensor * eroded_mask_tensor
+        smoothed_target_tensor = smoothed_target_tensor * eroded_mask_matrix
         smoothed_prediction_tensor = (
-            smoothed_prediction_tensor * eroded_mask_tensor
+            smoothed_prediction_tensor * eroded_mask_matrix
         )
 
         actual_mse = K.mean(
