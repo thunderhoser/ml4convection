@@ -34,33 +34,36 @@ PLATEAU_COOLDOWN_EPOCHS = 0
 EARLY_STOPPING_PATIENCE_EPOCHS = 30
 LOSS_PATIENCE = 0.
 
+# TODO(thunderhoser): This is a HACK.
+DEFAULT_MASK_MATRIX = numpy.full((220, 230), True, dtype=bool)
+
 FSS_FUNCTION_SIZE1 = custom_losses.fractions_skill_score(
-    half_window_size_px=1, use_as_loss_function=False,
-    function_name='fss_3by3'
+    half_window_size_px=1, mask_matrix=DEFAULT_MASK_MATRIX,
+    use_as_loss_function=False, function_name='fss_3by3'
 )
 FSS_FUNCTION_SIZE2 = custom_losses.fractions_skill_score(
-    half_window_size_px=2, use_as_loss_function=False,
-    function_name='fss_5by5'
+    half_window_size_px=2, mask_matrix=DEFAULT_MASK_MATRIX,
+    use_as_loss_function=False, function_name='fss_5by5'
 )
 FSS_FUNCTION_SIZE3 = custom_losses.fractions_skill_score(
-    half_window_size_px=3, use_as_loss_function=False,
-    function_name='fss_7by7'
+    half_window_size_px=3, mask_matrix=DEFAULT_MASK_MATRIX,
+    use_as_loss_function=False, function_name='fss_7by7'
 )
 FSS_FUNCTION_SIZE4 = custom_losses.fractions_skill_score(
-    half_window_size_px=4, use_as_loss_function=False,
-    function_name='fss_9by9'
+    half_window_size_px=4, mask_matrix=DEFAULT_MASK_MATRIX,
+    use_as_loss_function=False, function_name='fss_9by9'
 )
 FSS_FUNCTION_SIZE5 = custom_losses.fractions_skill_score(
-    half_window_size_px=5, use_as_loss_function=False,
-    function_name='fss_11by11'
+    half_window_size_px=5, mask_matrix=DEFAULT_MASK_MATRIX,
+    use_as_loss_function=False, function_name='fss_11by11'
 )
 FSS_FUNCTION_SIZE6 = custom_losses.fractions_skill_score(
-    half_window_size_px=6, use_as_loss_function=False,
-    function_name='fss_13by13'
+    half_window_size_px=6, mask_matrix=DEFAULT_MASK_MATRIX,
+    use_as_loss_function=False, function_name='fss_13by13'
 )
 FSS_FUNCTION_SIZE7 = custom_losses.fractions_skill_score(
-    half_window_size_px=7, use_as_loss_function=False,
-    function_name='fss_15by15'
+    half_window_size_px=7, mask_matrix=DEFAULT_MASK_MATRIX,
+    use_as_loss_function=False, function_name='fss_15by15'
 )
 
 BIAS_FUNCTION_SIZE1 = custom_metrics.frequency_bias(
