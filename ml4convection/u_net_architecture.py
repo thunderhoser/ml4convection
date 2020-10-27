@@ -148,7 +148,7 @@ def _check_architecture_args(option_dict):
     return option_dict
 
 
-def create_model(option_dict, loss_function):
+def create_model(option_dict, loss_function, mask_matrix):
     """Creates U-net.
 
     This method sets up the architecture, loss function, and optimizer -- and
@@ -157,12 +157,18 @@ def create_model(option_dict, loss_function):
     Architecture taken from:
     https://github.com/zhixuhao/unet/blob/master/model.py
 
+    M = number of rows in grid
+    N = number of columns in grid
+
     :param option_dict: See doc for `_check_architecture_args`.
     :param loss_function: Loss function.
+    :param mask_matrix: M-by-N numpy array of Boolean flags.  Only pixels marked
+        "True" are considered in the loss function and metrics.
     :return: model_object: Instance of `keras.models.Model`, with the
         aforementioned architecture.
     """
 
+    metric_function_list = neural_net.get_metrics(mask_matrix)[0]
     option_dict = _check_architecture_args(option_dict)
 
     input_dimensions = option_dict[INPUT_DIMENSIONS_KEY]
@@ -409,7 +415,7 @@ def create_model(option_dict, loss_function):
 
     model_object.compile(
         loss=loss_function, optimizer=keras.optimizers.Adam(),
-        metrics=neural_net.METRIC_FUNCTION_LIST
+        metrics=metric_function_list
     )
 
     model_object.summary()

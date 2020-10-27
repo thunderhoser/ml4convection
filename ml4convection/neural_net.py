@@ -16,7 +16,6 @@ sys.path.append(os.path.normpath(os.path.join(THIS_DIRECTORY_NAME, '..')))
 
 import file_system_utils
 import error_checking
-import gg_custom_metrics
 import custom_metrics
 import satellite_io
 import example_io
@@ -33,117 +32,6 @@ DEFAULT_LEARNING_RATE_MULTIPLIER = 0.5
 PLATEAU_COOLDOWN_EPOCHS = 0
 EARLY_STOPPING_PATIENCE_EPOCHS = 30
 LOSS_PATIENCE = 0.
-
-# TODO(thunderhoser): This is a HACK.
-DEFAULT_MASK_MATRIX = numpy.full((220, 230), True, dtype=bool)
-
-FSS_FUNCTION_SIZE1 = custom_losses.fractions_skill_score(
-    half_window_size_px=1, mask_matrix=DEFAULT_MASK_MATRIX,
-    use_as_loss_function=False, function_name='fss_3by3'
-)
-FSS_FUNCTION_SIZE2 = custom_losses.fractions_skill_score(
-    half_window_size_px=2, mask_matrix=DEFAULT_MASK_MATRIX,
-    use_as_loss_function=False, function_name='fss_5by5'
-)
-FSS_FUNCTION_SIZE3 = custom_losses.fractions_skill_score(
-    half_window_size_px=3, mask_matrix=DEFAULT_MASK_MATRIX,
-    use_as_loss_function=False, function_name='fss_7by7'
-)
-FSS_FUNCTION_SIZE4 = custom_losses.fractions_skill_score(
-    half_window_size_px=4, mask_matrix=DEFAULT_MASK_MATRIX,
-    use_as_loss_function=False, function_name='fss_9by9'
-)
-FSS_FUNCTION_SIZE5 = custom_losses.fractions_skill_score(
-    half_window_size_px=5, mask_matrix=DEFAULT_MASK_MATRIX,
-    use_as_loss_function=False, function_name='fss_11by11'
-)
-FSS_FUNCTION_SIZE6 = custom_losses.fractions_skill_score(
-    half_window_size_px=6, mask_matrix=DEFAULT_MASK_MATRIX,
-    use_as_loss_function=False, function_name='fss_13by13'
-)
-FSS_FUNCTION_SIZE7 = custom_losses.fractions_skill_score(
-    half_window_size_px=7, mask_matrix=DEFAULT_MASK_MATRIX,
-    use_as_loss_function=False, function_name='fss_15by15'
-)
-
-BIAS_FUNCTION_SIZE1 = custom_metrics.frequency_bias(
-    half_window_size_px=1, function_name='bias_3by3'
-)
-BIAS_FUNCTION_SIZE2 = custom_metrics.frequency_bias(
-    half_window_size_px=2, function_name='bias_5by5'
-)
-BIAS_FUNCTION_SIZE3 = custom_metrics.frequency_bias(
-    half_window_size_px=3, function_name='bias_7by7'
-)
-
-CSI_FUNCTION_SIZE1 = custom_metrics.csi(
-    half_window_size_px=1, function_name='csi_3by3'
-)
-CSI_FUNCTION_SIZE2 = custom_metrics.csi(
-    half_window_size_px=2, function_name='csi_5by5'
-)
-CSI_FUNCTION_SIZE3 = custom_metrics.csi(
-    half_window_size_px=3, function_name='csi_7by7'
-)
-
-DICE_FUNCTION_SIZE1 = custom_metrics.dice_coeff(
-    half_window_size_px=1, function_name='dice_coeff_3by3'
-)
-DICE_FUNCTION_SIZE2 = custom_metrics.dice_coeff(
-    half_window_size_px=2, function_name='dice_coeff_5by5'
-)
-DICE_FUNCTION_SIZE3 = custom_metrics.dice_coeff(
-    half_window_size_px=3, function_name='dice_coeff_7by7'
-)
-
-IOU_FUNCTION_SIZE1 = custom_metrics.iou(
-    half_window_size_px=1, function_name='iou_3by3'
-)
-IOU_FUNCTION_SIZE2 = custom_metrics.iou(
-    half_window_size_px=2, function_name='iou_5by5'
-)
-IOU_FUNCTION_SIZE3 = custom_metrics.iou(
-    half_window_size_px=3, function_name='iou_7by7'
-)
-
-METRIC_FUNCTION_LIST = [
-    FSS_FUNCTION_SIZE1, FSS_FUNCTION_SIZE2, FSS_FUNCTION_SIZE3,
-    CSI_FUNCTION_SIZE1, CSI_FUNCTION_SIZE2, CSI_FUNCTION_SIZE3,
-    BIAS_FUNCTION_SIZE1, BIAS_FUNCTION_SIZE2, BIAS_FUNCTION_SIZE3,
-    DICE_FUNCTION_SIZE1, DICE_FUNCTION_SIZE2, DICE_FUNCTION_SIZE3,
-    IOU_FUNCTION_SIZE1, IOU_FUNCTION_SIZE2, IOU_FUNCTION_SIZE3
-]
-
-METRIC_FUNCTION_DICT = {
-    'accuracy': gg_custom_metrics.accuracy,
-    'binary_accuracy': gg_custom_metrics.binary_accuracy,
-    'binary_csi': gg_custom_metrics.binary_csi,
-    'binary_frequency_bias': gg_custom_metrics.binary_frequency_bias,
-    'binary_pod': gg_custom_metrics.binary_pod,
-    'binary_pofd': gg_custom_metrics.binary_pofd,
-    'binary_peirce_score': gg_custom_metrics.binary_peirce_score,
-    'binary_success_ratio': gg_custom_metrics.binary_success_ratio,
-    'binary_focn': gg_custom_metrics.binary_focn,
-    'fss_3by3': FSS_FUNCTION_SIZE1,
-    'fss_5by5': FSS_FUNCTION_SIZE2,
-    'fss_7by7': FSS_FUNCTION_SIZE3,
-    'fss_9by9': FSS_FUNCTION_SIZE4,
-    'fss_11by11': FSS_FUNCTION_SIZE5,
-    'fss_13by13': FSS_FUNCTION_SIZE6,
-    'fss_15by15': FSS_FUNCTION_SIZE7,
-    'csi_3by3': CSI_FUNCTION_SIZE1,
-    'csi_5by5': CSI_FUNCTION_SIZE2,
-    'csi_7by7': CSI_FUNCTION_SIZE3,
-    'bias_3by3': BIAS_FUNCTION_SIZE1,
-    'bias_5by5': BIAS_FUNCTION_SIZE2,
-    'bias_7by7': BIAS_FUNCTION_SIZE3,
-    'dice_coeff_3by3': DICE_FUNCTION_SIZE1,
-    'dice_coeff_5by5': DICE_FUNCTION_SIZE2,
-    'dice_coeff_7by7': DICE_FUNCTION_SIZE3,
-    'iou_3by3': IOU_FUNCTION_SIZE1,
-    'iou_5by5': IOU_FUNCTION_SIZE2,
-    'iou_7by7': IOU_FUNCTION_SIZE3
-}
 
 BATCH_SIZE_KEY = 'num_examples_per_batch'
 MAX_DAILY_EXAMPLES_KEY = 'max_examples_per_day_in_batch'
@@ -555,6 +443,130 @@ def _find_days_with_preprocessed_inputs(
     return valid_date_strings
 
 
+def get_metrics(mask_matrix):
+    """Returns metrics used for on-the-fly monitoring.
+
+    M = number of rows in grid
+    N = number of columns in grid
+
+    :param mask_matrix: M-by-N numpy array of Boolean flags.  Only pixels marked
+        "True" are considered in each metric.
+    :return: metric_function_list: 1-D list of functions.
+    :return: metric_function_dict: Dictionary, where each key is a function name
+        and each value is a function itself.
+    """
+
+    error_checking.assert_is_boolean_numpy_array(mask_matrix)
+    error_checking.assert_is_numpy_array(mask_matrix, num_dimensions=2)
+
+    fss_function_size1 = custom_losses.fractions_skill_score(
+        half_window_size_px=1, mask_matrix=mask_matrix,
+        use_as_loss_function=False, function_name='fss_3by3'
+    )
+    fss_function_size2 = custom_losses.fractions_skill_score(
+        half_window_size_px=2, mask_matrix=mask_matrix,
+        use_as_loss_function=False, function_name='fss_5by5'
+    )
+    fss_function_size3 = custom_losses.fractions_skill_score(
+        half_window_size_px=3, mask_matrix=mask_matrix,
+        use_as_loss_function=False, function_name='fss_7by7'
+    )
+    fss_function_size4 = custom_losses.fractions_skill_score(
+        half_window_size_px=4, mask_matrix=mask_matrix,
+        use_as_loss_function=False, function_name='fss_9by9'
+    )
+    fss_function_size5 = custom_losses.fractions_skill_score(
+        half_window_size_px=5, mask_matrix=mask_matrix,
+        use_as_loss_function=False, function_name='fss_11by11'
+    )
+    fss_function_size6 = custom_losses.fractions_skill_score(
+        half_window_size_px=6, mask_matrix=mask_matrix,
+        use_as_loss_function=False, function_name='fss_13by13'
+    )
+    fss_function_size7 = custom_losses.fractions_skill_score(
+        half_window_size_px=7, mask_matrix=mask_matrix,
+        use_as_loss_function=False, function_name='fss_15by15'
+    )
+
+    bias_function_size1 = custom_metrics.frequency_bias(
+        half_window_size_px=1, mask_matrix=mask_matrix,
+        function_name='bias_3by3'
+    )
+    bias_function_size2 = custom_metrics.frequency_bias(
+        half_window_size_px=2, mask_matrix=mask_matrix,
+        function_name='bias_5by5'
+    )
+    bias_function_size3 = custom_metrics.frequency_bias(
+        half_window_size_px=3, mask_matrix=mask_matrix,
+        function_name='bias_7by7'
+    )
+
+    csi_function_size1 = custom_metrics.csi(
+        half_window_size_px=1, mask_matrix=mask_matrix, function_name='csi_3by3'
+    )
+    csi_function_size2 = custom_metrics.csi(
+        half_window_size_px=2, mask_matrix=mask_matrix, function_name='csi_5by5'
+    )
+    csi_function_size3 = custom_metrics.csi(
+        half_window_size_px=3, mask_matrix=mask_matrix, function_name='csi_7by7'
+    )
+
+    dice_function_size1 = custom_metrics.dice_coeff(
+        half_window_size_px=1, mask_matrix=mask_matrix,
+        function_name='dice_coeff_3by3'
+    )
+    dice_function_size2 = custom_metrics.dice_coeff(
+        half_window_size_px=2, mask_matrix=mask_matrix,
+        function_name='dice_coeff_5by5'
+    )
+    dice_function_size3 = custom_metrics.dice_coeff(
+        half_window_size_px=3, mask_matrix=mask_matrix,
+        function_name='dice_coeff_7by7'
+    )
+
+    iou_function_size1 = custom_metrics.iou(
+        half_window_size_px=1, mask_matrix=mask_matrix, function_name='iou_3by3'
+    )
+    iou_function_size2 = custom_metrics.iou(
+        half_window_size_px=2, mask_matrix=mask_matrix, function_name='iou_5by5'
+    )
+    iou_function_size3 = custom_metrics.iou(
+        half_window_size_px=3, mask_matrix=mask_matrix, function_name='iou_7by7'
+    )
+
+    metric_function_list = [
+        fss_function_size1, fss_function_size2, fss_function_size3,
+        csi_function_size1, csi_function_size2, csi_function_size3,
+        bias_function_size1, bias_function_size2, bias_function_size3,
+        dice_function_size1, dice_function_size2, dice_function_size3,
+        iou_function_size1, iou_function_size2, iou_function_size3
+    ]
+
+    metric_function_dict = {
+        'fss_3by3': fss_function_size1,
+        'fss_5by5': fss_function_size2,
+        'fss_7by7': fss_function_size3,
+        'fss_9by9': fss_function_size4,
+        'fss_11by11': fss_function_size5,
+        'fss_13by13': fss_function_size6,
+        'fss_15by15': fss_function_size7,
+        'csi_3by3': csi_function_size1,
+        'csi_5by5': csi_function_size2,
+        'csi_7by7': csi_function_size3,
+        'bias_3by3': bias_function_size1,
+        'bias_5by5': bias_function_size2,
+        'bias_7by7': bias_function_size3,
+        'dice_coeff_3by3': dice_function_size1,
+        'dice_coeff_5by5': dice_function_size2,
+        'dice_coeff_7by7': dice_function_size3,
+        'iou_3by3': iou_function_size1,
+        'iou_5by5': iou_function_size2,
+        'iou_7by7': iou_function_size3
+    }
+
+    return metric_function_list, metric_function_dict
+
+
 def check_class_weights(class_weights):
     """Error-checks class weights.
 
@@ -952,9 +964,16 @@ def read_model(hdf5_file_name):
 
     error_checking.assert_file_exists(hdf5_file_name)
 
+    metafile_name = find_metafile(
+        model_file_name=hdf5_file_name, raise_error_if_missing=True
+    )
+    metadata_dict = read_metafile(metafile_name)
+    mask_matrix = metadata_dict[MASK_MATRIX_KEY]
+    custom_object_dict = get_metrics(mask_matrix)[1]
+
     try:
         return tf_keras.models.load_model(
-            hdf5_file_name, custom_objects=METRIC_FUNCTION_DICT
+            hdf5_file_name, custom_objects=custom_object_dict
         )
     except ValueError:
         pass
@@ -966,13 +985,11 @@ def read_model(hdf5_file_name):
     metadata_dict = read_metafile(metafile_name)
     class_weights = metadata_dict[CLASS_WEIGHTS_KEY]
     fss_half_window_size_px = metadata_dict[FSS_HALF_WINDOW_SIZE_KEY]
-    custom_object_dict = copy.deepcopy(METRIC_FUNCTION_DICT)
 
     if fss_half_window_size_px is not None:
         custom_object_dict['loss'] = custom_losses.fractions_skill_score(
             half_window_size_px=fss_half_window_size_px,
-            mask_matrix=metadata_dict[MASK_MATRIX_KEY],
-            use_as_loss_function=True
+            mask_matrix=mask_matrix, use_as_loss_function=True
         )
     elif class_weights is not None:
         custom_object_dict['loss'] = custom_losses.weighted_xentropy(
