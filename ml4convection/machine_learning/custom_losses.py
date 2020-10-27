@@ -110,14 +110,12 @@ def fractions_skill_score(
 
         smoothed_target_tensor = K.conv2d(
             x=target_tensor, kernel=weight_matrix,
-            padding='same' if test_mode else 'valid',
-            strides=(1, 1), data_format='channels_last'
+            padding='same', strides=(1, 1), data_format='channels_last'
         )
 
         smoothed_prediction_tensor = K.conv2d(
             x=prediction_tensor, kernel=weight_matrix,
-            padding='same' if test_mode else 'valid',
-            strides=(1, 1), data_format='channels_last'
+            padding='same', strides=(1, 1), data_format='channels_last'
         )
 
         eroded_mask_tensor = K.variable(eroded_mask_matrix)

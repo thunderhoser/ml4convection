@@ -124,7 +124,7 @@ class CustomMetricsTests(unittest.TestCase):
         """
 
         this_tensor = custom_metrics._apply_max_filter(
-            input_tensor=TARGET_TENSOR, half_window_size_px=0, test_mode=True
+            input_tensor=TARGET_TENSOR, half_window_size_px=0
         )
         this_matrix = K.eval(this_tensor)[0, ..., 0]
 
@@ -140,7 +140,7 @@ class CustomMetricsTests(unittest.TestCase):
         """
 
         this_tensor = custom_metrics._apply_max_filter(
-            input_tensor=TARGET_TENSOR, half_window_size_px=1, test_mode=True
+            input_tensor=TARGET_TENSOR, half_window_size_px=1
         )
         this_matrix = K.eval(this_tensor)[0, ..., 0]
 
@@ -156,8 +156,7 @@ class CustomMetricsTests(unittest.TestCase):
         """
 
         this_tensor = custom_metrics._apply_max_filter(
-            input_tensor=PREDICTION_TENSOR,
-            half_window_size_px=0, test_mode=True
+            input_tensor=PREDICTION_TENSOR, half_window_size_px=0
         )
         this_matrix = K.eval(this_tensor)[0, ..., 0]
 
@@ -173,8 +172,7 @@ class CustomMetricsTests(unittest.TestCase):
         """
 
         this_tensor = custom_metrics._apply_max_filter(
-            input_tensor=PREDICTION_TENSOR,
-            half_window_size_px=1, test_mode=True
+            input_tensor=PREDICTION_TENSOR, half_window_size_px=1
         )
         this_matrix = K.eval(this_tensor)[0, ..., 0]
 

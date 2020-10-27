@@ -43,14 +43,13 @@ def _check_input_args(half_window_size_px, mask_matrix, function_name,
     )
 
 
-def _apply_max_filter(input_tensor, half_window_size_px, test_mode):
+def _apply_max_filter(input_tensor, half_window_size_px):
     """Applies maximum-filter to tensor.
 
     :param input_tensor: Keras tensor.
     :param half_window_size_px: Number of pixels in half of filter window (on
         either side of center).  If this argument is K, the window size will be
         (1 + 2 * K) by (1 + 2 * K).
-    :param test_mode: Leave this alone.
     :return: output_tensor: Filtered version of `input_tensor`.
     """
 
@@ -59,7 +58,7 @@ def _apply_max_filter(input_tensor, half_window_size_px, test_mode):
     return K.pool2d(
         x=input_tensor, pool_mode='max',
         pool_size=(window_size_px, window_size_px), strides=(1, 1),
-        padding='same' if test_mode else 'valid', data_format='channels_last'
+        padding='same', data_format='channels_last'
     )
 
 
@@ -92,7 +91,7 @@ def pod(half_window_size_px, mask_matrix, function_name=None, test_mode=False):
 
         filtered_prediction_tensor = _apply_max_filter(
             input_tensor=prediction_tensor,
-            half_window_size_px=half_window_size_px, test_mode=test_mode
+            half_window_size_px=half_window_size_px
         )
 
         eroded_mask_tensor = K.variable(eroded_mask_matrix)
@@ -145,8 +144,7 @@ def success_ratio(half_window_size_px, mask_matrix, function_name=None,
         """
 
         filtered_target_tensor = _apply_max_filter(
-            input_tensor=target_tensor, half_window_size_px=half_window_size_px,
-            test_mode=test_mode
+            input_tensor=target_tensor, half_window_size_px=half_window_size_px
         )
 
         eroded_mask_tensor = K.variable(eroded_mask_matrix)
@@ -289,11 +287,11 @@ def dice_coeff(half_window_size_px, mask_matrix, function_name=None,
 
         filtered_target_tensor = _apply_max_filter(
             input_tensor=target_tensor,
-            half_window_size_px=half_window_size_px, test_mode=test_mode
+            half_window_size_px=half_window_size_px
         )
         filtered_prediction_tensor = _apply_max_filter(
             input_tensor=prediction_tensor,
-            half_window_size_px=half_window_size_px, test_mode=test_mode
+            half_window_size_px=half_window_size_px
         )
 
         eroded_mask_tensor = K.variable(eroded_mask_matrix)
@@ -343,11 +341,11 @@ def iou(half_window_size_px, mask_matrix, function_name=None, test_mode=False):
 
         filtered_target_tensor = _apply_max_filter(
             input_tensor=target_tensor,
-            half_window_size_px=half_window_size_px, test_mode=test_mode
+            half_window_size_px=half_window_size_px
         )
         filtered_prediction_tensor = _apply_max_filter(
             input_tensor=prediction_tensor,
-            half_window_size_px=half_window_size_px, test_mode=test_mode
+            half_window_size_px=half_window_size_px
         )
 
         eroded_mask_tensor = K.variable(eroded_mask_matrix)
@@ -408,11 +406,11 @@ def tversky_coeff(
 
         filtered_target_tensor = _apply_max_filter(
             input_tensor=target_tensor,
-            half_window_size_px=half_window_size_px, test_mode=test_mode
+            half_window_size_px=half_window_size_px
         )
         filtered_prediction_tensor = _apply_max_filter(
             input_tensor=prediction_tensor,
-            half_window_size_px=half_window_size_px, test_mode=test_mode
+            half_window_size_px=half_window_size_px
         )
 
         eroded_mask_tensor = K.variable(eroded_mask_matrix)
@@ -484,11 +482,11 @@ def focal_loss(
 
         filtered_target_tensor = _apply_max_filter(
             input_tensor=target_tensor,
-            half_window_size_px=half_window_size_px, test_mode=test_mode
+            half_window_size_px=half_window_size_px
         )
         filtered_prediction_tensor = _apply_max_filter(
             input_tensor=prediction_tensor,
-            half_window_size_px=half_window_size_px, test_mode=test_mode
+            half_window_size_px=half_window_size_px
         )
 
         eroded_mask_tensor = K.variable(eroded_mask_matrix)
