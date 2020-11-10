@@ -22,6 +22,7 @@ NUM_EXAMPLES_PER_BATCH = 32
 MODEL_FILE_ARG_NAME = 'input_model_file_name'
 PREDICTOR_DIR_ARG_NAME = 'input_predictor_dir_name'
 TARGET_DIR_ARG_NAME = 'input_target_dir_name'
+OVERLAP_SIZE_ARG_NAME = 'overlap_size_px'
 FIRST_DATE_ARG_NAME = 'first_valid_date_string'
 LAST_DATE_ARG_NAME = 'last_valid_date_string'
 OUTPUT_DIR_ARG_NAME = 'output_dir_name'
@@ -42,6 +43,10 @@ TARGET_DIR_HELP_STRING = (
     'readable by `example_io.read_target_file`.  If model was trained with raw '
     'files, this directory must contain raw files, readable by '
     '`radar_io.read_2d_file`.'
+)
+OVERLAP_SIZE_HELP_STRING = (
+    '[used only if neural net was trained on partial grids] Amount of overlap '
+    '(in pixels) between adjacent partial grids.'
 )
 DATE_HELP_STRING = (
     'Date (format "yyyymmdd").  The model will be applied to valid times (radar'
@@ -68,6 +73,10 @@ INPUT_ARG_PARSER.add_argument(
     help=TARGET_DIR_HELP_STRING
 )
 INPUT_ARG_PARSER.add_argument(
+    '--' + OVERLAP_SIZE_ARG_NAME, type=int, required=False, default=-1,
+    help=OVERLAP_SIZE_HELP_STRING
+)
+INPUT_ARG_PARSER.add_argument(
     '--' + FIRST_DATE_ARG_NAME, type=str, required=True, help=DATE_HELP_STRING
 )
 INPUT_ARG_PARSER.add_argument(
@@ -79,8 +88,9 @@ INPUT_ARG_PARSER.add_argument(
 )
 
 
-def _apply_net_one_day(model_object, base_option_dict, use_partial_grids,
-                       valid_date_string, model_file_name, top_output_dir_name):
+def _apply_net_one_day(
+        model_object, base_option_dict, use_partial_grids, overlap_size_px,
+        valid_date_string, model_file_name, top_output_dir_name):
     """Applies trained neural net to one day.
 
     :param model_object: Trained neural net (instance of `keras.models.Model` or
@@ -89,6 +99,7 @@ def _apply_net_one_day(model_object, base_option_dict, use_partial_grids,
         for `neural_net.create_data`.
     :param use_partial_grids: Boolean flag.  If True (False), model was trained
         on partial (full) grids.
+    :param overlap_size_px: See documentation at top of file.
     :param valid_date_string: Valid date (radar date), in format "yyyymmdd").
     :param model_file_name: See documentation at top of file.
     :param top_output_dir_name: Same.
@@ -109,7 +120,7 @@ def _apply_net_one_day(model_object, base_option_dict, use_partial_grids,
             model_object=model_object,
             predictor_matrix=data_dict[neural_net.PREDICTOR_MATRIX_KEY],
             num_examples_per_batch=NUM_EXAMPLES_PER_BATCH,
-            overlap_size_px=OVERLAP_SIZE_PX, verbose=True
+            overlap_size_px=overlap_size_px, verbose=True
         )
     else:
         forecast_probability_matrix = neural_net.apply_model_full_grid(
@@ -139,7 +150,8 @@ def _apply_net_one_day(model_object, base_option_dict, use_partial_grids,
 
 
 def _run(model_file_name, top_predictor_dir_name, top_target_dir_name,
-         first_valid_date_string, last_valid_date_string, top_output_dir_name):
+         overlap_size_px, first_valid_date_string, last_valid_date_string,
+         top_output_dir_name):
     """Applies trained neural net in inference mode.
 
     This is effectively the main method.
@@ -147,6 +159,7 @@ def _run(model_file_name, top_predictor_dir_name, top_target_dir_name,
     :param model_file_name: See documentation at top of file.
     :param top_predictor_dir_name: Same.
     :param top_target_dir_name: Same.
+    :param overlap_size_px: Same.
     :param first_valid_date_string: Same.
     :param last_valid_date_string: Same.
     :param top_output_dir_name: Same.
@@ -187,6 +200,7 @@ def _run(model_file_name, top_predictor_dir_name, top_target_dir_name,
         _apply_net_one_day(
             model_object=model_object, base_option_dict=base_option_dict,
             use_partial_grids=use_partial_grids,
+            overlap_size_px=overlap_size_px,
             valid_date_string=valid_date_strings[i],
             model_file_name=model_file_name,
             top_output_dir_name=top_output_dir_name
@@ -205,6 +219,7 @@ if __name__ == '__main__':
             INPUT_ARG_OBJECT, PREDICTOR_DIR_ARG_NAME
         ),
         top_target_dir_name=getattr(INPUT_ARG_OBJECT, TARGET_DIR_ARG_NAME),
+        overlap_size_px=getattr(INPUT_ARG_OBJECT, OVERLAP_SIZE_ARG_NAME),
         first_valid_date_string=getattr(INPUT_ARG_OBJECT, FIRST_DATE_ARG_NAME),
         last_valid_date_string=getattr(INPUT_ARG_OBJECT, LAST_DATE_ARG_NAME),
         top_output_dir_name=getattr(INPUT_ARG_OBJECT, OUTPUT_DIR_ARG_NAME)
