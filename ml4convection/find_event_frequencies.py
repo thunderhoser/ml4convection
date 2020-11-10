@@ -11,10 +11,9 @@ THIS_DIRECTORY_NAME = os.path.dirname(os.path.realpath(
 sys.path.append(os.path.normpath(os.path.join(THIS_DIRECTORY_NAME, '..')))
 
 import time_conversion
-import radar_io
 import example_io
-import twb_satellite_io
 import climatology_io
+import radar_utils
 import general_utils
 
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
@@ -22,8 +21,10 @@ MINOR_SEPARATOR_STRING = '\n\n' + '-' * 50 + '\n\n'
 
 NUM_HOURS_PER_DAY = 24
 NUM_MONTHS_PER_YEAR = 12
+NUM_RADARS = len(radar_utils.RADAR_LATITUDES_DEG_N)
 
 TARGET_DIR_ARG_NAME = 'input_target_dir_name'
+USE_PARTIAL_GRIDS_ARG_NAME = 'use_partial_grids'
 DILATION_DISTANCE_ARG_NAME = 'dilation_distance_px'
 FIRST_DATE_ARG_NAME = 'first_date_string'
 LAST_DATE_ARG_NAME = 'last_date_string'
@@ -33,6 +34,10 @@ TARGET_DIR_HELP_STRING = (
     'Name of top-level directory with target values.  Files therein will be '
     'found by `example_io.find_target_file` and read by '
     '`example_io.read_target_file`.'
+)
+USE_PARTIAL_GRIDS_HELP_STRING = (
+    'Boolean flag.  If 1 (0), will find event frequencies on partial '
+    'radar-centered (full) grids.'
 )
 DILATION_DISTANCE_HELP_STRING = 'Dilation distance for convective pixels.'
 DATE_HELP_STRING = (
@@ -50,6 +55,10 @@ INPUT_ARG_PARSER.add_argument(
     help=TARGET_DIR_HELP_STRING
 )
 INPUT_ARG_PARSER.add_argument(
+    '--' + USE_PARTIAL_GRIDS_ARG_NAME, type=int, required=True,
+    help=USE_PARTIAL_GRIDS_HELP_STRING
+)
+INPUT_ARG_PARSER.add_argument(
     '--' + DILATION_DISTANCE_ARG_NAME, type=float, required=True,
     help=DILATION_DISTANCE_HELP_STRING
 )
@@ -65,13 +74,14 @@ INPUT_ARG_PARSER.add_argument(
 )
 
 
-def _run(top_target_dir_name, first_date_string, last_date_string,
-         dilation_distance_px, output_file_name):
+def _run(top_target_dir_name, use_partial_grids, first_date_string,
+         last_date_string, dilation_distance_px, output_file_name):
     """Finds event (convection) frequencies for given dilation distance.
 
     This is effectively the main method.
 
     :param top_target_dir_name: See documentation at top of file.
+    :param use_partial_grids: Same.
     :param first_date_string: Same.
     :param last_date_string: Same.
     :param dilation_distance_px: Same.
@@ -81,36 +91,30 @@ def _run(top_target_dir_name, first_date_string, last_date_string,
     target_file_names = example_io.find_many_target_files(
         top_directory_name=top_target_dir_name,
         first_date_string=first_date_string,
-        last_date_string=last_date_string, raise_error_if_any_missing=False
+        last_date_string=last_date_string,
+        radar_number=0 if use_partial_grids else None,
+        raise_error_if_any_missing=False
     )
 
+    date_strings = [example_io.file_name_to_date(f) for f in target_file_names]
+
+    if use_partial_grids:
+        for k in range(1, NUM_RADARS):
+            target_file_names += [
+                example_io.find_target_file(
+                    top_directory_name=top_target_dir_name, date_string=d,
+                    radar_number=k, raise_error_if_missing=True
+                ) for d in date_strings
+            ]
+
     first_target_dict = example_io.read_target_file(target_file_names[0])
-    mask_file_name = first_target_dict[example_io.MASK_FILE_KEY]
-
-    print('Reading mask from: "{0:s}"...'.format(mask_file_name))
-    mask_dict = radar_io.read_mask_file(mask_file_name)
-    mask_dict = radar_io.expand_to_satellite_grid(any_radar_dict=mask_dict)
-
-    num_target_latitudes = len(first_target_dict[example_io.LATITUDES_KEY])
-    num_full_latitudes = len(twb_satellite_io.GRID_LATITUDES_DEG_N)
-    downsampling_factor = int(numpy.floor(
-        float(num_full_latitudes) / num_target_latitudes
-    ))
-
-    if downsampling_factor > 1:
-        print('Downsampling mask to {0:d}x spatial resolution...'.format(
-            downsampling_factor
-        ))
-        mask_dict = radar_io.downsample_in_space(
-            any_radar_dict=mask_dict, downsampling_factor=4
-        )
+    mask_matrix = first_target_dict[example_io.MASK_MATRIX_KEY]
 
     print('Eroding mask with erosion distance = {0:f} pixels...'.format(
         dilation_distance_px
     ))
     mask_matrix = general_utils.erode_binary_matrix(
-        binary_matrix=mask_dict[radar_io.MASK_MATRIX_KEY],
-        buffer_distance_px=dilation_distance_px
+        binary_matrix=mask_matrix, buffer_distance_px=dilation_distance_px
     )
     mask_matrix = mask_matrix.astype(bool)
 
@@ -281,8 +285,8 @@ def _run(top_target_dir_name, first_date_string, last_date_string,
         event_frequency_by_hour=event_frequency_by_hour,
         event_frequency_by_month=event_frequency_by_month,
         event_frequency_by_pixel=event_frequency_by_pixel,
-        latitudes_deg_n=mask_dict[radar_io.LATITUDES_KEY],
-        longitudes_deg_e=mask_dict[radar_io.LONGITUDES_KEY],
+        latitudes_deg_n=first_target_dict[example_io.LATITUDES_KEY],
+        longitudes_deg_e=first_target_dict[example_io.LONGITUDES_KEY],
         netcdf_file_name=output_file_name
     )
 
@@ -292,6 +296,9 @@ if __name__ == '__main__':
 
     _run(
         top_target_dir_name=getattr(INPUT_ARG_OBJECT, TARGET_DIR_ARG_NAME),
+        use_partial_grids=bool(getattr(
+            INPUT_ARG_OBJECT, USE_PARTIAL_GRIDS_ARG_NAME
+        )),
         first_date_string=getattr(INPUT_ARG_OBJECT, FIRST_DATE_ARG_NAME),
         last_date_string=getattr(INPUT_ARG_OBJECT, LAST_DATE_ARG_NAME),
         dilation_distance_px=getattr(

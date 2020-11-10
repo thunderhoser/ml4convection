@@ -79,14 +79,16 @@ INPUT_ARG_PARSER.add_argument(
 )
 
 
-def _apply_net_one_day(model_object, base_option_dict, valid_date_string,
-                       model_file_name, top_output_dir_name):
+def _apply_net_one_day(model_object, base_option_dict, use_partial_grids,
+                       valid_date_string, model_file_name, top_output_dir_name):
     """Applies trained neural net to one day.
 
     :param model_object: Trained neural net (instance of `keras.models.Model` or
         `keras.models.Sequential`).
     :param base_option_dict: Dictionary with data-processing options.  See doc
         for `neural_net.create_data`.
+    :param use_partial_grids: Boolean flag.  If True (False), model was trained
+        on partial (full) grids.
     :param valid_date_string: Valid date (radar date), in format "yyyymmdd").
     :param model_file_name: See documentation at top of file.
     :param top_output_dir_name: Same.
@@ -95,18 +97,26 @@ def _apply_net_one_day(model_object, base_option_dict, valid_date_string,
     option_dict = copy.deepcopy(base_option_dict)
     option_dict[neural_net.VALID_DATE_KEY] = valid_date_string
 
-    data_dict = neural_net.create_data_from_preprocessed_files(
+    data_dict = neural_net.create_data_full_grid(
         option_dict=option_dict, return_coords=True
     )
 
     if data_dict is None:
         return
 
-    forecast_probability_matrix = neural_net.apply_model(
-        model_object=model_object,
-        predictor_matrix=data_dict[neural_net.PREDICTOR_MATRIX_KEY],
-        num_examples_per_batch=NUM_EXAMPLES_PER_BATCH, verbose=True
-    )
+    if use_partial_grids:
+        forecast_probability_matrix = neural_net.apply_model_partial_grids(
+            model_object=model_object,
+            predictor_matrix=data_dict[neural_net.PREDICTOR_MATRIX_KEY],
+            num_examples_per_batch=NUM_EXAMPLES_PER_BATCH,
+            overlap_size_px=OVERLAP_SIZE_PX, verbose=True
+        )
+    else:
+        forecast_probability_matrix = neural_net.apply_model_full_grid(
+            model_object=model_object,
+            predictor_matrix=data_dict[neural_net.PREDICTOR_MATRIX_KEY],
+            num_examples_per_batch=NUM_EXAMPLES_PER_BATCH, verbose=True
+        )
 
     these_percentiles = numpy.array([90, 95, 96, 97, 98, 99, 100], dtype=float)
     print(numpy.percentile(forecast_probability_matrix, these_percentiles))
@@ -150,6 +160,7 @@ def _run(model_file_name, top_predictor_dir_name, top_target_dir_name,
 
     print('Reading metadata from: "{0:s}"...'.format(metafile_name))
     metadata_dict = neural_net.read_metafile(metafile_name)
+    use_partial_grids = metadata_dict[neural_net.USE_PARTIAL_GRIDS_KEY]
     training_option_dict = metadata_dict[neural_net.TRAINING_OPTIONS_KEY]
 
     base_option_dict = {
@@ -175,6 +186,7 @@ def _run(model_file_name, top_predictor_dir_name, top_target_dir_name,
     for i in range(len(valid_date_strings)):
         _apply_net_one_day(
             model_object=model_object, base_option_dict=base_option_dict,
+            use_partial_grids=use_partial_grids,
             valid_date_string=valid_date_strings[i],
             model_file_name=model_file_name,
             top_output_dir_name=top_output_dir_name
