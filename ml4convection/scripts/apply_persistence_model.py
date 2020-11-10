@@ -4,8 +4,6 @@ import argparse
 import numpy
 from gewittergefahr.gg_utils import general_utils
 from gewittergefahr.gg_utils import error_checking
-from ml4convection.io import radar_io
-from ml4convection.io import twb_satellite_io
 from ml4convection.io import example_io
 from ml4convection.io import prediction_io
 from ml4convection.machine_learning import neural_net
@@ -81,25 +79,7 @@ def _write_metafile(target_file_names, dummy_model_file_name):
     """
 
     first_target_dict = example_io.read_target_file(target_file_names[0])
-    mask_file_name = first_target_dict[example_io.MASK_FILE_KEY]
-
-    print('Reading mask from: "{0:s}"...'.format(mask_file_name))
-    mask_dict = radar_io.read_mask_file(mask_file_name)
-    mask_dict = radar_io.expand_to_satellite_grid(any_radar_dict=mask_dict)
-
-    num_grid_rows = len(first_target_dict[example_io.LATITUDES_KEY])
-    num_grid_rows_possible = len(twb_satellite_io.GRID_LATITUDES_DEG_N)
-    spatial_downsampling_factor = int(numpy.round(
-        float(num_grid_rows_possible) / num_grid_rows
-    ))
-
-    if spatial_downsampling_factor > 1:
-        mask_dict = radar_io.downsample_in_space(
-            any_radar_dict=mask_dict,
-            downsampling_factor=spatial_downsampling_factor
-        )
-
-    mask_matrix = mask_dict[radar_io.MASK_MATRIX_KEY]
+    mask_matrix = first_target_dict[example_io.MASK_MATRIX_KEY]
 
     metafile_name = neural_net.find_metafile(
         model_file_name=dummy_model_file_name, raise_error_if_missing=False
@@ -107,12 +87,13 @@ def _write_metafile(target_file_names, dummy_model_file_name):
     print('Writing metafile to: "{0:s}"...'.format(metafile_name))
 
     neural_net._write_metafile(
-        dill_file_name=metafile_name, num_epochs=100,
+        dill_file_name=metafile_name,
+        use_partial_grids=False, num_epochs=100,
         num_training_batches_per_epoch=100, training_option_dict=dict(),
         num_validation_batches_per_epoch=100, validation_option_dict=dict(),
         do_early_stopping=True, plateau_lr_multiplier=0.6,
         class_weights=None, fss_half_window_size_px=1.,
-        mask_matrix=mask_matrix
+        mask_matrix=mask_matrix, full_mask_matrix=mask_matrix
     )
 
 

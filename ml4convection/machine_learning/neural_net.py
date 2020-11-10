@@ -62,12 +62,13 @@ PLATEAU_LR_MUTIPLIER_KEY = 'plateau_lr_multiplier'
 CLASS_WEIGHTS_KEY = 'class_weights'
 FSS_HALF_WINDOW_SIZE_KEY = 'fss_half_window_size_px'
 MASK_MATRIX_KEY = 'mask_matrix'
+FULL_MASK_MATRIX_KEY = 'full_mask_matrix'
 
 METADATA_KEYS = [
     USE_PARTIAL_GRIDS_KEY, NUM_EPOCHS_KEY, NUM_TRAINING_BATCHES_KEY,
     TRAINING_OPTIONS_KEY, NUM_VALIDATION_BATCHES_KEY, VALIDATION_OPTIONS_KEY,
     EARLY_STOPPING_KEY, PLATEAU_LR_MUTIPLIER_KEY, CLASS_WEIGHTS_KEY,
-    FSS_HALF_WINDOW_SIZE_KEY, MASK_MATRIX_KEY
+    FSS_HALF_WINDOW_SIZE_KEY, MASK_MATRIX_KEY, FULL_MASK_MATRIX_KEY
 ]
 
 PREDICTOR_MATRIX_KEY = 'predictor_matrix'
@@ -361,7 +362,7 @@ def _write_metafile(
         num_training_batches_per_epoch,
         training_option_dict, num_validation_batches_per_epoch,
         validation_option_dict, do_early_stopping, plateau_lr_multiplier,
-        class_weights, fss_half_window_size_px, mask_matrix):
+        class_weights, fss_half_window_size_px, mask_matrix, full_mask_matrix):
     """Writes metadata to Dill file.
 
     M = number of rows in prediction grid
@@ -379,6 +380,7 @@ def _write_metafile(
     :param class_weights: Same.
     :param fss_half_window_size_px: Same.
     :param mask_matrix: Same.
+    :param full_mask_matrix: Same.
     """
 
     metadata_dict = {
@@ -392,7 +394,8 @@ def _write_metafile(
         PLATEAU_LR_MUTIPLIER_KEY: plateau_lr_multiplier,
         CLASS_WEIGHTS_KEY: class_weights,
         FSS_HALF_WINDOW_SIZE_KEY: fss_half_window_size_px,
-        MASK_MATRIX_KEY: mask_matrix
+        MASK_MATRIX_KEY: mask_matrix,
+        FULL_MASK_MATRIX_KEY: full_mask_matrix
     }
 
     file_system_utils.mkdir_recursive_if_necessary(file_name=dill_file_name)
@@ -1064,15 +1067,17 @@ def train_model(
         model_object, output_dir_name, num_epochs, use_partial_grids,
         num_training_batches_per_epoch, training_option_dict,
         num_validation_batches_per_epoch, validation_option_dict,
-        mask_matrix, do_early_stopping=True,
+        mask_matrix, full_mask_matrix, do_early_stopping=True,
         plateau_lr_multiplier=DEFAULT_LEARNING_RATE_MULTIPLIER,
         class_weights=None, fss_half_window_size_px=None):
     """Trains neural net on either full grid or partial grids.
 
-    M = number of rows in prediction grid
-    N = number of columns in prediction grid
+    M = number of rows in full grid
+    N = number of columns in full grid
+    m = number of rows in prediction grid
+    n = number of columns in prediction grid
 
-    param model_object: Untrained neural net (instance of `keras.models.Model`
+    :param model_object: Untrained neural net (instance of `keras.models.Model`
         or `keras.models.Sequential`).
     :param output_dir_name: Path to output directory (model and training history
         will be saved here).
@@ -1093,8 +1098,9 @@ def train_model(
     validation_option_dict['first_valid_date_string']
     validation_option_dict['last_valid_date_string']
 
-    :param mask_matrix: M-by-N numpy array of Boolean flags.  Grid cells labeled
+    :param mask_matrix: m-by-n numpy array of Boolean flags.  Grid cells labeled
         True (False) are (not) used for model evaluation.
+    :param full_mask_matrix: Same but with dimensions of M x N.
     :param do_early_stopping: Boolean flag.  If True, will stop training early
         if validation loss has not improved over last several epochs (see
         constants at top of file for what exactly this means).
@@ -1122,6 +1128,7 @@ def train_model(
     error_checking.assert_is_boolean(do_early_stopping)
 
     error_checking.assert_is_numpy_array(mask_matrix, num_dimensions=2)
+    error_checking.assert_is_numpy_array(full_mask_matrix, num_dimensions=2)
 
     try:
         error_checking.assert_is_integer_numpy_array(mask_matrix)
@@ -1129,6 +1136,13 @@ def train_model(
         error_checking.assert_is_leq_numpy_array(mask_matrix, 1)
     except TypeError:
         error_checking.assert_is_boolean_numpy_array(mask_matrix)
+
+    try:
+        error_checking.assert_is_integer_numpy_array(full_mask_matrix)
+        error_checking.assert_is_geq_numpy_array(full_mask_matrix, 0)
+        error_checking.assert_is_leq_numpy_array(full_mask_matrix, 1)
+    except TypeError:
+        error_checking.assert_is_boolean_numpy_array(full_mask_matrix)
 
     if do_early_stopping:
         error_checking.assert_is_greater(plateau_lr_multiplier, 0.)
@@ -1198,7 +1212,7 @@ def train_model(
         plateau_lr_multiplier=plateau_lr_multiplier,
         class_weights=class_weights,
         fss_half_window_size_px=fss_half_window_size_px,
-        mask_matrix=mask_matrix
+        mask_matrix=mask_matrix, full_mask_matrix=full_mask_matrix
     )
 
     if use_partial_grids:
@@ -1309,6 +1323,7 @@ def read_metafile(dill_file_name):
     metadata_dict['class_weights']: Same.
     metadata_dict['fss_half_window_size_px']: Same.
     metadata_dict['mask_matrix']: Same.
+    metadata_dict['full_mask_matrix']: Same.
 
     :raises: ValueError: if any expected key is not found in dictionary.
     """
@@ -1327,6 +1342,9 @@ def read_metafile(dill_file_name):
 
     if USE_PARTIAL_GRIDS_KEY not in metadata_dict:
         metadata_dict[USE_PARTIAL_GRIDS_KEY] = False
+
+    if FULL_MASK_MATRIX_KEY not in metadata_dict:
+        metadata_dict[FULL_MASK_MATRIX_KEY] = metadata_dict[MASK_MATRIX_KEY]
 
     training_option_dict = metadata_dict[TRAINING_OPTIONS_KEY]
     validation_option_dict = metadata_dict[VALIDATION_OPTIONS_KEY]

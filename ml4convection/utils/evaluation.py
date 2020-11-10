@@ -510,7 +510,7 @@ def get_basic_scores_ungridded(
             model_metafile_name
         ))
         model_metadata_dict = neural_net.read_metafile(model_metafile_name)
-        eval_mask_matrix = model_metadata_dict[neural_net.MASK_MATRIX_KEY]
+        eval_mask_matrix = model_metadata_dict[neural_net.FULL_MASK_MATRIX_KEY]
 
     # Check input args.
     general_utils.check_2d_binary_matrix(eval_mask_matrix)
@@ -696,7 +696,7 @@ def get_basic_scores_gridded(
             model_metafile_name
         ))
         model_metadata_dict = neural_net.read_metafile(model_metafile_name)
-        eval_mask_matrix = model_metadata_dict[neural_net.MASK_MATRIX_KEY]
+        eval_mask_matrix = model_metadata_dict[neural_net.FULL_MASK_MATRIX_KEY]
 
     # Check input args.
     general_utils.check_2d_binary_matrix(eval_mask_matrix)

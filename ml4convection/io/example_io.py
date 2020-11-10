@@ -26,6 +26,9 @@ LATITUDES_KEY = 'latitudes_deg_n'
 LONGITUDES_KEY = 'longitudes_deg_e'
 NORMALIZATION_FILE_KEY = 'normalization_file_name'
 MASK_MATRIX_KEY = 'mask_matrix'
+FULL_MASK_MATRIX_KEY = 'full_mask_matrix'
+FULL_LATITUDES_KEY = 'full_latitudes_deg_n'
+FULL_LONGITUDES_KEY = 'full_longitudes_deg_e'
 
 ONE_PER_PREDICTOR_TIME_KEYS = [
     PREDICTOR_MATRIX_UNNORM_KEY, PREDICTOR_MATRIX_NORM_KEY,
@@ -46,6 +49,8 @@ ONE_PER_TARGET_TIME_KEYS = [TARGET_MATRIX_KEY, VALID_TIMES_KEY]
 TIME_DIMENSION_KEY = 'time'
 ROW_DIMENSION_KEY = 'row'
 COLUMN_DIMENSION_KEY = 'column'
+FULL_ROW_DIMENSION_KEY = 'full_grid_row'
+FULL_COLUMN_DIMENSION_KEY = 'full_grid_column'
 BAND_DIMENSION_KEY = 'band'
 
 
@@ -178,7 +183,7 @@ def _create_targets_one_day(
         echo_classifn_file_name, spatial_downsampling_factor, mask_dict):
     """Creates target values for one day.
 
-    E = number of examples per batch
+    E = number of examples
     M = number of rows in grid
     N = number of columns in grid
 
@@ -195,10 +200,13 @@ def _create_targets_one_day(
     target_dict['valid_times_unix_sec']: length-E numpy array of valid times.
     target_dict['latitudes_deg_n']: length-M numpy array of latitudes
         (deg N).
+    target_dict['full_latitudes_deg_n']: Same.
     target_dict['longitudes_deg_e']: length-N numpy array of longitudes
         (deg E).
-    target_dict['mask_matrix']: M-by-N numpy array of Boolean flag.  False means
-        that the grid cell is masked out.
+    target_dict['full_longitudes_deg_e']: Same.
+    target_dict['mask_matrix']: M-by-N numpy array of Boolean flags.  False
+        means that the grid cell is masked out.
+    target_dict['full_mask_matrix']: Same.
     """
 
     print('Reading data from: "{0:s}"...'.format(echo_classifn_file_name))
@@ -231,10 +239,11 @@ def _create_targets_one_day(
     )
 
     num_times = len(echo_classifn_dict[radar_io.VALID_TIMES_KEY])
+    mask_matrix = mask_dict[radar_io.MASK_MATRIX_KEY].astype(bool)
 
     for i in range(num_times):
         target_matrix[i, ...] = numpy.logical_and(
-            target_matrix[i, ...], mask_dict[radar_io.MASK_MATRIX_KEY]
+            target_matrix[i, ...], mask_matrix
         )
 
     target_matrix = target_matrix.astype(int)
@@ -249,8 +258,11 @@ def _create_targets_one_day(
         TARGET_MATRIX_KEY: target_matrix,
         VALID_TIMES_KEY: echo_classifn_dict[radar_io.VALID_TIMES_KEY],
         LATITUDES_KEY: echo_classifn_dict[radar_io.LATITUDES_KEY],
+        FULL_LATITUDES_KEY: echo_classifn_dict[radar_io.LATITUDES_KEY],
         LONGITUDES_KEY: echo_classifn_dict[radar_io.LONGITUDES_KEY],
-        MASK_MATRIX_KEY: mask_dict[radar_io.MASK_MATRIX_KEY].astype(bool)
+        FULL_LONGITUDES_KEY: echo_classifn_dict[radar_io.LONGITUDES_KEY],
+        MASK_MATRIX_KEY: mask_matrix,
+        FULL_MASK_MATRIX_KEY: mask_matrix
     }
 
 
@@ -259,13 +271,29 @@ def _create_targets_one_day_partial_grids(
     """Creates predictor values for one day on partial, radar-centered grids.
 
     R = number of radar sites
+    E = number of examples
+    M = number of rows in full grid
+    N = number of columns in full grid
+    m = number of rows in each partial grid
+    n = number of columns in each partial grid
 
     :param echo_classifn_file_name: See doc for `_create_targets_one_day`.
     :param mask_dict: Same.
     :param half_grid_size_px: Size of half-grid (pixels).  If this number is K,
         the grid will have 2 * K + 1 rows and 2 * K + 1 columns.
-    :return: target_dicts: length-R list of dictionaries, each in format
-        returned by `_create_targets_one_day`.
+    :return: target_dicts: length-R list of dictionaries, each with the
+        following keys.
+
+    'target_matrix': E-by-m-by-n numpy array of target values (0 or 1),
+        indicating when and where convection occurs.
+    'valid_times_unix_sec': length-E numpy array of valid times.
+    'latitudes_deg_n': length-m numpy array of latitudes (deg N).
+    'full_latitudes_deg_n': length-M numpy array of latitudes (deg N).
+    'longitudes_deg_e': length-n numpy array of longitudes (deg E).
+    'full_longitudes_deg_e': length-N numpy array of longitudes (deg E).
+    'mask_matrix': m-by-n numpy array of Boolean flags.  False means that the
+        grid cell is masked out.
+    'full_mask_matrix': Same but with dimensions of M x N.
     """
 
     target_dict_full_grid = _create_targets_one_day(
@@ -393,9 +421,17 @@ def _write_target_file(target_dict, netcdf_file_name):
     num_grid_rows = target_matrix.shape[1]
     num_grid_columns = target_matrix.shape[2]
 
+    full_mask_matrix = target_dict[FULL_MASK_MATRIX_KEY]
+    num_full_grid_rows = full_mask_matrix.shape[0]
+    num_full_grid_columns = full_mask_matrix.shape[1]
+
     dataset_object.createDimension(TIME_DIMENSION_KEY, num_times)
     dataset_object.createDimension(ROW_DIMENSION_KEY, num_grid_rows)
     dataset_object.createDimension(COLUMN_DIMENSION_KEY, num_grid_columns)
+    dataset_object.createDimension(FULL_ROW_DIMENSION_KEY, num_full_grid_rows)
+    dataset_object.createDimension(
+        FULL_COLUMN_DIMENSION_KEY, num_full_grid_columns
+    )
 
     dataset_object.createVariable(
         VALID_TIMES_KEY, datatype=numpy.int32, dimensions=TIME_DIMENSION_KEY
@@ -418,6 +454,30 @@ def _write_target_file(target_dict, netcdf_file_name):
     )
     dataset_object.variables[MASK_MATRIX_KEY][:] = (
         target_dict[MASK_MATRIX_KEY].astype(int)
+    )
+
+    dataset_object.createVariable(
+        FULL_LATITUDES_KEY, datatype=numpy.float32,
+        dimensions=FULL_ROW_DIMENSION_KEY
+    )
+    dataset_object.variables[FULL_LATITUDES_KEY][:] = (
+        target_dict[FULL_LATITUDES_KEY]
+    )
+
+    dataset_object.createVariable(
+        FULL_LONGITUDES_KEY, datatype=numpy.float32,
+        dimensions=FULL_COLUMN_DIMENSION_KEY
+    )
+    dataset_object.variables[FULL_LONGITUDES_KEY][:] = (
+        target_dict[FULL_LONGITUDES_KEY]
+    )
+
+    dataset_object.createVariable(
+        FULL_MASK_MATRIX_KEY, datatype=numpy.int32,
+        dimensions=(FULL_ROW_DIMENSION_KEY, FULL_COLUMN_DIMENSION_KEY)
+    )
+    dataset_object.variables[FULL_MASK_MATRIX_KEY][:] = (
+        target_dict[FULL_MASK_MATRIX_KEY].astype(int)
     )
 
     these_dim = (TIME_DIMENSION_KEY, ROW_DIMENSION_KEY, COLUMN_DIMENSION_KEY)
@@ -1080,6 +1140,23 @@ def read_target_file(netcdf_file_name):
             mask_dict[radar_io.MASK_MATRIX_KEY].astype(bool)
         )
 
+    if FULL_MASK_MATRIX_KEY in dataset_object.variables:
+        target_dict[FULL_MASK_MATRIX_KEY] = (
+            dataset_object.variables[FULL_MASK_MATRIX_KEY][:].astype(bool)
+        )
+        target_dict[FULL_LATITUDES_KEY] = (
+            dataset_object.variables[FULL_LATITUDES_KEY][:]
+        )
+        target_dict[FULL_LONGITUDES_KEY] = (
+            dataset_object.variables[FULL_LONGITUDES_KEY][:]
+        )
+    else:
+        target_dict[FULL_MASK_MATRIX_KEY] = copy.deepcopy(
+            target_dict[MASK_MATRIX_KEY]
+        )
+        target_dict[FULL_LATITUDES_KEY] = target_dict[LATITUDES_KEY] + 0.
+        target_dict[FULL_LONGITUDES_KEY] = target_dict[LONGITUDES_KEY] + 0.
+
     if numpy.any(numpy.diff(target_dict[LATITUDES_KEY]) < 0):
         target_dict[LATITUDES_KEY] = target_dict[LATITUDES_KEY][::-1]
         target_dict[TARGET_MATRIX_KEY] = numpy.flip(
@@ -1087,6 +1164,12 @@ def read_target_file(netcdf_file_name):
         )
         target_dict[MASK_MATRIX_KEY] = numpy.flip(
             target_dict[MASK_MATRIX_KEY], axis=0
+        )
+
+    if numpy.any(numpy.diff(target_dict[FULL_LATITUDES_KEY]) < 0):
+        target_dict[FULL_LATITUDES_KEY] = target_dict[FULL_LATITUDES_KEY][::-1]
+        target_dict[FULL_MASK_MATRIX_KEY] = numpy.flip(
+            target_dict[FULL_MASK_MATRIX_KEY], axis=0
         )
 
     dataset_object.close()
@@ -1329,11 +1412,14 @@ def concat_target_data(target_dicts):
     """
 
     target_dict = copy.deepcopy(target_dicts[0])
-    keys_to_match = [LATITUDES_KEY, LONGITUDES_KEY, MASK_MATRIX_KEY]
+    keys_to_match = [
+        LATITUDES_KEY, LONGITUDES_KEY, MASK_MATRIX_KEY,
+        FULL_LATITUDES_KEY, FULL_LONGITUDES_KEY, FULL_MASK_MATRIX_KEY
+    ]
 
     for i in range(1, len(target_dicts)):
         for this_key in keys_to_match:
-            if this_key == MASK_MATRIX_KEY:
+            if this_key in [MASK_MATRIX_KEY, FULL_MASK_MATRIX_KEY]:
                 if numpy.array_equal(
                         target_dict[this_key], target_dicts[i][this_key]
                 ):
