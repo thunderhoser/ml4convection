@@ -19,9 +19,9 @@ def _run(training_predictor_dir_name, training_target_dir_name,
          first_training_date_string, last_training_date_string,
          first_validn_date_string, last_validn_date_string,
          normalize, uniformize,
-         num_examples_per_batch, max_examples_per_day_in_batch, num_epochs,
-         num_training_batches_per_epoch, num_validn_batches_per_epoch,
-         plateau_lr_multiplier):
+         num_examples_per_batch, max_examples_per_day_in_batch,
+         use_partial_grids, num_epochs, num_training_batches_per_epoch,
+         num_validn_batches_per_epoch, plateau_lr_multiplier):
     """Trains neural net.
 
     This is effectively the main method.
@@ -44,6 +44,7 @@ def _run(training_predictor_dir_name, training_target_dir_name,
     :param uniformize: Same.
     :param num_examples_per_batch: Same.
     :param max_examples_per_day_in_batch: Same.
+    :param use_partial_grids: Same.
     :param num_epochs: Same.
     :param num_training_batches_per_epoch: Same.
     :param num_validn_batches_per_epoch: Same.
@@ -84,9 +85,9 @@ def _run(training_predictor_dir_name, training_target_dir_name,
 
     print(SEPARATOR_STRING)
 
-    neural_net.train_model_from_preprocessed_files(
+    neural_net.train_model(
         model_object=model_object, output_dir_name=output_model_dir_name,
-        num_epochs=num_epochs,
+        use_partial_grids=use_partial_grids, num_epochs=num_epochs,
         num_training_batches_per_epoch=num_training_batches_per_epoch,
         training_option_dict=training_option_dict,
         num_validation_batches_per_epoch=num_validn_batches_per_epoch,
@@ -156,6 +157,9 @@ if __name__ == '__main__':
         max_examples_per_day_in_batch=getattr(
             INPUT_ARG_OBJECT, training_args.MAX_DAILY_EXAMPLES_ARG_NAME
         ),
+        use_partial_grids=bool(getattr(
+            INPUT_ARG_OBJECT, training_args.USE_PARTIAL_GRIDS_ARG_NAME
+        )),
         num_epochs=getattr(INPUT_ARG_OBJECT, training_args.NUM_EPOCHS_ARG_NAME),
         num_training_batches_per_epoch=getattr(
             INPUT_ARG_OBJECT, training_args.NUM_TRAINING_BATCHES_ARG_NAME

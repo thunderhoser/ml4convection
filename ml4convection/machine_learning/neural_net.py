@@ -1461,7 +1461,7 @@ def apply_model_partial_grids(
 
     # Do actual stuff.
     forecast_prob_matrix = numpy.full(
-        (num_examples, num_full_grid_rows, num_full_grid_columns), numpy.nan
+        (num_examples, num_full_grid_rows, num_full_grid_columns), 0.
     )
     first_input_row = -1
     first_input_column = -1

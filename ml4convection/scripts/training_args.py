@@ -19,6 +19,7 @@ NORMALIZE_ARG_NAME = 'normalize'
 UNIFORMIZE_ARG_NAME = 'uniformize'
 BATCH_SIZE_ARG_NAME = 'num_examples_per_batch'
 MAX_DAILY_EXAMPLES_ARG_NAME = 'max_examples_per_day_in_batch'
+USE_PARTIAL_GRIDS_ARG_NAME = 'use_partial_grids'
 NUM_EPOCHS_ARG_NAME = 'num_epochs'
 NUM_TRAINING_BATCHES_ARG_NAME = 'num_training_batches_per_epoch'
 NUM_VALIDN_BATCHES_ARG_NAME = 'num_validn_batches_per_epoch'
@@ -82,6 +83,10 @@ BATCH_SIZE_HELP_STRING = (
 )
 MAX_DAILY_EXAMPLES_HELP_STRING = (
     'Max number of examples from the same day in one batch.'
+)
+USE_PARTIAL_GRIDS_HELP_STRING = (
+    'Boolean flag.  If 1 (0), will train on partial radar-centered (full) '
+    'grids.'
 )
 NUM_EPOCHS_HELP_STRING = 'Number of epochs.'
 NUM_TRAINING_BATCHES_HELP_STRING = 'Number of training batches per epoch.'
@@ -169,6 +174,10 @@ def add_input_args(parser_object):
     parser_object.add_argument(
         '--' + MAX_DAILY_EXAMPLES_ARG_NAME, type=int, required=False,
         default=64, help=MAX_DAILY_EXAMPLES_HELP_STRING
+    )
+    parser_object.add_argument(
+        '--' + USE_PARTIAL_GRIDS_ARG_NAME, type=int, required=True,
+        help=USE_PARTIAL_GRIDS_HELP_STRING
     )
     parser_object.add_argument(
         '--' + NUM_EPOCHS_ARG_NAME, type=int, required=False, default=1000,
