@@ -183,6 +183,7 @@ ECHO_CLASSIFN_DICT_DOWNSAMPLED4 = {
 # find_target_file, and file_name_to_date.
 TOP_PREDICTOR_DIR_NAME = 'predictors'
 PREDICTOR_DATE_STRING = '20200820'
+RADAR_NUMBER_ONE_DAY = None
 PREDICTOR_FILE_NAME = 'predictors/2020/predictors_20200820.nc'
 
 TOP_TARGET_DIR_NAME = 'targets'
@@ -193,18 +194,19 @@ TARGET_FILE_NAME = 'targets/4055/targets_40550405.nc'
 # find_many_target_files.
 FIRST_DATE_STRING = '20200818'
 LAST_DATE_STRING = '20200821'
+RADAR_NUMBER_MANY_DAYS = 2
 
 PREDICTOR_FILE_NAMES = [
-    'predictors/2020/predictors_20200818.nc',
-    'predictors/2020/predictors_20200819.nc',
-    'predictors/2020/predictors_20200820.nc',
-    'predictors/2020/predictors_20200821.nc'
+    'predictors/2020/predictors_20200818_radar2.nc',
+    'predictors/2020/predictors_20200819_radar2.nc',
+    'predictors/2020/predictors_20200820_radar2.nc',
+    'predictors/2020/predictors_20200821_radar2.nc'
 ]
 TARGET_FILE_NAMES = [
-    'targets/2020/targets_20200818.nc',
-    'targets/2020/targets_20200819.nc',
-    'targets/2020/targets_20200820.nc',
-    'targets/2020/targets_20200821.nc'
+    'targets/2020/targets_20200818_radar2.nc',
+    'targets/2020/targets_20200819_radar2.nc',
+    'targets/2020/targets_20200820_radar2.nc',
+    'targets/2020/targets_20200821_radar2.nc'
 ]
 
 # The following constants are used to test subset* and concat*.
@@ -512,7 +514,8 @@ class ExampleIoTests(unittest.TestCase):
 
         this_file_name = example_io.find_predictor_file(
             top_directory_name=TOP_PREDICTOR_DIR_NAME,
-            date_string=PREDICTOR_DATE_STRING, raise_error_if_missing=False
+            date_string=PREDICTOR_DATE_STRING,
+            radar_number=RADAR_NUMBER_ONE_DAY, raise_error_if_missing=False
         )
 
         self.assertTrue(this_file_name == PREDICTOR_FILE_NAME)
@@ -534,7 +537,8 @@ class ExampleIoTests(unittest.TestCase):
         these_file_names = example_io.find_many_predictor_files(
             top_directory_name=TOP_PREDICTOR_DIR_NAME,
             first_date_string=FIRST_DATE_STRING,
-            last_date_string=LAST_DATE_STRING, test_mode=True
+            last_date_string=LAST_DATE_STRING,
+            radar_number=RADAR_NUMBER_MANY_DAYS, test_mode=True
         )
 
         self.assertTrue(these_file_names == PREDICTOR_FILE_NAMES)
@@ -544,7 +548,8 @@ class ExampleIoTests(unittest.TestCase):
 
         this_file_name = example_io.find_target_file(
             top_directory_name=TOP_TARGET_DIR_NAME,
-            date_string=TARGET_DATE_STRING, raise_error_if_missing=False
+            date_string=TARGET_DATE_STRING, radar_number=RADAR_NUMBER_ONE_DAY,
+            raise_error_if_missing=False
         )
 
         self.assertTrue(this_file_name == TARGET_FILE_NAME)
@@ -565,7 +570,8 @@ class ExampleIoTests(unittest.TestCase):
         these_file_names = example_io.find_many_target_files(
             top_directory_name=TOP_TARGET_DIR_NAME,
             first_date_string=FIRST_DATE_STRING,
-            last_date_string=LAST_DATE_STRING, test_mode=True
+            last_date_string=LAST_DATE_STRING,
+            radar_number=RADAR_NUMBER_MANY_DAYS, test_mode=True
         )
 
         self.assertTrue(these_file_names == TARGET_FILE_NAMES)

@@ -12,6 +12,7 @@ from gewittergefahr.gg_utils import error_checking
 from ml4convection.io import satellite_io
 from ml4convection.io import example_io
 from ml4convection.utils import general_utils
+from ml4convection.utils import radar_utils
 from ml4convection.machine_learning import custom_losses
 from ml4convection.machine_learning import custom_metrics
 
@@ -19,6 +20,7 @@ TOLERANCE = 1e-6
 
 DAYS_TO_SECONDS = 86400
 DATE_FORMAT = '%Y%m%d'
+NUM_RADARS = len(radar_utils.RADAR_LATITUDES_DEG_N)
 
 PLATEAU_PATIENCE_EPOCHS = 10
 DEFAULT_LEARNING_RATE_MULTIPLIER = 0.5
@@ -49,6 +51,7 @@ DEFAULT_GENERATOR_OPTION_DICT = {
 
 VALID_DATE_KEY = 'valid_date_string'
 
+USE_PARTIAL_GRIDS_KEY = 'use_partial_grids'
 NUM_EPOCHS_KEY = 'num_epochs'
 NUM_TRAINING_BATCHES_KEY = 'num_training_batches_per_epoch'
 TRAINING_OPTIONS_KEY = 'training_option_dict'
@@ -61,8 +64,8 @@ FSS_HALF_WINDOW_SIZE_KEY = 'fss_half_window_size_px'
 MASK_MATRIX_KEY = 'mask_matrix'
 
 METADATA_KEYS = [
-    NUM_EPOCHS_KEY, NUM_TRAINING_BATCHES_KEY, TRAINING_OPTIONS_KEY,
-    NUM_VALIDATION_BATCHES_KEY, VALIDATION_OPTIONS_KEY,
+    USE_PARTIAL_GRIDS_KEY, NUM_EPOCHS_KEY, NUM_TRAINING_BATCHES_KEY,
+    TRAINING_OPTIONS_KEY, NUM_VALIDATION_BATCHES_KEY, VALIDATION_OPTIONS_KEY,
     EARLY_STOPPING_KEY, PLATEAU_LR_MUTIPLIER_KEY, CLASS_WEIGHTS_KEY,
     FSS_HALF_WINDOW_SIZE_KEY, MASK_MATRIX_KEY
 ]
@@ -77,7 +80,7 @@ LONGITUDES_KEY = 'longitudes_deg_e'
 def _check_generator_args(option_dict):
     """Error-checks input arguments for generator.
 
-    :param option_dict: See doc for `generator_from_preprocessed_files`.
+    :param option_dict: See doc for `generator_full_grid`.
     :return: option_dict: Same as input, except defaults may have been added.
     """
 
@@ -110,7 +113,7 @@ def _check_generator_args(option_dict):
 def _check_inference_args(predictor_matrix, num_examples_per_batch, verbose):
     """Error-checks input arguments for inference.
 
-    :param predictor_matrix: See doc for `apply_model`.
+    :param predictor_matrix: See doc for `apply_model_full_grid`.
     :param num_examples_per_batch: Batch size.
     :param verbose: Boolean flag.  If True, will print progress messages during
         inference.
@@ -175,11 +178,11 @@ def _reshape_predictor_matrix(predictor_matrix, num_lag_times):
     return numpy.reshape(predictor_matrix, these_dim)
 
 
-def _read_preprocessed_inputs_one_day(
+def _read_inputs_one_day(
         valid_date_string, predictor_file_names, band_numbers,
         normalize, uniformize, target_file_names, lead_time_seconds,
         lag_times_seconds, num_examples_to_read, return_coords):
-    """Reads pre-processed inputs (predictor and target files) for one day.
+    """Reads inputs (predictor and target files) for one day.
 
     E = number of examples
     M = number of rows in grid
@@ -188,12 +191,12 @@ def _read_preprocessed_inputs_one_day(
     :param valid_date_string: Valid date (format "yyyymmdd").
     :param predictor_file_names: 1-D list of paths to predictor files (readable
         by `example_io.read_predictor_file`).
-    :param band_numbers: See doc for `generator_from_preprocessed_files`.
+    :param band_numbers: See doc for `generator_full_grid`.
     :param normalize: Same.
     :param uniformize: Same.
     :param target_file_names: 1-D list of paths to target files (readable by
         `example_io.read_target_file`).
-    :param lead_time_seconds: See doc for `generator_from_preprocessed_files`.
+    :param lead_time_seconds: See doc for `generator_full_grid`.
     :param lag_times_seconds: Same.
     :param num_examples_to_read: Number of examples to read.
     :param return_coords: Boolean flag.  If True, will return latitudes and
@@ -201,7 +204,7 @@ def _read_preprocessed_inputs_one_day(
 
     :return: data_dict: Dictionary with the following keys.
     data_dict['predictor_matrix']: See doc for
-        `generator_from_preprocessed_files`.
+        `generator_full_grid`.
     data_dict['target_matrix']: Same.
     data_dict['valid_times_unix_sec']: length-E numpy array of valid times.
     data_dict['latitudes_deg_n']: length-M numpy array of latitudes (deg N).
@@ -354,7 +357,8 @@ def _read_preprocessed_inputs_one_day(
 
 
 def _write_metafile(
-        dill_file_name, num_epochs, num_training_batches_per_epoch,
+        dill_file_name, use_partial_grids, num_epochs,
+        num_training_batches_per_epoch,
         training_option_dict, num_validation_batches_per_epoch,
         validation_option_dict, do_early_stopping, plateau_lr_multiplier,
         class_weights, fss_half_window_size_px, mask_matrix):
@@ -364,7 +368,8 @@ def _write_metafile(
     N = number of columns in prediction grid
 
     :param dill_file_name: Path to output file.
-    :param num_epochs: See doc for `train_model_from_preprocessed_files`.
+    :param use_partial_grids: See doc for `train_model`.
+    :param num_epochs: Same.
     :param num_training_batches_per_epoch: Same.
     :param training_option_dict: Same.
     :param num_validation_batches_per_epoch: Same.
@@ -377,6 +382,7 @@ def _write_metafile(
     """
 
     metadata_dict = {
+        USE_PARTIAL_GRIDS_KEY: use_partial_grids,
         NUM_EPOCHS_KEY: num_epochs,
         NUM_TRAINING_BATCHES_KEY: num_training_batches_per_epoch,
         TRAINING_OPTIONS_KEY: training_option_dict,
@@ -396,13 +402,13 @@ def _write_metafile(
     dill_file_handle.close()
 
 
-def _find_days_with_preprocessed_inputs(
+def _find_days_with_both_inputs(
         predictor_file_names, target_file_names, lead_time_seconds,
         lag_times_seconds):
-    """Finds days with pre-processed inputs (both predictor and target file).
+    """Finds days with both inputs (predictor and target file) available.
 
     :param predictor_file_names: See doc for
-        `_read_preprocessed_inputs_one_day`.
+        `_read_inputs_one_day`.
     :param target_file_names: Same.
     :param lead_time_seconds: Same.
     :param lag_times_seconds: Same.
@@ -574,25 +580,25 @@ def check_class_weights(class_weights):
     error_checking.assert_is_greater_numpy_array(class_weights, 0.)
 
 
-def create_data_from_preprocessed_files(option_dict, return_coords=False):
-    """Creates input data from pre-processed (predictor and target) files.
+def create_data_full_grid(option_dict, return_coords=False):
+    """Creates input data on full satellite grid.
 
-    This method is the same as `generator_from_preprocessed_files`, except that
+    This method is the same as `generator_full_grid`, except that
     it returns all the data at once, rather than generating batches on the fly.
 
     :param option_dict: Dictionary with the following keys.
     option_dict['top_predictor_dir_name']: See doc for
-        `generator_from_preprocessed_files`.
+        `generator_full_grid`.
     option_dict['top_target_dir_name']: Same.
     option_dict['band_numbers']: Same.
     option_dict['lead_time_seconds']: Same.
     option_dict['lag_times_seconds']: Same.
     option_dict['valid_date_string']: Valid date (format "yyyymmdd").  Will
         create examples with targets valid on this day.
-    option_dict['normalize']: See doc for `generator_from_preprocessed_files`.
+    option_dict['normalize']: See doc for `generator_full_grid`.
     option_dict['uniformize']: Same.
 
-    :param return_coords: See doc for `_read_preprocessed_inputs_one_day`.
+    :param return_coords: See doc for `_read_inputs_one_day`.
     :return: data_dict: Same.
     """
 
@@ -631,7 +637,7 @@ def create_data_from_preprocessed_files(option_dict, return_coords=False):
         raise_error_if_any_missing=False
     )
 
-    valid_date_strings = _find_days_with_preprocessed_inputs(
+    valid_date_strings = _find_days_with_both_inputs(
         predictor_file_names=predictor_file_names,
         target_file_names=target_file_names,
         lead_time_seconds=lead_time_seconds,
@@ -641,7 +647,7 @@ def create_data_from_preprocessed_files(option_dict, return_coords=False):
     if len(valid_date_strings) == 0:
         return None
 
-    return _read_preprocessed_inputs_one_day(
+    return _read_inputs_one_day(
         valid_date_string=valid_date_string,
         predictor_file_names=predictor_file_names,
         band_numbers=band_numbers, normalize=normalize, uniformize=uniformize,
@@ -652,8 +658,100 @@ def create_data_from_preprocessed_files(option_dict, return_coords=False):
     )
 
 
-def generator_from_preprocessed_files(option_dict):
-    """Generates training data from pre-processed (predictor and target) files.
+def create_data_partial_grids(option_dict, return_coords=False):
+    """Creates input data on partial, radar-centered grids.
+
+    This method is the same as `generator_partial_grids`, except that
+    it returns all the data at once, rather than generating batches on the fly.
+
+    R = number of radar sites
+
+    :param option_dict: Dictionary with the following keys.
+    option_dict['top_predictor_dir_name']: See doc for `generator_full_grid`.
+    option_dict['top_target_dir_name']: Same.
+    option_dict['band_numbers']: Same.
+    option_dict['lead_time_seconds']: Same.
+    option_dict['lag_times_seconds']: Same.
+    option_dict['valid_date_string']: Valid date (format "yyyymmdd").  Will
+        create examples with targets valid on this day.
+    option_dict['normalize']: See doc for `generator_full_grid`.
+    option_dict['uniformize']: Same.
+
+    :param return_coords: See doc for `_read_inputs_one_day`.
+    :return: data_dicts: length-R list of dictionaries, each in format returned
+        by `_read_inputs_one_day`.
+    """
+
+    option_dict = _check_generator_args(option_dict)
+    error_checking.assert_is_boolean(return_coords)
+
+    top_predictor_dir_name = option_dict[PREDICTOR_DIRECTORY_KEY]
+    top_target_dir_name = option_dict[TARGET_DIRECTORY_KEY]
+    band_numbers = option_dict[BAND_NUMBERS_KEY]
+    lead_time_seconds = option_dict[LEAD_TIME_KEY]
+    lag_times_seconds = option_dict[LAG_TIMES_KEY]
+    valid_date_string = option_dict[VALID_DATE_KEY]
+    normalize = option_dict[NORMALIZE_FLAG_KEY]
+    uniformize = option_dict[UNIFORMIZE_FLAG_KEY]
+
+    if lead_time_seconds > 0 or numpy.any(lag_times_seconds > 0):
+        first_init_date_string = general_utils.get_previous_date(
+            valid_date_string
+        )
+    else:
+        first_init_date_string = copy.deepcopy(valid_date_string)
+
+    valid_date_strings = None
+    data_dicts = [dict()] * NUM_RADARS
+
+    for k in range(NUM_RADARS):
+        these_predictor_file_names = example_io.find_many_predictor_files(
+            top_directory_name=top_predictor_dir_name,
+            first_date_string=first_init_date_string,
+            last_date_string=valid_date_string, radar_number=k,
+            raise_error_if_all_missing=False,
+            raise_error_if_any_missing=False
+        )
+
+        these_target_file_names = example_io.find_many_target_files(
+            top_directory_name=top_target_dir_name,
+            first_date_string=valid_date_string,
+            last_date_string=valid_date_string, radar_number=k,
+            raise_error_if_all_missing=False,
+            raise_error_if_any_missing=False
+        )
+
+        these_valid_date_strings = _find_days_with_both_inputs(
+            predictor_file_names=these_predictor_file_names,
+            target_file_names=these_target_file_names,
+            lead_time_seconds=lead_time_seconds,
+            lag_times_seconds=lag_times_seconds
+        )
+
+        if valid_date_strings is None:
+            valid_date_strings = copy.deepcopy(these_valid_date_strings)
+
+        assert valid_date_strings == these_valid_date_strings
+
+        if len(valid_date_strings) == 0:
+            return None
+
+        data_dicts[k] = _read_inputs_one_day(
+            valid_date_string=valid_date_string,
+            predictor_file_names=these_predictor_file_names,
+            band_numbers=band_numbers, normalize=normalize,
+            uniformize=uniformize,
+            target_file_names=these_target_file_names,
+            lead_time_seconds=lead_time_seconds,
+            lag_times_seconds=lag_times_seconds,
+            num_examples_to_read=int(1e6), return_coords=return_coords
+        )
+
+    return data_dicts
+
+
+def generator_full_grid(option_dict):
+    """Generates training data on full satellite grid.
 
     E = number of examples per batch
     M = number of rows in grid
@@ -731,7 +829,7 @@ def generator_from_preprocessed_files(option_dict):
         raise_error_if_any_missing=False
     )
 
-    valid_date_strings = _find_days_with_preprocessed_inputs(
+    valid_date_strings = _find_days_with_both_inputs(
         predictor_file_names=predictor_file_names,
         target_file_names=target_file_names,
         lead_time_seconds=lead_time_seconds,
@@ -761,7 +859,7 @@ def generator_from_preprocessed_files(option_dict):
                 num_examples_per_batch - num_examples_in_memory
             ])
 
-            this_data_dict = _read_preprocessed_inputs_one_day(
+            this_data_dict = _read_inputs_one_day(
                 valid_date_string=valid_date_strings[date_index],
                 predictor_file_names=predictor_file_names,
                 band_numbers=band_numbers,
@@ -797,14 +895,179 @@ def generator_from_preprocessed_files(option_dict):
         yield predictor_matrix, target_matrix
 
 
-def train_model_from_preprocessed_files(
-        model_object, output_dir_name, num_epochs,
+def generator_partial_grids(option_dict):
+    """Generates training data on partial, radar-centered grids.
+
+    :param option_dict: See doc for `generator_full_grid`.
+    :return: predictor_matrix: Same.
+    :return: target_matrix: Same.
+    :raises: ValueError: if no valid date can be found for which predictors and
+        targets are available.
+    """
+
+    option_dict = _check_generator_args(option_dict)
+
+    top_predictor_dir_name = option_dict[PREDICTOR_DIRECTORY_KEY]
+    top_target_dir_name = option_dict[TARGET_DIRECTORY_KEY]
+    num_examples_per_batch = option_dict[BATCH_SIZE_KEY]
+    max_examples_per_day_in_batch = option_dict[MAX_DAILY_EXAMPLES_KEY]
+    band_numbers = option_dict[BAND_NUMBERS_KEY]
+    lead_time_seconds = option_dict[LEAD_TIME_KEY]
+    lag_times_seconds = option_dict[LAG_TIMES_KEY]
+    first_valid_date_string = option_dict[FIRST_VALID_DATE_KEY]
+    last_valid_date_string = option_dict[LAST_VALID_DATE_KEY]
+    normalize = option_dict[NORMALIZE_FLAG_KEY]
+    uniformize = option_dict[UNIFORMIZE_FLAG_KEY]
+
+    if lead_time_seconds > 0 or numpy.any(lag_times_seconds > 0):
+        first_init_date_string = general_utils.get_previous_date(
+            first_valid_date_string
+        )
+    else:
+        first_init_date_string = copy.deepcopy(first_valid_date_string)
+
+    these_predictor_file_names = example_io.find_many_predictor_files(
+        top_directory_name=top_predictor_dir_name,
+        first_date_string=first_init_date_string,
+        last_date_string=last_valid_date_string, radar_number=0,
+        raise_error_if_any_missing=False
+    )
+
+    num_days = len(these_predictor_file_names)
+    predictor_file_name_matrix = numpy.full(
+        (num_days, NUM_RADARS), '', dtype=object
+    )
+    target_file_name_matrix = numpy.full(
+        (num_days, NUM_RADARS), '', dtype=object
+    )
+
+    these_target_file_names = example_io.find_many_target_files(
+        top_directory_name=top_target_dir_name,
+        first_date_string=first_init_date_string,
+        last_date_string=last_valid_date_string, radar_number=0,
+        raise_error_if_any_missing=False
+    )
+
+    predictor_file_name_matrix[:, 0] = numpy.array(these_predictor_file_names)
+    target_file_name_matrix[:, 0] = numpy.array(these_target_file_names)
+
+    valid_date_strings = _find_days_with_both_inputs(
+        predictor_file_names=predictor_file_name_matrix[:, 0],
+        target_file_names=target_file_name_matrix[:, 0],
+        lead_time_seconds=lead_time_seconds,
+        lag_times_seconds=lag_times_seconds
+    )
+
+    if len(valid_date_strings) == 0:
+        raise ValueError(
+            'Cannot find any valid date for which both predictors and targets '
+            ' are available.'
+        )
+
+    for k in range(1, NUM_RADARS):
+        these_predictor_file_names = [
+            example_io.find_predictor_file(
+                top_directory_name=top_predictor_dir_name, date_string=d,
+                radar_number=k, raise_error_if_missing=True
+            ) for d in valid_date_strings
+        ]
+
+        predictor_file_name_matrix[:, k] = numpy.array(
+            these_predictor_file_names
+        )
+
+        these_target_file_names = [
+            example_io.find_target_file(
+                top_directory_name=top_predictor_dir_name, date_string=d,
+                radar_number=k, raise_error_if_missing=True
+            ) for d in valid_date_strings
+        ]
+
+        target_file_name_matrix[:, k] = numpy.array(these_target_file_names)
+
+    radar_indices = numpy.linspace(0, NUM_RADARS - 1, num=NUM_RADARS, dtype=int)
+    date_indices = numpy.linspace(
+        0, len(valid_date_strings) - 1, num=len(valid_date_strings), dtype=int
+    )
+
+    date_index_matrix, radar_index_matrix = numpy.meshgrid(
+        date_indices, radar_indices
+    )
+    date_indices_1d = numpy.ravel(date_index_matrix)
+    radar_indices_1d = numpy.ravel(radar_index_matrix)
+
+    random_indices = numpy.linspace(
+        0, len(radar_indices_1d) - 1, num=len(radar_indices_1d), dtype=int
+    )
+    numpy.random.shuffle(random_indices)
+    date_indices_1d = date_indices_1d[random_indices]
+    radar_indices_1d = radar_indices_1d[random_indices]
+
+    current_index = 0
+
+    while True:
+        predictor_matrix = None
+        target_matrix = None
+        num_examples_in_memory = 0
+
+        while num_examples_in_memory < num_examples_per_batch:
+            if current_index == len(radar_indices_1d):
+                current_index = 0
+
+            num_examples_to_read = min([
+                max_examples_per_day_in_batch,
+                num_examples_per_batch - num_examples_in_memory
+            ])
+
+            current_date_index = date_indices_1d[current_index]
+            current_radar_index = radar_indices_1d[current_index]
+
+            this_data_dict = _read_inputs_one_day(
+                valid_date_string=valid_date_strings[current_date_index],
+                predictor_file_names=
+                predictor_file_name_matrix[:, current_radar_index],
+                band_numbers=band_numbers,
+                normalize=normalize, uniformize=uniformize,
+                target_file_names=
+                target_file_name_matrix[:, current_radar_index],
+                lead_time_seconds=lead_time_seconds,
+                lag_times_seconds=lag_times_seconds,
+                num_examples_to_read=num_examples_to_read, return_coords=False
+            )
+
+            current_index += 1
+            if this_data_dict is None:
+                continue
+
+            this_predictor_matrix = this_data_dict[PREDICTOR_MATRIX_KEY]
+            this_target_matrix = this_data_dict[TARGET_MATRIX_KEY]
+
+            if predictor_matrix is None:
+                predictor_matrix = this_predictor_matrix + 0.
+                target_matrix = this_target_matrix + 0
+            else:
+                predictor_matrix = numpy.concatenate(
+                    (predictor_matrix, this_predictor_matrix), axis=0
+                )
+                target_matrix = numpy.concatenate(
+                    (target_matrix, this_target_matrix), axis=0
+                )
+
+            num_examples_in_memory = predictor_matrix.shape[0]
+
+        predictor_matrix = predictor_matrix.astype('float32')
+        target_matrix = target_matrix.astype('float32')
+        yield predictor_matrix, target_matrix
+
+
+def train_model(
+        model_object, output_dir_name, num_epochs, use_partial_grids,
         num_training_batches_per_epoch, training_option_dict,
         num_validation_batches_per_epoch, validation_option_dict,
         mask_matrix, do_early_stopping=True,
         plateau_lr_multiplier=DEFAULT_LEARNING_RATE_MULTIPLIER,
         class_weights=None, fss_half_window_size_px=None):
-    """Trains neural net from pre-processed (predictor and target) files.
+    """Trains neural net on either full grid or partial grids.
 
     M = number of rows in prediction grid
     N = number of columns in prediction grid
@@ -814,14 +1077,16 @@ def train_model_from_preprocessed_files(
     :param output_dir_name: Path to output directory (model and training history
         will be saved here).
     :param num_epochs: Number of training epochs.
+    :param use_partial_grids: Boolean flag.  If True (False), neural net will be
+        trained on full (partial) grids.
     :param num_training_batches_per_epoch: Number of training batches per epoch.
     :param training_option_dict: See doc for
-        `generator_from_preprocessed_files`.  This dictionary will be used to
+        `generator_full_grid`.  This dictionary will be used to
         generate training data.
     :param num_validation_batches_per_epoch: Number of validation batches per
         epoch.
     :param validation_option_dict: See doc for
-        `generator_from_preprocessed_files`.  For validation only, the following
+        `generator_full_grid`.  For validation only, the following
         values will replace corresponding values in `training_option_dict`:
     validation_option_dict['top_predictor_dir_name']
     validation_option_dict['top_target_dir_name']
@@ -849,6 +1114,7 @@ def train_model_from_preprocessed_files(
 
     error_checking.assert_is_integer(num_epochs)
     error_checking.assert_is_geq(num_epochs, 2)
+    error_checking.assert_is_boolean(use_partial_grids)
     error_checking.assert_is_integer(num_training_batches_per_epoch)
     error_checking.assert_is_geq(num_training_batches_per_epoch, 10)
     error_checking.assert_is_integer(num_validation_batches_per_epoch)
@@ -922,7 +1188,8 @@ def train_model_from_preprocessed_files(
     print('Writing metadata to: "{0:s}"...'.format(metafile_name))
 
     _write_metafile(
-        dill_file_name=metafile_name, num_epochs=num_epochs,
+        dill_file_name=metafile_name,
+        use_partial_grids=use_partial_grids, num_epochs=num_epochs,
         num_training_batches_per_epoch=num_training_batches_per_epoch,
         training_option_dict=training_option_dict,
         num_validation_batches_per_epoch=num_validation_batches_per_epoch,
@@ -934,10 +1201,16 @@ def train_model_from_preprocessed_files(
         mask_matrix=mask_matrix
     )
 
-    training_generator = generator_from_preprocessed_files(training_option_dict)
-    validation_generator = generator_from_preprocessed_files(
-        validation_option_dict
-    )
+    if use_partial_grids:
+        training_generator = generator_partial_grids(training_option_dict)
+        validation_generator = generator_partial_grids(
+            validation_option_dict
+        )
+    else:
+        training_generator = generator_full_grid(training_option_dict)
+        validation_generator = generator_full_grid(
+            validation_option_dict
+        )
 
     model_object.fit_generator(
         generator=training_generator,
@@ -1025,8 +1298,8 @@ def read_metafile(dill_file_name):
 
     :param dill_file_name: Path to input file.
     :return: metadata_dict: Dictionary with the following keys.
-    metadata_dict['num_epochs']: See doc for
-        `train_model_from_preprocessed_files`.
+    metadata_dict['use_partial_grids']: See doc for `train_model`.
+    metadata_dict['num_epochs']: Same.
     metadata_dict['num_training_batches_per_epoch']: Same.
     metadata_dict['training_option_dict']: Same.
     metadata_dict['num_validation_batches_per_epoch']: Same.
@@ -1052,6 +1325,9 @@ def read_metafile(dill_file_name):
     if FSS_HALF_WINDOW_SIZE_KEY not in metadata_dict:
         metadata_dict[FSS_HALF_WINDOW_SIZE_KEY] = None
 
+    if USE_PARTIAL_GRIDS_KEY not in metadata_dict:
+        metadata_dict[USE_PARTIAL_GRIDS_KEY] = False
+
     training_option_dict = metadata_dict[TRAINING_OPTIONS_KEY]
     validation_option_dict = metadata_dict[VALIDATION_OPTIONS_KEY]
 
@@ -1074,9 +1350,9 @@ def read_metafile(dill_file_name):
     raise ValueError(error_string)
 
 
-def apply_model(
+def apply_model_full_grid(
         model_object, predictor_matrix, num_examples_per_batch, verbose=False):
-    """Applies trained neural net to new data.
+    """Applies trained neural net to full grid.
 
     E = number of examples
     M = number of rows in grid
@@ -1085,7 +1361,7 @@ def apply_model(
     :param model_object: Trained neural net (instance of `keras.models.Model` or
         `keras.models.Sequential`).
     :param predictor_matrix: See output doc for
-        `generator_from_preprocessed_files`.
+        `generator_full_grid`.
     :param num_examples_per_batch: Batch size.
     :param verbose: Boolean flag.  If True, will print progress messages.
     :return: forecast_prob_matrix: E-by-M-by-N numpy array of forecast event
@@ -1130,5 +1406,138 @@ def apply_model(
 
     if verbose:
         print('Have applied model to all {0:d} examples!'.format(num_examples))
+
+    return forecast_prob_matrix
+
+
+def apply_model_partial_grids(
+        model_object, predictor_matrix, num_examples_per_batch, overlap_size_px,
+        verbose=False):
+    """Applies trained NN to full grid, predicting one partial grid at a time.
+
+    :param model_object: See doc for `apply_model_full_grid`.
+    :param predictor_matrix: Same.
+    :param num_examples_per_batch: Same.
+    :param overlap_size_px: Overlap between adjacent partial grids (number of
+        pixels).
+    :param verbose: See doc for `apply_model_full_grid`.
+    :return: forecast_prob_matrix: Same.
+    """
+
+    # Check input args.
+    num_examples_per_batch = _check_inference_args(
+        predictor_matrix=predictor_matrix,
+        num_examples_per_batch=num_examples_per_batch, verbose=verbose
+    )
+
+    these_dim = model_object.layers[-1].output.get_shape().as_list()
+    num_partial_grid_rows = these_dim[1]
+    num_partial_grid_columns = these_dim[2]
+
+    num_partial_half_grid_rows = int(numpy.round(
+        float(num_partial_grid_rows - 1) / 2
+    ))
+    num_partial_half_grid_columns = int(numpy.round(
+        float(num_partial_grid_columns - 1) / 2
+    ))
+
+    error_checking.assert_is_integer(overlap_size_px)
+    error_checking.assert_is_geq(overlap_size_px, 0)
+    error_checking.assert_is_less_than(
+        overlap_size_px,
+        min([num_partial_half_grid_rows, num_partial_half_grid_columns])
+    )
+
+    num_examples = predictor_matrix.shape[0]
+    num_full_grid_rows = predictor_matrix.shape[1]
+    num_full_grid_columns = predictor_matrix.shape[2]
+
+    error_checking.assert_is_less_than(
+        num_partial_grid_rows, num_full_grid_rows
+    )
+    error_checking.assert_is_less_than(
+        num_partial_grid_columns, num_full_grid_columns
+    )
+
+    # Do actual stuff.
+    forecast_prob_matrix = numpy.full(
+        (num_examples, num_full_grid_rows, num_full_grid_columns), numpy.nan
+    )
+    first_input_row = -1
+    first_input_column = -1
+    last_input_row = -1
+
+    while last_input_row < num_partial_grid_rows - 1:
+        if first_input_row < 0:
+            first_input_row = 0
+            first_input_column = 0
+        else:
+            first_input_row += num_partial_grid_rows - overlap_size_px
+            first_input_column += num_partial_grid_columns - overlap_size_px
+
+        last_input_row = min([
+            first_input_row + num_partial_grid_rows - 1,
+            num_partial_grid_rows - 1
+        ])
+        last_input_column = min([
+            first_input_column + num_partial_grid_columns - 1,
+            num_partial_grid_columns - 1
+        ])
+
+        first_input_row = last_input_row - num_partial_grid_rows + 1
+        first_input_column = last_input_column - num_partial_grid_columns + 1
+
+        first_output_row = first_input_row + overlap_size_px
+        last_output_row = last_input_row - overlap_size_px
+        first_output_column = first_input_column + overlap_size_px
+        last_output_column = last_input_column - overlap_size_px
+
+        for i in range(0, num_examples, num_examples_per_batch):
+            first_example_index = i
+            last_example_index = min([
+                i + num_examples_per_batch - 1, num_examples - 1
+            ])
+
+            if verbose:
+                print((
+                    'Applying model to rows {0:d}-{1:d} of {2:d}, '
+                    'columns {3:d}-{4:d} of {5:d}, '
+                    'examples {6:d}-{7:d} of {8:d}...'
+                ).format(
+                    first_input_row + 1, last_input_row + 1, num_full_grid_rows,
+                    first_input_column + 1, last_input_column + 1,
+                    num_full_grid_columns,
+                    first_example_index + 1, last_example_index + 1,
+                    num_examples
+                ))
+
+            this_predictor_matrix = predictor_matrix[
+                first_example_index:(last_example_index + 1),
+                first_input_row:(last_input_row + 1),
+                first_input_column:(last_input_column + 1),
+                :
+            ]
+
+            this_prob_matrix = model_object.predict(
+                this_predictor_matrix, batch_size=this_predictor_matrix.shape[0]
+            )[..., 0]
+
+            this_prob_matrix = this_prob_matrix[
+                overlap_size_px:-overlap_size_px,
+                overlap_size_px:-overlap_size_px
+            ]
+
+            forecast_prob_matrix[
+                first_example_index:(last_example_index + 1),
+                first_output_row:(last_output_row + 1),
+                first_output_column:(last_output_column + 1)
+            ] = this_prob_matrix
+
+    if verbose:
+        print((
+            'Have applied model to all grid points and all {0:d} examples!'
+        ).format(
+            num_examples
+        ))
 
     return forecast_prob_matrix

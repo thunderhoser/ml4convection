@@ -9,7 +9,9 @@ from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
 from ml4convection.io import radar_io
 from ml4convection.io import satellite_io
+from ml4convection.io import twb_satellite_io
 from ml4convection.utils import normalization
+from ml4convection.utils import radar_utils
 from ml4convection.machine_learning import standalone_utils
 
 TOLERANCE = 1e-6
@@ -23,11 +25,15 @@ BAND_NUMBERS_KEY = 'band_numbers'
 LATITUDES_KEY = 'latitudes_deg_n'
 LONGITUDES_KEY = 'longitudes_deg_e'
 NORMALIZATION_FILE_KEY = 'normalization_file_name'
-MASK_FILE_KEY = 'mask_file_name'
+MASK_MATRIX_KEY = 'mask_matrix'
 
 ONE_PER_PREDICTOR_TIME_KEYS = [
     PREDICTOR_MATRIX_UNNORM_KEY, PREDICTOR_MATRIX_NORM_KEY,
     PREDICTOR_MATRIX_UNIF_NORM_KEY, VALID_TIMES_KEY
+]
+ONE_PER_PREDICTOR_PIXEL_KEYS = [
+    PREDICTOR_MATRIX_UNNORM_KEY, PREDICTOR_MATRIX_NORM_KEY,
+    PREDICTOR_MATRIX_UNIF_NORM_KEY
 ]
 ONE_PER_BAND_NUMBER_KEYS = [
     PREDICTOR_MATRIX_UNNORM_KEY, PREDICTOR_MATRIX_NORM_KEY,
@@ -124,9 +130,52 @@ def _create_predictors_one_day(
     }
 
 
+def _create_predictors_one_day_partial_grids(
+        input_file_name, normalization_dict, normalization_file_name,
+        half_grid_size_px):
+    """Creates predictor values for one day on partial, radar-centered grids.
+
+    R = number of radar sites
+
+    :param input_file_name: See doc for `_create_predictors_one_day`.
+    :param normalization_dict: Same.
+    :param normalization_file_name: Same.
+    :param half_grid_size_px: Size of half-grid (pixels).  If this number is K,
+        the grid will have 2 * K + 1 rows and 2 * K + 1 columns.
+    :return: predictor_dicts: length-R list of dictionaries, each in format
+        returned by `_create_predictors_one_day`.
+    """
+
+    predictor_dict_full_grid = _create_predictors_one_day(
+        input_file_name=input_file_name, spatial_downsampling_factor=1,
+        normalization_dict=normalization_dict,
+        normalization_file_name=normalization_file_name
+    )
+
+    center_row_indices, center_column_indices = (
+        radar_utils.radar_sites_to_grid_points(
+            grid_latitudes_deg_n=predictor_dict_full_grid[LATITUDES_KEY],
+            grid_longitudes_deg_e=predictor_dict_full_grid[LONGITUDES_KEY]
+        )
+    )
+
+    num_radars = len(center_row_indices)
+    predictor_dicts = [dict()] * num_radars
+
+    for k in range(num_radars):
+        predictor_dicts[k] = subset_grid(
+            predictor_or_target_dict=copy.deepcopy(predictor_dict_full_grid),
+            first_row=center_row_indices[k] - half_grid_size_px,
+            last_row=center_row_indices[k] + half_grid_size_px,
+            first_column=center_column_indices[k] - half_grid_size_px,
+            last_column=center_column_indices[k] + half_grid_size_px,
+        )
+
+    return predictor_dicts
+
+
 def _create_targets_one_day(
-        echo_classifn_file_name, spatial_downsampling_factor, mask_dict,
-        mask_file_name):
+        echo_classifn_file_name, spatial_downsampling_factor, mask_dict):
     """Creates target values for one day.
 
     E = number of examples per batch
@@ -139,8 +188,6 @@ def _create_targets_one_day(
     :param mask_dict: Dictionary in format returned by
         `radar_io.read_mask_file`, used to censor locations with bad radar
         coverage.  If you do not want a mask, leave this alone.
-    :param mask_file_name: [used only if `mask_dict is not None`]
-        Path to file containing mask.
 
     :return: target_dict: Dictionary with the following keys.
     target_dict['target_matrix']: E-by-M-by-N numpy array of target values
@@ -150,7 +197,8 @@ def _create_targets_one_day(
         (deg N).
     target_dict['longitudes_deg_e']: length-N numpy array of longitudes
         (deg E).
-    target_dict['mask_file_name']: Same as input (metadata).
+    target_dict['mask_matrix']: M-by-N numpy array of Boolean flag.  False means
+        that the grid cell is masked out.
     """
 
     print('Reading data from: "{0:s}"...'.format(echo_classifn_file_name))
@@ -170,25 +218,24 @@ def _create_targets_one_day(
 
     target_matrix = echo_classifn_dict[radar_io.CONVECTIVE_FLAGS_KEY]
 
-    if mask_dict is not None:
-        assert numpy.allclose(
-            echo_classifn_dict[radar_io.LATITUDES_KEY],
-            mask_dict[radar_io.LATITUDES_KEY],
-            atol=TOLERANCE
+    assert numpy.allclose(
+        echo_classifn_dict[radar_io.LATITUDES_KEY],
+        mask_dict[radar_io.LATITUDES_KEY],
+        atol=TOLERANCE
+    )
+
+    assert numpy.allclose(
+        echo_classifn_dict[radar_io.LONGITUDES_KEY],
+        mask_dict[radar_io.LONGITUDES_KEY],
+        atol=TOLERANCE
+    )
+
+    num_times = len(echo_classifn_dict[radar_io.VALID_TIMES_KEY])
+
+    for i in range(num_times):
+        target_matrix[i, ...] = numpy.logical_and(
+            target_matrix[i, ...], mask_dict[radar_io.MASK_MATRIX_KEY]
         )
-
-        assert numpy.allclose(
-            echo_classifn_dict[radar_io.LONGITUDES_KEY],
-            mask_dict[radar_io.LONGITUDES_KEY],
-            atol=TOLERANCE
-        )
-
-        num_times = len(echo_classifn_dict[radar_io.VALID_TIMES_KEY])
-
-        for i in range(num_times):
-            target_matrix[i, ...] = numpy.logical_and(
-                target_matrix[i, ...], mask_dict[radar_io.MASK_MATRIX_KEY]
-            )
 
     target_matrix = target_matrix.astype(int)
 
@@ -203,8 +250,49 @@ def _create_targets_one_day(
         VALID_TIMES_KEY: echo_classifn_dict[radar_io.VALID_TIMES_KEY],
         LATITUDES_KEY: echo_classifn_dict[radar_io.LATITUDES_KEY],
         LONGITUDES_KEY: echo_classifn_dict[radar_io.LONGITUDES_KEY],
-        MASK_FILE_KEY: mask_file_name
+        MASK_MATRIX_KEY: mask_dict[radar_io.MASK_MATRIX_KEY].astype(bool)
     }
+
+
+def _create_targets_one_day_partial_grids(
+        echo_classifn_file_name, mask_dict, half_grid_size_px):
+    """Creates predictor values for one day on partial, radar-centered grids.
+
+    R = number of radar sites
+
+    :param echo_classifn_file_name: See doc for `_create_targets_one_day`.
+    :param mask_dict: Same.
+    :param half_grid_size_px: Size of half-grid (pixels).  If this number is K,
+        the grid will have 2 * K + 1 rows and 2 * K + 1 columns.
+    :return: target_dicts: length-R list of dictionaries, each in format
+        returned by `_create_targets_one_day`.
+    """
+
+    target_dict_full_grid = _create_targets_one_day(
+        echo_classifn_file_name=echo_classifn_file_name,
+        spatial_downsampling_factor=1, mask_dict=mask_dict
+    )
+
+    center_row_indices, center_column_indices = (
+        radar_utils.radar_sites_to_grid_points(
+            grid_latitudes_deg_n=target_dict_full_grid[LATITUDES_KEY],
+            grid_longitudes_deg_e=target_dict_full_grid[LONGITUDES_KEY]
+        )
+    )
+
+    num_radars = len(center_row_indices)
+    target_dicts = [dict()] * num_radars
+
+    for k in range(num_radars):
+        target_dicts[k] = subset_grid(
+            predictor_or_target_dict=copy.deepcopy(target_dict_full_grid),
+            first_row=center_row_indices[k] - half_grid_size_px,
+            last_row=center_row_indices[k] + half_grid_size_px,
+            first_column=center_column_indices[k] - half_grid_size_px,
+            last_column=center_column_indices[k] + half_grid_size_px,
+        )
+
+    return target_dicts
 
 
 def _write_predictor_file(predictor_dict, netcdf_file_name):
@@ -300,8 +388,6 @@ def _write_target_file(target_dict, netcdf_file_name):
         netcdf_file_name, 'w', format='NETCDF3_64BIT_OFFSET'
     )
 
-    dataset_object.setncattr(MASK_FILE_KEY, target_dict[MASK_FILE_KEY])
-
     target_matrix = target_dict[TARGET_MATRIX_KEY]
     num_times = target_matrix.shape[0]
     num_grid_rows = target_matrix.shape[1]
@@ -325,6 +411,14 @@ def _write_target_file(target_dict, netcdf_file_name):
         LONGITUDES_KEY, datatype=numpy.float32, dimensions=COLUMN_DIMENSION_KEY
     )
     dataset_object.variables[LONGITUDES_KEY][:] = target_dict[LONGITUDES_KEY]
+
+    dataset_object.createVariable(
+        MASK_MATRIX_KEY, datatype=numpy.int32,
+        dimensions=(ROW_DIMENSION_KEY, COLUMN_DIMENSION_KEY)
+    )
+    dataset_object.variables[MASK_MATRIX_KEY][:] = (
+        target_dict[MASK_MATRIX_KEY].astype(int)
+    )
 
     these_dim = (TIME_DIMENSION_KEY, ROW_DIMENSION_KEY, COLUMN_DIMENSION_KEY)
     dataset_object.createVariable(
@@ -456,6 +550,9 @@ def create_predictors(
     :param last_date_string: See above.
     :param normalization_file_name: Path to file with normalization parameters
         (will be read by `normalization.read_file`).
+    :param top_output_dir_name: Name of top-level output directory.  Files will
+        be written here by `_write_predictor_file`, to exact locations
+        determined by `find_predictor_file`.
     :param raise_error_if_all_missing: Boolean flag.  If all input files are
         missing and `raise_error_if_all_missing == True`, will throw error.
     """
@@ -500,10 +597,71 @@ def create_predictors(
         )
 
 
+def create_predictors_partial_grids(
+        top_input_dir_name, first_date_string, last_date_string,
+        normalization_file_name, half_grid_size_px, top_output_dir_name,
+        raise_error_if_all_missing=True):
+    """Creates predictor values on partial, radar-centered grids.
+
+    :param top_input_dir_name: See doc for `create_predictors`.
+    :param first_date_string: Same.
+    :param last_date_string: Same.
+    :param normalization_file_name: Same.
+    :param half_grid_size_px: Size of half-grid (pixels).  If this number is K,
+        the grid will have 2 * K + 1 rows and 2 * K + 1 columns.
+    :param top_output_dir_name: See doc for `create_predictors`.
+    :param raise_error_if_all_missing: Same.
+    """
+
+    error_checking.assert_is_string(normalization_file_name)
+    error_checking.assert_is_integer(half_grid_size_px)
+    error_checking.assert_is_greater(half_grid_size_px, 0)
+
+    input_file_names = satellite_io.find_many_files(
+        top_directory_name=top_input_dir_name,
+        first_date_string=first_date_string,
+        last_date_string=last_date_string,
+        raise_error_if_all_missing=raise_error_if_all_missing,
+        raise_error_if_any_missing=False
+    )
+
+    print('Reading normalization params from: "{0:s}"...'.format(
+        normalization_file_name
+    ))
+    normalization_dict = normalization.read_file(normalization_file_name)
+
+    for this_input_file_name in input_file_names:
+        print('\n')
+
+        these_predictor_dicts = _create_predictors_one_day_partial_grids(
+            input_file_name=this_input_file_name,
+            half_grid_size_px=half_grid_size_px,
+            normalization_dict=normalization_dict,
+            normalization_file_name=normalization_file_name
+        )
+
+        for k in range(len(these_predictor_dicts)):
+            this_output_file_name = find_predictor_file(
+                top_directory_name=top_output_dir_name,
+                date_string=
+                satellite_io.file_name_to_date(this_input_file_name),
+                radar_number=k, raise_error_if_missing=False
+            )
+
+            print('Writing predictors to: "{0:s}"...'.format(
+                this_output_file_name
+            ))
+
+            _write_predictor_file(
+                predictor_dict=these_predictor_dicts[k],
+                netcdf_file_name=this_output_file_name
+            )
+
+
 def create_targets(
         top_echo_classifn_dir_name, spatial_downsampling_factor,
         first_date_string, last_date_string, top_output_dir_name,
-        mask_file_name=None, raise_error_if_all_missing=True):
+        mask_file_name, raise_error_if_all_missing=True):
     """Creates target values.
 
     :param top_echo_classifn_dir_name: Name of top-level directory with
@@ -516,8 +674,7 @@ def create_targets(
         be written by `_write_target_file`, to locations therein determined by
         `find_target_file`.
     :param mask_file_name: Path to file with mask (used to censor locations with
-        bad radar coverage).  Will be read by `radar_io.read_mask_file`.  If you
-        do not want a mask, leave this alone.
+        bad radar coverage).  Will be read by `radar_io.read_mask_file`.
     :param raise_error_if_all_missing: Boolean flag.  If all input files are
         missing and `raise_error_if_all_missing == True`, will throw error.
     """
@@ -534,24 +691,21 @@ def create_targets(
         raise_error_if_any_missing=False
     )
 
-    if mask_file_name is None:
-        mask_dict = None
-    else:
-        print('Reading mask from: "{0:s}"...'.format(mask_file_name))
-        mask_dict = radar_io.read_mask_file(mask_file_name)
-        mask_dict = radar_io.expand_to_satellite_grid(any_radar_dict=mask_dict)
+    print('Reading mask from: "{0:s}"...'.format(mask_file_name))
+    mask_dict = radar_io.read_mask_file(mask_file_name)
+    mask_dict = radar_io.expand_to_satellite_grid(any_radar_dict=mask_dict)
 
-        if spatial_downsampling_factor > 1:
-            mask_dict = radar_io.downsample_in_space(
-                any_radar_dict=mask_dict,
-                downsampling_factor=spatial_downsampling_factor
-            )
+    if spatial_downsampling_factor > 1:
+        mask_dict = radar_io.downsample_in_space(
+            any_radar_dict=mask_dict,
+            downsampling_factor=spatial_downsampling_factor
+        )
 
     for i in range(len(echo_classifn_file_names)):
         this_target_dict = _create_targets_one_day(
             echo_classifn_file_name=echo_classifn_file_names[i],
             spatial_downsampling_factor=spatial_downsampling_factor,
-            mask_dict=mask_dict, mask_file_name=mask_file_name
+            mask_dict=mask_dict
         )
 
         this_output_file_name = find_target_file(
@@ -569,13 +723,74 @@ def create_targets(
             print('\n')
 
 
-def find_predictor_file(top_directory_name, date_string,
+def create_targets_partial_grids(
+        top_echo_classifn_dir_name, half_grid_size_px,
+        first_date_string, last_date_string, top_output_dir_name,
+        mask_file_name, raise_error_if_all_missing=True):
+    """Creates target values on partial, radar-centered grids.
+
+    :param top_echo_classifn_dir_name: See doc for `create_targets`.
+    :param half_grid_size_px: Size of half-grid (pixels).  If this number is K,
+        the grid will have 2 * K + 1 rows and 2 * K + 1 columns.
+    :param first_date_string: See doc for `create_targets`.
+    :param last_date_string: Same.
+    :param top_output_dir_name: Same.
+    :param mask_file_name: Same.
+    :param raise_error_if_all_missing: Same.
+    """
+
+    error_checking.assert_is_integer(half_grid_size_px)
+    error_checking.assert_is_greater(half_grid_size_px, 0)
+
+    echo_classifn_file_names = radar_io.find_many_files(
+        top_directory_name=top_echo_classifn_dir_name,
+        first_date_string=first_date_string,
+        last_date_string=last_date_string,
+        file_type_string=radar_io.ECHO_CLASSIFN_TYPE_STRING,
+        raise_error_if_all_missing=raise_error_if_all_missing,
+        raise_error_if_any_missing=False
+    )
+
+    print('Reading mask from: "{0:s}"...'.format(mask_file_name))
+    mask_dict = radar_io.read_mask_file(mask_file_name)
+    mask_dict = radar_io.expand_to_satellite_grid(any_radar_dict=mask_dict)
+
+    for i in range(len(echo_classifn_file_names)):
+        print('\n')
+
+        these_target_dicts = _create_targets_one_day_partial_grids(
+            echo_classifn_file_name=echo_classifn_file_names[i],
+            half_grid_size_px=half_grid_size_px,
+            mask_dict=mask_dict
+        )
+
+        for k in range(len(these_target_dicts)):
+            this_output_file_name = find_target_file(
+                top_directory_name=top_output_dir_name,
+                date_string=
+                radar_io.file_name_to_date(echo_classifn_file_names[i]),
+                radar_number=k, raise_error_if_missing=False
+            )
+
+            print('Writing targets to: "{0:s}"...'.format(
+                this_output_file_name
+            ))
+
+            _write_target_file(
+                target_dict=these_target_dicts[k],
+                netcdf_file_name=this_output_file_name
+            )
+
+
+def find_predictor_file(top_directory_name, date_string, radar_number=None,
                         raise_error_if_missing=True):
     """Finds NetCDF file with predictors.
 
     :param top_directory_name: Name of top-level directory where file is
         expected.
     :param date_string: Date (format "yyyymmdd").
+    :param radar_number: Radar number (non-negative integer).  If you are
+        looking for data on the full grid, leave this alone.
     :param raise_error_if_missing: Boolean flag.  If file is missing and
         `raise_error_if_missing == True`, will throw error.  If file is missing
         and `raise_error_if_missing == False`, will return *expected* file path.
@@ -588,8 +803,13 @@ def find_predictor_file(top_directory_name, date_string,
     error_checking.assert_is_boolean(raise_error_if_missing)
     _ = time_conversion.string_to_unix_sec(date_string, DATE_FORMAT)
 
-    predictor_file_name = '{0:s}/{1:s}/predictors_{2:s}.nc'.format(
-        top_directory_name, date_string[:4], date_string
+    if radar_number is not None:
+        error_checking.assert_is_integer(radar_number)
+        error_checking.assert_is_geq(radar_number, 0)
+
+    predictor_file_name = '{0:s}/{1:s}/predictors_{2:s}{3:s}.nc'.format(
+        top_directory_name, date_string[:4], date_string,
+        '' if radar_number is None else '_radar{0:d}'.format(radar_number)
     )
 
     if os.path.isfile(predictor_file_name) or not raise_error_if_missing:
@@ -613,7 +833,7 @@ def file_name_to_date(predictor_file_name):
     pathless_file_name = os.path.split(predictor_file_name)[-1]
     extensionless_file_name = os.path.splitext(pathless_file_name)[0]
 
-    valid_date_string = extensionless_file_name.split('_')[-1]
+    valid_date_string = extensionless_file_name.split('_')[1]
     _ = time_conversion.string_to_unix_sec(valid_date_string, DATE_FORMAT)
 
     return valid_date_string
@@ -621,13 +841,14 @@ def file_name_to_date(predictor_file_name):
 
 def find_many_predictor_files(
         top_directory_name, first_date_string, last_date_string,
-        raise_error_if_all_missing=True, raise_error_if_any_missing=False,
-        test_mode=False):
+        radar_number=None, raise_error_if_all_missing=True,
+        raise_error_if_any_missing=False, test_mode=False):
     """Finds many NetCDF files with predictors.
 
     :param top_directory_name: See doc for `find_predictor_file`.
     :param first_date_string: First date (format "yyyymmdd").
     :param last_date_string: Last date (format "yyyymmdd").
+    :param radar_number: See doc for `find_predictor_file`.
     :param raise_error_if_any_missing: Boolean flag.  If any file is missing and
         `raise_error_if_any_missing == True`, will throw error.
     :param raise_error_if_all_missing: Boolean flag.  If all files are missing
@@ -652,6 +873,7 @@ def find_many_predictor_files(
     for this_date_string in date_strings:
         this_file_name = find_predictor_file(
             top_directory_name=top_directory_name, date_string=this_date_string,
+            radar_number=radar_number,
             raise_error_if_missing=raise_error_if_any_missing
         )
 
@@ -725,13 +947,15 @@ def read_predictor_file(netcdf_file_name, read_unnormalized, read_normalized,
     return predictor_dict
 
 
-def find_target_file(top_directory_name, date_string,
+def find_target_file(top_directory_name, date_string, radar_number=None,
                      raise_error_if_missing=True):
     """Finds NetCDF file with targets.
 
     :param top_directory_name: Name of top-level directory where file is
         expected.
     :param date_string: Date (format "yyyymmdd").
+    :param radar_number: Radar number (non-negative integer).  If you are
+        looking for data on the full grid, leave this alone.
     :param raise_error_if_missing: Boolean flag.  If file is missing and
         `raise_error_if_missing == True`, will throw error.  If file is missing
         and `raise_error_if_missing == False`, will return *expected* file path.
@@ -744,8 +968,13 @@ def find_target_file(top_directory_name, date_string,
     error_checking.assert_is_boolean(raise_error_if_missing)
     _ = time_conversion.string_to_unix_sec(date_string, DATE_FORMAT)
 
-    target_file_name = '{0:s}/{1:s}/targets_{2:s}.nc'.format(
-        top_directory_name, date_string[:4], date_string
+    if radar_number is not None:
+        error_checking.assert_is_integer(radar_number)
+        error_checking.assert_is_geq(radar_number, 0)
+
+    target_file_name = '{0:s}/{1:s}/targets_{2:s}{3:s}.nc'.format(
+        top_directory_name, date_string[:4], date_string,
+        '' if radar_number is None else '_radar{0:d}'.format(radar_number)
     )
 
     if os.path.isfile(target_file_name) or not raise_error_if_missing:
@@ -759,13 +988,14 @@ def find_target_file(top_directory_name, date_string,
 
 def find_many_target_files(
         top_directory_name, first_date_string, last_date_string,
-        raise_error_if_all_missing=True, raise_error_if_any_missing=False,
-        test_mode=False):
+        radar_number=None, raise_error_if_all_missing=True,
+        raise_error_if_any_missing=False, test_mode=False):
     """Finds many NetCDF files with targets.
 
     :param top_directory_name: See doc for `find_target_file`.
     :param first_date_string: First date (format "yyyymmdd").
     :param last_date_string: Last date (format "yyyymmdd").
+    :param radar_number: See doc for `find_target_file`.
     :param raise_error_if_any_missing: Boolean flag.  If any file is missing and
         `raise_error_if_any_missing == True`, will throw error.
     :param raise_error_if_all_missing: Boolean flag.  If all files are missing
@@ -790,6 +1020,7 @@ def find_many_target_files(
     for this_date_string in date_strings:
         this_file_name = find_target_file(
             top_directory_name=top_directory_name, date_string=this_date_string,
+            radar_number=radar_number,
             raise_error_if_missing=raise_error_if_any_missing
         )
 
@@ -822,14 +1053,40 @@ def read_target_file(netcdf_file_name):
         TARGET_MATRIX_KEY: dataset_object.variables[TARGET_MATRIX_KEY][:],
         VALID_TIMES_KEY: dataset_object.variables[VALID_TIMES_KEY][:],
         LATITUDES_KEY: dataset_object.variables[LATITUDES_KEY][:],
-        LONGITUDES_KEY: dataset_object.variables[LONGITUDES_KEY][:],
-        MASK_FILE_KEY: str(getattr(dataset_object, MASK_FILE_KEY))
+        LONGITUDES_KEY: dataset_object.variables[LONGITUDES_KEY][:]
     }
+
+    if MASK_MATRIX_KEY in dataset_object.variables:
+        target_dict[MASK_MATRIX_KEY] = (
+            dataset_object.variables[MASK_MATRIX_KEY][:].astype(bool)
+        )
+    else:
+        mask_file_name = str(getattr(dataset_object, 'mask_file_name'))
+        mask_dict = radar_io.read_mask_file(mask_file_name)
+        mask_dict = radar_io.expand_to_satellite_grid(any_radar_dict=mask_dict)
+
+        num_target_latitudes = len(target_dict[LATITUDES_KEY])
+        num_full_latitudes = len(twb_satellite_io.GRID_LATITUDES_DEG_N)
+        downsampling_factor = int(numpy.floor(
+            float(num_full_latitudes) / num_target_latitudes
+        ))
+
+        if downsampling_factor > 1:
+            mask_dict = radar_io.downsample_in_space(
+                any_radar_dict=mask_dict, downsampling_factor=4
+            )
+
+        target_dict[MASK_MATRIX_KEY] = (
+            mask_dict[radar_io.MASK_MATRIX_KEY].astype(bool)
+        )
 
     if numpy.any(numpy.diff(target_dict[LATITUDES_KEY]) < 0):
         target_dict[LATITUDES_KEY] = target_dict[LATITUDES_KEY][::-1]
         target_dict[TARGET_MATRIX_KEY] = numpy.flip(
             target_dict[TARGET_MATRIX_KEY], axis=1
+        )
+        target_dict[MASK_MATRIX_KEY] = numpy.flip(
+            target_dict[MASK_MATRIX_KEY], axis=0
         )
 
     dataset_object.close()
@@ -861,6 +1118,81 @@ def subset_predictors_by_band(predictor_dict, band_numbers):
         )
 
     return predictor_dict
+
+
+def subset_grid(
+        predictor_or_target_dict, first_row, last_row, first_column,
+        last_column):
+    """Subsets predictor or target data by grid points.
+
+    :param predictor_or_target_dict: Dictionary with keys listed in either
+        `read_predictor_file` or `read_target_file`.
+    :param first_row: First row to keep (integer index).
+    :param last_row: Last row to keep (integer index).
+    :param first_column: First column to keep (integer index).
+    :param last_column: Last column to keep (integer index).
+    :return: predictor_or_target_dict: Same as input but with smaller grid.
+    """
+
+    num_rows = len(predictor_or_target_dict[LATITUDES_KEY])
+    num_columns = len(predictor_or_target_dict[LONGITUDES_KEY])
+
+    error_checking.assert_is_integer(first_row)
+    error_checking.assert_is_geq(first_row, 0)
+    error_checking.assert_is_integer(last_row)
+    error_checking.assert_is_greater(last_row, first_row)
+    error_checking.assert_is_less_than(last_row, num_rows)
+
+    error_checking.assert_is_integer(first_column)
+    error_checking.assert_is_geq(first_column, 0)
+    error_checking.assert_is_integer(last_column)
+    error_checking.assert_is_greater(last_column, first_column)
+    error_checking.assert_is_less_than(last_column, num_columns)
+
+    row_indices = numpy.linspace(
+        first_row, last_row, num=last_row - first_row + 1, dtype=int
+    )
+    column_indices = numpy.linspace(
+        first_column, last_column, num=last_column - first_column + 1, dtype=int
+    )
+
+    predictor_or_target_dict[LATITUDES_KEY] = (
+        predictor_or_target_dict[LATITUDES_KEY][row_indices]
+    )
+    predictor_or_target_dict[LONGITUDES_KEY] = (
+        predictor_or_target_dict[LONGITUDES_KEY][column_indices]
+    )
+
+    if TARGET_MATRIX_KEY in predictor_or_target_dict:
+        predictor_or_target_dict[TARGET_MATRIX_KEY] = numpy.take(
+            predictor_or_target_dict[TARGET_MATRIX_KEY],
+            axis=1, indices=row_indices
+        )
+        predictor_or_target_dict[TARGET_MATRIX_KEY] = numpy.take(
+            predictor_or_target_dict[TARGET_MATRIX_KEY],
+            axis=2, indices=column_indices
+        )
+
+        predictor_or_target_dict[MASK_MATRIX_KEY] = numpy.take(
+            predictor_or_target_dict[MASK_MATRIX_KEY],
+            axis=0, indices=row_indices
+        )
+        predictor_or_target_dict[MASK_MATRIX_KEY] = numpy.take(
+            predictor_or_target_dict[MASK_MATRIX_KEY],
+            axis=1, indices=column_indices
+        )
+
+        return predictor_or_target_dict
+
+    for this_key in ONE_PER_PREDICTOR_PIXEL_KEYS:
+        predictor_or_target_dict[this_key] = numpy.take(
+            predictor_or_target_dict[this_key], axis=1, indices=row_indices
+        )
+        predictor_or_target_dict[this_key] = numpy.take(
+            predictor_or_target_dict[this_key], axis=2, indices=column_indices
+        )
+
+    return predictor_or_target_dict
 
 
 def subset_by_time(predictor_or_target_dict, desired_times_unix_sec):
@@ -997,12 +1329,14 @@ def concat_target_data(target_dicts):
     """
 
     target_dict = copy.deepcopy(target_dicts[0])
-    keys_to_match = [LATITUDES_KEY, LONGITUDES_KEY, MASK_FILE_KEY]
+    keys_to_match = [LATITUDES_KEY, LONGITUDES_KEY, MASK_MATRIX_KEY]
 
     for i in range(1, len(target_dicts)):
         for this_key in keys_to_match:
-            if this_key == MASK_FILE_KEY:
-                if target_dict[this_key] == target_dicts[i][this_key]:
+            if this_key == MASK_MATRIX_KEY:
+                if numpy.array_equal(
+                        target_dict[this_key], target_dicts[i][this_key]
+                ):
                     continue
             else:
                 if numpy.allclose(

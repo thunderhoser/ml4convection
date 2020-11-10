@@ -49,7 +49,7 @@ for i in range(10):
         PREDICTOR_MATRIX_THIRD_LAG[i, ...]
     )
 
-# The following constants are used to test _find_days_with_preprocessed_inputs.
+# The following constants are used to test _find_days_with_both_inputs.
 TOP_PREDICTOR_DIR_NAME = 'foo'
 TOP_TARGET_DIR_NAME = 'bar'
 
@@ -118,12 +118,12 @@ class NeuralNetTests(unittest.TestCase):
         ))
 
     def test_find_days_zero_lead(self):
-        """Ensures correct output from _find_days_with_preprocessed_inputs.
+        """Ensures correct output from _find_days_with_both_inputs.
 
         In this case, lead time is zero.
         """
 
-        these_date_strings = neural_net._find_days_with_preprocessed_inputs(
+        these_date_strings = neural_net._find_days_with_both_inputs(
             predictor_file_names=PREDICTOR_FILE_NAMES,
             target_file_names=TARGET_FILE_NAMES,
             lead_time_seconds=0,
@@ -133,12 +133,12 @@ class NeuralNetTests(unittest.TestCase):
         self.assertTrue(these_date_strings == VALID_DATE_STRINGS_ZERO_LEAD)
 
     def test_find_days_nonzero_lead(self):
-        """Ensures correct output from _find_days_with_preprocessed_inputs.
+        """Ensures correct output from _find_days_with_both_inputs.
 
         In this case, lead time is non-zero.
         """
 
-        these_date_strings = neural_net._find_days_with_preprocessed_inputs(
+        these_date_strings = neural_net._find_days_with_both_inputs(
             predictor_file_names=PREDICTOR_FILE_NAMES,
             target_file_names=TARGET_FILE_NAMES,
             lead_time_seconds=600,

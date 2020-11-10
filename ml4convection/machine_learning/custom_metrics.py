@@ -80,6 +80,7 @@ def pod(half_window_size_px, mask_matrix, function_name=None, test_mode=False):
         half_window_size_px=half_window_size_px, mask_matrix=mask_matrix,
         function_name=function_name, test_mode=test_mode
     )
+    # eroded_mask_tensor = K.variable(eroded_mask_matrix)
 
     def pod_function(target_tensor, prediction_tensor):
         """Computes probability of detection.
@@ -94,11 +95,10 @@ def pod(half_window_size_px, mask_matrix, function_name=None, test_mode=False):
             half_window_size_px=half_window_size_px
         )
 
-        eroded_mask_tensor = K.variable(eroded_mask_matrix)
         masked_prediction_tensor = (
-            eroded_mask_tensor * filtered_prediction_tensor
+            eroded_mask_matrix * filtered_prediction_tensor
         )
-        masked_target_tensor = eroded_mask_tensor * target_tensor
+        masked_target_tensor = eroded_mask_matrix * target_tensor
 
         num_actual_oriented_true_positives = K.sum(
             masked_target_tensor * masked_prediction_tensor
@@ -134,6 +134,7 @@ def success_ratio(half_window_size_px, mask_matrix, function_name=None,
         half_window_size_px=half_window_size_px, mask_matrix=mask_matrix,
         function_name=function_name, test_mode=test_mode
     )
+    # eroded_mask_tensor = K.variable(eroded_mask_matrix)
 
     def success_ratio_function(target_tensor, prediction_tensor):
         """Computes success ratio.
@@ -147,9 +148,8 @@ def success_ratio(half_window_size_px, mask_matrix, function_name=None,
             input_tensor=target_tensor, half_window_size_px=half_window_size_px
         )
 
-        eroded_mask_tensor = K.variable(eroded_mask_matrix)
-        masked_target_tensor = eroded_mask_tensor * filtered_target_tensor
-        masked_prediction_tensor = eroded_mask_tensor * prediction_tensor
+        masked_target_tensor = eroded_mask_matrix * filtered_target_tensor
+        masked_prediction_tensor = eroded_mask_matrix * prediction_tensor
 
         num_prediction_oriented_true_positives = K.sum(
             masked_target_tensor * masked_prediction_tensor
@@ -276,6 +276,7 @@ def dice_coeff(half_window_size_px, mask_matrix, function_name=None,
         half_window_size_px=half_window_size_px, mask_matrix=mask_matrix,
         function_name=function_name, test_mode=test_mode
     )
+    # eroded_mask_tensor = K.variable(eroded_mask_matrix)
 
     def dice_function(target_tensor, prediction_tensor):
         """Computes Dice coefficient.
@@ -294,10 +295,9 @@ def dice_coeff(half_window_size_px, mask_matrix, function_name=None,
             half_window_size_px=half_window_size_px
         )
 
-        eroded_mask_tensor = K.variable(eroded_mask_matrix)
-        filtered_target_tensor = eroded_mask_tensor * filtered_target_tensor
+        filtered_target_tensor = eroded_mask_matrix * filtered_target_tensor
         filtered_prediction_tensor = (
-            eroded_mask_tensor * filtered_prediction_tensor
+            eroded_mask_matrix * filtered_prediction_tensor
         )
 
         # TODO(thunderhoser): Do I need to specify axes here?
@@ -330,6 +330,7 @@ def iou(half_window_size_px, mask_matrix, function_name=None, test_mode=False):
         half_window_size_px=half_window_size_px, mask_matrix=mask_matrix,
         function_name=function_name, test_mode=test_mode
     )
+    # eroded_mask_tensor = K.variable(eroded_mask_matrix)
 
     def iou_function(target_tensor, prediction_tensor):
         """Computes intersection over union.
@@ -348,10 +349,9 @@ def iou(half_window_size_px, mask_matrix, function_name=None, test_mode=False):
             half_window_size_px=half_window_size_px
         )
 
-        eroded_mask_tensor = K.variable(eroded_mask_matrix)
-        filtered_target_tensor = eroded_mask_tensor * filtered_target_tensor
+        filtered_target_tensor = eroded_mask_matrix * filtered_target_tensor
         filtered_prediction_tensor = (
-            eroded_mask_tensor * filtered_prediction_tensor
+            eroded_mask_matrix * filtered_prediction_tensor
         )
 
         # TODO(thunderhoser): Do I need to specify axes here?
@@ -392,6 +392,7 @@ def tversky_coeff(
         half_window_size_px=half_window_size_px, mask_matrix=mask_matrix,
         function_name=function_name, test_mode=test_mode
     )
+    # eroded_mask_tensor = K.variable(eroded_mask_matrix)
 
     error_checking.assert_is_greater(false_positive_weight, 0.)
     error_checking.assert_is_greater(false_negative_weight, 0.)
@@ -413,10 +414,9 @@ def tversky_coeff(
             half_window_size_px=half_window_size_px
         )
 
-        eroded_mask_tensor = K.variable(eroded_mask_matrix)
-        filtered_target_tensor = eroded_mask_tensor * filtered_target_tensor
+        filtered_target_tensor = eroded_mask_matrix * filtered_target_tensor
         filtered_prediction_tensor = (
-            eroded_mask_tensor * filtered_prediction_tensor
+            eroded_mask_matrix * filtered_prediction_tensor
         )
 
         num_true_positives = false_positive_weight * K.sum(
@@ -467,6 +467,7 @@ def focal_loss(
         half_window_size_px=half_window_size_px, mask_matrix=mask_matrix,
         function_name=function_name, test_mode=test_mode
     )
+    # eroded_mask_tensor = K.variable(eroded_mask_matrix)
 
     error_checking.assert_is_greater(training_event_freq, 0.)
     error_checking.assert_is_less_than(training_event_freq, 1.)
@@ -489,10 +490,9 @@ def focal_loss(
             half_window_size_px=half_window_size_px
         )
 
-        eroded_mask_tensor = K.variable(eroded_mask_matrix)
-        filtered_target_tensor = eroded_mask_tensor * filtered_target_tensor
+        filtered_target_tensor = eroded_mask_matrix * filtered_target_tensor
         filtered_prediction_tensor = (
-            eroded_mask_tensor * filtered_prediction_tensor
+            eroded_mask_matrix * filtered_prediction_tensor
         )
 
         error_tensor = tensorflow.where(
