@@ -58,6 +58,9 @@ def _run():
     mask_matrix = example_io.read_target_file(target_file_name)[
         example_io.MASK_MATRIX_KEY
     ]
+    full_mask_matrix = example_io.read_target_file(target_file_name)[
+        example_io.FULL_MASK_MATRIX_KEY
+    ]
 
     file_system_utils.mkdir_recursive_if_necessary(
         directory_name=OUTPUT_DIR_NAME
@@ -122,15 +125,15 @@ def _run():
                     this_metafile_name
                 ))
                 neural_net._write_metafile(
-                    dill_file_name=this_metafile_name, num_epochs=100,
-                    num_training_batches_per_epoch=100,
+                    dill_file_name=this_metafile_name, use_partial_grids=True,
+                    num_epochs=100, num_training_batches_per_epoch=100,
                     training_option_dict=dummy_option_dict,
                     num_validation_batches_per_epoch=100,
                     validation_option_dict=dummy_option_dict,
                     do_early_stopping=True, plateau_lr_multiplier=0.6,
                     class_weights=None,
                     fss_half_window_size_px=FSS_HALF_WINDOW_SIZES_PX[i],
-                    mask_matrix=mask_matrix
+                    mask_matrix=mask_matrix, full_mask_matrix=full_mask_matrix
                 )
 
 
