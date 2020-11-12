@@ -1063,7 +1063,7 @@ def file_name_to_date(predictor_file_name):
     error_checking.assert_is_string(predictor_file_name)
     pathless_file_name = os.path.split(predictor_file_name)[-1]
 
-    valid_date_string = pathless_file_name.split('.')[0].split('_')[-1]
+    valid_date_string = pathless_file_name.split('.')[0].split('_')[1]
     _ = time_conversion.string_to_unix_sec(valid_date_string, DATE_FORMAT)
 
     return valid_date_string
