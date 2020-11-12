@@ -997,7 +997,7 @@ def generator_partial_grids(option_dict):
 
         these_target_file_names = [
             example_io.find_target_file(
-                top_directory_name=top_predictor_dir_name, date_string=d,
+                top_directory_name=top_target_dir_name, date_string=d,
                 radar_number=k, prefer_zipped=True, allow_other_format=True,
                 raise_error_if_missing=True
             ) for d in valid_date_strings
