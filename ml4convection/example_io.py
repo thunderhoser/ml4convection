@@ -3,6 +3,7 @@
 import os
 import sys
 import copy
+import gzip
 import numpy
 import netCDF4
 
@@ -22,7 +23,9 @@ import radar_utils
 import standalone_utils
 
 TOLERANCE = 1e-6
+
 DATE_FORMAT = '%Y%m%d'
+GZIP_FILE_EXTENSION = '.gz'
 
 PREDICTOR_MATRIX_UNNORM_KEY = 'predictor_matrix_unnorm'
 PREDICTOR_MATRIX_NORM_KEY = 'predictor_matrix_norm'
@@ -335,7 +338,11 @@ def _write_predictor_file(predictor_dict, netcdf_file_name):
 
     :param predictor_dict: Dictionary created by `_create_predictors_one_day`.
     :param netcdf_file_name: Path to output file.
+    :raises: ValueError: if output file is a gzip file.
     """
+
+    if netcdf_file_name.endswith(GZIP_FILE_EXTENSION):
+        raise ValueError('Output file must not be gzip file.')
 
     file_system_utils.mkdir_recursive_if_necessary(file_name=netcdf_file_name)
     dataset_object = netCDF4.Dataset(
@@ -411,12 +418,59 @@ def _write_predictor_file(predictor_dict, netcdf_file_name):
     dataset_object.close()
 
 
+def _read_predictors(dataset_object, read_unnormalized, read_normalized,
+                     read_unif_normalized):
+    """Reads predictors from NetCDF file.
+
+    This method should be called only from `read_predictor_file`.
+
+    :param dataset_object: Instance of `netCDF4.Dataset`.
+    :param read_unnormalized: See doc for `read_predictor_file`.
+    :param read_normalized: Same.
+    :param read_unif_normalized: Same.
+    :return: predictor_dict: Same.
+    """
+
+    predictor_dict = {
+        PREDICTOR_MATRIX_UNNORM_KEY: None,
+        PREDICTOR_MATRIX_NORM_KEY: None,
+        PREDICTOR_MATRIX_UNIF_NORM_KEY: None,
+        VALID_TIMES_KEY: dataset_object.variables[VALID_TIMES_KEY][:],
+        LATITUDES_KEY: dataset_object.variables[LATITUDES_KEY][:],
+        LONGITUDES_KEY: dataset_object.variables[LONGITUDES_KEY][:],
+        BAND_NUMBERS_KEY: dataset_object.variables[BAND_NUMBERS_KEY][:],
+        NORMALIZATION_FILE_KEY:
+            str(getattr(dataset_object, NORMALIZATION_FILE_KEY))
+    }
+
+    if read_unnormalized:
+        predictor_dict[PREDICTOR_MATRIX_UNNORM_KEY] = (
+            dataset_object.variables[PREDICTOR_MATRIX_UNNORM_KEY][:]
+        )
+
+    if read_normalized:
+        predictor_dict[PREDICTOR_MATRIX_NORM_KEY] = (
+            dataset_object.variables[PREDICTOR_MATRIX_NORM_KEY][:]
+        )
+
+    if read_unif_normalized:
+        predictor_dict[PREDICTOR_MATRIX_UNIF_NORM_KEY] = (
+            dataset_object.variables[PREDICTOR_MATRIX_UNIF_NORM_KEY][:]
+        )
+
+    return predictor_dict
+
+
 def _write_target_file(target_dict, netcdf_file_name):
     """Writes targets to NetCDF file.
 
     :param target_dict: Dictionary created by `_create_targets_one_day`.
     :param netcdf_file_name: Path to output file.
+    :raises: ValueError: if output file is a gzip file.
     """
+
+    if netcdf_file_name.endswith(GZIP_FILE_EXTENSION):
+        raise ValueError('Output file must not be gzip file.')
 
     file_system_utils.mkdir_recursive_if_necessary(file_name=netcdf_file_name)
     dataset_object = netCDF4.Dataset(
@@ -496,6 +550,81 @@ def _write_target_file(target_dict, netcdf_file_name):
     )
 
     dataset_object.close()
+
+
+def _read_targets(dataset_object):
+    """Reads targets from NetCDF file.
+
+    This method should be called only from `read_target_file`.
+
+    :param dataset_object: Instance of `netCDF4.Dataset`.
+    :return: target_dict: See doc for `read_target_file`.
+    """
+
+    target_dict = {
+        TARGET_MATRIX_KEY: dataset_object.variables[TARGET_MATRIX_KEY][:],
+        VALID_TIMES_KEY: dataset_object.variables[VALID_TIMES_KEY][:],
+        LATITUDES_KEY: dataset_object.variables[LATITUDES_KEY][:],
+        LONGITUDES_KEY: dataset_object.variables[LONGITUDES_KEY][:]
+    }
+
+    if MASK_MATRIX_KEY in dataset_object.variables:
+        target_dict[MASK_MATRIX_KEY] = (
+            dataset_object.variables[MASK_MATRIX_KEY][:].astype(bool)
+        )
+    else:
+        mask_file_name = str(getattr(dataset_object, 'mask_file_name'))
+        mask_dict = radar_io.read_mask_file(mask_file_name)
+        mask_dict = radar_io.expand_to_satellite_grid(any_radar_dict=mask_dict)
+
+        num_target_latitudes = len(target_dict[LATITUDES_KEY])
+        num_full_latitudes = len(twb_satellite_io.GRID_LATITUDES_DEG_N)
+        downsampling_factor = int(numpy.floor(
+            float(num_full_latitudes) / num_target_latitudes
+        ))
+
+        if downsampling_factor > 1:
+            mask_dict = radar_io.downsample_in_space(
+                any_radar_dict=mask_dict, downsampling_factor=4
+            )
+
+        target_dict[MASK_MATRIX_KEY] = (
+            mask_dict[radar_io.MASK_MATRIX_KEY].astype(bool)
+        )
+
+    if FULL_MASK_MATRIX_KEY in dataset_object.variables:
+        target_dict[FULL_MASK_MATRIX_KEY] = (
+            dataset_object.variables[FULL_MASK_MATRIX_KEY][:].astype(bool)
+        )
+        target_dict[FULL_LATITUDES_KEY] = (
+            dataset_object.variables[FULL_LATITUDES_KEY][:]
+        )
+        target_dict[FULL_LONGITUDES_KEY] = (
+            dataset_object.variables[FULL_LONGITUDES_KEY][:]
+        )
+    else:
+        target_dict[FULL_MASK_MATRIX_KEY] = copy.deepcopy(
+            target_dict[MASK_MATRIX_KEY]
+        )
+        target_dict[FULL_LATITUDES_KEY] = target_dict[LATITUDES_KEY] + 0.
+        target_dict[FULL_LONGITUDES_KEY] = target_dict[LONGITUDES_KEY] + 0.
+
+    if numpy.any(numpy.diff(target_dict[LATITUDES_KEY]) < 0):
+        target_dict[LATITUDES_KEY] = target_dict[LATITUDES_KEY][::-1]
+        target_dict[TARGET_MATRIX_KEY] = numpy.flip(
+            target_dict[TARGET_MATRIX_KEY], axis=1
+        )
+        target_dict[MASK_MATRIX_KEY] = numpy.flip(
+            target_dict[MASK_MATRIX_KEY], axis=0
+        )
+
+    if numpy.any(numpy.diff(target_dict[FULL_LATITUDES_KEY]) < 0):
+        target_dict[FULL_LATITUDES_KEY] = target_dict[FULL_LATITUDES_KEY][::-1]
+        target_dict[FULL_MASK_MATRIX_KEY] = numpy.flip(
+            target_dict[FULL_MASK_MATRIX_KEY], axis=0
+        )
+
+    return target_dict
 
 
 def downsample_data_in_space(downsampling_factor, change_coordinates=False,
@@ -654,6 +783,7 @@ def create_predictors(
         this_output_file_name = find_predictor_file(
             top_directory_name=top_output_dir_name,
             date_string=satellite_io.file_name_to_date(this_input_file_name),
+            prefer_zipped=False, allow_other_format=False,
             raise_error_if_missing=False
         )
 
@@ -662,6 +792,9 @@ def create_predictors(
             predictor_dict=this_predictor_dict,
             netcdf_file_name=this_output_file_name
         )
+
+        compress_file(this_output_file_name)
+        os.remove(this_output_file_name)
 
 
 def create_predictors_partial_grids(
@@ -712,7 +845,8 @@ def create_predictors_partial_grids(
                 top_directory_name=top_output_dir_name,
                 date_string=
                 satellite_io.file_name_to_date(this_input_file_name),
-                radar_number=k, raise_error_if_missing=False
+                radar_number=k, prefer_zipped=False, allow_other_format=False,
+                raise_error_if_missing=False
             )
 
             print('Writing predictors to: "{0:s}"...'.format(
@@ -723,6 +857,9 @@ def create_predictors_partial_grids(
                 predictor_dict=these_predictor_dicts[k],
                 netcdf_file_name=this_output_file_name
             )
+
+            compress_file(this_output_file_name)
+            os.remove(this_output_file_name)
 
 
 def create_targets(
@@ -778,6 +915,7 @@ def create_targets(
         this_output_file_name = find_target_file(
             top_directory_name=top_output_dir_name,
             date_string=radar_io.file_name_to_date(echo_classifn_file_names[i]),
+            prefer_zipped=False, allow_other_format=False,
             raise_error_if_missing=False
         )
 
@@ -785,6 +923,9 @@ def create_targets(
         _write_target_file(
             target_dict=this_target_dict, netcdf_file_name=this_output_file_name
         )
+
+        compress_file(this_output_file_name)
+        os.remove(this_output_file_name)
 
         if i != len(echo_classifn_file_names) - 1:
             print('\n')
@@ -836,7 +977,8 @@ def create_targets_partial_grids(
                 top_directory_name=top_output_dir_name,
                 date_string=
                 radar_io.file_name_to_date(echo_classifn_file_names[i]),
-                radar_number=k, raise_error_if_missing=False
+                radar_number=k, prefer_zipped=False, allow_other_format=False,
+                raise_error_if_missing=False
             )
 
             print('Writing targets to: "{0:s}"...'.format(
@@ -848,9 +990,13 @@ def create_targets_partial_grids(
                 netcdf_file_name=this_output_file_name
             )
 
+            compress_file(this_output_file_name)
+            os.remove(this_output_file_name)
 
-def find_predictor_file(top_directory_name, date_string, radar_number=None,
-                        raise_error_if_missing=True):
+
+def find_predictor_file(
+        top_directory_name, date_string, radar_number=None, prefer_zipped=True,
+        allow_other_format=True, raise_error_if_missing=True):
     """Finds NetCDF file with predictors.
 
     :param top_directory_name: Name of top-level directory where file is
@@ -858,6 +1004,10 @@ def find_predictor_file(top_directory_name, date_string, radar_number=None,
     :param date_string: Date (format "yyyymmdd").
     :param radar_number: Radar number (non-negative integer).  If you are
         looking for data on the full grid, leave this alone.
+    :param prefer_zipped: Boolean flag.  If True, will look for zipped file
+        first.  If False, will look for unzipped file first.
+    :param allow_other_format: Boolean flag.  If True, will allow opposite of
+        preferred file format (zipped or unzipped).
     :param raise_error_if_missing: Boolean flag.  If file is missing and
         `raise_error_if_missing == True`, will throw error.  If file is missing
         and `raise_error_if_missing == False`, will return *expected* file path.
@@ -867,17 +1017,31 @@ def find_predictor_file(top_directory_name, date_string, radar_number=None,
     """
 
     error_checking.assert_is_string(top_directory_name)
-    error_checking.assert_is_boolean(raise_error_if_missing)
     _ = time_conversion.string_to_unix_sec(date_string, DATE_FORMAT)
+    error_checking.assert_is_boolean(prefer_zipped)
+    error_checking.assert_is_boolean(allow_other_format)
+    error_checking.assert_is_boolean(raise_error_if_missing)
 
     if radar_number is not None:
         error_checking.assert_is_integer(radar_number)
         error_checking.assert_is_geq(radar_number, 0)
 
-    predictor_file_name = '{0:s}/{1:s}/predictors_{2:s}{3:s}.nc'.format(
+    predictor_file_name = '{0:s}/{1:s}/predictors_{2:s}{3:s}.nc{4:s}'.format(
         top_directory_name, date_string[:4], date_string,
-        '' if radar_number is None else '_radar{0:d}'.format(radar_number)
+        '' if radar_number is None else '_radar{0:d}'.format(radar_number),
+        GZIP_FILE_EXTENSION if prefer_zipped else ''
     )
+
+    if os.path.isfile(predictor_file_name):
+        return predictor_file_name
+
+    if allow_other_format:
+        if prefer_zipped:
+            predictor_file_name = (
+                predictor_file_name[:-len(GZIP_FILE_EXTENSION)]
+            )
+        else:
+            predictor_file_name += GZIP_FILE_EXTENSION
 
     if os.path.isfile(predictor_file_name) or not raise_error_if_missing:
         return predictor_file_name
@@ -898,9 +1062,8 @@ def file_name_to_date(predictor_file_name):
 
     error_checking.assert_is_string(predictor_file_name)
     pathless_file_name = os.path.split(predictor_file_name)[-1]
-    extensionless_file_name = os.path.splitext(pathless_file_name)[0]
 
-    valid_date_string = extensionless_file_name.split('_')[1]
+    valid_date_string = pathless_file_name.split('.')[0].split('_')[-1]
     _ = time_conversion.string_to_unix_sec(valid_date_string, DATE_FORMAT)
 
     return valid_date_string
@@ -908,14 +1071,17 @@ def file_name_to_date(predictor_file_name):
 
 def find_many_predictor_files(
         top_directory_name, first_date_string, last_date_string,
-        radar_number=None, raise_error_if_all_missing=True,
-        raise_error_if_any_missing=False, test_mode=False):
+        radar_number=None, prefer_zipped=True, allow_other_format=True,
+        raise_error_if_all_missing=True, raise_error_if_any_missing=False,
+        test_mode=False):
     """Finds many NetCDF files with predictors.
 
     :param top_directory_name: See doc for `find_predictor_file`.
     :param first_date_string: First date (format "yyyymmdd").
     :param last_date_string: Last date (format "yyyymmdd").
     :param radar_number: See doc for `find_predictor_file`.
+    :param prefer_zipped: Same.
+    :param allow_other_format: Same.
     :param raise_error_if_any_missing: Boolean flag.  If any file is missing and
         `raise_error_if_any_missing == True`, will throw error.
     :param raise_error_if_all_missing: Boolean flag.  If all files are missing
@@ -941,6 +1107,7 @@ def find_many_predictor_files(
         this_file_name = find_predictor_file(
             top_directory_name=top_directory_name, date_string=this_date_string,
             radar_number=radar_number,
+            prefer_zipped=prefer_zipped, allow_other_format=allow_other_format,
             raise_error_if_missing=raise_error_if_any_missing
         )
 
@@ -981,41 +1148,34 @@ def read_predictor_file(netcdf_file_name, read_unnormalized, read_normalized,
     error_checking.assert_is_boolean(read_normalized)
     error_checking.assert_is_boolean(read_unif_normalized)
 
+    if netcdf_file_name.endswith(GZIP_FILE_EXTENSION):
+        with gzip.open(netcdf_file_name) as gzip_handle:
+            with netCDF4.Dataset(
+                    'dummy', mode='r', memory=gzip_handle.read()
+            ) as dataset_object:
+                return _read_predictors(
+                    dataset_object=dataset_object,
+                    read_unnormalized=read_unnormalized,
+                    read_normalized=read_normalized,
+                    read_unif_normalized=read_unif_normalized
+                )
+
     dataset_object = netCDF4.Dataset(netcdf_file_name)
 
-    predictor_dict = {
-        PREDICTOR_MATRIX_UNNORM_KEY: None,
-        PREDICTOR_MATRIX_NORM_KEY: None,
-        PREDICTOR_MATRIX_UNIF_NORM_KEY: None,
-        VALID_TIMES_KEY: dataset_object.variables[VALID_TIMES_KEY][:],
-        LATITUDES_KEY: dataset_object.variables[LATITUDES_KEY][:],
-        LONGITUDES_KEY: dataset_object.variables[LONGITUDES_KEY][:],
-        BAND_NUMBERS_KEY: dataset_object.variables[BAND_NUMBERS_KEY][:],
-        NORMALIZATION_FILE_KEY:
-            str(getattr(dataset_object, NORMALIZATION_FILE_KEY))
-    }
-
-    if read_unnormalized:
-        predictor_dict[PREDICTOR_MATRIX_UNNORM_KEY] = (
-            dataset_object.variables[PREDICTOR_MATRIX_UNNORM_KEY][:]
-        )
-
-    if read_normalized:
-        predictor_dict[PREDICTOR_MATRIX_NORM_KEY] = (
-            dataset_object.variables[PREDICTOR_MATRIX_NORM_KEY][:]
-        )
-
-    if read_unif_normalized:
-        predictor_dict[PREDICTOR_MATRIX_UNIF_NORM_KEY] = (
-            dataset_object.variables[PREDICTOR_MATRIX_UNIF_NORM_KEY][:]
-        )
+    predictor_dict = _read_predictors(
+        dataset_object=dataset_object,
+        read_unnormalized=read_unnormalized,
+        read_normalized=read_normalized,
+        read_unif_normalized=read_unif_normalized
+    )
 
     dataset_object.close()
     return predictor_dict
 
 
-def find_target_file(top_directory_name, date_string, radar_number=None,
-                     raise_error_if_missing=True):
+def find_target_file(
+        top_directory_name, date_string, radar_number=None, prefer_zipped=True,
+        allow_other_format=True, raise_error_if_missing=True):
     """Finds NetCDF file with targets.
 
     :param top_directory_name: Name of top-level directory where file is
@@ -1023,6 +1183,10 @@ def find_target_file(top_directory_name, date_string, radar_number=None,
     :param date_string: Date (format "yyyymmdd").
     :param radar_number: Radar number (non-negative integer).  If you are
         looking for data on the full grid, leave this alone.
+    :param prefer_zipped: Boolean flag.  If True, will look for zipped file
+        first.  If False, will look for unzipped file first.
+    :param allow_other_format: Boolean flag.  If True, will allow opposite of
+        preferred file format (zipped or unzipped).
     :param raise_error_if_missing: Boolean flag.  If file is missing and
         `raise_error_if_missing == True`, will throw error.  If file is missing
         and `raise_error_if_missing == False`, will return *expected* file path.
@@ -1032,17 +1196,29 @@ def find_target_file(top_directory_name, date_string, radar_number=None,
     """
 
     error_checking.assert_is_string(top_directory_name)
-    error_checking.assert_is_boolean(raise_error_if_missing)
     _ = time_conversion.string_to_unix_sec(date_string, DATE_FORMAT)
+    error_checking.assert_is_boolean(prefer_zipped)
+    error_checking.assert_is_boolean(allow_other_format)
+    error_checking.assert_is_boolean(raise_error_if_missing)
 
     if radar_number is not None:
         error_checking.assert_is_integer(radar_number)
         error_checking.assert_is_geq(radar_number, 0)
 
-    target_file_name = '{0:s}/{1:s}/targets_{2:s}{3:s}.nc'.format(
+    target_file_name = '{0:s}/{1:s}/targets_{2:s}{3:s}.nc{4:s}'.format(
         top_directory_name, date_string[:4], date_string,
-        '' if radar_number is None else '_radar{0:d}'.format(radar_number)
+        '' if radar_number is None else '_radar{0:d}'.format(radar_number),
+        GZIP_FILE_EXTENSION if prefer_zipped else ''
     )
+
+    if os.path.isfile(target_file_name):
+        return target_file_name
+
+    if allow_other_format:
+        if prefer_zipped:
+            target_file_name = target_file_name[:-len(GZIP_FILE_EXTENSION)]
+        else:
+            target_file_name += GZIP_FILE_EXTENSION
 
     if os.path.isfile(target_file_name) or not raise_error_if_missing:
         return target_file_name
@@ -1055,14 +1231,17 @@ def find_target_file(top_directory_name, date_string, radar_number=None,
 
 def find_many_target_files(
         top_directory_name, first_date_string, last_date_string,
-        radar_number=None, raise_error_if_all_missing=True,
-        raise_error_if_any_missing=False, test_mode=False):
+        radar_number=None, prefer_zipped=True, allow_other_format=True,
+        raise_error_if_all_missing=True, raise_error_if_any_missing=False,
+        test_mode=False):
     """Finds many NetCDF files with targets.
 
     :param top_directory_name: See doc for `find_target_file`.
     :param first_date_string: First date (format "yyyymmdd").
     :param last_date_string: Last date (format "yyyymmdd").
     :param radar_number: See doc for `find_target_file`.
+    :param prefer_zipped: Same.
+    :param allow_other_format: Same.
     :param raise_error_if_any_missing: Boolean flag.  If any file is missing and
         `raise_error_if_any_missing == True`, will throw error.
     :param raise_error_if_all_missing: Boolean flag.  If all files are missing
@@ -1088,6 +1267,7 @@ def find_many_target_files(
         this_file_name = find_target_file(
             top_directory_name=top_directory_name, date_string=this_date_string,
             radar_number=radar_number,
+            prefer_zipped=prefer_zipped, allow_other_format=allow_other_format,
             raise_error_if_missing=raise_error_if_any_missing
         )
 
@@ -1114,73 +1294,27 @@ def read_target_file(netcdf_file_name):
         `_create_targets_one_day`.
     """
 
+    if netcdf_file_name.endswith(GZIP_FILE_EXTENSION):
+        with gzip.open(netcdf_file_name) as gzip_handle:
+            with netCDF4.Dataset(
+                    'dummy', mode='r', memory=gzip_handle.read()
+            ) as dataset_object:
+                return _read_targets(dataset_object)
+
     dataset_object = netCDF4.Dataset(netcdf_file_name)
-
-    target_dict = {
-        TARGET_MATRIX_KEY: dataset_object.variables[TARGET_MATRIX_KEY][:],
-        VALID_TIMES_KEY: dataset_object.variables[VALID_TIMES_KEY][:],
-        LATITUDES_KEY: dataset_object.variables[LATITUDES_KEY][:],
-        LONGITUDES_KEY: dataset_object.variables[LONGITUDES_KEY][:]
-    }
-
-    if MASK_MATRIX_KEY in dataset_object.variables:
-        target_dict[MASK_MATRIX_KEY] = (
-            dataset_object.variables[MASK_MATRIX_KEY][:].astype(bool)
-        )
-    else:
-        mask_file_name = str(getattr(dataset_object, 'mask_file_name'))
-        mask_dict = radar_io.read_mask_file(mask_file_name)
-        mask_dict = radar_io.expand_to_satellite_grid(any_radar_dict=mask_dict)
-
-        num_target_latitudes = len(target_dict[LATITUDES_KEY])
-        num_full_latitudes = len(twb_satellite_io.GRID_LATITUDES_DEG_N)
-        downsampling_factor = int(numpy.floor(
-            float(num_full_latitudes) / num_target_latitudes
-        ))
-
-        if downsampling_factor > 1:
-            mask_dict = radar_io.downsample_in_space(
-                any_radar_dict=mask_dict, downsampling_factor=4
-            )
-
-        target_dict[MASK_MATRIX_KEY] = (
-            mask_dict[radar_io.MASK_MATRIX_KEY].astype(bool)
-        )
-
-    if FULL_MASK_MATRIX_KEY in dataset_object.variables:
-        target_dict[FULL_MASK_MATRIX_KEY] = (
-            dataset_object.variables[FULL_MASK_MATRIX_KEY][:].astype(bool)
-        )
-        target_dict[FULL_LATITUDES_KEY] = (
-            dataset_object.variables[FULL_LATITUDES_KEY][:]
-        )
-        target_dict[FULL_LONGITUDES_KEY] = (
-            dataset_object.variables[FULL_LONGITUDES_KEY][:]
-        )
-    else:
-        target_dict[FULL_MASK_MATRIX_KEY] = copy.deepcopy(
-            target_dict[MASK_MATRIX_KEY]
-        )
-        target_dict[FULL_LATITUDES_KEY] = target_dict[LATITUDES_KEY] + 0.
-        target_dict[FULL_LONGITUDES_KEY] = target_dict[LONGITUDES_KEY] + 0.
-
-    if numpy.any(numpy.diff(target_dict[LATITUDES_KEY]) < 0):
-        target_dict[LATITUDES_KEY] = target_dict[LATITUDES_KEY][::-1]
-        target_dict[TARGET_MATRIX_KEY] = numpy.flip(
-            target_dict[TARGET_MATRIX_KEY], axis=1
-        )
-        target_dict[MASK_MATRIX_KEY] = numpy.flip(
-            target_dict[MASK_MATRIX_KEY], axis=0
-        )
-
-    if numpy.any(numpy.diff(target_dict[FULL_LATITUDES_KEY]) < 0):
-        target_dict[FULL_LATITUDES_KEY] = target_dict[FULL_LATITUDES_KEY][::-1]
-        target_dict[FULL_MASK_MATRIX_KEY] = numpy.flip(
-            target_dict[FULL_MASK_MATRIX_KEY], axis=0
-        )
-
+    target_dict = _read_targets(dataset_object)
     dataset_object.close()
     return target_dict
+
+
+def compress_file(netcdf_file_name):
+    """Compresses file with predictor or target data (turns it into gzip file).
+
+    :param netcdf_file_name: Path to NetCDF file with predictor or target data.
+    :raises: ValueError: if file is already gzipped.
+    """
+
+    radar_io.compress_file(netcdf_file_name)
 
 
 def subset_predictors_by_band(predictor_dict, band_numbers):

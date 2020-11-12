@@ -635,6 +635,7 @@ def create_data_full_grid(option_dict, return_coords=False):
         top_directory_name=top_predictor_dir_name,
         first_date_string=first_init_date_string,
         last_date_string=valid_date_string,
+        prefer_zipped=True, allow_other_format=True,
         raise_error_if_all_missing=False,
         raise_error_if_any_missing=False
     )
@@ -643,6 +644,7 @@ def create_data_full_grid(option_dict, return_coords=False):
         top_directory_name=top_target_dir_name,
         first_date_string=valid_date_string,
         last_date_string=valid_date_string,
+        prefer_zipped=True, allow_other_format=True,
         raise_error_if_all_missing=False,
         raise_error_if_any_missing=False
     )
@@ -719,6 +721,7 @@ def create_data_partial_grids(option_dict, return_coords=False):
             top_directory_name=top_predictor_dir_name,
             first_date_string=first_init_date_string,
             last_date_string=valid_date_string, radar_number=k,
+            prefer_zipped=True, allow_other_format=True,
             raise_error_if_all_missing=False,
             raise_error_if_any_missing=False
         )
@@ -727,6 +730,7 @@ def create_data_partial_grids(option_dict, return_coords=False):
             top_directory_name=top_target_dir_name,
             first_date_string=valid_date_string,
             last_date_string=valid_date_string, radar_number=k,
+            prefer_zipped=True, allow_other_format=True,
             raise_error_if_all_missing=False,
             raise_error_if_any_missing=False
         )
@@ -829,6 +833,7 @@ def generator_full_grid(option_dict):
         top_directory_name=top_predictor_dir_name,
         first_date_string=first_init_date_string,
         last_date_string=last_valid_date_string,
+        prefer_zipped=True, allow_other_format=True,
         raise_error_if_any_missing=False
     )
 
@@ -836,6 +841,7 @@ def generator_full_grid(option_dict):
         top_directory_name=top_target_dir_name,
         first_date_string=first_init_date_string,
         last_date_string=last_valid_date_string,
+        prefer_zipped=True, allow_other_format=True,
         raise_error_if_any_missing=False
     )
 
@@ -940,6 +946,7 @@ def generator_partial_grids(option_dict):
         top_directory_name=top_predictor_dir_name,
         first_date_string=first_init_date_string,
         last_date_string=last_valid_date_string, radar_number=0,
+        prefer_zipped=True, allow_other_format=True,
         raise_error_if_any_missing=False
     )
 
@@ -955,6 +962,7 @@ def generator_partial_grids(option_dict):
         top_directory_name=top_target_dir_name,
         first_date_string=first_init_date_string,
         last_date_string=last_valid_date_string, radar_number=0,
+        prefer_zipped=True, allow_other_format=True,
         raise_error_if_any_missing=False
     )
 
@@ -978,7 +986,8 @@ def generator_partial_grids(option_dict):
         these_predictor_file_names = [
             example_io.find_predictor_file(
                 top_directory_name=top_predictor_dir_name, date_string=d,
-                radar_number=k, raise_error_if_missing=True
+                radar_number=k, prefer_zipped=True, allow_other_format=True,
+                raise_error_if_missing=True
             ) for d in valid_date_strings
         ]
 
@@ -989,7 +998,8 @@ def generator_partial_grids(option_dict):
         these_target_file_names = [
             example_io.find_target_file(
                 top_directory_name=top_predictor_dir_name, date_string=d,
-                radar_number=k, raise_error_if_missing=True
+                radar_number=k, prefer_zipped=True, allow_other_format=True,
+                raise_error_if_missing=True
             ) for d in valid_date_strings
         ]
 
