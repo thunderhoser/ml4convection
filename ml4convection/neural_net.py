@@ -950,20 +950,19 @@ def generator_partial_grids(option_dict):
         raise_error_if_any_missing=False
     )
 
-    num_days = len(these_predictor_file_names)
-    predictor_file_name_matrix = numpy.full(
-        (num_days, NUM_RADARS), '', dtype=object
-    )
-    target_file_name_matrix = numpy.full(
-        (num_days, NUM_RADARS), '', dtype=object
-    )
-
     these_target_file_names = example_io.find_many_target_files(
         top_directory_name=top_target_dir_name,
         first_date_string=first_init_date_string,
         last_date_string=last_valid_date_string, radar_number=0,
         prefer_zipped=True, allow_other_format=True,
         raise_error_if_any_missing=False
+    )
+
+    predictor_file_name_matrix = numpy.full(
+        (len(these_predictor_file_names), NUM_RADARS), '', dtype=object
+    )
+    target_file_name_matrix = numpy.full(
+        (len(these_target_file_names), NUM_RADARS), '', dtype=object
     )
 
     predictor_file_name_matrix[:, 0] = numpy.array(these_predictor_file_names)
