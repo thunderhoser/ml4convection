@@ -515,7 +515,9 @@ class ExampleIoTests(unittest.TestCase):
         this_file_name = example_io.find_predictor_file(
             top_directory_name=TOP_PREDICTOR_DIR_NAME,
             date_string=PREDICTOR_DATE_STRING,
-            radar_number=RADAR_NUMBER_ONE_DAY, raise_error_if_missing=False
+            radar_number=RADAR_NUMBER_ONE_DAY,
+            prefer_zipped=False, allow_other_format=False,
+            raise_error_if_missing=False
         )
 
         self.assertTrue(this_file_name == PREDICTOR_FILE_NAME)
@@ -538,7 +540,8 @@ class ExampleIoTests(unittest.TestCase):
             top_directory_name=TOP_PREDICTOR_DIR_NAME,
             first_date_string=FIRST_DATE_STRING,
             last_date_string=LAST_DATE_STRING,
-            radar_number=RADAR_NUMBER_MANY_DAYS, test_mode=True
+            radar_number=RADAR_NUMBER_MANY_DAYS,
+            prefer_zipped=False, allow_other_format=False, test_mode=True
         )
 
         self.assertTrue(these_file_names == PREDICTOR_FILE_NAMES)
@@ -549,6 +552,7 @@ class ExampleIoTests(unittest.TestCase):
         this_file_name = example_io.find_target_file(
             top_directory_name=TOP_TARGET_DIR_NAME,
             date_string=TARGET_DATE_STRING, radar_number=RADAR_NUMBER_ONE_DAY,
+            prefer_zipped=False, allow_other_format=False,
             raise_error_if_missing=False
         )
 
@@ -571,7 +575,8 @@ class ExampleIoTests(unittest.TestCase):
             top_directory_name=TOP_TARGET_DIR_NAME,
             first_date_string=FIRST_DATE_STRING,
             last_date_string=LAST_DATE_STRING,
-            radar_number=RADAR_NUMBER_MANY_DAYS, test_mode=True
+            radar_number=RADAR_NUMBER_MANY_DAYS,
+            prefer_zipped=False, allow_other_format=False, test_mode=True
         )
 
         self.assertTrue(these_file_names == TARGET_FILE_NAMES)
