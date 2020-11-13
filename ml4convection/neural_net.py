@@ -1498,14 +1498,23 @@ def apply_model_partial_grids(
     first_input_row = -1
     first_input_column = -1
     last_input_row = -1
+    last_input_column = -1
 
-    while last_input_row < num_full_grid_rows - 1:
+    while (
+            last_input_row < num_full_grid_rows - 1 or
+            last_input_column < num_full_grid_columns - 1
+    ):
         if first_input_row < 0:
             first_input_row = 0
             first_input_column = 0
         else:
-            first_input_row += num_partial_grid_rows - 2 * overlap_size_px
-            first_input_column += num_partial_grid_columns - 2 * overlap_size_px
+            if last_input_column == num_full_grid_columns - 1:
+                first_input_row += num_partial_grid_rows - 2 * overlap_size_px
+                first_input_column = 0
+            else:
+                first_input_column += (
+                    num_partial_grid_columns - 2 * overlap_size_px
+                )
 
         last_input_row = min([
             first_input_row + num_partial_grid_rows - 1,
@@ -1570,9 +1579,6 @@ def apply_model_partial_grids(
                 overlap_size_px:-overlap_size_px,
                 overlap_size_px:-overlap_size_px
             ]
-
-            these_percentiles = numpy.array([90, 95, 96, 97, 98, 99, 100], dtype=float)
-            print(numpy.percentile(this_prob_matrix[0, ...], these_percentiles))
 
             forecast_prob_matrix[
                 first_example_index:(last_example_index + 1),
