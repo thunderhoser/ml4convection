@@ -1562,6 +1562,7 @@ def apply_model_partial_grids(
             )[..., 0]
 
             this_prob_matrix = this_prob_matrix[
+                :,
                 overlap_size_px:-overlap_size_px,
                 overlap_size_px:-overlap_size_px
             ]
