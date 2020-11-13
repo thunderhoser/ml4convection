@@ -1506,7 +1506,7 @@ def apply_model_partial_grids(
     first_input_column = -1
     last_input_row = -1
 
-    while last_input_row < num_partial_grid_rows - 1:
+    while last_input_row < num_full_grid_rows - 1:
         if first_input_row < 0:
             first_input_row = 0
             first_input_column = 0
@@ -1516,11 +1516,11 @@ def apply_model_partial_grids(
 
         last_input_row = min([
             first_input_row + num_partial_grid_rows - 1,
-            num_partial_grid_rows - 1
+            num_full_grid_rows - 1
         ])
         last_input_column = min([
             first_input_column + num_partial_grid_columns - 1,
-            num_partial_grid_columns - 1
+            num_full_grid_columns - 1
         ])
 
         first_input_row = last_input_row - num_partial_grid_rows + 1
