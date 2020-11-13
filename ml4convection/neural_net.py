@@ -1473,18 +1473,11 @@ def apply_model_partial_grids(
     num_partial_grid_rows = these_dim[1]
     num_partial_grid_columns = these_dim[2]
 
-    num_partial_half_grid_rows = int(numpy.round(
-        float(num_partial_grid_rows - 1) / 2
-    ))
-    num_partial_half_grid_columns = int(numpy.round(
-        float(num_partial_grid_columns - 1) / 2
-    ))
-
     error_checking.assert_is_integer(overlap_size_px)
     error_checking.assert_is_geq(overlap_size_px, 0)
     error_checking.assert_is_less_than(
-        overlap_size_px,
-        min([num_partial_half_grid_rows, num_partial_half_grid_columns])
+        2 * overlap_size_px,
+        min([num_partial_grid_rows, num_partial_grid_columns])
     )
 
     num_examples = predictor_matrix.shape[0]
@@ -1511,8 +1504,8 @@ def apply_model_partial_grids(
             first_input_row = 0
             first_input_column = 0
         else:
-            first_input_row += num_partial_grid_rows - overlap_size_px
-            first_input_column += num_partial_grid_columns - overlap_size_px
+            first_input_row += num_partial_grid_rows - 2 * overlap_size_px
+            first_input_column += num_partial_grid_columns - 2 * overlap_size_px
 
         last_input_row = min([
             first_input_row + num_partial_grid_rows - 1,
@@ -1560,6 +1553,17 @@ def apply_model_partial_grids(
             this_prob_matrix = model_object.predict(
                 this_predictor_matrix, batch_size=this_predictor_matrix.shape[0]
             )[..., 0]
+
+            if verbose:
+                print((
+                    'Taking predictions from rows {0:d}-{1:d} of {2:d}, '
+                    'columns {3:d}-{4:d} of {5:d}...'
+                ).format(
+                    first_output_row + 1, last_output_row + 1,
+                    num_full_grid_rows,
+                    first_output_column + 1, last_output_column + 1,
+                    num_full_grid_columns
+                ))
 
             this_prob_matrix = this_prob_matrix[
                 :,
