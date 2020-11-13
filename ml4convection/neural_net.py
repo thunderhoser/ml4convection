@@ -949,7 +949,6 @@ def generator_partial_grids(option_dict):
         prefer_zipped=True, allow_other_format=True,
         raise_error_if_any_missing=False
     )
-
     these_target_file_names = example_io.find_many_target_files(
         top_directory_name=top_target_dir_name,
         first_date_string=first_init_date_string,
@@ -957,6 +956,13 @@ def generator_partial_grids(option_dict):
         prefer_zipped=True, allow_other_format=True,
         raise_error_if_any_missing=False
     )
+
+    predictor_date_strings = [
+        example_io.file_name_to_date(f) for f in these_predictor_file_names
+    ]
+    target_date_strings = [
+        example_io.file_name_to_date(f) for f in these_target_file_names
+    ]
 
     predictor_file_name_matrix = numpy.full(
         (len(these_predictor_file_names), NUM_RADARS), '', dtype=object
@@ -987,21 +993,20 @@ def generator_partial_grids(option_dict):
                 top_directory_name=top_predictor_dir_name, date_string=d,
                 radar_number=k, prefer_zipped=True, allow_other_format=True,
                 raise_error_if_missing=True
-            ) for d in valid_date_strings
+            ) for d in predictor_date_strings
         ]
-
-        predictor_file_name_matrix[:, k] = numpy.array(
-            these_predictor_file_names
-        )
 
         these_target_file_names = [
             example_io.find_target_file(
                 top_directory_name=top_target_dir_name, date_string=d,
                 radar_number=k, prefer_zipped=True, allow_other_format=True,
                 raise_error_if_missing=True
-            ) for d in valid_date_strings
+            ) for d in target_date_strings
         ]
 
+        predictor_file_name_matrix[:, k] = numpy.array(
+            these_predictor_file_names
+        )
         target_file_name_matrix[:, k] = numpy.array(these_target_file_names)
 
     radar_indices = numpy.linspace(0, NUM_RADARS - 1, num=NUM_RADARS, dtype=int)
