@@ -1571,6 +1571,9 @@ def apply_model_partial_grids(
                 overlap_size_px:-overlap_size_px
             ]
 
+            these_percentiles = numpy.array([90, 95, 96, 97, 98, 99, 100], dtype=float)
+            print(numpy.percentile(this_prob_matrix[0, ...], these_percentiles))
+
             forecast_prob_matrix[
                 first_example_index:(last_example_index + 1),
                 first_output_row:(last_output_row + 1),
