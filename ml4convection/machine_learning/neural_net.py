@@ -77,6 +77,16 @@ VALID_TIMES_KEY = 'valid_times_unix_sec'
 LATITUDES_KEY = 'latitudes_deg_n'
 LONGITUDES_KEY = 'longitudes_deg_e'
 
+NUM_FULL_ROWS_KEY = 'num_full_grid_rows'
+NUM_FULL_COLUMNS_KEY = 'num_full_grid_columns'
+NUM_PARTIAL_ROWS_KEY = 'num_partial_grid_rows'
+NUM_PARTIAL_COLUMNS_KEY = 'num_partial_grid_columns'
+OVERLAP_SIZE_KEY = 'overlap_size_px'
+FIRST_INPUT_ROW_KEY = 'first_input_row'
+LAST_INPUT_ROW_KEY = 'last_input_row'
+FIRST_INPUT_COLUMN_KEY = 'first_input_column'
+LAST_INPUT_COLUMN_KEY = 'last_input_column'
+
 
 def _check_generator_args(option_dict):
     """Error-checks input arguments for generator.
@@ -443,6 +453,71 @@ def _find_days_with_both_inputs(
         valid_date_strings.append(this_target_date_string)
 
     return valid_date_strings
+
+
+def _get_input_px_for_partial_grid(partial_grid_dict):
+    """Returns input pixels for partial grid.
+
+    "Input pixels" = indices in full grid from which predictors will be taken
+
+    :param partial_grid_dict: Dictionary with the following keys.
+    partial_grid_dict['num_full_grid_rows']: Number of rows in full grid.
+    partial_grid_dict['num_full_grid_columns']: Number of columns in full grid.
+    partial_grid_dict['num_partial_grid_rows']: Number of rows in each partial
+        grid.
+    partial_grid_dict['num_partial_grid_columns']: Number of columns in each
+        partial grid.
+    partial_grid_dict['overlap_size_px']: Overlap between adjacent partial grids
+        (number of pixels).
+    partial_grid_dict['last_input_row']: Last input row from previous partial
+        grid.  If last_input_row = i, this means the last row in the previous
+        partial grid is the [i]th row in the full grid.  If there was no
+        previous partial grid, make this -1.
+    partial_grid_dict['last_input_column']: Same but for last column.
+    partial_grid_dict['first_input_row']: Same but for first row.
+    partial_grid_dict['first_input_column']: Same but for first column.
+
+    :return: partial_grid_dict: Same but with different values for the last 4
+        keys.
+    """
+
+    num_full_grid_rows = partial_grid_dict[NUM_FULL_ROWS_KEY]
+    num_full_grid_columns = partial_grid_dict[NUM_FULL_COLUMNS_KEY]
+    num_partial_grid_rows = partial_grid_dict[NUM_PARTIAL_ROWS_KEY]
+    num_partial_grid_columns = partial_grid_dict[NUM_PARTIAL_COLUMNS_KEY]
+    overlap_size_px = partial_grid_dict[OVERLAP_SIZE_KEY]
+    last_input_row = partial_grid_dict[LAST_INPUT_ROW_KEY]
+    last_input_column = partial_grid_dict[LAST_INPUT_COLUMN_KEY]
+
+    if last_input_row < 0:
+        last_input_row = num_partial_grid_rows - 1
+        last_input_column = num_partial_grid_columns - 1
+    elif last_input_column == num_full_grid_columns - 1:
+        if last_input_row == num_full_grid_rows - 1:
+            last_input_row = -1
+            last_input_column = -1
+        else:
+            last_input_row += num_partial_grid_rows - 2 * overlap_size_px
+            last_input_column = num_partial_grid_columns - 1
+    else:
+        last_input_column += num_partial_grid_columns - 2 * overlap_size_px
+
+    last_input_row = min([
+        last_input_row, num_full_grid_rows - 1
+    ])
+    last_input_column = min([
+        last_input_column, num_full_grid_columns - 1
+    ])
+
+    first_input_row = last_input_row - num_partial_grid_rows + 1
+    first_input_column = last_input_column - num_partial_grid_columns + 1
+
+    partial_grid_dict[FIRST_INPUT_ROW_KEY] = first_input_row
+    partial_grid_dict[FIRST_INPUT_COLUMN_KEY] = first_input_column
+    partial_grid_dict[LAST_INPUT_ROW_KEY] = last_input_row
+    partial_grid_dict[LAST_INPUT_COLUMN_KEY] = last_input_column
+
+    return partial_grid_dict
 
 
 def get_metrics(mask_matrix):
@@ -942,21 +1017,26 @@ def generator_partial_grids(option_dict):
         prefer_zipped=True, allow_other_format=True,
         raise_error_if_any_missing=False
     )
-
-    num_days = len(these_predictor_file_names)
-    predictor_file_name_matrix = numpy.full(
-        (num_days, NUM_RADARS), '', dtype=object
-    )
-    target_file_name_matrix = numpy.full(
-        (num_days, NUM_RADARS), '', dtype=object
-    )
-
     these_target_file_names = example_io.find_many_target_files(
         top_directory_name=top_target_dir_name,
         first_date_string=first_init_date_string,
         last_date_string=last_valid_date_string, radar_number=0,
         prefer_zipped=True, allow_other_format=True,
         raise_error_if_any_missing=False
+    )
+
+    predictor_date_strings = [
+        example_io.file_name_to_date(f) for f in these_predictor_file_names
+    ]
+    target_date_strings = [
+        example_io.file_name_to_date(f) for f in these_target_file_names
+    ]
+
+    predictor_file_name_matrix = numpy.full(
+        (len(these_predictor_file_names), NUM_RADARS), '', dtype=object
+    )
+    target_file_name_matrix = numpy.full(
+        (len(these_target_file_names), NUM_RADARS), '', dtype=object
     )
 
     predictor_file_name_matrix[:, 0] = numpy.array(these_predictor_file_names)
@@ -981,21 +1061,20 @@ def generator_partial_grids(option_dict):
                 top_directory_name=top_predictor_dir_name, date_string=d,
                 radar_number=k, prefer_zipped=True, allow_other_format=True,
                 raise_error_if_missing=True
-            ) for d in valid_date_strings
+            ) for d in predictor_date_strings
+        ]
+
+        these_target_file_names = [
+            example_io.find_target_file(
+                top_directory_name=top_target_dir_name, date_string=d,
+                radar_number=k, prefer_zipped=True, allow_other_format=True,
+                raise_error_if_missing=True
+            ) for d in target_date_strings
         ]
 
         predictor_file_name_matrix[:, k] = numpy.array(
             these_predictor_file_names
         )
-
-        these_target_file_names = [
-            example_io.find_target_file(
-                top_directory_name=top_predictor_dir_name, date_string=d,
-                radar_number=k, prefer_zipped=True, allow_other_format=True,
-                raise_error_if_missing=True
-            ) for d in valid_date_strings
-        ]
-
         target_file_name_matrix[:, k] = numpy.array(these_target_file_names)
 
     radar_indices = numpy.linspace(0, NUM_RADARS - 1, num=NUM_RADARS, dtype=int)
@@ -1462,18 +1541,11 @@ def apply_model_partial_grids(
     num_partial_grid_rows = these_dim[1]
     num_partial_grid_columns = these_dim[2]
 
-    num_partial_half_grid_rows = int(numpy.round(
-        float(num_partial_grid_rows - 1) / 2
-    ))
-    num_partial_half_grid_columns = int(numpy.round(
-        float(num_partial_grid_columns - 1) / 2
-    ))
-
     error_checking.assert_is_integer(overlap_size_px)
     error_checking.assert_is_geq(overlap_size_px, 0)
     error_checking.assert_is_less_than(
-        overlap_size_px,
-        min([num_partial_half_grid_rows, num_partial_half_grid_columns])
+        2 * overlap_size_px,
+        min([num_partial_grid_rows, num_partial_grid_columns])
     )
 
     num_examples = predictor_matrix.shape[0]
@@ -1491,29 +1563,29 @@ def apply_model_partial_grids(
     forecast_prob_matrix = numpy.full(
         (num_examples, num_full_grid_rows, num_full_grid_columns), 0.
     )
-    first_input_row = -1
-    first_input_column = -1
-    last_input_row = -1
 
-    while last_input_row < num_partial_grid_rows - 1:
+    partial_grid_dict = {
+        NUM_FULL_ROWS_KEY: num_full_grid_rows,
+        NUM_FULL_COLUMNS_KEY: num_full_grid_columns,
+        NUM_PARTIAL_ROWS_KEY: num_partial_grid_rows,
+        NUM_PARTIAL_COLUMNS_KEY: num_partial_grid_columns,
+        OVERLAP_SIZE_KEY: overlap_size_px,
+        FIRST_INPUT_ROW_KEY: -1,
+        LAST_INPUT_ROW_KEY: -1,
+        FIRST_INPUT_COLUMN_KEY: -1,
+        LAST_INPUT_COLUMN_KEY: -1
+    }
+
+    while True:
+        partial_grid_dict = _get_input_px_for_partial_grid(partial_grid_dict)
+
+        first_input_row = partial_grid_dict[FIRST_INPUT_ROW_KEY]
         if first_input_row < 0:
-            first_input_row = 0
-            first_input_column = 0
-        else:
-            first_input_row += num_partial_grid_rows - overlap_size_px
-            first_input_column += num_partial_grid_columns - overlap_size_px
+            break
 
-        last_input_row = min([
-            first_input_row + num_partial_grid_rows - 1,
-            num_partial_grid_rows - 1
-        ])
-        last_input_column = min([
-            first_input_column + num_partial_grid_columns - 1,
-            num_partial_grid_columns - 1
-        ])
-
-        first_input_row = last_input_row - num_partial_grid_rows + 1
-        first_input_column = last_input_column - num_partial_grid_columns + 1
+        last_input_row = partial_grid_dict[LAST_INPUT_ROW_KEY]
+        first_input_column = partial_grid_dict[FIRST_INPUT_COLUMN_KEY]
+        last_input_column = partial_grid_dict[LAST_INPUT_COLUMN_KEY]
 
         first_output_row = first_input_row + overlap_size_px
         last_output_row = last_input_row - overlap_size_px
@@ -1550,7 +1622,19 @@ def apply_model_partial_grids(
                 this_predictor_matrix, batch_size=this_predictor_matrix.shape[0]
             )[..., 0]
 
+            if verbose:
+                print((
+                    'Taking predictions from rows {0:d}-{1:d} of {2:d}, '
+                    'columns {3:d}-{4:d} of {5:d}...'
+                ).format(
+                    first_output_row + 1, last_output_row + 1,
+                    num_full_grid_rows,
+                    first_output_column + 1, last_output_column + 1,
+                    num_full_grid_columns
+                ))
+
             this_prob_matrix = this_prob_matrix[
+                :,
                 overlap_size_px:-overlap_size_px,
                 overlap_size_px:-overlap_size_px
             ]

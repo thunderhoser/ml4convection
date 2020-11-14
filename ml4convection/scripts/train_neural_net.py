@@ -92,11 +92,12 @@ def _run(training_predictor_dir_name, training_target_dir_name,
         training_option_dict=training_option_dict,
         num_validation_batches_per_epoch=num_validn_batches_per_epoch,
         validation_option_dict=validation_option_dict,
+        mask_matrix=metadata_dict[neural_net.MASK_MATRIX_KEY],
+        full_mask_matrix=metadata_dict[neural_net.FULL_MASK_MATRIX_KEY],
         do_early_stopping=True, plateau_lr_multiplier=plateau_lr_multiplier,
         class_weights=metadata_dict[neural_net.CLASS_WEIGHTS_KEY],
         fss_half_window_size_px=
-        metadata_dict[neural_net.FSS_HALF_WINDOW_SIZE_KEY],
-        mask_matrix=metadata_dict[neural_net.MASK_MATRIX_KEY]
+        metadata_dict[neural_net.FSS_HALF_WINDOW_SIZE_KEY]
     )
 
 

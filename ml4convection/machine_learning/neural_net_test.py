@@ -1,5 +1,6 @@
 """Unit tests for neural_net.py."""
 
+import copy
 import unittest
 import numpy
 from ml4convection.io import example_io
@@ -81,6 +82,95 @@ VALID_DATE_STRINGS_ZERO_LEAD = [
 ]
 VALID_DATE_STRINGS_NONZERO_LEAD = ['20200113', '20200103', '20200110']
 
+# The following constants are used to test _get_input_px_for_partial_grid.
+FIRST_PARTIAL_GRID_DICT_BEFORE = {
+    neural_net.NUM_FULL_ROWS_KEY: 881,
+    neural_net.NUM_FULL_COLUMNS_KEY: 921,
+    neural_net.NUM_PARTIAL_ROWS_KEY: 205,
+    neural_net.NUM_PARTIAL_COLUMNS_KEY: 205,
+    neural_net.OVERLAP_SIZE_KEY: 50,
+    neural_net.LAST_INPUT_ROW_KEY: -1,
+    neural_net.LAST_INPUT_COLUMN_KEY: -1
+}
+
+FIRST_PARTIAL_GRID_DICT_AFTER = {
+    neural_net.NUM_FULL_ROWS_KEY: 881,
+    neural_net.NUM_FULL_COLUMNS_KEY: 921,
+    neural_net.NUM_PARTIAL_ROWS_KEY: 205,
+    neural_net.NUM_PARTIAL_COLUMNS_KEY: 205,
+    neural_net.OVERLAP_SIZE_KEY: 50,
+    neural_net.FIRST_INPUT_ROW_KEY: 0,
+    neural_net.LAST_INPUT_ROW_KEY: 204,
+    neural_net.FIRST_INPUT_COLUMN_KEY: 0,
+    neural_net.LAST_INPUT_COLUMN_KEY: 204
+}
+
+SECOND_PARTIAL_GRID_DICT_BEFORE = {
+    neural_net.NUM_FULL_ROWS_KEY: 881,
+    neural_net.NUM_FULL_COLUMNS_KEY: 921,
+    neural_net.NUM_PARTIAL_ROWS_KEY: 205,
+    neural_net.NUM_PARTIAL_COLUMNS_KEY: 205,
+    neural_net.OVERLAP_SIZE_KEY: 50,
+    neural_net.LAST_INPUT_ROW_KEY: 204,
+    neural_net.LAST_INPUT_COLUMN_KEY: 309
+}
+
+SECOND_PARTIAL_GRID_DICT_AFTER = {
+    neural_net.NUM_FULL_ROWS_KEY: 881,
+    neural_net.NUM_FULL_COLUMNS_KEY: 921,
+    neural_net.NUM_PARTIAL_ROWS_KEY: 205,
+    neural_net.NUM_PARTIAL_COLUMNS_KEY: 205,
+    neural_net.OVERLAP_SIZE_KEY: 50,
+    neural_net.FIRST_INPUT_ROW_KEY: 0,
+    neural_net.LAST_INPUT_ROW_KEY: 204,
+    neural_net.FIRST_INPUT_COLUMN_KEY: 210,
+    neural_net.LAST_INPUT_COLUMN_KEY: 414
+}
+
+THIRD_PARTIAL_GRID_DICT_BEFORE = {
+    neural_net.NUM_FULL_ROWS_KEY: 881,
+    neural_net.NUM_FULL_COLUMNS_KEY: 921,
+    neural_net.NUM_PARTIAL_ROWS_KEY: 205,
+    neural_net.NUM_PARTIAL_COLUMNS_KEY: 205,
+    neural_net.OVERLAP_SIZE_KEY: 50,
+    neural_net.LAST_INPUT_ROW_KEY: 204,
+    neural_net.LAST_INPUT_COLUMN_KEY: 920
+}
+
+THIRD_PARTIAL_GRID_DICT_AFTER = {
+    neural_net.NUM_FULL_ROWS_KEY: 881,
+    neural_net.NUM_FULL_COLUMNS_KEY: 921,
+    neural_net.NUM_PARTIAL_ROWS_KEY: 205,
+    neural_net.NUM_PARTIAL_COLUMNS_KEY: 205,
+    neural_net.OVERLAP_SIZE_KEY: 50,
+    neural_net.FIRST_INPUT_ROW_KEY: 105,
+    neural_net.LAST_INPUT_ROW_KEY: 309,
+    neural_net.FIRST_INPUT_COLUMN_KEY: 0,
+    neural_net.LAST_INPUT_COLUMN_KEY: 204
+}
+
+FOURTH_PARTIAL_GRID_DICT_BEFORE = {
+    neural_net.NUM_FULL_ROWS_KEY: 881,
+    neural_net.NUM_FULL_COLUMNS_KEY: 921,
+    neural_net.NUM_PARTIAL_ROWS_KEY: 205,
+    neural_net.NUM_PARTIAL_COLUMNS_KEY: 205,
+    neural_net.OVERLAP_SIZE_KEY: 50,
+    neural_net.LAST_INPUT_ROW_KEY: 880,
+    neural_net.LAST_INPUT_COLUMN_KEY: 920
+}
+
+FOURTH_PARTIAL_GRID_DICT_AFTER = {
+    neural_net.NUM_FULL_ROWS_KEY: 881,
+    neural_net.NUM_FULL_COLUMNS_KEY: 921,
+    neural_net.NUM_PARTIAL_ROWS_KEY: 205,
+    neural_net.NUM_PARTIAL_COLUMNS_KEY: 205,
+    neural_net.OVERLAP_SIZE_KEY: 50,
+    neural_net.FIRST_INPUT_ROW_KEY: -205,
+    neural_net.LAST_INPUT_ROW_KEY: -1,
+    neural_net.FIRST_INPUT_COLUMN_KEY: -205,
+    neural_net.LAST_INPUT_COLUMN_KEY: -1
+}
+
 
 class NeuralNetTests(unittest.TestCase):
     """Each method is a unit test for neural_net.py."""
@@ -146,6 +236,60 @@ class NeuralNetTests(unittest.TestCase):
         )
 
         self.assertTrue(these_date_strings == VALID_DATE_STRINGS_NONZERO_LEAD)
+
+    def test_get_input_px_for_partial_grid_first(self):
+        """Ensures correct output from _get_input_px_for_partial_grid.
+
+        In this case, using first set of inputs.
+        """
+
+        this_partial_grid_dict = neural_net._get_input_px_for_partial_grid(
+            copy.deepcopy(FIRST_PARTIAL_GRID_DICT_BEFORE)
+        )
+
+        self.assertTrue(this_partial_grid_dict == FIRST_PARTIAL_GRID_DICT_AFTER)
+
+    def test_get_input_px_for_partial_grid_second(self):
+        """Ensures correct output from _get_input_px_for_partial_grid.
+
+        In this case, using second set of inputs.
+        """
+
+        this_partial_grid_dict = neural_net._get_input_px_for_partial_grid(
+            copy.deepcopy(SECOND_PARTIAL_GRID_DICT_BEFORE)
+        )
+
+        self.assertTrue(
+            this_partial_grid_dict == SECOND_PARTIAL_GRID_DICT_AFTER
+        )
+
+    def test_get_input_px_for_partial_grid_third(self):
+        """Ensures correct output from _get_input_px_for_partial_grid.
+
+        In this case, using third set of inputs.
+        """
+
+        this_partial_grid_dict = neural_net._get_input_px_for_partial_grid(
+            copy.deepcopy(THIRD_PARTIAL_GRID_DICT_BEFORE)
+        )
+
+        self.assertTrue(
+            this_partial_grid_dict == THIRD_PARTIAL_GRID_DICT_AFTER
+        )
+
+    def test_get_input_px_for_partial_grid_fourth(self):
+        """Ensures correct output from _get_input_px_for_partial_grid.
+
+        In this case, using fourth set of inputs.
+        """
+
+        this_partial_grid_dict = neural_net._get_input_px_for_partial_grid(
+            copy.deepcopy(FOURTH_PARTIAL_GRID_DICT_BEFORE)
+        )
+
+        self.assertTrue(
+            this_partial_grid_dict == FOURTH_PARTIAL_GRID_DICT_AFTER
+        )
 
 
 if __name__ == '__main__':
