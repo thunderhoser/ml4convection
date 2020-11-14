@@ -12,6 +12,7 @@ from gewittergefahr.gg_utils import error_checking
 from gewittergefahr.plotting import plotting_utils as gg_plotting_utils
 from ml4convection.io import border_io
 from ml4convection.io import prediction_io
+from ml4convection.machine_learning import neural_net
 from ml4convection.plotting import plotting_utils
 from ml4convection.plotting import prediction_plotting
 
@@ -211,6 +212,21 @@ def _plot_predictions_one_day(
 
     print('Reading data from: "{0:s}"...'.format(prediction_file_name))
     prediction_dict = prediction_io.read_file(prediction_file_name)
+
+    model_file_name = prediction_dict[prediction_io.MODEL_FILE_KEY]
+    model_metafile_name = neural_net.find_metafile(model_file_name)
+
+    print('Reading model metadata from: "{0:s}"...'.format(model_metafile_name))
+    model_metadata_dict = neural_net.read_metafile(model_metafile_name)
+
+    full_mask_matrix = model_metadata_dict[neural_net.FULL_MASK_MATRIX_KEY]
+    target_matrix = prediction_dict[prediction_io.TARGET_MATRIX_KEY]
+    num_times = target_matrix.shape[0]
+
+    for i in range(num_times):
+        target_matrix[i, ...][full_mask_matrix == False] = 0
+
+    prediction_dict[prediction_io.TARGET_MATRIX_KEY] = target_matrix
 
     # TODO(thunderhoser): Put this code somewhere reusable.
     valid_times_unix_sec = prediction_dict[prediction_io.VALID_TIMES_KEY]
