@@ -12,12 +12,13 @@ from gewittergefahr.gg_utils import error_checking
 from gewittergefahr.plotting import plotting_utils as gg_plotting_utils
 from ml4convection.io import border_io
 from ml4convection.io import prediction_io
-from ml4convection.machine_learning import neural_net
+from ml4convection.utils import radar_utils
 from ml4convection.plotting import plotting_utils
 from ml4convection.plotting import prediction_plotting
 
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 
+NUM_RADARS = len(radar_utils.RADAR_LATITUDES_DEG_N)
 DAYS_TO_SECONDS = 86400
 TIME_FORMAT = '%Y-%m-%d-%H%M'
 
@@ -28,6 +29,7 @@ FIGURE_HEIGHT_INCHES = 15
 INPUT_DIR_ARG_NAME = 'input_prediction_dir_name'
 FIRST_DATE_ARG_NAME = 'first_date_string'
 LAST_DATE_ARG_NAME = 'last_date_string'
+USE_PARTIAL_GRIDS_ARG_NAME = 'use_partial_grids'
 DAILY_TIMES_ARG_NAME = 'daily_times_seconds'
 PLOT_DETERMINISTIC_ARG_NAME = 'plot_deterministic'
 PROB_THRESHOLD_ARG_NAME = 'probability_threshold'
@@ -42,6 +44,9 @@ DATE_HELP_STRING = (
     'period `{0:s}`...`{1:s}`.'
 ).format(FIRST_DATE_ARG_NAME, LAST_DATE_ARG_NAME)
 
+USE_PARTIAL_GRIDS_HELP_STRING = (
+    'Boolean flag.  If 1 (0), will plot predictions on partial (full) grids.'
+)
 DAILY_TIMES_HELP_STRING = (
     'List of times to plot for each day.  All values should be in the range '
     '0...86399.'
@@ -71,6 +76,10 @@ INPUT_ARG_PARSER.add_argument(
 )
 INPUT_ARG_PARSER.add_argument(
     '--' + LAST_DATE_ARG_NAME, type=str, required=True, help=DATE_HELP_STRING
+)
+INPUT_ARG_PARSER.add_argument(
+    '--' + USE_PARTIAL_GRIDS_ARG_NAME, type=int, required=False, default=0,
+    help=USE_PARTIAL_GRIDS_HELP_STRING
 )
 INPUT_ARG_PARSER.add_argument(
     '--' + DAILY_TIMES_ARG_NAME, type=int, nargs='+', required=True,
@@ -213,21 +222,6 @@ def _plot_predictions_one_day(
     print('Reading data from: "{0:s}"...'.format(prediction_file_name))
     prediction_dict = prediction_io.read_file(prediction_file_name)
 
-    model_file_name = prediction_dict[prediction_io.MODEL_FILE_KEY]
-    model_metafile_name = neural_net.find_metafile(model_file_name)
-
-    print('Reading model metadata from: "{0:s}"...'.format(model_metafile_name))
-    model_metadata_dict = neural_net.read_metafile(model_metafile_name)
-
-    full_mask_matrix = model_metadata_dict[neural_net.FULL_MASK_MATRIX_KEY]
-    target_matrix = prediction_dict[prediction_io.TARGET_MATRIX_KEY]
-    num_times = target_matrix.shape[0]
-
-    for i in range(num_times):
-        target_matrix[i, ...][full_mask_matrix == False] = 0
-
-    prediction_dict[prediction_io.TARGET_MATRIX_KEY] = target_matrix
-
     # TODO(thunderhoser): Put this code somewhere reusable.
     valid_times_unix_sec = prediction_dict[prediction_io.VALID_TIMES_KEY]
     base_time_unix_sec = number_rounding.floor_to_nearest(
@@ -264,8 +258,8 @@ def _plot_predictions_one_day(
 
 
 def _run(top_prediction_dir_name, first_date_string, last_date_string,
-         daily_times_seconds, plot_deterministic, probability_threshold,
-         output_dir_name):
+         use_partial_grids, daily_times_seconds, plot_deterministic,
+         probability_threshold, output_dir_name):
     """Plot predictions (and targets) for the given days.
 
     This is effectively the main method.
@@ -273,6 +267,7 @@ def _run(top_prediction_dir_name, first_date_string, last_date_string,
     :param top_prediction_dir_name: See documentation at top of file.
     :param first_date_string: Same.
     :param last_date_string: Same.
+    :param use_partial_grids: Same.
     :param daily_times_seconds: Same.
     :param plot_deterministic: Same.
     :param probability_threshold: Same.
@@ -296,26 +291,77 @@ def _run(top_prediction_dir_name, first_date_string, last_date_string,
     else:
         probability_threshold = None
 
-    prediction_file_names = prediction_io.find_many_files(
-        top_directory_name=top_prediction_dir_name,
-        first_date_string=first_date_string,
-        last_date_string=last_date_string,
-        raise_error_if_any_missing=False
-    )
-
-    for i in range(len(prediction_file_names)):
-        _plot_predictions_one_day(
-            prediction_file_name=prediction_file_names[i],
-            daily_times_seconds=daily_times_seconds,
-            border_latitudes_deg_n=border_latitudes_deg_n,
-            border_longitudes_deg_e=border_longitudes_deg_e,
-            plot_deterministic=plot_deterministic,
-            probability_threshold=probability_threshold,
-            output_dir_name=output_dir_name
+    if not use_partial_grids:
+        prediction_file_names = prediction_io.find_many_files(
+            top_directory_name=top_prediction_dir_name,
+            first_date_string=first_date_string,
+            last_date_string=last_date_string,
+            radar_number=None, prefer_zipped=True, allow_other_format=True,
+            raise_error_if_any_missing=False
         )
 
-        if i != len(prediction_file_names) - 1:
-            print(SEPARATOR_STRING)
+        for i in range(len(prediction_file_names)):
+            _plot_predictions_one_day(
+                prediction_file_name=prediction_file_names[i],
+                daily_times_seconds=daily_times_seconds,
+                border_latitudes_deg_n=border_latitudes_deg_n,
+                border_longitudes_deg_e=border_longitudes_deg_e,
+                plot_deterministic=plot_deterministic,
+                probability_threshold=probability_threshold,
+                output_dir_name=output_dir_name
+            )
+
+            if i != len(prediction_file_names) - 1:
+                print(SEPARATOR_STRING)
+
+        return
+
+    date_strings = []
+
+    for k in range(NUM_RADARS):
+        if k == 0:
+            prediction_file_names = prediction_io.find_many_files(
+                top_directory_name=top_prediction_dir_name,
+                first_date_string=first_date_string,
+                last_date_string=last_date_string,
+                radar_number=k, prefer_zipped=True, allow_other_format=True,
+                raise_error_if_any_missing=False
+            )
+
+            date_strings = [
+                prediction_io.file_name_to_date(f)
+                for f in prediction_file_names
+            ]
+        else:
+            prediction_file_names = [
+                prediction_io.find_file(
+                    top_directory_name=top_prediction_dir_name,
+                    valid_date_string=d, radar_number=k,
+                    prefer_zipped=True, allow_other_format=True,
+                    raise_error_if_missing=True
+                ) for d in date_strings
+            ]
+
+        this_output_dir_name = '{0:s}/radar{1:d}'.format(output_dir_name, k)
+        file_system_utils.mkdir_recursive_if_necessary(
+            directory_name=this_output_dir_name
+        )
+
+        num_days = len(date_strings)
+
+        for i in range(num_days):
+            _plot_predictions_one_day(
+                prediction_file_name=prediction_file_names[i],
+                daily_times_seconds=daily_times_seconds,
+                border_latitudes_deg_n=border_latitudes_deg_n,
+                border_longitudes_deg_e=border_longitudes_deg_e,
+                plot_deterministic=plot_deterministic,
+                probability_threshold=probability_threshold,
+                output_dir_name=this_output_dir_name
+            )
+
+            if not (i == num_days - 1 and k == NUM_RADARS - 1):
+                print(SEPARATOR_STRING)
 
 
 if __name__ == '__main__':
@@ -325,6 +371,9 @@ if __name__ == '__main__':
         top_prediction_dir_name=getattr(INPUT_ARG_OBJECT, INPUT_DIR_ARG_NAME),
         first_date_string=getattr(INPUT_ARG_OBJECT, FIRST_DATE_ARG_NAME),
         last_date_string=getattr(INPUT_ARG_OBJECT, LAST_DATE_ARG_NAME),
+        use_partial_grids=bool(
+            getattr(INPUT_ARG_OBJECT, USE_PARTIAL_GRIDS_ARG_NAME)
+        ),
         daily_times_seconds=numpy.array(
             getattr(INPUT_ARG_OBJECT, DAILY_TIMES_ARG_NAME), dtype=int
         ),

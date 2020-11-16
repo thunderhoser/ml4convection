@@ -418,7 +418,7 @@ THIS_NUM_FALSE_POS_MATRIX = numpy.repeat(
 for j in range(1, len(PROB_THRESHOLDS)):
     THIS_NUM_FALSE_POS_MATRIX[0, ..., j][
         PROBABILITY_MATRIX < PROB_THRESHOLDS[j]
-    ] = 0
+        ] = 0
 
 THESE_DIM = (
     evaluation.TIME_DIM, evaluation.LATITUDE_DIM, evaluation.LONGITUDE_DIM,
@@ -618,7 +618,7 @@ THIS_NUM_FALSE_POS_MATRIX = numpy.repeat(
 for j in range(1, len(PROB_THRESHOLDS)):
     THIS_NUM_FALSE_POS_MATRIX[0, ..., j][
         THIS_PROB_MATRIX < PROB_THRESHOLDS[j]
-    ] = 0
+        ] = 0
 
 METADATA_DICT_SMALL_GRID = {
     evaluation.TIME_DIM: VALID_TIMES_UNIX_SEC,
@@ -735,7 +735,7 @@ MEAN_PROB_MATRIX_UNGRIDDED = numpy.array([
     0, 0.11, 0.21, 0.31, 0.41, 0.51, 0.61, 0.71, 0.81, 1
 ])
 SUMMED_PROB_MATRIX_UNGRIDDED = (
-    TOTAL_COUNT_MATRIX_UNGRIDDED * MEAN_PROB_MATRIX_UNGRIDDED
+        TOTAL_COUNT_MATRIX_UNGRIDDED * MEAN_PROB_MATRIX_UNGRIDDED
 )
 POS_COUNT_MATRIX_UNGRIDDED = numpy.array(
     [16, 0, 0, 0, 0, 0, 0, 0, 0, 0], dtype=int
@@ -1049,8 +1049,16 @@ ADVANCED_SCORE_TABLE_GRIDDED = xarray.Dataset(
 # basic_file_name_to_date, and find_advanced_score_file.
 TOP_DIRECTORY_NAME = 'foo'
 VALID_DATE_STRING = '19670502'
-BASIC_FILE_NAME_UNGRIDDED = 'foo/1967/basic_scores_gridded=0_19670502.nc'
-BASIC_FILE_NAME_GRIDDED = 'foo/1967/basic_scores_gridded=1_19670502.nc'
+RADAR_NUMBER = 1
+
+BASIC_FILE_NAME_FULL_UNGRIDDED = 'foo/1967/basic_scores_gridded=0_19670502.nc'
+BASIC_FILE_NAME_PARTIAL_UNGRIDDED = (
+    'foo/1967/basic_scores_gridded=0_19670502_radar1.nc'
+)
+BASIC_FILE_NAME_FULL_GRIDDED = 'foo/1967/basic_scores_gridded=1_19670502.nc'
+BASIC_FILE_NAME_PARTIAL_GRIDDED = (
+    'foo/1967/basic_scores_gridded=1_19670502_radar1.nc'
+)
 
 ADVANCED_FILE_NAME_ALL_UNGRIDDED = 'foo/advanced_scores_gridded=0.p'
 ADVANCED_FILE_NAME_ALL_GRIDDED = 'foo/advanced_scores_gridded=1.p'
@@ -1705,53 +1713,113 @@ class EvaluationTests(unittest.TestCase):
             this_score_table_xarray, ADVANCED_SCORE_TABLE_GRIDDED
         ))
 
-    def test_find_basic_score_file_ungridded(self):
+    def test_find_basic_score_file_full_ungridded(self):
         """Ensures correct output from find_basic_score_file.
 
-        In this case, file contains ungridded scores.
+        In this case, file contains ungridded scores on full grid.
         """
 
         this_file_name = evaluation.find_basic_score_file(
             top_directory_name=TOP_DIRECTORY_NAME,
             valid_date_string=VALID_DATE_STRING,
-            gridded=False, raise_error_if_missing=False
+            gridded=False, radar_number=None, raise_error_if_missing=False
         )
 
-        self.assertTrue(this_file_name == BASIC_FILE_NAME_UNGRIDDED)
+        self.assertTrue(this_file_name == BASIC_FILE_NAME_FULL_UNGRIDDED)
 
-    def test_find_basic_score_file_gridded(self):
+    def test_find_basic_score_file_partial_ungridded(self):
         """Ensures correct output from find_basic_score_file.
 
-        In this case, file contains gridded scores.
+        In this case, file contains ungridded scores on partial grid.
         """
 
         this_file_name = evaluation.find_basic_score_file(
             top_directory_name=TOP_DIRECTORY_NAME,
             valid_date_string=VALID_DATE_STRING,
-            gridded=True, raise_error_if_missing=False
+            gridded=False, radar_number=RADAR_NUMBER,
+            raise_error_if_missing=False
         )
 
-        self.assertTrue(this_file_name == BASIC_FILE_NAME_GRIDDED)
+        self.assertTrue(this_file_name == BASIC_FILE_NAME_PARTIAL_UNGRIDDED)
 
-    def test_basic_file_name_to_date_ungridded(self):
+    def test_find_basic_score_file_full_gridded(self):
+        """Ensures correct output from find_basic_score_file.
+
+        In this case, file contains gridded scores on full grid.
+        """
+
+        this_file_name = evaluation.find_basic_score_file(
+            top_directory_name=TOP_DIRECTORY_NAME,
+            valid_date_string=VALID_DATE_STRING,
+            gridded=True, radar_number=None, raise_error_if_missing=False
+        )
+
+        self.assertTrue(this_file_name == BASIC_FILE_NAME_FULL_GRIDDED)
+
+    def test_find_basic_score_file_partial_gridded(self):
+        """Ensures correct output from find_basic_score_file.
+
+        In this case, file contains gridded scores on partial grid.
+        """
+
+        this_file_name = evaluation.find_basic_score_file(
+            top_directory_name=TOP_DIRECTORY_NAME,
+            valid_date_string=VALID_DATE_STRING,
+            gridded=True, radar_number=RADAR_NUMBER,
+            raise_error_if_missing=False
+        )
+
+        self.assertTrue(this_file_name == BASIC_FILE_NAME_PARTIAL_GRIDDED)
+
+    def test_basic_file_name_to_date_full_ungridded(self):
         """Ensures correct output from basic_file_name_to_date.
 
-        In this case, file contains ungridded scores.
+        In this case, file contains ungridded scores on full grid.
         """
 
         self.assertTrue(
-            evaluation.basic_file_name_to_date(BASIC_FILE_NAME_UNGRIDDED) ==
+            evaluation.basic_file_name_to_date(
+                BASIC_FILE_NAME_FULL_UNGRIDDED
+            ) ==
             VALID_DATE_STRING
         )
 
-    def test_basic_file_name_to_date_gridded(self):
+    def test_basic_file_name_to_date_partial_ungridded(self):
         """Ensures correct output from basic_file_name_to_date.
 
-        In this case, file contains gridded scores.
+        In this case, file contains ungridded scores on partial grid.
         """
 
         self.assertTrue(
-            evaluation.basic_file_name_to_date(BASIC_FILE_NAME_GRIDDED) ==
+            evaluation.basic_file_name_to_date(
+                BASIC_FILE_NAME_PARTIAL_UNGRIDDED
+            ) ==
+            VALID_DATE_STRING
+        )
+
+    def test_basic_file_name_to_date_full_gridded(self):
+        """Ensures correct output from basic_file_name_to_date.
+
+        In this case, file contains gridded scores on full grid.
+        """
+
+        self.assertTrue(
+            evaluation.basic_file_name_to_date(
+                BASIC_FILE_NAME_FULL_GRIDDED
+            ) ==
+            VALID_DATE_STRING
+        )
+
+    def test_basic_file_name_to_date_partial_gridded(self):
+        """Ensures correct output from basic_file_name_to_date.
+
+        In this case, file contains gridded scores on partial grid.
+        """
+
+        self.assertTrue(
+            evaluation.basic_file_name_to_date(
+                BASIC_FILE_NAME_PARTIAL_GRIDDED
+            ) ==
             VALID_DATE_STRING
         )
 

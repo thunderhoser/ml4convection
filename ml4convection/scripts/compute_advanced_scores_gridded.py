@@ -111,7 +111,7 @@ def _run(top_basic_score_dir_name, first_date_string, last_date_string,
         top_directory_name=top_basic_score_dir_name,
         first_date_string=first_date_string,
         last_date_string=last_date_string,
-        gridded=True, raise_error_if_any_missing=False
+        gridded=True, radar_number=None, raise_error_if_any_missing=False
     )
 
     # Check input args.

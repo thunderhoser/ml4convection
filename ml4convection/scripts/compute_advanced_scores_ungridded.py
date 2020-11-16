@@ -7,15 +7,18 @@ from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import error_checking
 from ml4convection.io import climatology_io
 from ml4convection.utils import evaluation
+from ml4convection.utils import radar_utils
 
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 MINOR_SEPARATOR_STRING = '\n\n' + '-' * 50 + '\n\n'
 
 NUM_HOURS_PER_DAY = 24
+NUM_RADARS = len(radar_utils.RADAR_LATITUDES_DEG_N)
 
 INPUT_DIR_ARG_NAME = 'input_basic_score_dir_name'
 FIRST_DATE_ARG_NAME = 'first_date_string'
 LAST_DATE_ARG_NAME = 'last_date_string'
+USE_PARTIAL_GRIDS_ARG_NAME = 'use_partial_grids'
 MONTH_ARG_NAME = 'desired_month'
 SPLIT_BY_HOUR_ARG_NAME = 'split_by_hour'
 CLIMO_FILE_ARG_NAME = 'input_climo_file_name'
@@ -31,6 +34,9 @@ DATE_HELP_STRING = (
     'period `{0:s}`...`{1:s}`.'
 ).format(FIRST_DATE_ARG_NAME, LAST_DATE_ARG_NAME)
 
+USE_PARTIAL_GRIDS_HELP_STRING = (
+    'Boolean flag.  If 1 (0), will compute scores for partial (full) grids.'
+)
 MONTH_HELP_STRING = (
     'Will evaluate predictions only for this month (integer in 1...12).  To '
     'evaluate predictions for all months, leave this alone.'
@@ -62,6 +68,10 @@ INPUT_ARG_PARSER.add_argument(
     '--' + LAST_DATE_ARG_NAME, type=str, required=True, help=DATE_HELP_STRING
 )
 INPUT_ARG_PARSER.add_argument(
+    '--' + USE_PARTIAL_GRIDS_ARG_NAME, type=int, required=False, default=0,
+    help=USE_PARTIAL_GRIDS_HELP_STRING
+)
+INPUT_ARG_PARSER.add_argument(
     '--' + MONTH_ARG_NAME, type=int, required=False, default=-1,
     help=MONTH_HELP_STRING
 )
@@ -79,11 +89,87 @@ INPUT_ARG_PARSER.add_argument(
 )
 
 
-def _run(top_basic_score_dir_name, first_date_string, last_date_string,
-         desired_month, split_by_hour, climo_file_name, output_dir_name):
-    """Computes advanced eval scores sans grid (combined over full domain).
+def _compute_scores_partial_grids(
+        top_basic_score_dir_name, first_date_string, last_date_string,
+        climo_file_name, output_dir_name):
+    """Computes advanced scores on full grid.
 
-    This is effectively the main method.
+    :param top_basic_score_dir_name: See documentation at top of file.
+    :param first_date_string: Same.
+    :param last_date_string: Same.
+    :param climo_file_name: Same.
+    :param output_dir_name: Same.
+    """
+
+    print('Reading event frequencies from: "{0:s}"...'.format(
+        climo_file_name
+    ))
+    climo_dict = climatology_io.read_file(climo_file_name)
+
+    date_strings = None
+    basic_score_file_names = []
+
+    for k in range(NUM_RADARS):
+        if k == 0:
+            basic_score_file_names += evaluation.find_many_basic_score_files(
+                top_directory_name=top_basic_score_dir_name,
+                first_date_string=first_date_string,
+                last_date_string=last_date_string,
+                gridded=False, radar_number=k, raise_error_if_any_missing=False
+            )
+            date_strings = [
+                evaluation.basic_file_name_to_date(f)
+                for f in basic_score_file_names
+            ]
+        else:
+            basic_score_file_names += [
+                evaluation.find_basic_score_file(
+                    top_directory_name=top_basic_score_dir_name,
+                    valid_date_string=d, gridded=False, radar_number=k,
+                    raise_error_if_missing=True
+                ) for d in date_strings
+            ]
+
+    basic_score_tables = []
+
+    for this_file_name in basic_score_file_names:
+        print('Reading basic scores from: "{0:s}"...'.format(this_file_name))
+        basic_score_tables.append(
+            evaluation.read_basic_score_file(this_file_name)
+        )
+
+    print(SEPARATOR_STRING)
+
+    basic_score_table_xarray = (
+        evaluation.concat_basic_score_tables(basic_score_tables)
+    )
+    del basic_score_tables
+
+    advanced_score_table_xarray = (
+        evaluation.get_advanced_scores_ungridded(
+            basic_score_table_xarray=basic_score_table_xarray,
+            training_event_frequency=
+            climo_dict[climatology_io.EVENT_FREQ_OVERALL_KEY]
+        )
+    )
+    print(advanced_score_table_xarray)
+
+    output_file_name = evaluation.find_advanced_score_file(
+        directory_name=output_dir_name, month=None, hour=None, gridded=False,
+        raise_error_if_missing=False
+    )
+
+    print('\nWriting advanced scores to: "{0:s}"...'.format(output_file_name))
+    evaluation.write_advanced_score_file(
+        advanced_score_table_xarray=advanced_score_table_xarray,
+        pickle_file_name=output_file_name
+    )
+
+
+def _compute_scores_full_grid(
+        top_basic_score_dir_name, first_date_string, last_date_string,
+        desired_month, split_by_hour, climo_file_name, output_dir_name):
+    """Computes advanced scores on full grid.
 
     :param top_basic_score_dir_name: See documentation at top of file.
     :param first_date_string: Same.
@@ -94,14 +180,6 @@ def _run(top_basic_score_dir_name, first_date_string, last_date_string,
     :param output_dir_name: Same.
     """
 
-    if desired_month <= 0:
-        desired_month = None
-
-    if desired_month is not None:
-        split_by_hour = False
-        error_checking.assert_is_geq(desired_month, 1)
-        error_checking.assert_is_leq(desired_month, 12)
-
     print('Reading event frequencies from: "{0:s}"...'.format(
         climo_file_name
     ))
@@ -111,7 +189,7 @@ def _run(top_basic_score_dir_name, first_date_string, last_date_string,
         top_directory_name=top_basic_score_dir_name,
         first_date_string=first_date_string,
         last_date_string=last_date_string,
-        gridded=False, raise_error_if_any_missing=False
+        gridded=False, radar_number=None, raise_error_if_any_missing=False
     )
     date_strings = [
         evaluation.basic_file_name_to_date(f) for f in basic_score_file_names
@@ -181,7 +259,7 @@ def _run(top_basic_score_dir_name, first_date_string, last_date_string,
             this_event_freq = (
                 climo_dict[climatology_io.EVENT_FREQ_BY_MONTH_KEY][
                     desired_month - 1
-                ]
+                    ]
             )
         elif split_by_hour:
             this_event_freq = (
@@ -218,6 +296,49 @@ def _run(top_basic_score_dir_name, first_date_string, last_date_string,
             print(MINOR_SEPARATOR_STRING)
 
 
+def _run(top_basic_score_dir_name, first_date_string, last_date_string,
+         use_partial_grids, desired_month, split_by_hour, climo_file_name,
+         output_dir_name):
+    """Computes advanced eval scores sans grid (combined over full domain).
+
+    This is effectively the main method.
+
+    :param top_basic_score_dir_name: See documentation at top of file.
+    :param first_date_string: Same.
+    :param last_date_string: Same.
+    :param desired_month: Same.
+    :param split_by_hour: Same.
+    :param climo_file_name: Same.
+    :param output_dir_name: Same.
+    """
+
+    if desired_month <= 0:
+        desired_month = None
+
+    if desired_month is not None:
+        split_by_hour = False
+        error_checking.assert_is_geq(desired_month, 1)
+        error_checking.assert_is_leq(desired_month, 12)
+
+    if not use_partial_grids:
+        _compute_scores_full_grid(
+            top_basic_score_dir_name=top_basic_score_dir_name,
+            first_date_string=first_date_string,
+            last_date_string=last_date_string,
+            desired_month=desired_month, split_by_hour=split_by_hour,
+            climo_file_name=climo_file_name, output_dir_name=output_dir_name
+        )
+
+        return
+
+    _compute_scores_partial_grids(
+        top_basic_score_dir_name=top_basic_score_dir_name,
+        first_date_string=first_date_string,
+        last_date_string=last_date_string,
+        climo_file_name=climo_file_name, output_dir_name=output_dir_name
+    )
+
+
 if __name__ == '__main__':
     INPUT_ARG_OBJECT = INPUT_ARG_PARSER.parse_args()
 
@@ -225,6 +346,9 @@ if __name__ == '__main__':
         top_basic_score_dir_name=getattr(INPUT_ARG_OBJECT, INPUT_DIR_ARG_NAME),
         first_date_string=getattr(INPUT_ARG_OBJECT, FIRST_DATE_ARG_NAME),
         last_date_string=getattr(INPUT_ARG_OBJECT, LAST_DATE_ARG_NAME),
+        use_partial_grids=bool(
+            getattr(INPUT_ARG_OBJECT, USE_PARTIAL_GRIDS_ARG_NAME)
+        ),
         desired_month=getattr(INPUT_ARG_OBJECT, MONTH_ARG_NAME),
         split_by_hour=bool(getattr(INPUT_ARG_OBJECT, SPLIT_BY_HOUR_ARG_NAME)),
         climo_file_name=getattr(INPUT_ARG_OBJECT, CLIMO_FILE_ARG_NAME),

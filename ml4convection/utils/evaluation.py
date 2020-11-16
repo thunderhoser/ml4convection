@@ -500,6 +500,9 @@ def get_basic_scores_ungridded(
     if not test_mode:
         print('Reading data from: "{0:s}"...'.format(prediction_file_name))
         prediction_dict = prediction_io.read_file(prediction_file_name)
+        radar_number = (
+            prediction_io.file_name_to_radar_number(prediction_file_name)
+        )
 
         model_file_name = prediction_dict[prediction_io.MODEL_FILE_KEY]
         model_metafile_name = neural_net.find_metafile(
@@ -510,7 +513,15 @@ def get_basic_scores_ungridded(
             model_metafile_name
         ))
         model_metadata_dict = neural_net.read_metafile(model_metafile_name)
-        eval_mask_matrix = model_metadata_dict[neural_net.FULL_MASK_MATRIX_KEY]
+
+        if radar_number is None:
+            eval_mask_matrix = (
+                model_metadata_dict[neural_net.FULL_MASK_MATRIX_KEY]
+            )
+        else:
+            eval_mask_matrix = (
+                model_metadata_dict[neural_net.MASK_MATRIX_KEY]
+            )
 
     # Check input args.
     general_utils.check_2d_binary_matrix(eval_mask_matrix)
@@ -686,6 +697,9 @@ def get_basic_scores_gridded(
     if not test_mode:
         print('Reading data from: "{0:s}"...'.format(prediction_file_name))
         prediction_dict = prediction_io.read_file(prediction_file_name)
+        radar_number = (
+            prediction_io.file_name_to_radar_number(prediction_file_name)
+        )
 
         model_file_name = prediction_dict[prediction_io.MODEL_FILE_KEY]
         model_metafile_name = neural_net.find_metafile(
@@ -696,7 +710,15 @@ def get_basic_scores_gridded(
             model_metafile_name
         ))
         model_metadata_dict = neural_net.read_metafile(model_metafile_name)
-        eval_mask_matrix = model_metadata_dict[neural_net.FULL_MASK_MATRIX_KEY]
+
+        if radar_number is None:
+            eval_mask_matrix = (
+                model_metadata_dict[neural_net.FULL_MASK_MATRIX_KEY]
+            )
+        else:
+            eval_mask_matrix = (
+                model_metadata_dict[neural_net.MASK_MATRIX_KEY]
+            )
 
     # Check input args.
     general_utils.check_2d_binary_matrix(eval_mask_matrix)
@@ -1281,7 +1303,7 @@ def get_advanced_scores_ungridded(basic_score_table_xarray,
 
 
 def find_basic_score_file(top_directory_name, valid_date_string, gridded,
-                          raise_error_if_missing=True):
+                          radar_number=None, raise_error_if_missing=True):
     """Finds NetCDF file with basic evaluation scores.
 
     :param top_directory_name: Name of top-level directory where file is
@@ -1290,6 +1312,8 @@ def find_basic_score_file(top_directory_name, valid_date_string, gridded,
     :param gridded: Boolean flag.  If True, will look for file with gridded
         scores.  If False, will look for file with scores aggregated over full
         domain.
+    :param radar_number: Radar number (non-negative integer).  If you are
+        looking for data on the full grid, leave this alone.
     :param raise_error_if_missing: Boolean flag.  If file is missing and
         `raise_error_if_missing == True`, will throw error.  If file is missing
         and `raise_error_if_missing == False`, will return *expected* file path.
@@ -1299,15 +1323,20 @@ def find_basic_score_file(top_directory_name, valid_date_string, gridded,
     """
 
     error_checking.assert_is_string(top_directory_name)
+    _ = time_conversion.string_to_unix_sec(valid_date_string, DATE_FORMAT)
     error_checking.assert_is_boolean(gridded)
     error_checking.assert_is_boolean(raise_error_if_missing)
-    _ = time_conversion.string_to_unix_sec(valid_date_string, DATE_FORMAT)
+
+    if radar_number is not None:
+        error_checking.assert_is_integer(radar_number)
+        error_checking.assert_is_geq(radar_number, 0)
 
     basic_score_file_name = (
-        '{0:s}/{1:s}/basic_scores_gridded={2:d}_{3:s}.nc'
+        '{0:s}/{1:s}/basic_scores_gridded={2:d}_{3:s}{4:s}.nc'
     ).format(
         top_directory_name, valid_date_string[:4], int(gridded),
-        valid_date_string
+        valid_date_string,
+        '' if radar_number is None else '_radar{0:d}'.format(radar_number)
     )
 
     if os.path.isfile(basic_score_file_name) or not raise_error_if_missing:
@@ -1331,7 +1360,7 @@ def basic_file_name_to_date(basic_score_file_name):
     pathless_file_name = os.path.split(basic_score_file_name)[-1]
     extensionless_file_name = os.path.splitext(pathless_file_name)[0]
 
-    valid_date_string = extensionless_file_name.split('_')[-1]
+    valid_date_string = extensionless_file_name.split('_')[3]
     _ = time_conversion.string_to_unix_sec(valid_date_string, DATE_FORMAT)
 
     return valid_date_string
@@ -1339,14 +1368,15 @@ def basic_file_name_to_date(basic_score_file_name):
 
 def find_many_basic_score_files(
         top_directory_name, first_date_string, last_date_string, gridded,
-        raise_error_if_all_missing=True, raise_error_if_any_missing=False,
-        test_mode=False):
+        radar_number=None, raise_error_if_all_missing=True,
+        raise_error_if_any_missing=False, test_mode=False):
     """Finds many NetCDF files with evaluation scores.
 
     :param top_directory_name: See doc for `find_basic_score_file`.
     :param first_date_string: First valid date (format "yyyymmdd").
     :param last_date_string: Last valid date (format "yyyymmdd").
     :param gridded: See doc for `find_basic_score_file`.
+    :param radar_number: Same.
     :param raise_error_if_any_missing: Boolean flag.  If any file is missing and
         `raise_error_if_any_missing == True`, will throw error.
     :param raise_error_if_all_missing: Boolean flag.  If all files are missing
@@ -1371,7 +1401,8 @@ def find_many_basic_score_files(
     for this_date_string in valid_date_strings:
         this_file_name = find_basic_score_file(
             top_directory_name=top_directory_name,
-            valid_date_string=this_date_string, gridded=gridded,
+            valid_date_string=this_date_string,
+            gridded=gridded, radar_number=radar_number,
             raise_error_if_missing=raise_error_if_any_missing
         )
 

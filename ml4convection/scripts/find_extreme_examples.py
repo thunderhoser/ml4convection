@@ -494,7 +494,7 @@ def _write_output_files(set_to_valid_times_unix_sec, top_input_dir_name,
         input_file_name = evaluation.find_basic_score_file(
             top_directory_name=top_input_dir_name,
             valid_date_string=this_date_string,
-            gridded=False, raise_error_if_missing=True
+            gridded=False, radar_number=None, raise_error_if_missing=True
         )
 
         print('Reading data from: "{0:s}"...'.format(input_file_name))
@@ -576,7 +576,7 @@ def _run(top_input_dir_name, first_date_string, last_date_string,
         top_directory_name=top_input_dir_name,
         first_date_string=first_date_string,
         last_date_string=last_date_string,
-        gridded=False, raise_error_if_any_missing=False
+        gridded=False, radar_number=None, raise_error_if_any_missing=False
     )
 
     num_days = len(input_file_names)
