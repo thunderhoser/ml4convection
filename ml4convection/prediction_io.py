@@ -2,6 +2,7 @@
 
 import os
 import sys
+import gzip
 import numpy
 import netCDF4
 
@@ -14,8 +15,10 @@ import time_conversion
 import longitude_conversion as lng_conversion
 import file_system_utils
 import error_checking
+import radar_io
 
 DATE_FORMAT = '%Y%m%d'
+GZIP_FILE_EXTENSION = '.gz'
 
 EXAMPLE_DIMENSION_KEY = 'example'
 GRID_ROW_DIMENSION_KEY = 'row'
@@ -33,13 +36,21 @@ ONE_PER_EXAMPLE_KEYS = [
 ]
 
 
-def find_file(top_directory_name, valid_date_string,
-              raise_error_if_missing=True):
+def find_file(
+        top_directory_name, valid_date_string, radar_number=None,
+        prefer_zipped=True, allow_other_format=True,
+        raise_error_if_missing=True):
     """Finds NetCDF file with predictions.
 
     :param top_directory_name: Name of top-level directory where file is
         expected.
     :param valid_date_string: Valid date (format "yyyymmdd").
+    :param radar_number: Radar number (non-negative integer).  If you are
+        looking for data on the full grid, leave this alone.
+    :param prefer_zipped: Boolean flag.  If True, will look for zipped file
+        first.  If False, will look for unzipped file first.
+    :param allow_other_format: Boolean flag.  If True, will allow opposite of
+        preferred file format (zipped or unzipped).
     :param raise_error_if_missing: Boolean flag.  If file is missing and
         `raise_error_if_missing == True`, will throw error.  If file is missing
         and `raise_error_if_missing == False`, will return *expected* file path.
@@ -49,18 +60,37 @@ def find_file(top_directory_name, valid_date_string,
     """
 
     error_checking.assert_is_string(top_directory_name)
-    error_checking.assert_is_boolean(raise_error_if_missing)
     _ = time_conversion.string_to_unix_sec(valid_date_string, DATE_FORMAT)
+    error_checking.assert_is_boolean(prefer_zipped)
+    error_checking.assert_is_boolean(allow_other_format)
+    error_checking.assert_is_boolean(raise_error_if_missing)
 
-    radar_file_name = '{0:s}/{1:s}/predictions_{2:s}.nc'.format(
-        top_directory_name, valid_date_string[:4], valid_date_string
+    if radar_number is not None:
+        error_checking.assert_is_integer(radar_number)
+        error_checking.assert_is_geq(radar_number, 0)
+
+    prediction_file_name = '{0:s}/{1:s}/predictions_{2:s}{3:s}.nc{4:s}'.format(
+        top_directory_name, valid_date_string[:4], valid_date_string,
+        '' if radar_number is None else '_radar{0:d}'.format(radar_number),
+        GZIP_FILE_EXTENSION if prefer_zipped else ''
     )
 
-    if os.path.isfile(radar_file_name) or not raise_error_if_missing:
-        return radar_file_name
+    if os.path.isfile(prediction_file_name):
+        return prediction_file_name
+
+    if allow_other_format:
+        if prefer_zipped:
+            prediction_file_name = (
+                prediction_file_name[:-len(GZIP_FILE_EXTENSION)]
+            )
+        else:
+            prediction_file_name += GZIP_FILE_EXTENSION
+
+    if os.path.isfile(prediction_file_name) or not raise_error_if_missing:
+        return prediction_file_name
 
     error_string = 'Cannot find file.  Expected at: "{0:s}"'.format(
-        radar_file_name
+        prediction_file_name
     )
     raise ValueError(error_string)
 
@@ -75,16 +105,35 @@ def file_name_to_date(prediction_file_name):
 
     error_checking.assert_is_string(prediction_file_name)
     pathless_file_name = os.path.split(prediction_file_name)[-1]
-    extensionless_file_name = os.path.splitext(pathless_file_name)[0]
 
-    valid_date_string = extensionless_file_name.split('_')[-1]
+    valid_date_string = pathless_file_name.split('.')[0].split('_')[1]
     _ = time_conversion.string_to_unix_sec(valid_date_string, DATE_FORMAT)
 
     return valid_date_string
 
 
+def file_name_to_radar_number(prediction_file_name):
+    """Parses radar number from name of prediction file.
+
+    :param prediction_file_name: Path to prediction file (see `find_file` for
+        naming convention).
+    :return: radar_number: Radar number (non-negative integer).  If file
+        contains data on the full grid, this is None.
+    """
+
+    error_checking.assert_is_string(prediction_file_name)
+    pathless_file_name = os.path.split(prediction_file_name)[-1]
+    radar_word = pathless_file_name.split('.')[0].split('_')[-1]
+
+    if 'radar' not in radar_word:
+        return None
+
+    return int(radar_word.replace('radar', ''))
+
+
 def find_many_files(
         top_directory_name, first_date_string, last_date_string,
+        prefer_zipped=True, allow_other_format=True, radar_number=None,
         raise_error_if_all_missing=True, raise_error_if_any_missing=False,
         test_mode=False):
     """Finds many NetCDF files with predictions.
@@ -92,6 +141,9 @@ def find_many_files(
     :param top_directory_name: See doc for `find_file`.
     :param first_date_string: First valid date (format "yyyymmdd").
     :param last_date_string: Last valid date (format "yyyymmdd").
+    :param prefer_zipped: See doc for `find_file`.
+    :param allow_other_format: Same.
+    :param radar_number: Same.
     :param raise_error_if_any_missing: Boolean flag.  If any file is missing and
         `raise_error_if_any_missing == True`, will throw error.
     :param raise_error_if_all_missing: Boolean flag.  If all files are missing
@@ -117,6 +169,8 @@ def find_many_files(
         this_file_name = find_file(
             top_directory_name=top_directory_name,
             valid_date_string=this_date_string,
+            prefer_zipped=prefer_zipped, allow_other_format=allow_other_format,
+            radar_number=radar_number,
             raise_error_if_missing=raise_error_if_any_missing
         )
 
@@ -155,9 +209,13 @@ def write_file(
     :param longitudes_deg_e: length-N numpy array of longitudes (deg E).
     :param model_file_name: Path to file with trained model (readable by
         `neural_net.read_model`).
+    :raises: ValueError: if output file is a gzip file.
     """
 
     # Check input args.
+    if netcdf_file_name.endswith(GZIP_FILE_EXTENSION):
+        raise ValueError('Output file must not be gzip file.')
+
     error_checking.assert_is_integer_numpy_array(target_matrix)
     error_checking.assert_is_numpy_array(target_matrix, num_dimensions=3)
     error_checking.assert_is_geq_numpy_array(target_matrix, 0)
@@ -255,6 +313,23 @@ def read_file(netcdf_file_name):
     prediction_dict['model_file_name']: Same.
     """
 
+    if netcdf_file_name.endswith(GZIP_FILE_EXTENSION):
+        with gzip.open(netcdf_file_name) as gzip_handle:
+            with netCDF4.Dataset(
+                    'dummy', mode='r', memory=gzip_handle.read()
+            ) as dataset_object:
+                return {
+                    TARGET_MATRIX_KEY:
+                        dataset_object.variables[TARGET_MATRIX_KEY][:],
+                    PROBABILITY_MATRIX_KEY:
+                        dataset_object.variables[PROBABILITY_MATRIX_KEY][:],
+                    VALID_TIMES_KEY:
+                        dataset_object.variables[VALID_TIMES_KEY][:],
+                    LATITUDES_KEY: dataset_object.variables[LATITUDES_KEY][:],
+                    LONGITUDES_KEY: dataset_object.variables[LONGITUDES_KEY][:],
+                    MODEL_FILE_KEY: str(getattr(dataset_object, MODEL_FILE_KEY))
+                }
+
     dataset_object = netCDF4.Dataset(netcdf_file_name)
 
     prediction_dict = {
@@ -269,6 +344,16 @@ def read_file(netcdf_file_name):
 
     dataset_object.close()
     return prediction_dict
+
+
+def compress_file(netcdf_file_name):
+    """Compresses file with predictions (turns it into gzip file).
+
+    :param netcdf_file_name: Path to NetCDF file with predictions.
+    :raises: ValueError: if file is already gzipped.
+    """
+
+    radar_io.compress_file(netcdf_file_name)
 
 
 def subset_by_index(prediction_dict, desired_indices):

@@ -16,6 +16,9 @@ import example_io
 import prediction_io
 import neural_net
 
+# TODO(thunderhoser): Needs to deal with new prediction_io.py (full vs. partial
+# grids and zipped vs. unzipped).
+
 TARGET_DIR_ARG_NAME = 'input_target_dir_name'
 LEAD_TIME_ARG_NAME = 'lead_time_seconds'
 SMOOTHING_RADIUS_ARG_NAME = 'smoothing_radius_px'
