@@ -47,13 +47,13 @@ set l2_weight_string=`printf "%.6f" $l2_weight`
 
 set model_dir_name="${TOP_MODEL_DIR_NAME}/fss-half-window-size-px=${half_window_size_string}_conv-dropout=${conv_layer_dropout_string}_l2-weight=${l2_weight_string}"
 set model_file_name="${model_dir_name}/model.h5"
-set prediction_dir_name="${model_dir_name}/validation"
+set prediction_dir_name="${model_dir_name}/validation/partial_grids"
 
 python3 -u "${CODE_DIR_NAME}/apply_neural_net.py" \
 --input_model_file_name="${model_file_name}" \
 --input_predictor_dir_name="${TOP_PREDICTOR_DIR_NAME}" \
 --input_target_dir_name="${TOP_TARGET_DIR_NAME}" \
---overlap_size_px=50 \
+--apply_to_full_grids=0 \
 --first_valid_date_string="${FIRST_VALIDN_DATE_STRING}" \
 --last_valid_date_string="${LAST_VALIDN_DATE_STRING}" \
 --output_dir_name="${prediction_dir_name}"
