@@ -96,10 +96,10 @@ def _run(top_predictor_dir_name, top_target_dir_name, first_date_string,
         )
 
         print('Unzipping file to: "{0:s}"...'.format(this_unzipped_file_name))
-        # unzipping.unzip_gzip(
-        #     gzip_file_name=this_zipped_file_name,
-        #     extracted_file_name=this_unzipped_file_name
-        # )
+        unzipping.unzip_gzip(
+            gzip_file_name=this_zipped_file_name,
+            extracted_file_name=this_unzipped_file_name
+        )
 
     target_file_names = example_io.find_many_target_files(
         top_directory_name=top_target_dir_name,
@@ -133,10 +133,10 @@ def _run(top_predictor_dir_name, top_target_dir_name, first_date_string,
         )
 
         print('Unzipping file to: "{0:s}"...'.format(this_unzipped_file_name))
-        # unzipping.unzip_gzip(
-        #     gzip_file_name=this_zipped_file_name,
-        #     extracted_file_name=this_unzipped_file_name
-        # )
+        unzipping.unzip_gzip(
+            gzip_file_name=this_zipped_file_name,
+            extracted_file_name=this_unzipped_file_name
+        )
 
 
 if __name__ == '__main__':
