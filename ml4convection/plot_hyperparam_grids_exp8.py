@@ -185,7 +185,8 @@ def _run(experiment_dir_name):
                 this_score_file_name = (
                     '{0:s}/fss-half-window-size-px={1:d}_'
                     'conv-dropout={2:.3f}_l2-weight={3:.6f}/'
-                    'validation/evaluation/advanced_scores_gridded=0.p'
+                    'validation/partial_grids/evaluation/'
+                    'advanced_scores_gridded=0.p'
                 ).format(
                     experiment_dir_name, HALF_WINDOW_SIZES_PX[i],
                     CONV_LAYER_DROPOUT_RATES[j], L2_WEIGHTS[k]
