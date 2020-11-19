@@ -4,7 +4,7 @@ import os
 import sys
 import copy
 import random
-import pickle
+import dill
 import numpy
 import keras
 import tensorflow.keras as tf_keras
@@ -418,7 +418,7 @@ def _write_metafile(
     file_system_utils.mkdir_recursive_if_necessary(file_name=dill_file_name)
 
     dill_file_handle = open(dill_file_name, 'wb')
-    pickle.dump(metadata_dict, dill_file_handle)
+    dill.dump(metadata_dict, dill_file_handle)
     dill_file_handle.close()
 
 
@@ -710,7 +710,7 @@ def create_data_full_grid(option_dict, return_coords=False):
         top_directory_name=top_predictor_dir_name,
         first_date_string=first_init_date_string,
         last_date_string=valid_date_string,
-        prefer_zipped=True, allow_other_format=True,
+        prefer_zipped=False, allow_other_format=True,
         raise_error_if_all_missing=False,
         raise_error_if_any_missing=False
     )
@@ -719,7 +719,7 @@ def create_data_full_grid(option_dict, return_coords=False):
         top_directory_name=top_target_dir_name,
         first_date_string=valid_date_string,
         last_date_string=valid_date_string,
-        prefer_zipped=True, allow_other_format=True,
+        prefer_zipped=False, allow_other_format=True,
         raise_error_if_all_missing=False,
         raise_error_if_any_missing=False
     )
@@ -796,7 +796,7 @@ def create_data_partial_grids(option_dict, return_coords=False):
             top_directory_name=top_predictor_dir_name,
             first_date_string=first_init_date_string,
             last_date_string=valid_date_string, radar_number=k,
-            prefer_zipped=True, allow_other_format=True,
+            prefer_zipped=False, allow_other_format=True,
             raise_error_if_all_missing=False,
             raise_error_if_any_missing=False
         )
@@ -805,7 +805,7 @@ def create_data_partial_grids(option_dict, return_coords=False):
             top_directory_name=top_target_dir_name,
             first_date_string=valid_date_string,
             last_date_string=valid_date_string, radar_number=k,
-            prefer_zipped=True, allow_other_format=True,
+            prefer_zipped=False, allow_other_format=True,
             raise_error_if_all_missing=False,
             raise_error_if_any_missing=False
         )
@@ -908,7 +908,7 @@ def generator_full_grid(option_dict):
         top_directory_name=top_predictor_dir_name,
         first_date_string=first_init_date_string,
         last_date_string=last_valid_date_string,
-        prefer_zipped=True, allow_other_format=True,
+        prefer_zipped=False, allow_other_format=True,
         raise_error_if_any_missing=False
     )
 
@@ -916,7 +916,7 @@ def generator_full_grid(option_dict):
         top_directory_name=top_target_dir_name,
         first_date_string=first_init_date_string,
         last_date_string=last_valid_date_string,
-        prefer_zipped=True, allow_other_format=True,
+        prefer_zipped=False, allow_other_format=True,
         raise_error_if_any_missing=False
     )
 
@@ -1021,14 +1021,14 @@ def generator_partial_grids(option_dict):
         top_directory_name=top_predictor_dir_name,
         first_date_string=first_init_date_string,
         last_date_string=last_valid_date_string, radar_number=0,
-        prefer_zipped=True, allow_other_format=True,
+        prefer_zipped=False, allow_other_format=True,
         raise_error_if_any_missing=False
     )
     these_target_file_names = example_io.find_many_target_files(
         top_directory_name=top_target_dir_name,
         first_date_string=first_init_date_string,
         last_date_string=last_valid_date_string, radar_number=0,
-        prefer_zipped=True, allow_other_format=True,
+        prefer_zipped=False, allow_other_format=True,
         raise_error_if_any_missing=False
     )
 
@@ -1066,7 +1066,7 @@ def generator_partial_grids(option_dict):
         these_predictor_file_names = [
             example_io.find_predictor_file(
                 top_directory_name=top_predictor_dir_name, date_string=d,
-                radar_number=k, prefer_zipped=True, allow_other_format=True,
+                radar_number=k, prefer_zipped=False, allow_other_format=True,
                 raise_error_if_missing=True
             ) for d in predictor_date_strings
         ]
@@ -1074,7 +1074,7 @@ def generator_partial_grids(option_dict):
         these_target_file_names = [
             example_io.find_target_file(
                 top_directory_name=top_target_dir_name, date_string=d,
-                radar_number=k, prefer_zipped=True, allow_other_format=True,
+                radar_number=k, prefer_zipped=False, allow_other_format=True,
                 raise_error_if_missing=True
             ) for d in target_date_strings
         ]
@@ -1427,7 +1427,7 @@ def read_metafile(dill_file_name):
     error_checking.assert_file_exists(dill_file_name)
 
     dill_file_handle = open(dill_file_name, 'rb')
-    metadata_dict = pickle.load(dill_file_handle)
+    metadata_dict = dill.load(dill_file_handle)
     dill_file_handle.close()
 
     if CLASS_WEIGHTS_KEY not in metadata_dict:
