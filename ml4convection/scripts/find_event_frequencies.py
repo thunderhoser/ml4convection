@@ -85,7 +85,7 @@ def _run(top_target_dir_name, use_partial_grids, first_date_string,
         first_date_string=first_date_string,
         last_date_string=last_date_string,
         radar_number=0 if use_partial_grids else None,
-        prefer_zipped=True, allow_other_format=True,
+        prefer_zipped=False, allow_other_format=True,
         raise_error_if_any_missing=False
     )
 
@@ -96,8 +96,8 @@ def _run(top_target_dir_name, use_partial_grids, first_date_string,
             target_file_names += [
                 example_io.find_target_file(
                     top_directory_name=top_target_dir_name, date_string=d,
-                    radar_number=k, prefer_zipped=True, allow_other_format=True,
-                    raise_error_if_missing=True
+                    radar_number=k, prefer_zipped=False,
+                    allow_other_format=True, raise_error_if_missing=True
                 ) for d in date_strings
             ]
 

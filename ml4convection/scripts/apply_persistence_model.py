@@ -223,7 +223,7 @@ def _run(top_target_dir_name, lead_time_seconds, smoothing_radius_px,
         top_directory_name=top_target_dir_name,
         first_date_string=first_valid_date_string,
         last_date_string=last_valid_date_string,
-        prefer_zipped=True, allow_other_format=True,
+        prefer_zipped=False, allow_other_format=True,
         raise_error_if_all_missing=True,
         raise_error_if_any_missing=False
     )
