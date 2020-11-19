@@ -52,5 +52,5 @@ python3 -u "${CODE_DIR_NAME}/compute_advanced_scores_ungridded.py" \
 --first_date_string="${FIRST_VALIDN_DATE_STRING}" \
 --last_date_string="${LAST_VALIDN_DATE_STRING}" \
 --use_partial_grids=1 \
---input_climo_file_name="${TOP_TARGET_DIR_NAME}/climo_dilation-distance-px=1.000000.p" \
+--input_climo_file_name="${TOP_TARGET_DIR_NAME}/climo_dilation-distance-px=2.000000.p" \
 --output_dir_name="${evaluation_dir_name}"

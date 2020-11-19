@@ -10,6 +10,7 @@ THIS_DIRECTORY_NAME = os.path.dirname(os.path.realpath(
 ))
 sys.path.append(os.path.normpath(os.path.join(THIS_DIRECTORY_NAME, '..')))
 
+import gg_model_evaluation as gg_model_eval
 import prediction_io
 import climatology_io
 import evaluation
@@ -52,14 +53,16 @@ MATCHING_DISTANCE_HELP_STRING = (
     'Matching distance (pixels) for neighbourhood evaluation.'
 )
 NUM_PROB_THRESHOLDS_HELP_STRING = (
-    '[used only if `{0:s} = 0`] Number of probability thresholds.  One '
-    'contingency table will be created for each.'
-).format(GRIDDED_ARG_NAME)
+    'Number of probability thresholds.  One contingency table will be created '
+    'for each.  If you want to use specific thresholds, leave this argument '
+    'alone and specify `{0:s}`.'
+).format(PROB_THRESHOLDS_ARG_NAME)
 
 PROB_THRESHOLDS_HELP_STRING = (
-    '[used only if `{0:s} = 1`] List of exact probability thresholds.  One '
-    'contingency table will be created for each.'
-).format(GRIDDED_ARG_NAME)
+    'List of exact probability thresholds.  One contingency table will be '
+    'created for each.  If you do not want to use specific thresholds, leave '
+    'this argument alone and specify `{0:s}`.'
+).format(NUM_PROB_THRESHOLDS_ARG_NAME)
 
 CLIMO_FILE_HELP_STRING = (
     '[used only if `{0:s} = 1`] Path to file with climatology (event '
@@ -97,8 +100,7 @@ INPUT_ARG_PARSER.add_argument(
 )
 INPUT_ARG_PARSER.add_argument(
     '--' + NUM_PROB_THRESHOLDS_ARG_NAME, type=int, required=False,
-    default=evaluation.DEFAULT_NUM_PROB_THRESHOLDS,
-    help=NUM_PROB_THRESHOLDS_HELP_STRING
+    default=-1, help=NUM_PROB_THRESHOLDS_HELP_STRING
 )
 INPUT_ARG_PARSER.add_argument(
     '--' + PROB_THRESHOLDS_ARG_NAME, type=float, nargs='+', required=False,
@@ -116,14 +118,14 @@ INPUT_ARG_PARSER.add_argument(
 
 def _compute_scores_partial_grids(
         top_prediction_dir_name, first_date_string, last_date_string,
-        matching_distance_px, num_prob_thresholds, top_output_dir_name):
+        matching_distance_px, prob_thresholds, top_output_dir_name):
     """Computes scores on partial grids.
 
     :param top_prediction_dir_name: See documentation at top of file.
     :param first_date_string: Same.
     :param last_date_string: Same.
     :param matching_distance_px: Same.
-    :param num_prob_thresholds: Same.
+    :param prob_thresholds: Same.
     :param top_output_dir_name: Same.
     """
 
@@ -159,7 +161,7 @@ def _compute_scores_partial_grids(
             this_score_table_xarray = evaluation.get_basic_scores_ungridded(
                 prediction_file_name=prediction_file_names[i],
                 matching_distance_px=matching_distance_px,
-                num_prob_thresholds=num_prob_thresholds
+                probability_thresholds=prob_thresholds
             )
 
             this_output_file_name = evaluation.find_basic_score_file(
@@ -184,8 +186,8 @@ def _compute_scores_partial_grids(
 
 def _compute_scores_full_grid(
         top_prediction_dir_name, first_date_string, last_date_string, gridded,
-        matching_distance_px, num_prob_thresholds, prob_thresholds,
-        climo_file_name, top_output_dir_name):
+        matching_distance_px, prob_thresholds, climo_file_name,
+        top_output_dir_name):
     """Computes scores on full grid.
 
     :param top_prediction_dir_name: See documentation at top of file.
@@ -193,7 +195,6 @@ def _compute_scores_full_grid(
     :param last_date_string: Same.
     :param gridded: Same.
     :param matching_distance_px: Same.
-    :param num_prob_thresholds: Same.
     :param prob_thresholds: Same.
     :param climo_file_name: Same.
     :param top_output_dir_name: Same.
@@ -235,7 +236,7 @@ def _compute_scores_full_grid(
             this_score_table_xarray = evaluation.get_basic_scores_ungridded(
                 prediction_file_name=prediction_file_names[i],
                 matching_distance_px=matching_distance_px,
-                num_prob_thresholds=num_prob_thresholds
+                probability_thresholds=prob_thresholds
             )
 
         this_output_file_name = evaluation.find_basic_score_file(
@@ -277,13 +278,17 @@ def _run(top_prediction_dir_name, first_date_string, last_date_string,
     :param top_output_dir_name: Same.
     """
 
+    if num_prob_thresholds > 0:
+        prob_thresholds = gg_model_eval.get_binarization_thresholds(
+            threshold_arg=num_prob_thresholds
+        )
+
     if not use_partial_grids:
         _compute_scores_full_grid(
             top_prediction_dir_name=top_prediction_dir_name,
             first_date_string=first_date_string,
             last_date_string=last_date_string, gridded=gridded,
             matching_distance_px=matching_distance_px,
-            num_prob_thresholds=num_prob_thresholds,
             prob_thresholds=prob_thresholds,
             climo_file_name=climo_file_name,
             top_output_dir_name=top_output_dir_name
@@ -296,7 +301,7 @@ def _run(top_prediction_dir_name, first_date_string, last_date_string,
         first_date_string=first_date_string,
         last_date_string=last_date_string,
         matching_distance_px=matching_distance_px,
-        num_prob_thresholds=num_prob_thresholds,
+        prob_thresholds=prob_thresholds,
         top_output_dir_name=top_output_dir_name
     )
 
