@@ -469,8 +469,8 @@ def _init_basic_score_table(
 
 
 def get_basic_scores_ungridded(
-        prediction_file_name, matching_distance_px, square_fss_filter=True,
-        num_prob_thresholds=DEFAULT_NUM_PROB_THRESHOLDS,
+        prediction_file_name, matching_distance_px, probability_thresholds,
+        square_fss_filter=True,
         num_bins_for_reliability=DEFAULT_NUM_BINS_FOR_RELIABILITY,
         test_mode=False, prediction_dict=None, eval_mask_matrix=None,
         model_file_name=None):
@@ -480,12 +480,11 @@ def get_basic_scores_ungridded(
         `prediction_io.read_file`).
     :param matching_distance_px: Matching distance (pixels) for neighbourhood
         evaluation.
+    :param probability_thresholds: 1-D numpy array of probability thresholds.
     :param square_fss_filter: Boolean flag.  If True, the smoothing filter for
         FSS (fractions skill score) will be "squared" -- i.e., will be a square
         matrix with all non-zero values.  If False, the smoothing filter will
         not be "squared" -- i.e., some values in the matrix might be zero.
-    :param num_prob_thresholds: Number of probability thresholds.  One
-        contingency table will be created for each.
     :param num_bins_for_reliability: Number of bins for reliability curve.
     :param test_mode: Leave this alone.
     :param prediction_dict: Leave this alone.
@@ -526,17 +525,16 @@ def get_basic_scores_ungridded(
     # Check input args.
     general_utils.check_2d_binary_matrix(eval_mask_matrix)
     error_checking.assert_is_geq(matching_distance_px, 0.)
+    error_checking.assert_is_numpy_array(
+        probability_thresholds, num_dimensions=1
+    )
+    error_checking.assert_is_geq_numpy_array(probability_thresholds, 0.)
     error_checking.assert_is_boolean(square_fss_filter)
-    error_checking.assert_is_integer(num_prob_thresholds)
-    error_checking.assert_is_geq(num_prob_thresholds, 2)
     error_checking.assert_is_integer(num_bins_for_reliability)
     error_checking.assert_is_geq(num_bins_for_reliability, 10)
 
     # Create xarray table.
     valid_times_unix_sec = prediction_dict[prediction_io.VALID_TIMES_KEY]
-    probability_thresholds = gg_model_eval.get_binarization_thresholds(
-        threshold_arg=num_prob_thresholds
-    )
     nan_array = numpy.full(1, numpy.nan)
 
     basic_score_table_xarray = _init_basic_score_table(

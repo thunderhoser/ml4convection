@@ -129,7 +129,9 @@ def _apply_to_full_grid_one_day(
             num_examples_per_batch=NUM_EXAMPLES_PER_BATCH, verbose=True
         )
 
-    these_percentiles = numpy.array([90, 95, 96, 97, 98, 99, 100], dtype=float)
+    these_percentiles = numpy.array(
+        [50, 75, 90, 95, 96, 97, 98, 99, 100], dtype=float
+    )
     print(numpy.percentile(forecast_probability_matrix, these_percentiles))
 
     output_file_name = prediction_io.find_file(
@@ -186,7 +188,7 @@ def _apply_to_partial_grids_one_day(
         )
 
         these_percentiles = numpy.array(
-            [90, 95, 96, 97, 98, 99, 100], dtype=float
+            [50, 75, 90, 95, 96, 97, 98, 99, 100], dtype=float
         )
         print(numpy.percentile(forecast_probability_matrix, these_percentiles))
 

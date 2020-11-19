@@ -393,13 +393,13 @@ def create_model(option_dict, loss_function, mask_matrix):
         alpha_for_elu=output_activ_function_alpha
     )(skip_layer_by_level[0])
 
-    # if mask_matrix is not None:
-    #     this_matrix = numpy.expand_dims(
-    #         mask_matrix.astype(float), axis=(0, -1)
-    #     )
-    #     skip_layer_by_level[0] = keras.layers.Multiply()([
-    #         this_matrix, skip_layer_by_level[0]
-    #     ])
+    if mask_matrix is not None:
+        this_matrix = numpy.expand_dims(
+            mask_matrix.astype(float), axis=(0, -1)
+        )
+        skip_layer_by_level[0] = keras.layers.Multiply()([
+            this_matrix, skip_layer_by_level[0]
+        ])
 
     model_object = keras.models.Model(
         inputs=input_layer_object, outputs=skip_layer_by_level[0]

@@ -1679,7 +1679,7 @@ class EvaluationTests(unittest.TestCase):
         this_score_table_xarray = evaluation.get_basic_scores_ungridded(
             prediction_file_name=None,
             matching_distance_px=MATCHING_DISTANCE_PX,
-            num_prob_thresholds=len(PROB_THRESHOLDS) - 1,
+            probability_thresholds=PROB_THRESHOLDS,
             square_fss_filter=SQUARE_FSS_FILTER,
             num_bins_for_reliability=NUM_BINS_FOR_RELIABILITY,
             test_mode=True, prediction_dict=PREDICTION_DICT,
