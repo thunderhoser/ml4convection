@@ -7,8 +7,8 @@
 #SBATCH --ntasks=1
 #SBATCH --nodes=1
 #SBATCH --cpus-per-task=1
-#SBATCH --mem=8G
-#SBATCH --time=08:00:00
+#SBATCH --mem=80G
+#SBATCH --time=24:00:00
 #SBATCH --array=1-9
 #SBATCH --exclude=h28n12
 ##SBATCH --exclude=h31n03,h28n12
@@ -30,7 +30,7 @@ set dilation_distance_px=${DILATION_DISTANCES_PX[$SLURM_ARRAY_TASK_ID]}
 set dilation_distance_string=`printf "%.6f" $dilation_distance_px`
 
 python3 -u "${CODE_DIR_NAME}/find_event_frequencies.py" \
---input_target_dir_name="${TOP_TARGET_DIR_NAME}" \
+--input_target_dir_name="${TOP_TARGET_DIR_NAME}/full_grids" \
 --dilation_distance_px=${dilation_distance_px} \
 --first_date_string="20160101" \
 --last_date_string="20161224" \
