@@ -1644,11 +1644,8 @@ def apply_model_partial_grids(
                     num_full_grid_columns
                 ))
 
-            this_prob_matrix = this_prob_matrix[
-                :,
-                overlap_size_px:-overlap_size_px,
-                overlap_size_px:-overlap_size_px
-            ]
+            # TODO(thunderhoser): The "50" here is a HACK.
+            this_prob_matrix = this_prob_matrix[:, 50:-50, 50:-50]
 
             summed_prob_matrix[
                 first_example_index:(last_example_index + 1),
