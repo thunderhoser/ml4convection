@@ -1597,10 +1597,11 @@ def apply_model_partial_grids(
         first_input_column = partial_grid_dict[FIRST_INPUT_COLUMN_KEY]
         last_input_column = partial_grid_dict[LAST_INPUT_COLUMN_KEY]
 
-        first_output_row = first_input_row + overlap_size_px
-        last_output_row = last_input_row - overlap_size_px
-        first_output_column = first_input_column + overlap_size_px
-        last_output_column = last_input_column - overlap_size_px
+        # TODO(thunderhoser): The "50" here is a HACK.
+        first_output_row = first_input_row + 50
+        last_output_row = last_input_row - 50
+        first_output_column = first_input_column + 50
+        last_output_column = last_input_column - 50
 
         for i in range(0, num_examples, num_examples_per_batch):
             first_example_index = i
