@@ -13,6 +13,8 @@ from gewittergefahr.plotting import plotting_utils as gg_plotting_utils
 from ml4convection.io import border_io
 from ml4convection.io import prediction_io
 from ml4convection.utils import radar_utils
+from ml4convection.utils import general_utils
+from ml4convection.machine_learning import neural_net
 from ml4convection.plotting import plotting_utils
 from ml4convection.plotting import prediction_plotting
 
@@ -22,6 +24,7 @@ NUM_RADARS = len(radar_utils.RADAR_LATITUDES_DEG_N)
 DAYS_TO_SECONDS = 86400
 TIME_FORMAT = '%Y-%m-%d-%H%M'
 
+MASK_OUTLINE_COLOUR = numpy.full(3, 152. / 255)
 FIGURE_RESOLUTION_DPI = 300
 FIGURE_WIDTH_INCHES = 15
 FIGURE_HEIGHT_INCHES = 15
@@ -101,15 +104,22 @@ INPUT_ARG_PARSER.add_argument(
 
 def _plot_predictions_one_example(
         prediction_dict, example_index, border_latitudes_deg_n,
-        border_longitudes_deg_e, plot_deterministic, probability_threshold,
-        output_dir_name):
+        border_longitudes_deg_e, mask_outline_latitudes_deg_n,
+        mask_outline_longitudes_deg_e, plot_deterministic,
+        probability_threshold, output_dir_name):
     """Plots predictions (and targets) for one example (time step).
+
+    P = number of points in mask outline
 
     :param prediction_dict: Dictionary in format returned by
         `prediction_io.read_file`.
     :param example_index: Will plot [i]th example, where i = `example_index`.
     :param border_latitudes_deg_n: See doc for `_plot_predictions_one_example`.
     :param border_longitudes_deg_e: Same.
+    :param mask_outline_latitudes_deg_n: length-P numpy array of latitudes
+        (deg N).
+    :param mask_outline_longitudes_deg_e: length-P numpy array of longitudes
+        (deg E).
     :param plot_deterministic: See documentation at top of file.
     :param probability_threshold: Same.
     :param output_dir_name: Same.
@@ -126,6 +136,12 @@ def _plot_predictions_one_example(
         border_latitudes_deg_n=border_latitudes_deg_n,
         border_longitudes_deg_e=border_longitudes_deg_e,
         axes_object=axes_object
+    )
+
+    plotting_utils.plot_borders(
+        border_latitudes_deg_n=mask_outline_latitudes_deg_n,
+        border_longitudes_deg_e=mask_outline_longitudes_deg_e,
+        line_colour=MASK_OUTLINE_COLOUR, axes_object=axes_object
     )
 
     i = example_index
@@ -203,8 +219,8 @@ def _plot_predictions_one_example(
 
 def _plot_predictions_one_day(
         prediction_file_name, border_latitudes_deg_n, border_longitudes_deg_e,
-        daily_times_seconds, plot_deterministic, probability_threshold,
-        output_dir_name):
+        use_partial_grids, daily_times_seconds, plot_deterministic,
+        probability_threshold, output_dir_name):
     """Plots predictions (and targets) for one day.
 
     P = number of points in border set
@@ -213,7 +229,8 @@ def _plot_predictions_one_day(
         `prediction_io.read_file`.
     :param border_latitudes_deg_n: length-P numpy array of latitudes (deg N).
     :param border_longitudes_deg_e: length-P numpy array of longitudes (deg E).
-    :param daily_times_seconds: See documentation at top of file.
+    :param use_partial_grids: See documentation at top of file.
+    :param daily_times_seconds: Same.
     :param plot_deterministic: Same.
     :param probability_threshold: Same.
     :param output_dir_name: Same.
@@ -221,6 +238,33 @@ def _plot_predictions_one_day(
 
     print('Reading data from: "{0:s}"...'.format(prediction_file_name))
     prediction_dict = prediction_io.read_file(prediction_file_name)
+
+    model_file_name = prediction_dict[prediction_io.MODEL_FILE_KEY]
+    model_metafile_name = neural_net.find_metafile(model_file_name)
+
+    print('Reading model metadata from: "{0:s}"...'.format(model_metafile_name))
+    model_metadata_dict = neural_net.read_metafile(model_metafile_name)
+    
+    if use_partial_grids:
+        mask_matrix = model_metadata_dict[neural_net.MASK_MATRIX_KEY]
+    else:
+        mask_matrix = model_metadata_dict[neural_net.FULL_MASK_MATRIX_KEY]
+
+    target_matrix = prediction_dict[prediction_io.TARGET_MATRIX_KEY]
+    num_times = target_matrix.shape[0]
+
+    for i in range(num_times):
+        target_matrix[i, ...][mask_matrix == False] = 0
+
+    prediction_dict[prediction_io.TARGET_MATRIX_KEY] = target_matrix
+
+    these_long, these_lat = general_utils.mask_to_outline_2d(
+        mask_matrix=mask_matrix,
+        x_coords=prediction_dict[prediction_io.LONGITUDES_KEY],
+        y_coords=prediction_dict[prediction_io.LATITUDES_KEY]
+    )
+    mask_outline_latitudes_deg_n = these_lat[0]
+    mask_outline_longitudes_deg_e = these_long[0]
 
     # TODO(thunderhoser): Put this code somewhere reusable.
     valid_times_unix_sec = prediction_dict[prediction_io.VALID_TIMES_KEY]
@@ -251,6 +295,8 @@ def _plot_predictions_one_day(
             prediction_dict=prediction_dict, example_index=i,
             border_latitudes_deg_n=border_latitudes_deg_n,
             border_longitudes_deg_e=border_longitudes_deg_e,
+            mask_outline_latitudes_deg_n=mask_outline_latitudes_deg_n,
+            mask_outline_longitudes_deg_e=mask_outline_longitudes_deg_e,
             plot_deterministic=plot_deterministic,
             probability_threshold=probability_threshold,
             output_dir_name=output_dir_name
@@ -306,6 +352,7 @@ def _run(top_prediction_dir_name, first_date_string, last_date_string,
                 daily_times_seconds=daily_times_seconds,
                 border_latitudes_deg_n=border_latitudes_deg_n,
                 border_longitudes_deg_e=border_longitudes_deg_e,
+                use_partial_grids=use_partial_grids,
                 plot_deterministic=plot_deterministic,
                 probability_threshold=probability_threshold,
                 output_dir_name=output_dir_name
@@ -355,6 +402,7 @@ def _run(top_prediction_dir_name, first_date_string, last_date_string,
                 daily_times_seconds=daily_times_seconds,
                 border_latitudes_deg_n=border_latitudes_deg_n,
                 border_longitudes_deg_e=border_longitudes_deg_e,
+                use_partial_grids=use_partial_grids,
                 plot_deterministic=plot_deterministic,
                 probability_threshold=probability_threshold,
                 output_dir_name=this_output_dir_name
