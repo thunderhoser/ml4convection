@@ -5,7 +5,7 @@
 #SBATCH --nodes=1
 #SBATCH --mem=16G
 #SBATCH --partition="normal"
-#SBATCH --time=02:00:00
+#SBATCH --time=04:00:00
 #SBATCH --array=0-365
 #SBATCH --mail-type=BEGIN,END,FAIL
 #SBATCH --mail-user=ryan.lagerquist@ou.edu
