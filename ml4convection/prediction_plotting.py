@@ -270,6 +270,8 @@ def plot_probabilistic(
     M = axes_object.transData.get_matrix()
     yscale = M[1, 1]
     target_marker_size = yscale * float(target_marker_size_grid_cells) / target_matrix.shape[0]
+    print('\n\n\n\n\n\nTARGET MARKER SIZE\n\n\n\n\n\n\n')
+    print(target_marker_size)
 
     axes_object.plot(
         positive_longitudes_deg_e, positive_latitudes_deg_n,
