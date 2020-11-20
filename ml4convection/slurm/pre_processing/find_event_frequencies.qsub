@@ -31,6 +31,7 @@ set dilation_distance_string=`printf "%.6f" $dilation_distance_px`
 
 python3 -u "${CODE_DIR_NAME}/find_event_frequencies.py" \
 --input_target_dir_name="${TOP_TARGET_DIR_NAME}/full_grids" \
+--use_partial_grids=0 \
 --dilation_distance_px=${dilation_distance_px} \
 --first_date_string="20160101" \
 --last_date_string="20161224" \
