@@ -15,6 +15,7 @@ import prediction_io
 import climatology_io
 import evaluation
 import radar_utils
+import neural_net
 
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 
@@ -231,6 +232,37 @@ def _compute_scores_full_grid(
                 matching_distance_px=matching_distance_px,
                 probability_thresholds=prob_thresholds,
                 training_event_freq_matrix=training_event_freq_matrix
+            )
+
+            model_file_name = (
+                this_score_table_xarray.attrs[evaluation.MODEL_FILE_KEY]
+            )
+            model_metafile_name = neural_net.find_metafile(
+                model_file_name=model_file_name, raise_error_if_missing=True
+            )
+            model_metadata_dict = neural_net.read_metafile(model_metafile_name)
+            eval_mask_matrix = (
+                model_metadata_dict[neural_net.FULL_MASK_MATRIX_KEY]
+            )
+
+            unmasked_row_indices, unmasked_column_indices = (
+                numpy.where(eval_mask_matrix)
+            )
+            print((
+                'Subsetting scores to rows {0:d}-{1:d}, columns {2:d}-{3:d}...'
+            ).format(
+                numpy.min(unmasked_row_indices) + 1,
+                numpy.max(unmasked_row_indices) + 1,
+                numpy.min(unmasked_column_indices) + 1,
+                numpy.max(unmasked_column_indices) + 1
+            ))
+
+            this_score_table_xarray = evaluation.subset_basic_scores_by_space(
+                basic_score_table_xarray=this_score_table_xarray,
+                first_grid_row=numpy.min(unmasked_row_indices),
+                last_grid_row=numpy.max(unmasked_row_indices),
+                first_grid_column=numpy.min(unmasked_column_indices),
+                last_grid_column=numpy.max(unmasked_column_indices)
             )
         else:
             this_score_table_xarray = evaluation.get_basic_scores_ungridded(
