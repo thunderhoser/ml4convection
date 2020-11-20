@@ -3,8 +3,9 @@
 import os
 import sys
 import numpy
+import skimage.measure
 from scipy.ndimage import distance_transform_edt
-from scipy.interpolate import LinearNDInterpolator
+from scipy.interpolate import LinearNDInterpolator, interp1d
 from scipy.ndimage.morphology import binary_dilation, binary_erosion
 
 THIS_DIRECTORY_NAME = os.path.dirname(os.path.realpath(
@@ -210,3 +211,67 @@ def fill_nans_by_interp(data_matrix):
     interp_values = interp_object(all_index_tuples)
 
     return numpy.reshape(interp_values, data_matrix.shape)
+
+
+def mask_to_outline_2d(mask_matrix, x_coords, y_coords):
+    """Converts 2-D binary mask to outline of unmasked pixels.
+
+    M = number of rows in grid
+    N = number of columns in grid
+    C = number of contours in outline
+
+    :param mask_matrix: M-by-N numpy array of Boolean or integer values.  If
+        integer values, they must all be in range 0...1.
+    :param x_coords: length-N numpy array of x-coordinates.
+    :param y_coords: length-M numpy array of y-coordinates.
+    :return: x_coords_by_contour: length-C list, where each element is a numpy
+        array of x-coordinates.
+    :return: y_coords_by_contour: Same but for y-coordinates.
+    """
+
+    error_checking.assert_is_numpy_array(mask_matrix, num_dimensions=2)
+    mask_matrix = mask_matrix.astype(int)
+    error_checking.assert_is_geq_numpy_array(mask_matrix, 0)
+    error_checking.assert_is_leq_numpy_array(mask_matrix, 1)
+
+    num_rows = mask_matrix.shape[0]
+    num_columns = mask_matrix.shape[1]
+    row_indices = numpy.linspace(0, num_rows - 1, num=num_rows, dtype=float)
+    column_indices = numpy.linspace(
+        0, num_columns - 1, num=num_columns, dtype=float
+    )
+
+    row_to_y_interp_object = interp1d(
+        row_indices, y_coords, kind='linear', bounds_error=False,
+        fill_value='extrapolate', assume_sorted=True
+    )
+    column_to_x_interp_object = interp1d(
+        column_indices, x_coords, kind='linear', bounds_error=False,
+        fill_value='extrapolate', assume_sorted=True
+    )
+
+    error_checking.assert_is_numpy_array(
+        x_coords, exact_dimensions=numpy.array([num_columns], dtype=int)
+    )
+    error_checking.assert_is_greater_numpy_array(numpy.diff(x_coords), 0.)
+
+    error_checking.assert_is_numpy_array(
+        y_coords, exact_dimensions=numpy.array([num_rows], dtype=int)
+    )
+    error_checking.assert_is_greater_numpy_array(numpy.diff(y_coords), 0.)
+
+    coord_matrix_by_contour = skimage.measure.find_contours(mask_matrix, 0.99)
+
+    num_contours = len(coord_matrix_by_contour)
+    x_coords_by_contour = [numpy.array([])] * num_contours
+    y_coords_by_contour = [numpy.array([])] * num_contours
+
+    for k in range(num_contours):
+        x_coords_by_contour[k] = column_to_x_interp_object(
+            coord_matrix_by_contour[k][:, 1]
+        )
+        y_coords_by_contour[k] = row_to_y_interp_object(
+            coord_matrix_by_contour[k][:, 0]
+        )
+
+    return x_coords_by_contour, y_coords_by_contour
