@@ -463,6 +463,7 @@ def _run(input_dir_name, probability_threshold, output_dir_name):
 
     num_hours = len(hours)
     hourly_score_tables_xarray = [None] * num_hours
+    num_prob_thresholds = -1
 
     for i in range(num_hours):
         print('Reading data from: "{0:s}"...'.format(
@@ -470,6 +471,15 @@ def _run(input_dir_name, probability_threshold, output_dir_name):
         ))
         hourly_score_tables_xarray[i] = evaluation.read_advanced_score_file(
             hourly_input_file_names[i]
+        )
+
+        if num_prob_thresholds > 0:
+            continue
+
+        num_prob_thresholds = len(
+            hourly_score_tables_xarray[i].coords[
+                evaluation.PROBABILITY_THRESHOLD_DIM
+            ].values
         )
 
     months = numpy.linspace(1, 12, num=12, dtype=int)
@@ -489,6 +499,15 @@ def _run(input_dir_name, probability_threshold, output_dir_name):
         ))
         monthly_score_tables_xarray[i] = evaluation.read_advanced_score_file(
             monthly_input_file_names[i]
+        )
+
+        if num_prob_thresholds > 0:
+            continue
+
+        num_prob_thresholds = len(
+            monthly_score_tables_xarray[i].coords[
+                evaluation.PROBABILITY_THRESHOLD_DIM
+            ].values
         )
 
     print(SEPARATOR_STRING)
@@ -517,31 +536,47 @@ def _run(input_dir_name, probability_threshold, output_dir_name):
         '{0:s}/monthly_reliability_curves.jpg'.format(output_dir_name)
     )
 
-    figure_object, axes_object = _plot_scores_as_graph(
-        score_tables_xarray=hourly_score_tables_xarray,
-        plot_total_example_counts=True, plot_legend=True,
-        probability_threshold=None
-    )
-
     hour_strings = ['{0:02d}'.format(i) for i in range(24)]
-    axes_object.set_xticks(hours)
-    axes_object.set_xticklabels(hour_strings, rotation=90.)
-    axes_object.set_xlabel('Hour (UTC)')
+    month_strings = [
+        'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+        'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+    ]
 
-    gg_plotting_utils.label_axes(
-        axes_object=axes_object, label_string='(a)',
-        x_coord_normalized=-0.075, y_coord_normalized=1.02
-    )
+    panel_file_names = []
+    letter_label = ''
 
-    hourly_with_total_file_name = (
-        '{0:s}/hourly_scores_with_total_counts.jpg'.format(output_dir_name)
-    )
-    print('Saving figure to: "{0:s}"...'.format(hourly_with_total_file_name))
-    figure_object.savefig(
-        hourly_with_total_file_name, dpi=FIGURE_RESOLUTION_DPI,
-        pad_inches=0, bbox_inches='tight'
-    )
-    pyplot.close(figure_object)
+    if num_prob_thresholds >= 10:
+        figure_object, axes_object = _plot_scores_as_graph(
+            score_tables_xarray=hourly_score_tables_xarray,
+            plot_total_example_counts=True, plot_legend=True,
+            probability_threshold=None
+        )
+
+        axes_object.set_xticks(hours)
+        axes_object.set_xticklabels(hour_strings, rotation=90.)
+        axes_object.set_xlabel('Hour (UTC)')
+
+        if letter_label == '':
+            letter_label = 'a'
+        else:
+            letter_label = chr(ord(letter_label) + 1)
+
+        gg_plotting_utils.label_axes(
+            axes_object=axes_object,
+            label_string='({0:s})'.format(letter_label),
+            x_coord_normalized=-0.075, y_coord_normalized=1.02
+        )
+
+        panel_file_names.append(
+            '{0:s}/hourly_scores_with_total_counts.jpg'.format(output_dir_name)
+        )
+
+        print('Saving figure to: "{0:s}"...'.format(panel_file_names[-1]))
+        figure_object.savefig(
+            panel_file_names[-1], dpi=FIGURE_RESOLUTION_DPI,
+            pad_inches=0, bbox_inches='tight'
+        )
+        pyplot.close(figure_object)
 
     figure_object, axes_object = _plot_scores_as_graph(
         score_tables_xarray=hourly_score_tables_xarray,
@@ -553,71 +588,87 @@ def _run(input_dir_name, probability_threshold, output_dir_name):
     axes_object.set_xticklabels(hour_strings, rotation=90.)
     axes_object.set_xlabel('Hour (UTC)')
 
+    if letter_label == '':
+        letter_label = 'a'
+    else:
+        letter_label = chr(ord(letter_label) + 1)
+
     gg_plotting_utils.label_axes(
-        axes_object=axes_object, label_string='(b)',
+        axes_object=axes_object,
+        label_string='({0:s})'.format(letter_label),
         x_coord_normalized=-0.075, y_coord_normalized=1.02
     )
 
-    hourly_with_positive_file_name = (
+    panel_file_names.append(
         '{0:s}/hourly_scores_with_positive_counts.jpg'.format(output_dir_name)
     )
-    print('Saving figure to: "{0:s}"...'.format(hourly_with_positive_file_name))
+
+    print('Saving figure to: "{0:s}"...'.format(panel_file_names[-1]))
     figure_object.savefig(
-        hourly_with_positive_file_name, dpi=FIGURE_RESOLUTION_DPI,
+        panel_file_names[-1], dpi=FIGURE_RESOLUTION_DPI,
         pad_inches=0, bbox_inches='tight'
     )
     pyplot.close(figure_object)
 
+    if num_prob_thresholds >= 10:
+        figure_object, axes_object = _plot_scores_as_graph(
+            score_tables_xarray=monthly_score_tables_xarray,
+            plot_total_example_counts=True, plot_legend=True,
+            probability_threshold=None
+        )
+
+        axes_object.set_xticks(months - 1)
+        axes_object.set_xticklabels(month_strings, rotation=90.)
+
+        if letter_label == '':
+            letter_label = 'a'
+        else:
+            letter_label = chr(ord(letter_label) + 1)
+
+        gg_plotting_utils.label_axes(
+            axes_object=axes_object,
+            label_string='({0:s})'.format(letter_label),
+            x_coord_normalized=-0.075, y_coord_normalized=1.02
+        )
+
+        panel_file_names.append(
+            '{0:s}/monthly_scores_with_total_counts.jpg'.format(output_dir_name)
+        )
+
+        print('Saving figure to: "{0:s}"...'.format(panel_file_names[-1]))
+        figure_object.savefig(
+            panel_file_names[-1], dpi=FIGURE_RESOLUTION_DPI,
+            pad_inches=0, bbox_inches='tight'
+        )
+        pyplot.close(figure_object)
+
     figure_object, axes_object = _plot_scores_as_graph(
         score_tables_xarray=monthly_score_tables_xarray,
-        plot_total_example_counts=True, plot_legend=False,
-        probability_threshold=None
-    )
-
-    month_strings = [
-        'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-        'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
-    ]
-    axes_object.set_xticks(months - 1)
-    axes_object.set_xticklabels(month_strings, rotation=90.)
-
-    gg_plotting_utils.label_axes(
-        axes_object=axes_object, label_string='(c)',
-        x_coord_normalized=-0.075, y_coord_normalized=1.02
-    )
-
-    monthly_with_total_file_name = (
-        '{0:s}/monthly_scores_with_total_counts.jpg'.format(output_dir_name)
-    )
-    print('Saving figure to: "{0:s}"...'.format(monthly_with_total_file_name))
-    figure_object.savefig(
-        monthly_with_total_file_name, dpi=FIGURE_RESOLUTION_DPI,
-        pad_inches=0, bbox_inches='tight'
-    )
-    pyplot.close(figure_object)
-
-    figure_object, axes_object = _plot_scores_as_graph(
-        score_tables_xarray=monthly_score_tables_xarray,
-        plot_total_example_counts=False, plot_legend=False,
+        plot_total_example_counts=False, plot_legend=True,
         probability_threshold=probability_threshold
     )
 
     axes_object.set_xticks(months - 1)
     axes_object.set_xticklabels(month_strings, rotation=90.)
 
+    if letter_label == '':
+        letter_label = 'a'
+    else:
+        letter_label = chr(ord(letter_label) + 1)
+
     gg_plotting_utils.label_axes(
-        axes_object=axes_object, label_string='(d)',
+        axes_object=axes_object,
+        label_string='({0:s})'.format(letter_label),
         x_coord_normalized=-0.075, y_coord_normalized=1.02
     )
 
-    monthly_with_positive_file_name = (
+    panel_file_names.append(
         '{0:s}/monthly_scores_with_positive_counts.jpg'.format(output_dir_name)
     )
-    print('Saving figure to: "{0:s}"...'.format(
-        monthly_with_positive_file_name
-    ))
+
+    print('Saving figure to: "{0:s}"...'.format(panel_file_names[-1]))
     figure_object.savefig(
-        monthly_with_positive_file_name, dpi=FIGURE_RESOLUTION_DPI,
+        panel_file_names[-1], dpi=FIGURE_RESOLUTION_DPI,
         pad_inches=0, bbox_inches='tight'
     )
     pyplot.close(figure_object)
@@ -625,13 +676,14 @@ def _run(input_dir_name, probability_threshold, output_dir_name):
     concat_file_name = '{0:s}/scores_by_time.jpg'.format(output_dir_name)
     print('Concatenating panels to: "{0:s}"...'.format(concat_file_name))
 
-    panel_file_names = [
-        hourly_with_total_file_name, hourly_with_positive_file_name,
-        monthly_with_total_file_name, monthly_with_positive_file_name
-    ]
+    num_panels = len(panel_file_names)
+    num_panel_rows = int(numpy.ceil(
+        float(num_panels) / 2
+    ))
+
     imagemagick_utils.concatenate_images(
         input_file_names=panel_file_names, output_file_name=concat_file_name,
-        num_panel_rows=2, num_panel_columns=2
+        num_panel_rows=num_panel_rows, num_panel_columns=2
     )
     imagemagick_utils.resize_image(
         input_file_name=concat_file_name, output_file_name=concat_file_name,
