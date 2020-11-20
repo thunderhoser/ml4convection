@@ -124,6 +124,10 @@ def _plot_performance_diagrams(score_tables_xarray, output_file_name):
             normalized_index * (len(these_pod) - 4)
         ))
 
+        if label_index < 0:
+            pyplot.close(figure_object)
+            return
+
         if num_tables == NUM_HOURS_PER_DAY:
             label_string = '{0:02d}'.format(i)
         else:
@@ -193,6 +197,10 @@ def _plot_reliability_curves(score_tables_xarray, output_file_name):
         label_index = int(numpy.round(
             normalized_index * (len(these_mean_probs) - 1)
         ))
+
+        if label_index < 0:
+            pyplot.close(figure_object)
+            return
 
         if num_tables == NUM_HOURS_PER_DAY:
             label_string = '{0:02d}'.format(i)
