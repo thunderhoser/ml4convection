@@ -240,14 +240,6 @@ def _compute_scores_full_grid(
             unmasked_row_indices, unmasked_column_indices = (
                 numpy.where(eval_mask_matrix)
             )
-            print((
-                'Subsetting scores to rows {0:d}-{1:d}, columns {2:d}-{3:d}...'
-            ).format(
-                numpy.min(unmasked_row_indices) + 1,
-                numpy.max(unmasked_row_indices) + 1,
-                numpy.min(unmasked_column_indices) + 1,
-                numpy.max(unmasked_column_indices) + 1
-            ))
 
             this_score_table_xarray = evaluation.subset_basic_scores_by_space(
                 basic_score_table_xarray=this_score_table_xarray,
