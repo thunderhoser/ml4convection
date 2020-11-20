@@ -165,9 +165,8 @@ def _run_tracking_one_time(
     reflectivity_matrix_dbz = (
         reflectivity_dict[radar_io.REFLECTIVITY_KEY][time_index, ...]
     )
-    reflectivity_matrix_dbz = numpy.swapaxes(
-        reflectivity_matrix_dbz, 0, 2
-    )
+    reflectivity_matrix_dbz = numpy.swapaxes(reflectivity_matrix_dbz, 0, 2)
+    reflectivity_matrix_dbz = numpy.swapaxes(reflectivity_matrix_dbz, 0, 1)
 
     echo_top_matrix_m_asl = gridrad_utils.get_echo_tops(
         reflectivity_matrix_dbz=reflectivity_matrix_dbz,
