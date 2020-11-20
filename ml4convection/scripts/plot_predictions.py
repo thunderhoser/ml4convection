@@ -173,7 +173,7 @@ def _plot_predictions_one_example(
     else:
         prediction_plotting.plot_probabilistic(
             target_matrix=target_matrix, probability_matrix=probability_matrix,
-            axes_object=axes_object,
+            figure_object=figure_object, axes_object=axes_object,
             min_latitude_deg_n=latitudes_deg_n[0],
             min_longitude_deg_e=longitudes_deg_e[0],
             latitude_spacing_deg=numpy.diff(latitudes_deg_n[:2])[0],

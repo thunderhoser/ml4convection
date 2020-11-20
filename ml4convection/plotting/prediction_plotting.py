@@ -183,9 +183,9 @@ def plot_deterministic(
 
 
 def plot_probabilistic(
-        target_matrix, probability_matrix, axes_object, min_latitude_deg_n,
-        min_longitude_deg_e, latitude_spacing_deg, longitude_spacing_deg,
-        target_marker_size=DEFAULT_TARGET_MARKER_SIZE,
+        target_matrix, probability_matrix, figure_object, axes_object,
+        min_latitude_deg_n, min_longitude_deg_e, latitude_spacing_deg,
+        longitude_spacing_deg, target_marker_size_grid_cells=numpy.sqrt(2.),
         target_marker_type=DEFAULT_TARGET_MARKER_TYPE,
         target_marker_colour=DEFAULT_TARGET_MARKER_COLOUR):
     """Plots gridded probabilities and labels.
@@ -196,13 +196,15 @@ def plot_probabilistic(
     :param target_matrix: See doc for `plot_deterministic`.
     :param probability_matrix: M-by-N numpy array with forecast probabilities of
         convection.
+    :param figure_object: Will plot in this figure (instance of
+        `matplotlib.figure.Figure`).
     :param axes_object: See doc for `plot_deterministic`.
     :param min_latitude_deg_n: Same.
     :param min_longitude_deg_e: Same.
     :param latitude_spacing_deg: Same.
     :param longitude_spacing_deg: Same.
-    :param target_marker_size: Size of marker used to show where convection
-        occurs.
+    :param target_marker_size_grid_cells: Size of marker used to show where
+        convection occurs.
     :param target_marker_type: Type of marker used to show where convection
         occurs.
     :param target_marker_colour: Colour of marker used to show where convection
@@ -259,10 +261,15 @@ def plot_probabilistic(
     positive_latitudes_deg_n = latitudes_deg_n[row_indices]
     positive_longitudes_deg_e = longitudes_deg_e[column_indices]
 
+    figure_width_px = figure_object.get_size_inches()[0] * figure_object.dpi
+    target_marker_size_px = figure_width_px * (
+        float(target_marker_size_grid_cells) / target_matrix.shape[1]
+    )
+
     axes_object.plot(
         positive_longitudes_deg_e, positive_latitudes_deg_n,
         linestyle='None', marker=target_marker_type,
-        markersize=target_marker_size, markeredgewidth=0,
+        markersize=target_marker_size_px, markeredgewidth=0,
         markerfacecolor=target_marker_colour,
         markeredgecolor=target_marker_colour
     )
