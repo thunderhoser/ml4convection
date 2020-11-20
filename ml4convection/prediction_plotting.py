@@ -193,7 +193,7 @@ def plot_deterministic(
 def plot_probabilistic(
         target_matrix, probability_matrix, axes_object, min_latitude_deg_n,
         min_longitude_deg_e, latitude_spacing_deg, longitude_spacing_deg,
-        target_marker_size=DEFAULT_TARGET_MARKER_SIZE,
+        target_marker_size_grid_cells=0.5,
         target_marker_type=DEFAULT_TARGET_MARKER_TYPE,
         target_marker_colour=DEFAULT_TARGET_MARKER_COLOUR):
     """Plots gridded probabilities and labels.
@@ -209,8 +209,8 @@ def plot_probabilistic(
     :param min_longitude_deg_e: Same.
     :param latitude_spacing_deg: Same.
     :param longitude_spacing_deg: Same.
-    :param target_marker_size: Size of marker used to show where convection
-        occurs.
+    :param target_marker_size_grid_cells: Size of marker used to show where
+        convection occurs.
     :param target_marker_type: Type of marker used to show where convection
         occurs.
     :param target_marker_colour: Colour of marker used to show where convection
@@ -266,6 +266,10 @@ def plot_probabilistic(
     row_indices, column_indices = numpy.where(target_matrix == 1)
     positive_latitudes_deg_n = latitudes_deg_n[row_indices]
     positive_longitudes_deg_e = longitudes_deg_e[column_indices]
+
+    M = axes_object.transData.get_matrix()
+    yscale = M[1, 1]
+    target_marker_size = yscale * float(target_marker_size_grid_cells) / target_matrix.shape[0]
 
     axes_object.plot(
         positive_longitudes_deg_e, positive_latitudes_deg_n,
