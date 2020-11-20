@@ -1,0 +1,53 @@
+#!/bin/tcsh
+
+#SBATCH --job-name="delete_prediction_files_not_best"
+#SBATCH --partition="fge"
+#SBATCH --account="rda-ghpcs"
+#SBATCH --qos="batch"
+#SBATCH --ntasks=1
+#SBATCH --nodes=1
+#SBATCH --cpus-per-task=1
+#SBATCH --mem=8G
+##SBATCH --nodes=1
+##SBATCH --ntasks=1
+##SBATCH --cpus-per-task=1
+##SBATCH --ntasks-per-node=1
+#SBATCH --time=01:00:00
+#SBATCH --array=1-10,12,14,15,18-125
+#SBATCH --exclude=h28n12
+##SBATCH --exclude=h31n03,h28n12
+##SBATCH --exclude=h29n01,h26n05,h28n06,h29n07,h30n03,h30n15
+#SBATCH --mail-type=BEGIN,END,FAIL
+#SBATCH --mail-user=ryan.lagerquist@noaa.gov
+#SBATCH --output=delete_prediction_files_not_best_%A_%a.out
+
+module load cuda/10.1
+source /scratch2/BMC/gsd-hpcs/Jebb.Q.Stewart/conda3.7/etc/profile.d/conda.csh
+conda activate base
+
+set CODE_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_standalone/ml4convection"
+set TOP_MODEL_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_models/experiment08"
+
+set FIRST_VALIDN_DATE_STRING="20170101"
+set LAST_VALIDN_DATE_STRING="20171224"
+
+set HALF_WINDOW_SIZES_PX=(1 1 1 1 1 2 2 2 2 2 3 3 3 3 3 4 4 4 4 4 5 5 5 5 5 1 1 1 1 1 2 2 2 2 2 3 3 3 3 3 4 4 4 4 4 5 5 5 5 5 1 1 1 1 1 2 2 2 2 2 3 3 3 3 3 4 4 4 4 4 5 5 5 5 5 1 1 1 1 1 2 2 2 2 2 3 3 3 3 3 4 4 4 4 4 5 5 5 5 5 1 1 1 1 1 2 2 2 2 2 3 3 3 3 3 4 4 4 4 4 5 5 5 5 5)
+set CONV_LAYER_DROPOUT_RATES=(0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.175 0.175 0.175 0.175 0.175 0.175 0.175 0.175 0.175 0.175 0.175 0.175 0.175 0.175 0.175 0.175 0.175 0.175 0.175 0.175 0.175 0.175 0.175 0.175 0.175 0.350 0.350 0.350 0.350 0.350 0.350 0.350 0.350 0.350 0.350 0.350 0.350 0.350 0.350 0.350 0.350 0.350 0.350 0.350 0.350 0.350 0.350 0.350 0.350 0.350 0.525 0.525 0.525 0.525 0.525 0.525 0.525 0.525 0.525 0.525 0.525 0.525 0.525 0.525 0.525 0.525 0.525 0.525 0.525 0.525 0.525 0.525 0.525 0.525 0.525 0.700 0.700 0.700 0.700 0.700 0.700 0.700 0.700 0.700 0.700 0.700 0.700 0.700 0.700 0.700 0.700 0.700 0.700 0.700 0.700 0.700 0.700 0.700 0.700 0.700)
+set L2_WEIGHTS=(0.000100 0.000316 0.001000 0.003162 0.010000 0.000100 0.000316 0.001000 0.003162 0.010000 0.000100 0.000316 0.001000 0.003162 0.010000 0.000100 0.000316 0.001000 0.003162 0.010000 0.000100 0.000316 0.001000 0.003162 0.010000 0.000100 0.000316 0.001000 0.003162 0.010000 0.000100 0.000316 0.001000 0.003162 0.010000 0.000100 0.000316 0.001000 0.003162 0.010000 0.000100 0.000316 0.001000 0.003162 0.010000 0.000100 0.000316 0.001000 0.003162 0.010000 0.000100 0.000316 0.001000 0.003162 0.010000 0.000100 0.000316 0.001000 0.003162 0.010000 0.000100 0.000316 0.001000 0.003162 0.010000 0.000100 0.000316 0.001000 0.003162 0.010000 0.000100 0.000316 0.001000 0.003162 0.010000 0.000100 0.000316 0.001000 0.003162 0.010000 0.000100 0.000316 0.001000 0.003162 0.010000 0.000100 0.000316 0.001000 0.003162 0.010000 0.000100 0.000316 0.001000 0.003162 0.010000 0.000100 0.000316 0.001000 0.003162 0.010000 0.000100 0.000316 0.001000 0.003162 0.010000 0.000100 0.000316 0.001000 0.003162 0.010000 0.000100 0.000316 0.001000 0.003162 0.010000 0.000100 0.000316 0.001000 0.003162 0.010000 0.000100 0.000316 0.001000 0.003162 0.010000)
+
+set half_window_size_px=${HALF_WINDOW_SIZES_PX[$SLURM_ARRAY_TASK_ID]}
+set conv_layer_dropout_rate=${CONV_LAYER_DROPOUT_RATES[$SLURM_ARRAY_TASK_ID]}
+set l2_weight=${L2_WEIGHTS[$SLURM_ARRAY_TASK_ID]}
+
+set half_window_size_string=`printf "%d" $half_window_size_px`
+set conv_layer_dropout_string=`printf "%.3f" $conv_layer_dropout_rate`
+set l2_weight_string=`printf "%.6f" $l2_weight`
+
+set model_dir_name="${TOP_MODEL_DIR_NAME}/fss-half-window-size-px=${half_window_size_string}_conv-dropout=${conv_layer_dropout_string}_l2-weight=${l2_weight_string}"
+set prediction_dir_name="${model_dir_name}/validation/partial_grids"
+
+python3 -u "${CODE_DIR_NAME}/delete_prediction_files.py" \
+--prediction_dir_name="${prediction_dir_name}" \
+--use_partial_grids=1 \
+--first_date_string="${FIRST_VALIDN_DATE_STRING}" \
+--last_date_string="${LAST_VALIDN_DATE_STRING}"
