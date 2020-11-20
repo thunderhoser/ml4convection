@@ -58,7 +58,7 @@ python3 -u "${CODE_DIR_NAME}/apply_neural_net.py" \
 --input_predictor_dir_name="${TOP_PREDICTOR_DIR_NAME}" \
 --input_target_dir_name="${TOP_TARGET_DIR_NAME}" \
 --apply_to_full_grids=1 \
---overlap_size_px=50 \
+--overlap_size_px=90 \
 --first_valid_date_string="${first_date_string}" \
 --last_valid_date_string="${last_date_string}" \
 --output_dir_name="${prediction_dir_name}"
