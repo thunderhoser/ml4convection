@@ -1567,8 +1567,11 @@ def apply_model_partial_grids(
     )
 
     # Do actual stuff.
-    forecast_prob_matrix = numpy.full(
+    summed_prob_matrix = numpy.full(
         (num_examples, num_full_grid_rows, num_full_grid_columns), 0.
+    )
+    num_forecasts_matrix = numpy.full(
+        (num_examples, num_full_grid_rows, num_full_grid_columns), 0, dtype=int
     )
 
     partial_grid_dict = {
@@ -1646,11 +1649,17 @@ def apply_model_partial_grids(
                 overlap_size_px:-overlap_size_px
             ]
 
-            forecast_prob_matrix[
+            summed_prob_matrix[
                 first_example_index:(last_example_index + 1),
                 first_output_row:(last_output_row + 1),
                 first_output_column:(last_output_column + 1)
-            ] = this_prob_matrix
+            ] += this_prob_matrix
+
+            num_forecasts_matrix[
+                first_example_index:(last_example_index + 1),
+                first_output_row:(last_output_row + 1),
+                first_output_column:(last_output_column + 1)
+            ] += 1
 
     if verbose:
         print((
@@ -1658,5 +1667,10 @@ def apply_model_partial_grids(
         ).format(
             num_examples
         ))
+
+    num_forecasts_matrix = num_forecasts_matrix.astype(float)
+    num_forecasts_matrix[num_forecasts_matrix < 0.01] = numpy.nan
+    forecast_prob_matrix = summed_prob_matrix / num_forecasts_matrix
+    forecast_prob_matrix[numpy.isnan(forecast_prob_matrix)] = 0.
 
     return forecast_prob_matrix
