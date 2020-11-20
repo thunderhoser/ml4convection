@@ -104,22 +104,20 @@ INPUT_ARG_PARSER.add_argument(
 
 def _plot_predictions_one_example(
         prediction_dict, example_index, border_latitudes_deg_n,
-        border_longitudes_deg_e, mask_outline_latitudes_deg_n,
-        mask_outline_longitudes_deg_e, plot_deterministic,
+        border_longitudes_deg_e, mask_matrix, plot_deterministic,
         probability_threshold, output_dir_name):
     """Plots predictions (and targets) for one example (time step).
 
-    P = number of points in mask outline
+    M = number of rows in grid
+    N = number of columns in grid
 
     :param prediction_dict: Dictionary in format returned by
         `prediction_io.read_file`.
     :param example_index: Will plot [i]th example, where i = `example_index`.
     :param border_latitudes_deg_n: See doc for `_plot_predictions_one_example`.
     :param border_longitudes_deg_e: Same.
-    :param mask_outline_latitudes_deg_n: length-P numpy array of latitudes
-        (deg N).
-    :param mask_outline_longitudes_deg_e: length-P numpy array of longitudes
-        (deg E).
+    :param mask_matrix: M-by-N numpy array of integers (0 or 1), where 1 means
+        the grid point is unmasked.
     :param plot_deterministic: See documentation at top of file.
     :param probability_threshold: Same.
     :param output_dir_name: Same.
@@ -138,10 +136,10 @@ def _plot_predictions_one_example(
         axes_object=axes_object
     )
 
-    plotting_utils.plot_borders(
-        border_latitudes_deg_n=mask_outline_latitudes_deg_n,
-        border_longitudes_deg_e=mask_outline_longitudes_deg_e,
-        line_colour=MASK_OUTLINE_COLOUR, axes_object=axes_object
+    pyplot.contour(
+        longitudes_deg_e, latitudes_deg_n, mask_matrix, numpy.array([0.999]),
+        colors=(MASK_OUTLINE_COLOUR,), linewidths=2, linestyles='solid',
+        axes=axes_object
     )
 
     i = example_index
@@ -244,7 +242,7 @@ def _plot_predictions_one_day(
 
     print('Reading model metadata from: "{0:s}"...'.format(model_metafile_name))
     model_metadata_dict = neural_net.read_metafile(model_metafile_name)
-    
+
     if use_partial_grids:
         mask_matrix = model_metadata_dict[neural_net.MASK_MATRIX_KEY]
     else:
@@ -257,14 +255,6 @@ def _plot_predictions_one_day(
         target_matrix[i, ...][mask_matrix == False] = 0
 
     prediction_dict[prediction_io.TARGET_MATRIX_KEY] = target_matrix
-
-    these_long, these_lat = general_utils.mask_to_outline_2d(
-        mask_matrix=mask_matrix,
-        x_coords=prediction_dict[prediction_io.LONGITUDES_KEY],
-        y_coords=prediction_dict[prediction_io.LATITUDES_KEY]
-    )
-    mask_outline_latitudes_deg_n = these_lat[0]
-    mask_outline_longitudes_deg_e = these_long[0]
 
     # TODO(thunderhoser): Put this code somewhere reusable.
     valid_times_unix_sec = prediction_dict[prediction_io.VALID_TIMES_KEY]
@@ -295,8 +285,7 @@ def _plot_predictions_one_day(
             prediction_dict=prediction_dict, example_index=i,
             border_latitudes_deg_n=border_latitudes_deg_n,
             border_longitudes_deg_e=border_longitudes_deg_e,
-            mask_outline_latitudes_deg_n=mask_outline_latitudes_deg_n,
-            mask_outline_longitudes_deg_e=mask_outline_longitudes_deg_e,
+            mask_matrix=mask_matrix.astype(int),
             plot_deterministic=plot_deterministic,
             probability_threshold=probability_threshold,
             output_dir_name=output_dir_name
