@@ -98,7 +98,7 @@ INPUT_ARG_PARSER.add_argument(
     help=CRITICAL_REFL_HELP_STRING
 )
 INPUT_ARG_PARSER.add_argument(
-    '--' + MIN_ECHO_TOP_ARG_NAME, type=float, required=False, default=4.,
+    '--' + MIN_ECHO_TOP_ARG_NAME, type=float, required=False, default=4000.,
     help=MIN_ECHO_TOP_HELP_STRING
 )
 INPUT_ARG_PARSER.add_argument(
