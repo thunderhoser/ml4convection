@@ -193,7 +193,7 @@ def plot_deterministic(
 def plot_probabilistic(
         target_matrix, probability_matrix, figure_object, axes_object,
         min_latitude_deg_n, min_longitude_deg_e, latitude_spacing_deg,
-        longitude_spacing_deg, target_marker_size_grid_cells=numpy.sqrt(2.),
+        longitude_spacing_deg, target_marker_size_grid_cells=0.6,
         target_marker_type=DEFAULT_TARGET_MARKER_TYPE,
         target_marker_colour=DEFAULT_TARGET_MARKER_COLOUR):
     """Plots gridded probabilities and labels.
