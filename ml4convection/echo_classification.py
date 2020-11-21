@@ -551,7 +551,6 @@ def find_convective_pixels(reflectivity_matrix_dbz, grid_metadata_dict,
 
     grid_metadata_dict[LATITUDES_KEY] = grid_point_latitudes_deg
     grid_metadata_dict[LONGITUDES_KEY] = grid_point_longitudes_deg
-    reflectivity_matrix_dbz[numpy.isnan(reflectivity_matrix_dbz)] = 0.
 
     print('Applying criterion 1 for convective classification...')
     convective_flag_matrix = _apply_convective_criterion1(
