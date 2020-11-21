@@ -4,6 +4,7 @@ import os
 import copy
 import argparse
 import numpy
+from gewittergefahr.gg_utils import general_utils
 from gewittergefahr.gg_utils import time_conversion
 from ml4convection.io import prediction_io
 from ml4convection.machine_learning import neural_net
@@ -17,6 +18,7 @@ PREDICTOR_DIR_ARG_NAME = 'input_predictor_dir_name'
 TARGET_DIR_ARG_NAME = 'input_target_dir_name'
 FULL_GRIDS_ARG_NAME = 'apply_to_full_grids'
 OVERLAP_SIZE_ARG_NAME = 'overlap_size_px'
+SMOOTHING_RADIUS_ARG_NAME = 'smoothing_radius_px'
 FIRST_DATE_ARG_NAME = 'first_valid_date_string'
 LAST_DATE_ARG_NAME = 'last_valid_date_string'
 OUTPUT_DIR_ARG_NAME = 'output_dir_name'
@@ -41,6 +43,11 @@ FULL_GRIDS_HELP_STRING = (
 OVERLAP_SIZE_HELP_STRING = (
     '[used only if neural net was trained on partial grids and `{0:s} == 0`] '
     'Amount of overlap (in pixels) between adjacent partial grids.'
+).format(FULL_GRIDS_ARG_NAME)
+
+SMOOTHING_RADIUS_HELP_STRING = (
+    '[used only if `{0:s} == 1`] Radius for Gaussian smoother.  If you do not '
+    'want to smooth predictions, leave this alone.'
 ).format(FULL_GRIDS_ARG_NAME)
 
 DATE_HELP_STRING = (
@@ -76,6 +83,10 @@ INPUT_ARG_PARSER.add_argument(
     help=OVERLAP_SIZE_HELP_STRING
 )
 INPUT_ARG_PARSER.add_argument(
+    '--' + SMOOTHING_RADIUS_ARG_NAME, type=float, required=False, default=-1.,
+    help=SMOOTHING_RADIUS_HELP_STRING
+)
+INPUT_ARG_PARSER.add_argument(
     '--' + FIRST_DATE_ARG_NAME, type=str, required=True, help=DATE_HELP_STRING
 )
 INPUT_ARG_PARSER.add_argument(
@@ -89,8 +100,8 @@ INPUT_ARG_PARSER.add_argument(
 
 def _apply_to_full_grid_one_day(
         model_object, base_option_dict, trained_on_partial_grids,
-        overlap_size_px, valid_date_string, model_file_name,
-        top_output_dir_name):
+        overlap_size_px, smoothing_radius_px, valid_date_string,
+        model_file_name, top_output_dir_name):
     """Applies trained neural net to full grid for one day.
 
     :param model_object: Trained neural net (instance of `keras.models.Model` or
@@ -122,6 +133,24 @@ def _apply_to_full_grid_one_day(
             num_examples_per_batch=NUM_EXAMPLES_PER_BATCH,
             overlap_size_px=overlap_size_px, verbose=True
         )
+
+        if smoothing_radius_px is not None:
+            print((
+                'Applying Gaussian smoother with e-folding radius = {0:f} '
+                'pixels...'
+            ).format(
+                smoothing_radius_px
+            ))
+
+            num_examples = forecast_probability_matrix.shape[0]
+
+            for i in range(num_examples):
+                forecast_probability_matrix[i, ...] = (
+                    general_utils.apply_gaussian_filter(
+                        input_matrix=forecast_probability_matrix[i, ...],
+                        e_folding_radius_grid_cells=smoothing_radius_px
+                    )
+                )
     else:
         forecast_probability_matrix = neural_net.apply_model_full_grid(
             model_object=model_object,
@@ -215,8 +244,8 @@ def _apply_to_partial_grids_one_day(
 
 
 def _run(model_file_name, top_predictor_dir_name, top_target_dir_name,
-         apply_to_full_grids, overlap_size_px, first_valid_date_string,
-         last_valid_date_string, top_output_dir_name):
+         apply_to_full_grids, overlap_size_px, smoothing_radius_px,
+         first_valid_date_string, last_valid_date_string, top_output_dir_name):
     """Applies trained neural net in inference mode.
 
     This is effectively the main method.
@@ -226,6 +255,7 @@ def _run(model_file_name, top_predictor_dir_name, top_target_dir_name,
     :param top_target_dir_name: Same.
     :param apply_to_full_grids: Same.
     :param overlap_size_px: Same.
+    :param smoothing_radius_px: Same.
     :param first_valid_date_string: Same.
     :param last_valid_date_string: Same.
     :param top_output_dir_name: Same.
@@ -240,9 +270,14 @@ def _run(model_file_name, top_predictor_dir_name, top_target_dir_name,
     print('Reading metadata from: "{0:s}"...'.format(metafile_name))
     metadata_dict = neural_net.read_metafile(metafile_name)
     trained_on_partial_grids = metadata_dict[neural_net.USE_PARTIAL_GRIDS_KEY]
-    training_option_dict = metadata_dict[neural_net.TRAINING_OPTIONS_KEY]
-
     apply_to_full_grids = apply_to_full_grids or not trained_on_partial_grids
+
+    if trained_on_partial_grids:
+        smoothing_radius_px = -1.
+    if smoothing_radius_px <= 0:
+        smoothing_radius_px = None
+
+    training_option_dict = metadata_dict[neural_net.TRAINING_OPTIONS_KEY]
 
     base_option_dict = {
         neural_net.PREDICTOR_DIRECTORY_KEY: top_predictor_dir_name,
@@ -270,6 +305,7 @@ def _run(model_file_name, top_predictor_dir_name, top_target_dir_name,
                 model_object=model_object, base_option_dict=base_option_dict,
                 trained_on_partial_grids=trained_on_partial_grids,
                 overlap_size_px=overlap_size_px,
+                smoothing_radius_px=smoothing_radius_px,
                 valid_date_string=valid_date_strings[i],
                 model_file_name=model_file_name,
                 top_output_dir_name=top_output_dir_name
@@ -299,6 +335,9 @@ if __name__ == '__main__':
             getattr(INPUT_ARG_OBJECT, FULL_GRIDS_ARG_NAME)
         ),
         overlap_size_px=getattr(INPUT_ARG_OBJECT, OVERLAP_SIZE_ARG_NAME),
+        smoothing_radius_px=getattr(
+            INPUT_ARG_OBJECT, SMOOTHING_RADIUS_ARG_NAME
+        ),
         first_valid_date_string=getattr(INPUT_ARG_OBJECT, FIRST_DATE_ARG_NAME),
         last_valid_date_string=getattr(INPUT_ARG_OBJECT, LAST_DATE_ARG_NAME),
         top_output_dir_name=getattr(INPUT_ARG_OBJECT, OUTPUT_DIR_ARG_NAME)
