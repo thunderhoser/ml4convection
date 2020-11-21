@@ -1,0 +1,40 @@
+#!/bin/tcsh
+
+#SBATCH --job-name="plot_radar_20160101"
+#SBATCH --partition="fge"
+#SBATCH --account="rda-ghpcs"
+#SBATCH --qos="batch"
+#SBATCH --ntasks=1
+#SBATCH --nodes=1
+#SBATCH --cpus-per-task=1
+#SBATCH --mem=64G
+##SBATCH --nodes=1
+##SBATCH --ntasks=1
+##SBATCH --cpus-per-task=1
+##SBATCH --ntasks-per-node=1
+#SBATCH --time=12:00:00
+#SBATCH --exclude=h28n12
+##SBATCH --exclude=h31n03,h28n12
+##SBATCH --exclude=h29n01,h26n05,h28n06,h29n07,h30n03,h30n15
+#SBATCH --mail-type=BEGIN,END,FAIL
+#SBATCH --mail-user=ryan.lagerquist@noaa.gov
+#SBATCH --output=plot_radar_20160101_%A.out
+
+module load cuda/10.1
+source /scratch2/BMC/gsd-hpcs/Jebb.Q.Stewart/conda3.7/etc/profile.d/conda.csh
+conda activate base
+
+set CODE_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_standalone/ml4convection"
+set RADAR_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_project/radar_data"
+
+set first_date_string=${FIRST_DATE_STRINGS[$SLURM_ARRAY_TASK_ID]}
+set last_date_string=${LAST_DATE_STRINGS[$SLURM_ARRAY_TASK_ID]}
+
+python3 -u "${CODE_DIR_NAME}/plot_radar.py" \
+--input_reflectivity_dir_name="${RADAR_DIR_NAME}" \
+--first_date_string="20160101" \
+--last_date_string="20160101" \
+--daily_times_seconds 59400 60000 60600 61200 61800 62400 63000 63600 64200 64800 65400 66000 66600 \
+--spatial_downsampling_factor=1 \
+--expand_to_satellite_grid=1 \
+--output_dir_name="${RADAR_DIR_NAME}/radar_plots"
