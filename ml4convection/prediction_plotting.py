@@ -24,7 +24,6 @@ PREDICTED_MASK_COLOUR = numpy.full(3, 153. / 255)
 ACTUAL_MASK_OPACITY = 1.
 PREDICTED_MASK_OPACITY = 0.5
 
-DEFAULT_TARGET_MARKER_SIZE = 1.5
 DEFAULT_TARGET_MARKER_TYPE = 'o'
 DEFAULT_TARGET_MARKER_COLOUR = numpy.full(3, 0.)
 
@@ -193,7 +192,7 @@ def plot_deterministic(
 def plot_probabilistic(
         target_matrix, probability_matrix, figure_object, axes_object,
         min_latitude_deg_n, min_longitude_deg_e, latitude_spacing_deg,
-        longitude_spacing_deg, target_marker_size_grid_cells=0.6,
+        longitude_spacing_deg, target_marker_size_grid_cells=0.45,
         target_marker_type=DEFAULT_TARGET_MARKER_TYPE,
         target_marker_colour=DEFAULT_TARGET_MARKER_COLOUR):
     """Plots gridded probabilities and labels.

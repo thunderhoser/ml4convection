@@ -17,6 +17,9 @@ import error_checking
 TIME_INTERVAL_SEC = 600
 MIN_REFLECTIVITY_DBZ = 0.
 
+GRID_LATITUDES_DEG_N = numpy.linspace(20, 27, num=561, dtype=float)
+GRID_LONGITUDES_DEG_E = numpy.linspace(118, 123.5, num=441)
+
 VARIABLE_NAMES = [
     'yyyy', 'mm', 'dd', 'hh', 'mn', 'ss', 'nx', 'ny', 'nz', 'proj',
     'mapscale', 'projlat1', 'projlat2', 'projlon', 'alon', 'alat',
