@@ -11,11 +11,15 @@ SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 
 TIME_FORMAT_FOR_MESSAGES = '%Y-%m-%d-%H%M%S'
 
+# TODO(thunderhoser): 1000-metre height spacing!!
+
 INPUT_DIR_ARG_NAME = 'input_radar_dir_name'
 FIRST_DATE_ARG_NAME = 'first_date_string'
 LAST_DATE_ARG_NAME = 'last_date_string'
 PEAKEDNESS_NEIGH_ARG_NAME = 'peakedness_neigh_metres'
 MAX_PEAKEDNESS_HEIGHT_ARG_NAME = 'max_peakedness_height_m_asl'
+MIN_HEIGHT_FRACTION_ARG_NAME = 'min_height_fraction_for_peakedness'
+THIN_HEIGHT_GRID_ARG_NAME = 'thin_height_grid'
 MIN_ECHO_TOP_ARG_NAME = 'min_echo_top_m_asl'
 ECHO_TOP_LEVEL_ARG_NAME = 'echo_top_level_dbz'
 MIN_REFL_CRITERION1_ARG_NAME = 'min_refl_criterion1_dbz'
@@ -38,6 +42,15 @@ PEAKEDNESS_NEIGH_HELP_STRING = (
 )
 MAX_PEAKEDNESS_HEIGHT_HELP_STRING = (
     'Max height (metres above sea level) for peakedness calculations.'
+)
+MIN_HEIGHT_FRACTION_HELP_STRING = (
+    'Minimum fraction of heights that exceed peakedness threshold.  At each '
+    'horizontal location, at least this fraction of heights must exceed the '
+    'threshold.'
+)
+THIN_HEIGHT_GRID_HELP_STRING = (
+    'Boolean flag.  If 1, will thin height grid to 1000-metre spacing '
+    'throughout.  If 0, will keep extra heights near the surface.'
 )
 MIN_ECHO_TOP_HELP_STRING = (
     'Minimum echo top (metres above sea level), used for criterion 3.'
@@ -85,6 +98,14 @@ INPUT_ARG_PARSER.add_argument(
     help=MAX_PEAKEDNESS_HEIGHT_HELP_STRING
 )
 INPUT_ARG_PARSER.add_argument(
+    '--' + MIN_HEIGHT_FRACTION_ARG_NAME, type=float, required=False,
+    default=0.6, help=MIN_HEIGHT_FRACTION_HELP_STRING
+)
+INPUT_ARG_PARSER.add_argument(
+    '--' + THIN_HEIGHT_GRID_ARG_NAME, type=int, required=False, default=1,
+    help=THIN_HEIGHT_GRID_HELP_STRING
+)
+INPUT_ARG_PARSER.add_argument(
     '--' + MIN_ECHO_TOP_ARG_NAME, type=int, required=False,
     default=DEFAULT_OPTION_DICT[echo_classifn.MIN_ECHO_TOP_KEY],
     help=MIN_ECHO_TOP_HELP_STRING
@@ -121,6 +142,7 @@ INPUT_ARG_PARSER.add_argument(
 
 def _run_for_one_day(
         radar_file_name, peakedness_neigh_metres, max_peakedness_height_m_asl,
+        min_height_fraction_for_peakedness, thin_height_grid,
         min_echo_top_m_asl, echo_top_level_dbz, min_refl_criterion1_dbz,
         min_refl_criterion5_dbz, min_reflectivity_aml_dbz, output_file_name):
     """Runs echo classification for one day.
@@ -129,6 +151,8 @@ def _run_for_one_day(
         `radar_io.read_reflectivity_file`).
     :param peakedness_neigh_metres: See documentation at top of file.
     :param max_peakedness_height_m_asl: Same.
+    :param min_height_fraction_for_peakedness: Same.
+    :param thin_height_grid: Same.
     :param min_echo_top_m_asl: Same.
     :param echo_top_level_dbz: Same.
     :param min_refl_criterion1_dbz: Same.
@@ -142,6 +166,9 @@ def _run_for_one_day(
     option_dict = {
         echo_classifn.PEAKEDNESS_NEIGH_KEY: peakedness_neigh_metres,
         echo_classifn.MAX_PEAKEDNESS_HEIGHT_KEY: max_peakedness_height_m_asl,
+        echo_classifn.MIN_HEIGHT_FRACTION_KEY:
+            min_height_fraction_for_peakedness,
+        radar_io.THIN_HEIGHT_GRID_KEY: thin_height_grid,
         echo_classifn.HALVE_RESOLUTION_KEY: False,
         echo_classifn.MIN_ECHO_TOP_KEY: min_echo_top_m_asl,
         echo_classifn.ECHO_TOP_LEVEL_KEY: echo_top_level_dbz,
@@ -157,9 +184,22 @@ def _run_for_one_day(
         netcdf_file_name=radar_file_name, fill_nans=True
     )
 
-    num_heights = len(radar_dict[radar_io.HEIGHTS_KEY])
-    if num_heights == 1:
+    heights_m_asl = radar_dict[radar_io.HEIGHTS_KEY]
+    if len(heights_m_asl) == 1:
         raise ValueError('File should contain 3-D data.')
+
+    if thin_height_grid:
+        print('Thinning height grid to 1000-metre spacing...')
+
+        remainders = numpy.mod(heights_m_asl, 1000)
+        good_indices = numpy.where(remainders < 1)[0]
+
+        radar_dict[radar_io.HEIGHTS_KEY] = (
+            radar_dict[radar_io.HEIGHTS_KEY][good_indices]
+        )
+        radar_dict[radar_io.REFLECTIVITY_KEY] = (
+            radar_dict[radar_io.REFLECTIVITY_KEY][..., good_indices]
+        )
 
     latitudes_deg_n = radar_dict[radar_io.LATITUDES_KEY]
     longitudes_deg_e = radar_dict[radar_io.LONGITUDES_KEY]
@@ -215,6 +255,7 @@ def _run_for_one_day(
 
 def _run(top_radar_dir_name, first_date_string, last_date_string,
          peakedness_neigh_metres, max_peakedness_height_m_asl,
+         min_height_fraction_for_peakedness, thin_height_grid,
          min_echo_top_m_asl, echo_top_level_dbz, min_refl_criterion1_dbz,
          min_refl_criterion5_dbz, min_reflectivity_aml_dbz,
          top_output_dir_name):
@@ -227,6 +268,8 @@ def _run(top_radar_dir_name, first_date_string, last_date_string,
     :param last_date_string: Same.
     :param peakedness_neigh_metres: Same.
     :param max_peakedness_height_m_asl: Same.
+    :param min_height_fraction_for_peakedness: Same.
+    :param thin_height_grid: Same.
     :param min_echo_top_m_asl: Same.
     :param echo_top_level_dbz: Same.
     :param min_refl_criterion1_dbz: Same.
@@ -259,6 +302,9 @@ def _run(top_radar_dir_name, first_date_string, last_date_string,
             radar_file_name=this_input_file_name,
             peakedness_neigh_metres=peakedness_neigh_metres,
             max_peakedness_height_m_asl=max_peakedness_height_m_asl,
+            min_height_fraction_for_peakedness=
+            min_height_fraction_for_peakedness,
+            thin_height_grid=thin_height_grid,
             min_echo_top_m_asl=min_echo_top_m_asl,
             echo_top_level_dbz=echo_top_level_dbz,
             min_refl_criterion1_dbz=min_refl_criterion1_dbz,
@@ -283,6 +329,12 @@ if __name__ == '__main__':
         max_peakedness_height_m_asl=getattr(
             INPUT_ARG_OBJECT, MAX_PEAKEDNESS_HEIGHT_ARG_NAME
         ),
+        min_height_fraction_for_peakedness=getattr(
+            INPUT_ARG_OBJECT, MIN_HEIGHT_FRACTION_ARG_NAME
+        ),
+        thin_height_grid=bool(getattr(
+            INPUT_ARG_OBJECT, THIN_HEIGHT_GRID_ARG_NAME
+        )),
         min_echo_top_m_asl=getattr(INPUT_ARG_OBJECT, MIN_ECHO_TOP_ARG_NAME),
         echo_top_level_dbz=getattr(INPUT_ARG_OBJECT, ECHO_TOP_LEVEL_ARG_NAME),
         min_refl_criterion1_dbz=getattr(
