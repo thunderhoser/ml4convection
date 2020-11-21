@@ -88,7 +88,9 @@ def _tracks_to_masks_one_day(
             top_tracking_dir_name=top_tracking_dir_name,
             tracking_scale_metres2=DUMMY_TRACKING_SCALE_METRES2,
             source_name=tracking_utils.SEGMOTION_NAME,
-            valid_time_unix_sec=t, raise_error_if_missing=False
+            valid_time_unix_sec=t,
+            spc_date_string=time_conversion.time_to_spc_date_string(t),
+            raise_error_if_missing=False
         ) for t in valid_times_unix_sec
     ]
     tracking_file_names = [
