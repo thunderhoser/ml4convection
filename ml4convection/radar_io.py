@@ -47,6 +47,7 @@ CONVECTIVE_FLAGS_KEY = 'convective_flag_matrix'
 PEAKEDNESS_NEIGH_KEY = echo_classifn.PEAKEDNESS_NEIGH_KEY
 MAX_PEAKEDNESS_HEIGHT_KEY = echo_classifn.MAX_PEAKEDNESS_HEIGHT_KEY
 MIN_HEIGHT_FRACTION_KEY = echo_classifn.MIN_HEIGHT_FRACTION_KEY
+print(MIN_HEIGHT_FRACTION_KEY)
 THIN_HEIGHT_GRID_KEY = 'thin_height_grid'
 MIN_ECHO_TOP_KEY = echo_classifn.MIN_ECHO_TOP_KEY
 ECHO_TOP_LEVEL_KEY = echo_classifn.ECHO_TOP_LEVEL_KEY
@@ -69,7 +70,10 @@ ECHO_CLASSIFN_METADATA_KEYS = [
 MASK_MATRIX_KEY = 'mask_matrix'
 MAX_MASK_HEIGHT_KEY = 'max_mask_height_m_asl'
 MIN_OBSERVATIONS_KEY = 'min_num_observations'
-MIN_HEIGHT_FRACTION_KEY = 'min_height_fraction'
+
+# TODO(thunderhoser): Messy, since there's also a min_height_fraction for echo
+# classification.
+MIN_HEIGHT_FRACTION_FOR_MASK_KEY = 'min_height_fraction'
 
 
 def _check_file_type(file_type_string):
@@ -105,8 +109,12 @@ def check_mask_options(option_dict):
 
     error_checking.assert_is_geq(option_dict[MAX_MASK_HEIGHT_KEY], 5000.)
     error_checking.assert_is_geq(option_dict[MIN_OBSERVATIONS_KEY], 1)
-    error_checking.assert_is_greater(option_dict[MIN_HEIGHT_FRACTION_KEY], 0.)
-    error_checking.assert_is_leq(option_dict[MIN_HEIGHT_FRACTION_KEY], 1.)
+    error_checking.assert_is_greater(
+        option_dict[MIN_HEIGHT_FRACTION_FOR_MASK_KEY], 0.
+    )
+    error_checking.assert_is_leq(
+        option_dict[MIN_HEIGHT_FRACTION_FOR_MASK_KEY], 1.
+    )
 
 
 def find_file(
@@ -876,8 +884,8 @@ def read_mask_file(netcdf_file_name):
         LONGITUDES_KEY: dataset_object.variables[LONGITUDES_KEY][:],
         MAX_MASK_HEIGHT_KEY: getattr(dataset_object, MAX_MASK_HEIGHT_KEY),
         MIN_OBSERVATIONS_KEY: getattr(dataset_object, MIN_OBSERVATIONS_KEY),
-        MIN_HEIGHT_FRACTION_KEY:
-            getattr(dataset_object, MIN_HEIGHT_FRACTION_KEY)
+        MIN_HEIGHT_FRACTION_FOR_MASK_KEY:
+            getattr(dataset_object, MIN_HEIGHT_FRACTION_FOR_MASK_KEY)
     }
 
     dataset_object.close()
@@ -934,7 +942,8 @@ def write_mask_file(
         MIN_OBSERVATIONS_KEY, option_dict[MIN_OBSERVATIONS_KEY]
     )
     dataset_object.setncattr(
-        MIN_HEIGHT_FRACTION_KEY, option_dict[MIN_HEIGHT_FRACTION_KEY]
+        MIN_HEIGHT_FRACTION_FOR_MASK_KEY,
+        option_dict[MIN_HEIGHT_FRACTION_FOR_MASK_KEY]
     )
 
     dataset_object.createDimension(ROW_DIMENSION_KEY, num_grid_rows)

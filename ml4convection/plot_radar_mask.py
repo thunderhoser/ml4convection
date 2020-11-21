@@ -102,7 +102,7 @@ def _run(mask_file_name, output_file_name):
         '{2:d} m ASL)'
     ).format(
         mask_dict[radar_io.MIN_OBSERVATIONS_KEY],
-        100 * mask_dict[radar_io.MIN_HEIGHT_FRACTION_KEY],
+        100 * mask_dict[radar_io.MIN_HEIGHT_FRACTION_FOR_MASK_KEY],
         int(numpy.round(mask_dict[radar_io.MAX_MASK_HEIGHT_KEY]))
     )
     axes_object.set_title(title_string, fontsize=TITLE_FONT_SIZE)
