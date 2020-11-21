@@ -183,7 +183,6 @@ def _run_for_one_day(
         echo_classifn.MIN_HEIGHT_FRACTION_KEY:
             min_height_fraction_for_peakedness,
         radar_io.THIN_HEIGHT_GRID_KEY: thin_height_grid,
-        echo_classifn.HALVE_RESOLUTION_KEY: False,
         echo_classifn.MIN_ECHO_TOP_KEY: min_echo_top_m_asl,
         echo_classifn.ECHO_TOP_LEVEL_KEY: echo_top_level_dbz,
         echo_classifn.MIN_SIZE_KEY: min_size_pixels,
