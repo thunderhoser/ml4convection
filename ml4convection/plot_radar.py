@@ -26,6 +26,7 @@ import plotting_utils
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 
 DAYS_TO_SECONDS = 86400
+DATE_FORMAT = '%Y%m%d'
 TIME_FORMAT = '%Y-%m-%d-%H%M'
 COMPOSITE_REFL_NAME = 'reflectivity_column_max_dbz'
 
@@ -37,6 +38,7 @@ REFLECTIVITY_DIR_ARG_NAME = 'input_reflectivity_dir_name'
 ECHO_CLASSIFN_DIR_ARG_NAME = 'input_echo_classifn_dir_name'
 FIRST_DATE_ARG_NAME = 'first_date_string'
 LAST_DATE_ARG_NAME = 'last_date_string'
+PLOT_ALL_HEIGHTS_ARG_NAME = 'plot_all_heights'
 DAILY_TIMES_ARG_NAME = 'daily_times_seconds'
 SPATIAL_DS_FACTOR_ARG_NAME = 'spatial_downsampling_factor'
 EXPAND_GRID_ARG_NAME = 'expand_to_satellite_grid'
@@ -58,6 +60,10 @@ DATE_HELP_STRING = (
     'period `{0:s}`...`{1:s}`.'
 ).format(FIRST_DATE_ARG_NAME, LAST_DATE_ARG_NAME)
 
+PLOT_ALL_HEIGHTS_HELP_STRING = (
+    'Boolean flag.  If 1, will plot reflectivity at all heights, with one '
+    'figure per height.  If 0, will plot composite reflectivity only.'
+)
 DAILY_TIMES_HELP_STRING = (
     'List of times to plot for each day.  All values should be in the range '
     '0...86399.'
@@ -88,6 +94,10 @@ INPUT_ARG_PARSER.add_argument(
     '--' + LAST_DATE_ARG_NAME, type=str, required=True, help=DATE_HELP_STRING
 )
 INPUT_ARG_PARSER.add_argument(
+    '--' + PLOT_ALL_HEIGHTS_ARG_NAME, type=int, required=False, default=0,
+    help=PLOT_ALL_HEIGHTS_HELP_STRING
+)
+INPUT_ARG_PARSER.add_argument(
     '--' + DAILY_TIMES_ARG_NAME, type=int, nargs='+', required=True,
     help=DAILY_TIMES_HELP_STRING
 )
@@ -105,30 +115,21 @@ INPUT_ARG_PARSER.add_argument(
 )
 
 
-def _plot_radar_one_example(
+def _plot_radar_one_time(
         reflectivity_dict, example_index, border_latitudes_deg_n,
-        border_longitudes_deg_e, output_dir_name):
-    """Plots one radar image.
+        border_longitudes_deg_e, plot_all_heights, output_dir_name):
+    """Plots radar images for one time step.
 
     :param reflectivity_dict: See doc for `_plot_radar_one_day`.
     :param example_index: Will plot [i]th example, where i = `example_index`.
     :param border_latitudes_deg_n: See doc for `_plot_radar_one_day`.
     :param border_longitudes_deg_e: Same.
+    :param plot_all_heights: Same.
     :param output_dir_name: Same.
     """
 
     latitudes_deg_n = reflectivity_dict[radar_io.LATITUDES_KEY]
     longitudes_deg_e = reflectivity_dict[radar_io.LONGITUDES_KEY]
-
-    figure_object, axes_object = pyplot.subplots(
-        1, 1, figsize=(FIGURE_WIDTH_INCHES, FIGURE_HEIGHT_INCHES)
-    )
-
-    plotting_utils.plot_borders(
-        border_latitudes_deg_n=border_latitudes_deg_n,
-        border_longitudes_deg_e=border_longitudes_deg_e,
-        axes_object=axes_object
-    )
 
     valid_time_unix_sec = (
         reflectivity_dict[radar_io.VALID_TIMES_KEY][example_index]
@@ -136,59 +137,90 @@ def _plot_radar_one_example(
     valid_time_string = time_conversion.unix_sec_to_string(
         valid_time_unix_sec, TIME_FORMAT
     )
-    title_string = 'Composite reflectivity at {0:s}'.format(valid_time_string)
-
-    # TODO(thunderhoser): Allow this script to plot reflectivity at any height.
-    composite_refl_matrix_dbz = numpy.nanmax(
-        reflectivity_dict[radar_io.REFLECTIVITY_KEY][example_index, ...],
-        axis=-1
+    reflectivity_matrix_dbz = (
+        reflectivity_dict[radar_io.REFLECTIVITY_KEY][example_index, ...]
     )
-
-    radar_plotting.plot_latlng_grid(
-        field_matrix=composite_refl_matrix_dbz, field_name=COMPOSITE_REFL_NAME,
-        axes_object=axes_object,
-        min_grid_point_latitude_deg=numpy.min(latitudes_deg_n),
-        min_grid_point_longitude_deg=numpy.min(longitudes_deg_e),
-        latitude_spacing_deg=numpy.diff(latitudes_deg_n[:2])[0],
-        longitude_spacing_deg=numpy.diff(longitudes_deg_e[:2])[0]
-    )
-
     colour_map_object, colour_norm_object = (
         radar_plotting.get_default_colour_scheme(COMPOSITE_REFL_NAME)
     )
 
-    gg_plotting_utils.plot_colour_bar(
-        axes_object_or_matrix=axes_object,
-        data_matrix=composite_refl_matrix_dbz,
-        colour_map_object=colour_map_object,
-        colour_norm_object=colour_norm_object,
-        orientation_string='vertical', extend_min=False, extend_max=True
-    )
+    if plot_all_heights:
+        heights_m_asl = reflectivity_dict[radar_io.HEIGHTS_KEY]
+    else:
+        heights_m_asl = numpy.array([numpy.nan])
 
-    plotting_utils.plot_grid_lines(
-        plot_latitudes_deg_n=latitudes_deg_n,
-        plot_longitudes_deg_e=longitudes_deg_e, axes_object=axes_object,
-        parallel_spacing_deg=2., meridian_spacing_deg=2.
-    )
+    num_heights = len(heights_m_asl)
 
-    axes_object.set_title(title_string)
+    for k in range(num_heights):
+        figure_object, axes_object = pyplot.subplots(
+            1, 1, figsize=(FIGURE_WIDTH_INCHES, FIGURE_HEIGHT_INCHES)
+        )
 
-    output_file_name = '{0:s}/composite_reflectivity_{1:s}.jpg'.format(
-        output_dir_name, valid_time_string
-    )
+        plotting_utils.plot_borders(
+            border_latitudes_deg_n=border_latitudes_deg_n,
+            border_longitudes_deg_e=border_longitudes_deg_e,
+            axes_object=axes_object
+        )
 
-    print('Saving figure to file: "{0:s}"...'.format(output_file_name))
-    figure_object.savefig(
-        output_file_name, dpi=FIGURE_RESOLUTION_DPI,
-        pad_inches=0, bbox_inches='tight'
-    )
-    pyplot.close(figure_object)
+        if numpy.isnan(heights_m_asl[k]):
+            matrix_to_plot = numpy.nanmax(reflectivity_matrix_dbz, axis=-1)
+            title_string = 'Composite reflectivity at {0:s}'.format(
+                valid_time_string
+            )
+        else:
+            matrix_to_plot = reflectivity_matrix_dbz[..., k]
+            title_string = 'Reflectivity at {0:d} m ASL at {1:s}'.format(
+                int(numpy.round(heights_m_asl[k])), valid_time_string
+            )
+
+        radar_plotting.plot_latlng_grid(
+            field_matrix=matrix_to_plot, field_name=COMPOSITE_REFL_NAME,
+            axes_object=axes_object,
+            min_grid_point_latitude_deg=numpy.min(latitudes_deg_n),
+            min_grid_point_longitude_deg=numpy.min(longitudes_deg_e),
+            latitude_spacing_deg=numpy.diff(latitudes_deg_n[:2])[0],
+            longitude_spacing_deg=numpy.diff(longitudes_deg_e[:2])[0]
+        )
+
+        gg_plotting_utils.plot_colour_bar(
+            axes_object_or_matrix=axes_object, data_matrix=matrix_to_plot,
+            colour_map_object=colour_map_object,
+            colour_norm_object=colour_norm_object,
+            orientation_string='vertical', extend_min=False, extend_max=True
+        )
+
+        plotting_utils.plot_grid_lines(
+            plot_latitudes_deg_n=latitudes_deg_n,
+            plot_longitudes_deg_e=longitudes_deg_e, axes_object=axes_object,
+            parallel_spacing_deg=2., meridian_spacing_deg=2.
+        )
+
+        axes_object.set_title(title_string)
+
+        if numpy.isnan(heights_m_asl[k]):
+            height_string = 'composite'
+        else:
+            height_string = '{0:05d}-metres-asl'.format(
+                int(numpy.round(heights_m_asl[k]))
+            )
+
+        output_file_name = '{0:s}/reflectivity_{1:s}_{2:s}.jpg'.format(
+            output_dir_name, valid_time_string, height_string
+        )
+
+        print('Saving figure to file: "{0:s}"...'.format(output_file_name))
+        figure_object.savefig(
+            output_file_name, dpi=FIGURE_RESOLUTION_DPI,
+            pad_inches=0, bbox_inches='tight'
+        )
+        pyplot.close(figure_object)
 
 
 def _plot_radar_one_day(
         reflectivity_dict, echo_classifn_dict, border_latitudes_deg_n,
-        border_longitudes_deg_e, daily_times_seconds,
-        spatial_downsampling_factor, expand_to_satellite_grid, output_dir_name):
+        border_longitudes_deg_e, plot_all_heights, daily_times_seconds,
+        spatial_downsampling_factor, expand_to_satellite_grid,
+        top_output_dir_name):
     """Plots radar images for one day.
 
     P = number of points in border set
@@ -200,10 +232,11 @@ def _plot_radar_one_day(
         pixels only.  If None, will plot all pixels.
     :param border_latitudes_deg_n: length-P numpy array of latitudes (deg N).
     :param border_longitudes_deg_e: length-P numpy array of longitudes (deg E).
-    :param daily_times_seconds: See documentation at top of file.
+    :param plot_all_heights: See documentation at top of file.
+    :param daily_times_seconds: Same.
     :param spatial_downsampling_factor: Same.
     :param expand_to_satellite_grid: Same.
-    :param output_dir_name: Same.
+    :param top_output_dir_name: Same.
     """
 
     if echo_classifn_dict is not None:
@@ -256,21 +289,32 @@ def _plot_radar_one_day(
         desired_times_unix_sec=desired_times_unix_sec
     )[0]
 
-    num_examples = len(reflectivity_dict[radar_io.VALID_TIMES_KEY])
+    date_string = time_conversion.unix_sec_to_string(
+        desired_times_unix_sec[0], DATE_FORMAT
+    )
+    output_dir_name = '{0:s}/{1:s}/{2:s}'.format(
+        top_output_dir_name, date_string[:4], date_string
+    )
+    file_system_utils.mkdir_recursive_if_necessary(
+        directory_name=output_dir_name
+    )
 
-    for i in range(num_examples):
-        _plot_radar_one_example(
+    num_times = len(desired_times_unix_sec)
+
+    for i in range(num_times):
+        _plot_radar_one_time(
             reflectivity_dict=reflectivity_dict, example_index=i,
             border_latitudes_deg_n=border_latitudes_deg_n,
             border_longitudes_deg_e=border_longitudes_deg_e,
+            plot_all_heights=plot_all_heights,
             output_dir_name=output_dir_name
         )
 
 
 def _run(top_reflectivity_dir_name, top_echo_classifn_dir_name,
-         first_date_string, last_date_string, daily_times_seconds,
-         spatial_downsampling_factor, expand_to_satellite_grid,
-         output_dir_name):
+         first_date_string, last_date_string, plot_all_heights,
+         daily_times_seconds, spatial_downsampling_factor,
+         expand_to_satellite_grid, top_output_dir_name):
     """Plots radar images for the given days.
 
     This is effectively the main method.
@@ -279,20 +323,17 @@ def _run(top_reflectivity_dir_name, top_echo_classifn_dir_name,
     :param top_echo_classifn_dir_name: Same.
     :param first_date_string: Same.
     :param last_date_string: Same.
+    :param plot_all_heights: Same.
     :param daily_times_seconds: Same.
     :param spatial_downsampling_factor: Same.
     :param expand_to_satellite_grid: Same.
-    :param output_dir_name: Same.
+    :param top_output_dir_name: Same.
     """
 
     border_latitudes_deg_n, border_longitudes_deg_e = border_io.read_file()
 
     if spatial_downsampling_factor <= 1:
         spatial_downsampling_factor = None
-
-    file_system_utils.mkdir_recursive_if_necessary(
-        directory_name=output_dir_name
-    )
 
     if top_echo_classifn_dir_name == '':
         top_echo_classifn_dir_name = None
@@ -343,12 +384,13 @@ def _run(top_reflectivity_dir_name, top_echo_classifn_dir_name,
         _plot_radar_one_day(
             reflectivity_dict=reflectivity_dict,
             echo_classifn_dict=echo_classifn_dict,
+            plot_all_heights=plot_all_heights,
             daily_times_seconds=daily_times_seconds,
             border_latitudes_deg_n=border_latitudes_deg_n,
             border_longitudes_deg_e=border_longitudes_deg_e,
             spatial_downsampling_factor=spatial_downsampling_factor,
             expand_to_satellite_grid=expand_to_satellite_grid,
-            output_dir_name=output_dir_name
+            top_output_dir_name=top_output_dir_name
         )
 
         if i != len(input_file_names) - 1:
@@ -367,6 +409,9 @@ if __name__ == '__main__':
         ),
         first_date_string=getattr(INPUT_ARG_OBJECT, FIRST_DATE_ARG_NAME),
         last_date_string=getattr(INPUT_ARG_OBJECT, LAST_DATE_ARG_NAME),
+        plot_all_heights=bool(
+            getattr(INPUT_ARG_OBJECT, PLOT_ALL_HEIGHTS_ARG_NAME)
+        ),
         daily_times_seconds=numpy.array(
             getattr(INPUT_ARG_OBJECT, DAILY_TIMES_ARG_NAME), dtype=int
         ),
@@ -376,5 +421,5 @@ if __name__ == '__main__':
         expand_to_satellite_grid=bool(
             getattr(INPUT_ARG_OBJECT, EXPAND_GRID_ARG_NAME)
         ),
-        output_dir_name=getattr(INPUT_ARG_OBJECT, OUTPUT_DIR_ARG_NAME)
+        top_output_dir_name=getattr(INPUT_ARG_OBJECT, OUTPUT_DIR_ARG_NAME)
     )

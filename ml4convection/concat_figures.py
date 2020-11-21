@@ -168,7 +168,9 @@ def _find_input_files(
     ]
 
     refl_figure_file_names = [
-        '{0:s}/composite_reflectivity_{1:s}.jpg'.format(refl_figure_dir_name, t)
+        '{0:s}/{1:s}/{2:s}/reflectivity_{3:s}_composite.jpg'.format(
+            refl_figure_dir_name, t, t[:4], t[:10].replace('-', '')
+        )
         for t in valid_time_strings
     ]
     bad_file_names = [
