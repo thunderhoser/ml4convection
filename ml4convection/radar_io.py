@@ -46,6 +46,8 @@ ONE_PER_REFL_EXAMPLE_KEYS = [VALID_TIMES_KEY, REFLECTIVITY_KEY]
 CONVECTIVE_FLAGS_KEY = 'convective_flag_matrix'
 PEAKEDNESS_NEIGH_KEY = echo_classifn.PEAKEDNESS_NEIGH_KEY
 MAX_PEAKEDNESS_HEIGHT_KEY = echo_classifn.MAX_PEAKEDNESS_HEIGHT_KEY
+MIN_HEIGHT_FRACTION_KEY = echo_classifn.MIN_HEIGHT_FRACTION_KEY
+THIN_HEIGHT_GRID_KEY = 'thin_height_grid'
 MIN_ECHO_TOP_KEY = echo_classifn.MIN_ECHO_TOP_KEY
 ECHO_TOP_LEVEL_KEY = echo_classifn.ECHO_TOP_LEVEL_KEY
 MIN_SIZE_KEY = echo_classifn.MIN_SIZE_KEY
@@ -59,9 +61,9 @@ MAIN_ECHO_CLASSIFN_KEYS = [
     CONVECTIVE_FLAGS_KEY, VALID_TIMES_KEY, LATITUDES_KEY, LONGITUDES_KEY
 ]
 ECHO_CLASSIFN_METADATA_KEYS = [
-    PEAKEDNESS_NEIGH_KEY, MAX_PEAKEDNESS_HEIGHT_KEY, MIN_ECHO_TOP_KEY,
-    ECHO_TOP_LEVEL_KEY, MIN_SIZE_KEY, MIN_REFL_CRITERION1_KEY,
-    MIN_REFL_CRITERION5_KEY, MIN_REFLECTIVITY_AML_KEY
+    PEAKEDNESS_NEIGH_KEY, MAX_PEAKEDNESS_HEIGHT_KEY, MIN_HEIGHT_FRACTION_KEY,
+    THIN_HEIGHT_GRID_KEY, MIN_ECHO_TOP_KEY, ECHO_TOP_LEVEL_KEY, MIN_SIZE_KEY,
+    MIN_REFL_CRITERION1_KEY, MIN_REFL_CRITERION5_KEY, MIN_REFLECTIVITY_AML_KEY
 ]
 
 MASK_MATRIX_KEY = 'mask_matrix'
@@ -555,6 +557,12 @@ def write_echo_classifn_file(
     dataset_object.setncattr(
         MAX_PEAKEDNESS_HEIGHT_KEY, option_dict[MAX_PEAKEDNESS_HEIGHT_KEY]
     )
+    dataset_object.setncattr(
+        MIN_HEIGHT_FRACTION_KEY, option_dict[MIN_HEIGHT_FRACTION_KEY]
+    )
+    dataset_object.setncattr(
+        THIN_HEIGHT_GRID_KEY, option_dict[THIN_HEIGHT_GRID_KEY]
+    )
     dataset_object.setncattr(MIN_ECHO_TOP_KEY, option_dict[MIN_ECHO_TOP_KEY])
     dataset_object.setncattr(
         ECHO_TOP_LEVEL_KEY, option_dict[ECHO_TOP_LEVEL_KEY]
@@ -636,9 +644,17 @@ def read_echo_classifn_file(netcdf_file_name):
                     )
 
                 for this_key in ECHO_CLASSIFN_METADATA_KEYS:
-                    echo_classifn_dict[this_key] = getattr(
-                        dataset_object, this_key
-                    )
+                    try:
+                        echo_classifn_dict[this_key] = getattr(
+                            dataset_object, this_key
+                        )
+                    except:
+                        if this_key == MIN_HEIGHT_FRACTION_KEY:
+                            echo_classifn_dict[this_key] = 0.5
+                        elif this_key == THIN_HEIGHT_GRID_KEY:
+                            echo_classifn_dict[this_key] = False
+                        else:
+                            raise
     else:
         dataset_object = netCDF4.Dataset(netcdf_file_name)
 
@@ -648,9 +664,17 @@ def read_echo_classifn_file(netcdf_file_name):
             )
 
         for this_key in ECHO_CLASSIFN_METADATA_KEYS:
-            echo_classifn_dict[this_key] = getattr(
-                dataset_object, this_key
-            )
+            try:
+                echo_classifn_dict[this_key] = getattr(
+                    dataset_object, this_key
+                )
+            except:
+                if this_key == MIN_HEIGHT_FRACTION_KEY:
+                    echo_classifn_dict[this_key] = 0.5
+                elif this_key == THIN_HEIGHT_GRID_KEY:
+                    echo_classifn_dict[this_key] = False
+                else:
+                    raise
 
         dataset_object.close()
 

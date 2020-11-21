@@ -50,7 +50,7 @@ MELT_LEVEL_SLOPE_BY_MONTH_M_DEG01 = numpy.array(
 
 PEAKEDNESS_NEIGH_KEY = 'peakedness_neigh_metres'
 MAX_PEAKEDNESS_HEIGHT_KEY = 'max_peakedness_height_m_asl'
-HALVE_RESOLUTION_KEY = 'halve_resolution_for_peakedness'
+MIN_HEIGHT_FRACTION_KEY = 'min_height_fraction_for_peakedness'
 MIN_ECHO_TOP_KEY = 'min_echo_top_m_asl'
 ECHO_TOP_LEVEL_KEY = 'echo_top_level_dbz'
 MIN_SIZE_KEY = 'min_size_pixels'
@@ -61,7 +61,7 @@ MIN_COMPOSITE_REFL_AML_KEY = 'min_composite_refl_aml_dbz'
 DEFAULT_OPTION_DICT = {
     PEAKEDNESS_NEIGH_KEY: 12000.,
     MAX_PEAKEDNESS_HEIGHT_KEY: 9000.,
-    HALVE_RESOLUTION_KEY: False,
+    MIN_HEIGHT_FRACTION_KEY: 0.5,
     MIN_ECHO_TOP_KEY: 10000.,
     ECHO_TOP_LEVEL_KEY: 25.,
     MIN_SIZE_KEY: 5,
@@ -97,6 +97,9 @@ def _check_input_args(option_dict):
     option_dict[MAX_PEAKEDNESS_HEIGHT_KEY] = float(
         option_dict[MAX_PEAKEDNESS_HEIGHT_KEY]
     )
+    option_dict[MIN_HEIGHT_FRACTION_KEY] = float(
+        option_dict[MIN_HEIGHT_FRACTION_KEY]
+    )
     option_dict[MIN_ECHO_TOP_KEY] = int(numpy.round(
         option_dict[MIN_ECHO_TOP_KEY]
     ))
@@ -113,7 +116,8 @@ def _check_input_args(option_dict):
 
     error_checking.assert_is_greater(option_dict[PEAKEDNESS_NEIGH_KEY], 0.)
     error_checking.assert_is_greater(option_dict[MAX_PEAKEDNESS_HEIGHT_KEY], 0.)
-    error_checking.assert_is_boolean(option_dict[HALVE_RESOLUTION_KEY])
+    error_checking.assert_is_greater(option_dict[MIN_HEIGHT_FRACTION_KEY], 0.)
+    error_checking.assert_is_less_than(option_dict[MIN_HEIGHT_FRACTION_KEY], 1.)
     error_checking.assert_is_greater(option_dict[MIN_ECHO_TOP_KEY], 0)
     error_checking.assert_is_greater(option_dict[ECHO_TOP_LEVEL_KEY], 0.)
     error_checking.assert_is_greater(option_dict[MIN_SIZE_KEY], 1)
@@ -173,7 +177,7 @@ def _neigh_metres_to_rowcol(neigh_radius_metres, grid_metadata_dict):
     num_rows = 1 + 2 * int(numpy.ceil(
         neigh_radius_metres / y_spacing_metres
     ))
-    
+
     mean_latitude_deg = (
         numpy.max(grid_metadata_dict[LATITUDES_KEY]) -
         numpy.min(grid_metadata_dict[LATITUDES_KEY])
@@ -233,8 +237,8 @@ def _get_peakedness_thresholds(reflectivity_matrix_dbz):
 
 def _apply_convective_criterion1(
         reflectivity_matrix_dbz, peakedness_neigh_metres,
-        max_peakedness_height_m_asl, min_composite_refl_dbz,
-        grid_metadata_dict):
+        max_peakedness_height_m_asl, min_height_fraction,
+        min_composite_refl_dbz, grid_metadata_dict):
     """Applies criterion 1 for convective classification.
 
     Criterion 1 states: the pixel is convective if >= 50% of values in the
@@ -244,6 +248,7 @@ def _apply_convective_criterion1(
     :param reflectivity_matrix_dbz: See doc for `find_convective_pixels`.
     :param peakedness_neigh_metres: Same.
     :param max_peakedness_height_m_asl: Same.
+    :param min_height_fraction: Same.
     :param min_composite_refl_dbz: Same.  Keep in mind that this may be None.
     :param grid_metadata_dict: Dictionary with keys listed in doc for
         `find_convective_pixels`, plus the following extras.
@@ -275,11 +280,13 @@ def _apply_convective_criterion1(
         neigh_radius_metres=peakedness_neigh_metres,
         grid_metadata_dict=grid_metadata_dict
     )
+
     peakedness_matrix_dbz = _get_peakedness(
         reflectivity_matrix_dbz=this_reflectivity_matrix_dbz,
         num_rows_in_neigh=num_rows_in_neigh,
         num_columns_in_neigh=num_columns_in_neigh
     )
+
     peakedness_threshold_matrix_dbz = _get_peakedness_thresholds(
         this_reflectivity_matrix_dbz
     )
@@ -300,7 +307,7 @@ def _apply_convective_criterion1(
     fractional_exceedance_matrix = (
         numerator_matrix.astype(float) / denominator_matrix
     )
-    convective_flag_matrix = fractional_exceedance_matrix >= 0.5
+    convective_flag_matrix = fractional_exceedance_matrix >= min_height_fraction
 
     if min_composite_refl_dbz is None:
         return convective_flag_matrix
@@ -472,6 +479,10 @@ def find_convective_pixels(reflectivity_matrix_dbz, grid_metadata_dict,
         calculations (metres), used for criterion 1.
     option_dict['max_peakedness_height_m_asl'] Max height (metres above sea
         level) for peakedness calculations, used in criterion 1.
+    option_dict['min_height_fraction_for_peakedness']: Minimum fraction of
+        heights that exceed peakedness threshold, used in criterion 1.  At each
+        horizontal location, at least this fraction of heights must exceed the
+        threshold.
     option_dict['min_echo_top_m_asl'] Minimum echo top (metres above sea level),
         used for criterion 3.
     option_dict['echo_top_level_dbz'] Critical reflectivity (used to compute
@@ -500,6 +511,7 @@ def find_convective_pixels(reflectivity_matrix_dbz, grid_metadata_dict,
 
     peakedness_neigh_metres = option_dict[PEAKEDNESS_NEIGH_KEY]
     max_peakedness_height_m_asl = option_dict[MAX_PEAKEDNESS_HEIGHT_KEY]
+    min_height_fraction_for_peakedness = option_dict[MIN_HEIGHT_FRACTION_KEY]
     min_echo_top_m_asl = option_dict[MIN_ECHO_TOP_KEY]
     echo_top_level_dbz = option_dict[ECHO_TOP_LEVEL_KEY]
     min_size_pixels = option_dict[MIN_SIZE_KEY]
@@ -539,12 +551,14 @@ def find_convective_pixels(reflectivity_matrix_dbz, grid_metadata_dict,
 
     grid_metadata_dict[LATITUDES_KEY] = grid_point_latitudes_deg
     grid_metadata_dict[LONGITUDES_KEY] = grid_point_longitudes_deg
+    reflectivity_matrix_dbz[numpy.isnan(reflectivity_matrix_dbz)] = 0.
 
     print('Applying criterion 1 for convective classification...')
     convective_flag_matrix = _apply_convective_criterion1(
         reflectivity_matrix_dbz=reflectivity_matrix_dbz,
         peakedness_neigh_metres=peakedness_neigh_metres,
         max_peakedness_height_m_asl=max_peakedness_height_m_asl,
+        min_height_fraction=min_height_fraction_for_peakedness,
         min_composite_refl_dbz=min_composite_refl_criterion1_dbz,
         grid_metadata_dict=grid_metadata_dict
     )
@@ -552,7 +566,6 @@ def find_convective_pixels(reflectivity_matrix_dbz, grid_metadata_dict,
     print('Number of convective pixels = {0:d}'.format(
         numpy.sum(convective_flag_matrix)
     ))
-
     reflectivity_matrix_dbz[numpy.isnan(reflectivity_matrix_dbz)] = 0.
 
     print('Applying criterion 2 for convective classification...')
