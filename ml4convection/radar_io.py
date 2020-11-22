@@ -569,7 +569,7 @@ def write_echo_classifn_file(
         MIN_HEIGHT_FRACTION_KEY, option_dict[MIN_HEIGHT_FRACTION_KEY]
     )
     dataset_object.setncattr(
-        THIN_HEIGHT_GRID_KEY, option_dict[THIN_HEIGHT_GRID_KEY]
+        THIN_HEIGHT_GRID_KEY, int(option_dict[THIN_HEIGHT_GRID_KEY])
     )
     dataset_object.setncattr(MIN_ECHO_TOP_KEY, option_dict[MIN_ECHO_TOP_KEY])
     dataset_object.setncattr(
