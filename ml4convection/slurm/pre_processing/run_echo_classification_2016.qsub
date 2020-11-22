@@ -37,4 +37,4 @@ python3 -u "${CODE_DIR_NAME}/run_echo_classification.py" \
 --min_height_fraction_for_peakedness=0.59 \
 --thin_height_grid=1 \
 --min_size_pixels=10 \
---output_dir_name="${RADAR_DIR_NAME}"
+--output_dir_name="${OUTPUT_DIR_NAME}"

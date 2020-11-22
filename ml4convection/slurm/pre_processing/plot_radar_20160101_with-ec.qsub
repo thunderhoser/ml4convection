@@ -26,15 +26,15 @@ conda activate base
 
 set CODE_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_standalone/ml4convection"
 set RADAR_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_project/radar_data"
-set ECHO_CLASSIFN_DIR_NAME="${RADAR_DIR_NAME}/echo_classification/before_tracking"
+# set ECHO_CLASSIFN_DIR_NAME="${RADAR_DIR_NAME}/echo_classification/before_tracking"
 
 python3 -u "${CODE_DIR_NAME}/plot_radar.py" \
 --input_reflectivity_dir_name="${RADAR_DIR_NAME}" \
---input_echo_classifn_dir_name="${ECHO_CLASSIFN_DIR_NAME}" \
+--input_echo_classifn_dir_name="${RADAR_DIR_NAME}" \
 --first_date_string="20160101" \
 --last_date_string="20160101" \
 --plot_all_heights=0 \
 --daily_times_seconds 79200 79800 80400 81000 81600 82200 82800 83400 84000 84600 85200 85800 \
 --spatial_downsampling_factor=1 \
 --expand_to_satellite_grid=1 \
---output_dir_name="${RADAR_DIR_NAME}/radar_plots"
+--output_dir_name="${RADAR_DIR_NAME}/radar_plots/with_ec"
