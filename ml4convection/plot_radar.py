@@ -51,8 +51,8 @@ REFLECTIVITY_DIR_HELP_STRING = (
 ECHO_CLASSIFN_DIR_HELP_STRING = (
     'Name of directory with echo-classification data (files therein will be '
     'found by `radar_io.find_file` and read by '
-    '`radar_io.read_echo_classifn_file`).  If specified, will plot only '
-    'convective pixels.'
+    '`radar_io.read_echo_classifn_file`).  If specified, will plot stippling '
+    'over convective pixels.'
 ).format(REFLECTIVITY_DIR_ARG_NAME)
 
 DATE_HELP_STRING = (
@@ -116,11 +116,13 @@ INPUT_ARG_PARSER.add_argument(
 
 
 def _plot_radar_one_time(
-        reflectivity_dict, example_index, border_latitudes_deg_n,
-        border_longitudes_deg_e, plot_all_heights, output_dir_name):
+        reflectivity_dict, echo_classifn_dict, example_index,
+        border_latitudes_deg_n, border_longitudes_deg_e, plot_all_heights,
+        output_dir_name):
     """Plots radar images for one time step.
 
     :param reflectivity_dict: See doc for `_plot_radar_one_day`.
+    :param echo_classifn_dict: Same.
     :param example_index: Will plot [i]th example, where i = `example_index`.
     :param border_latitudes_deg_n: See doc for `_plot_radar_one_day`.
     :param border_longitudes_deg_e: Same.
@@ -181,6 +183,22 @@ def _plot_radar_one_time(
             latitude_spacing_deg=numpy.diff(latitudes_deg_n[:2])[0],
             longitude_spacing_deg=numpy.diff(longitudes_deg_e[:2])[0]
         )
+
+        if echo_classifn_dict is not None:
+            convective_flag_matrix = echo_classifn_dict[
+                radar_io.CONVECTIVE_FLAGS_KEY
+            ][example_index, ...]
+
+            row_indices, column_indices = numpy.where(convective_flag_matrix)
+            positive_latitudes_deg_n = latitudes_deg_n[row_indices]
+            positive_longitudes_deg_e = longitudes_deg_e[column_indices]
+
+            plotting_utils.plot_stippling(
+                x_coords=positive_longitudes_deg_e,
+                y_coords=positive_latitudes_deg_n,
+                figure_object=figure_object, axes_object=axes_object,
+                num_grid_columns=convective_flag_matrix.shape[1]
+            )
 
         gg_plotting_utils.plot_colour_bar(
             axes_object_or_matrix=axes_object, data_matrix=matrix_to_plot,
@@ -245,28 +263,27 @@ def _plot_radar_one_day(
             echo_classifn_dict[radar_io.VALID_TIMES_KEY]
         )
 
-        num_heights = len(reflectivity_dict[radar_io.HEIGHTS_KEY])
-        convective_flag_matrix = numpy.expand_dims(
-            echo_classifn_dict[radar_io.CONVECTIVE_FLAGS_KEY], axis=-1
-        )
-        convective_flag_matrix = numpy.repeat(
-            convective_flag_matrix, axis=-1, repeats=num_heights
-        )
-
-        reflectivity_dict[radar_io.REFLECTIVITY_KEY][
-            convective_flag_matrix == False
-        ] = 0.
-
     if expand_to_satellite_grid:
         reflectivity_dict = radar_io.expand_to_satellite_grid(
             any_radar_dict=reflectivity_dict, fill_nans=True
         )
+
+        if echo_classifn_dict is not None:
+            echo_classifn_dict = radar_io.expand_to_satellite_grid(
+                any_radar_dict=echo_classifn_dict, fill_nans=True
+            )
 
     if spatial_downsampling_factor is not None:
         reflectivity_dict = radar_io.downsample_in_space(
             any_radar_dict=reflectivity_dict,
             downsampling_factor=spatial_downsampling_factor
         )
+
+        if echo_classifn_dict is not None:
+            echo_classifn_dict = radar_io.downsample_in_space(
+                any_radar_dict=echo_classifn_dict,
+                downsampling_factor=spatial_downsampling_factor
+            )
 
     valid_times_unix_sec = reflectivity_dict[radar_io.VALID_TIMES_KEY]
     base_time_unix_sec = number_rounding.floor_to_nearest(
@@ -289,6 +306,12 @@ def _plot_radar_one_day(
         desired_times_unix_sec=desired_times_unix_sec
     )[0]
 
+    if echo_classifn_dict is not None:
+        echo_classifn_dict = radar_io.subset_by_time(
+            refl_or_echo_classifn_dict=echo_classifn_dict,
+            desired_times_unix_sec=desired_times_unix_sec
+        )[0]
+
     date_string = time_conversion.unix_sec_to_string(
         desired_times_unix_sec[0], DATE_FORMAT
     )
@@ -303,7 +326,8 @@ def _plot_radar_one_day(
 
     for i in range(num_times):
         _plot_radar_one_time(
-            reflectivity_dict=reflectivity_dict, example_index=i,
+            reflectivity_dict=reflectivity_dict,
+            echo_classifn_dict=echo_classifn_dict, example_index=i,
             border_latitudes_deg_n=border_latitudes_deg_n,
             border_longitudes_deg_e=border_longitudes_deg_e,
             plot_all_heights=plot_all_heights,

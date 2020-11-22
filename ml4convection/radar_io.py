@@ -686,6 +686,9 @@ def read_echo_classifn_file(netcdf_file_name):
 
         dataset_object.close()
 
+    echo_classifn_dict[THIN_HEIGHT_GRID_KEY] = bool(
+        echo_classifn_dict[THIN_HEIGHT_GRID_KEY]
+    )
     echo_classifn_dict[CONVECTIVE_FLAGS_KEY] = (
         echo_classifn_dict[CONVECTIVE_FLAGS_KEY].astype(bool)
     )
