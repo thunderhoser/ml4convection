@@ -17,6 +17,10 @@ DEFAULT_BORDER_WIDTH = 2.
 DEFAULT_BORDER_Z_ORDER = -1e8
 DEFAULT_BORDER_COLOUR = numpy.array([139, 69, 19], dtype=float) / 255
 
+MARKER_TYPE = 'o'
+DEFAULT_MARKER_SIZE_GRID_CELLS = 0.45
+DEFAULT_MARKER_COLOUR = numpy.full(3, 0.)
+
 DEFAULT_FONT_SIZE = 30
 pyplot.rc('font', size=DEFAULT_FONT_SIZE)
 pyplot.rc('axes', titlesize=DEFAULT_FONT_SIZE)
@@ -151,4 +155,47 @@ def plot_borders(
     axes_object.plot(
         border_longitudes_deg_e, border_latitudes_deg_n, color=line_colour,
         linestyle='solid', linewidth=line_width, zorder=z_order
+    )
+
+
+def plot_stippling(
+        x_coords, y_coords, figure_object, axes_object, num_grid_columns,
+        marker_size_grid_cells=DEFAULT_MARKER_SIZE_GRID_CELLS,
+        marker_colour=DEFAULT_MARKER_COLOUR):
+    """Plots stippling (dots) at given coordinates.
+
+    D = number of dots to plot
+
+    :param x_coords: length-D numpy array of x-coordinates (in plotting units).
+    :param y_coords: Same but for y-coordinates.
+    :param figure_object: Figure handle (instance of
+        `matplotlib.figure.Figure`).
+    :param axes_object: Axes handle (instance of
+        `matplotlib.axes._subplots.AxesSubplot`).
+    :param num_grid_columns: Number of columns in data grid (NOT equal to number
+        of pixel columns in image).
+    :param marker_size_grid_cells: Marker size (number of grid cells, which is
+        NOT equal to number of pixels in image).
+    :param marker_colour: Marker colour.
+    """
+
+    error_checking.assert_is_numpy_array_without_nan(x_coords)
+    error_checking.assert_is_numpy_array(x_coords, num_dimensions=1)
+
+    these_dim = numpy.array([len(x_coords)], dtype=int)
+    error_checking.assert_is_numpy_array_without_nan(y_coords)
+    error_checking.assert_is_numpy_array(y_coords, exact_dimensions=these_dim)
+
+    error_checking.assert_is_integer(num_grid_columns)
+    error_checking.assert_is_geq(num_grid_columns, 2)
+    error_checking.assert_is_greater(marker_size_grid_cells, 0.)
+    error_checking.assert_is_less_than(marker_size_grid_cells, 1.)
+
+    figure_width_px = figure_object.get_size_inches()[0] * figure_object.dpi
+    marker_size_px = figure_width_px * marker_size_grid_cells / num_grid_columns
+
+    axes_object.plot(
+        x_coords, y_coords, linestyle='None', marker=MARKER_TYPE,
+        markersize=marker_size_px, markeredgewidth=0,
+        markerfacecolor=marker_colour, markeredgecolor=marker_colour
     )

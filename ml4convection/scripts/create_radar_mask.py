@@ -126,7 +126,7 @@ def _run(count_dir_name, max_height_m_asl, min_observations,
     option_dict = {
         radar_io.MAX_MASK_HEIGHT_KEY: max_height_m_asl,
         radar_io.MIN_OBSERVATIONS_KEY: min_observations,
-        radar_io.MIN_HEIGHT_FRACTION_KEY: min_height_fraction
+        radar_io.MIN_HEIGHT_FRACTION_FOR_MASK_KEY: min_height_fraction
     }
     radar_io.check_mask_options(option_dict)
 
