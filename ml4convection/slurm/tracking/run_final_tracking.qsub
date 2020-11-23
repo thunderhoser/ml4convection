@@ -1,0 +1,33 @@
+#!/usr/bin/bash
+
+#SBATCH --job-name="run_final_tracking"
+#SBATCH --ntasks=1
+#SBATCH --nodes=1
+#SBATCH --mem=8G
+#SBATCH --partition="normal"
+#SBATCH --time=24:00:00
+#SBATCH --array=0-67
+#SBATCH --mail-type=BEGIN,END,FAIL
+#SBATCH --mail-user=ryan.lagerquist@ou.edu
+#SBATCH --output=run_final_tracking_%A_%a.out
+
+TOP_INPUT_DIR_NAME="/condo/swatwork/ralager/taiwan/radar_data/storm_tracking/prelim"
+TOP_OUTPUT_DIR_NAME="/condo/swatwork/ralager/taiwan/radar_data/storm_tracking/final"
+
+FIRST_SPC_DATE_STRINGS=("20151231" "20160113" "20160126" "20160210" "20160223" "20160314" "20160325" "20160416" "20160501" "20160517" "20160531" "20160615" "20160623" "20160715" "20160727" "20160804" "20160822" "20161003" "20161022" "20161107" "20161121" "20161204" "20161216" "20161228" "20170110" "20170124" "20170206" "20170219" "20170305" "20170318" "20170401" "20170414" "20170428" "20170520" "20170604" "20170624" "20170710" "20170722" "20170804" "20170813" "20170915" "20170926" "20171017" "20171031" "20171113" "20171127" "20171209" "20171224" "20180106" "20180119" "20180202" "20180215" "20180301" "20180314" "20180331" "20180417" "20180501" "20180515" "20180525" "20180624" "20180709" "20180903" "20180926" "20181012" "20181025" "20181108" "20181122" "20181207")
+LAST_SPC_DATE_STRINGS=("20160112" "20160125" "20160209" "20160222" "20160313" "20160324" "20160415" "20160430" "20160516" "20160530" "20160614" "20160622" "20160714" "20160726" "20160803" "20160821" "20161002" "20161021" "20161106" "20161120" "20161203" "20161215" "20161227" "20170109" "20170123" "20170205" "20170218" "20170304" "20170317" "20170331" "20170413" "20170427" "20170519" "20170603" "20170623" "20170709" "20170721" "20170803" "20170812" "20170914" "20170925" "20171016" "20171030" "20171112" "20171126" "20171208" "20171223" "20180105" "20180118" "20180201" "20180214" "20180228" "20180313" "20180330" "20180416" "20180430" "20180514" "20180524" "20180623" "20180708" "20180902" "20180925" "20181011" "20181024" "20181107" "20181121" "20181206" "20181231")
+
+this_first_date_string=${FIRST_SPC_DATE_STRINGS[$SLURM_ARRAY_TASK_ID]}
+this_last_date_string=${LAST_SPC_DATE_STRINGS[$SLURM_ARRAY_TASK_ID]}
+echo "Array index = ${SLURM_ARRAY_TASK_ID} ... SPC dates = ${this_first_date_string} to ${this_last_date_string}"
+
+/home/ralager/anaconda3/bin/python3.6 -u "/condo/swatwork/ralager/gg_master/gewittergefahr/scripts/reanalyze_storm_tracks.py" \
+--input_tracking_dir_name="${TOP_INPUT_DIR_NAME}" \
+--first_spc_date_string="${this_first_date_string}" \
+--last_spc_date_string="${this_last_date_string}" \
+--max_velocity_diff_m_s01=30 \
+--max_link_distance_m_s01=38.5833333333333 \
+--max_join_time_seconds=1200 \
+--max_join_error_m_s01=30 \
+--min_duration_seconds=1200 \
+--output_tracking_dir_name="${TOP_OUTPUT_DIR_NAME}"
