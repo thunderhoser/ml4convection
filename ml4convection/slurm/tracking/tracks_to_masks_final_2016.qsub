@@ -1,6 +1,6 @@
 #!/usr/bin/bash
 
-#SBATCH --job-name="tracks_to_convection_masks_2016"
+#SBATCH --job-name="tracks_to_masks_final_2016"
 #SBATCH --ntasks=1
 #SBATCH --nodes=1
 #SBATCH --mem=8G
@@ -9,7 +9,7 @@
 #SBATCH --array=0-365
 #SBATCH --mail-type=BEGIN,END,FAIL
 #SBATCH --mail-user=ryan.lagerquist@ou.edu
-#SBATCH --output=tracks_to_convection_masks_2016_%A_%a.out
+#SBATCH --output=tracks_to_masks_final_2016_%A_%a.out
 
 TOP_RADAR_DIR_NAME="/condo/swatwork/ralager/taiwan/radar_data"
 TOP_TRACKING_DIR_NAME="${TOP_RADAR_DIR_NAME}/storm_tracking/final"
