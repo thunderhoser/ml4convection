@@ -14,6 +14,6 @@ TOP_TRACKING_DIR_NAME="/condo/swatwork/ralager/taiwan/radar_data/storm_tracking/
 
 /home/ralager/anaconda3/bin/python3.6 -u "/condo/swatwork/ralager/gg_master/gewittergefahr/scripts/find_storm_tracking_gaps.py" \
 --top_tracking_dir_name="${TOP_TRACKING_DIR_NAME}" \
---first_spc_date_string="20160101" \
+--first_spc_date_string="20151231" \
 --last_spc_date_string="20181231" \
 --min_time_diff_seconds=1800
