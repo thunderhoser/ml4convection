@@ -40,7 +40,6 @@ CONVECTIVE_FLAGS_KEY = 'convective_flag_matrix'
 PEAKEDNESS_NEIGH_KEY = echo_classifn.PEAKEDNESS_NEIGH_KEY
 MAX_PEAKEDNESS_HEIGHT_KEY = echo_classifn.MAX_PEAKEDNESS_HEIGHT_KEY
 MIN_HEIGHT_FRACTION_KEY = echo_classifn.MIN_HEIGHT_FRACTION_KEY
-print(MIN_HEIGHT_FRACTION_KEY)
 THIN_HEIGHT_GRID_KEY = 'thin_height_grid'
 MIN_ECHO_TOP_KEY = echo_classifn.MIN_ECHO_TOP_KEY
 ECHO_TOP_LEVEL_KEY = echo_classifn.ECHO_TOP_LEVEL_KEY
@@ -49,7 +48,7 @@ MIN_REFL_CRITERION1_KEY = echo_classifn.MIN_COMPOSITE_REFL_CRITERION1_KEY
 MIN_REFL_CRITERION5_KEY = echo_classifn.MIN_COMPOSITE_REFL_CRITERION5_KEY
 MIN_REFLECTIVITY_AML_KEY = echo_classifn.MIN_COMPOSITE_REFL_AML_KEY
 
-ONE_PER_EC_EXAMPLE_KEYS = [CONVECTIVE_FLAGS_KEY, REFLECTIVITY_KEY]
+ONE_PER_EC_EXAMPLE_KEYS = [VALID_TIMES_KEY, CONVECTIVE_FLAGS_KEY]
 
 MAIN_ECHO_CLASSIFN_KEYS = [
     CONVECTIVE_FLAGS_KEY, VALID_TIMES_KEY, LATITUDES_KEY, LONGITUDES_KEY
@@ -562,7 +561,7 @@ def write_echo_classifn_file(
         MIN_HEIGHT_FRACTION_KEY, option_dict[MIN_HEIGHT_FRACTION_KEY]
     )
     dataset_object.setncattr(
-        THIN_HEIGHT_GRID_KEY, option_dict[THIN_HEIGHT_GRID_KEY]
+        THIN_HEIGHT_GRID_KEY, int(option_dict[THIN_HEIGHT_GRID_KEY])
     )
     dataset_object.setncattr(MIN_ECHO_TOP_KEY, option_dict[MIN_ECHO_TOP_KEY])
     dataset_object.setncattr(
@@ -679,6 +678,9 @@ def read_echo_classifn_file(netcdf_file_name):
 
         dataset_object.close()
 
+    echo_classifn_dict[THIN_HEIGHT_GRID_KEY] = bool(
+        echo_classifn_dict[THIN_HEIGHT_GRID_KEY]
+    )
     echo_classifn_dict[CONVECTIVE_FLAGS_KEY] = (
         echo_classifn_dict[CONVECTIVE_FLAGS_KEY].astype(bool)
     )

@@ -6,7 +6,7 @@
 #SBATCH --mem=16G
 #SBATCH --partition="normal"
 #SBATCH --time=04:00:00
-#SBATCH --array=128-365
+#SBATCH --array=33,67,102,131,147,156,161
 #SBATCH --mail-type=BEGIN,END,FAIL
 #SBATCH --mail-user=ryan.lagerquist@ou.edu
 #SBATCH --output=run_prelim_tracking_2018_patch_%A_%a.out
