@@ -45,12 +45,21 @@ set conv_layer_dropout_string=`printf "%.3f" $conv_layer_dropout_rate`
 set l2_weight_string=`printf "%.6f" $l2_weight`
 
 set model_dir_name="${TOP_MODEL_DIR_NAME}/fss-half-window-size-px=${half_window_size_string}_conv-dropout=${conv_layer_dropout_string}_l2-weight=${l2_weight_string}"
-set evaluation_dir_name="${model_dir_name}/validation/partial_grids/evaluation"
+set top_evaluation_dir_name="${model_dir_name}/validation/partial_grids/evaluation"
 
-python3 -u "${CODE_DIR_NAME}/compute_advanced_scores_ungridded.py" \
---input_basic_score_dir_name="${evaluation_dir_name}" \
---first_date_string="${FIRST_VALIDN_DATE_STRING}" \
---last_date_string="${LAST_VALIDN_DATE_STRING}" \
---use_partial_grids=1 \
---input_climo_file_name="${TOP_TARGET_DIR_NAME}/climo_dilation-distance-px=2.000000.p" \
---output_dir_name="${evaluation_dir_name}"
+set MATCHING_DISTANCES_PX=("1.000000" "2.000000" "3.000000" "4.000000")
+set j=1
+
+while ($j <= ${#MATCHING_DISTANCES_PX})
+    set evaluation_dir_name="${top_evaluation_dir_name}/matching_distance_px=${MATCHING_DISTANCES_PX[$j]}"
+
+    python3 -u "${CODE_DIR_NAME}/compute_advanced_scores_ungridded.py" \
+    --input_basic_score_dir_name="${evaluation_dir_name}" \
+    --first_date_string="${FIRST_VALIDN_DATE_STRING}" \
+    --last_date_string="${LAST_VALIDN_DATE_STRING}" \
+    --use_partial_grids=1 \
+    --input_climo_file_name="${TOP_TARGET_DIR_NAME}/climo_dilation-distance-px=${MATCHING_DISTANCES_PX[$j]}.p" \
+    --output_dir_name="${evaluation_dir_name}"
+
+    @ j = $j + 1
+end

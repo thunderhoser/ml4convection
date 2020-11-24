@@ -41,9 +41,17 @@ set conv_layer_dropout_string=`printf "%.3f" $conv_layer_dropout_rate`
 set l2_weight_string=`printf "%.6f" $l2_weight`
 
 set model_dir_name="${TOP_MODEL_DIR_NAME}/fss-half-window-size-px=${half_window_size_string}_conv-dropout=${conv_layer_dropout_string}_l2-weight=${l2_weight_string}"
-set advanced_score_file_name="${model_dir_name}/validation/partial_grids/evaluation/advanced_scores_gridded=0.p"
-set output_dir_name="${model_dir_name}/validation/partial_grids/evaluation/advanced_scores_gridded=0"
 
-python3 -u "${CODE_DIR_NAME}/plot_evaluation.py" \
---input_advanced_score_file_name="${advanced_score_file_name}" \
---output_dir_name="${output_dir_name}"
+set MATCHING_DISTANCES_PX=("1.000000" "2.000000" "3.000000" "4.000000")
+set j=1
+
+while ($j <= ${#MATCHING_DISTANCES_PX})
+    set output_dir_name="${model_dir_name}/validation/partial_grids/evaluation/matching_distance_px=${MATCHING_DISTANCES_PX[$j]}/advanced_scores_gridded=0"
+    set advanced_score_file_name="${output_dir_name}.p"
+
+    python3 -u "${CODE_DIR_NAME}/plot_evaluation.py" \
+    --input_advanced_score_file_name="${advanced_score_file_name}" \
+    --output_dir_name="${output_dir_name}"
+
+    @ j = $j + 1
+end

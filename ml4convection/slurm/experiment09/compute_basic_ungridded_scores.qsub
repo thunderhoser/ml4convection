@@ -43,11 +43,11 @@ set l2_weight_string=`printf "%.6f" $l2_weight`
 set model_dir_name="${TOP_MODEL_DIR_NAME}/fss-half-window-size-px=${half_window_size_string}_conv-dropout=${conv_layer_dropout_string}_l2-weight=${l2_weight_string}"
 set prediction_dir_name="${model_dir_name}/validation/partial_grids"
 
-python3 -u "${CODE_DIR_NAME}/compute_basic_scores.py" \
+python3 -u "${CODE_DIR_NAME}/compute_basic_scores_ungridded.py" \
 --input_prediction_dir_name="${prediction_dir_name}" \
 --first_date_string="20170101" \
 --last_date_string="20171224" \
 --use_partial_grids=1 \
---matching_distance_px=2 \
+--matching_distances_px 1 2 3 4 \
 --num_prob_thresholds=21 \
 --output_dir_name="${prediction_dir_name}/evaluation"
