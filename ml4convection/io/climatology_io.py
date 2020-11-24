@@ -44,16 +44,14 @@ def write_file(
     """
 
     # Check input args.
-    error_checking.assert_is_greater(event_frequency_overall, 0.)
+    error_checking.assert_is_geq(event_frequency_overall, 0.)
     error_checking.assert_is_less_than(event_frequency_overall, 1.)
 
     error_checking.assert_is_numpy_array(
         event_frequency_by_hour,
         exact_dimensions=numpy.array([NUM_HOURS_PER_DAY], dtype=int)
     )
-    error_checking.assert_is_greater_numpy_array(
-        event_frequency_by_hour, 0.
-    )
+    error_checking.assert_is_geq_numpy_array(event_frequency_by_hour, 0.)
     error_checking.assert_is_less_than_numpy_array(
         event_frequency_by_hour, 1.
     )
@@ -62,9 +60,7 @@ def write_file(
         event_frequency_by_month,
         exact_dimensions=numpy.array([NUM_MONTHS_PER_YEAR], dtype=int)
     )
-    error_checking.assert_is_greater_numpy_array(
-        event_frequency_by_month, 0.
-    )
+    error_checking.assert_is_geq_numpy_array(event_frequency_by_month, 0.)
     error_checking.assert_is_less_than_numpy_array(
         event_frequency_by_month, 1.
     )
@@ -72,7 +68,7 @@ def write_file(
     error_checking.assert_is_numpy_array(
         event_frequency_by_pixel, num_dimensions=2
     )
-    error_checking.assert_is_greater_numpy_array(
+    error_checking.assert_is_geq_numpy_array(
         event_frequency_by_pixel, 0., allow_nan=True
     )
     error_checking.assert_is_less_than_numpy_array(

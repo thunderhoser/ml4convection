@@ -1589,12 +1589,11 @@ class EvaluationTests(unittest.TestCase):
         """Ensures correct output from get_basic_scores_gridded."""
 
         this_score_table_xarray = evaluation.get_basic_scores_gridded(
-            prediction_file_name=None,
+            prediction_dict=PREDICTION_DICT,
             matching_distance_px=MATCHING_DISTANCE_PX,
             probability_thresholds=PROB_THRESHOLDS,
             training_event_freq_matrix=FIRST_TRAINING_FREQ_MATRIX,
-            square_fss_filter=SQUARE_FSS_FILTER,
-            test_mode=True, prediction_dict=PREDICTION_DICT,
+            square_fss_filter=SQUARE_FSS_FILTER, test_mode=True,
             eval_mask_matrix=MASK_MATRIX, model_file_name=MODEL_FILE_NAME
         )
 
@@ -1677,12 +1676,11 @@ class EvaluationTests(unittest.TestCase):
         """Ensures correct output from get_basic_scores_ungridded."""
 
         this_score_table_xarray = evaluation.get_basic_scores_ungridded(
-            prediction_file_name=None,
+            prediction_dict=PREDICTION_DICT,
             matching_distance_px=MATCHING_DISTANCE_PX,
             probability_thresholds=PROB_THRESHOLDS,
             square_fss_filter=SQUARE_FSS_FILTER,
-            num_bins_for_reliability=NUM_BINS_FOR_RELIABILITY,
-            test_mode=True, prediction_dict=PREDICTION_DICT,
+            num_bins_for_reliability=NUM_BINS_FOR_RELIABILITY, test_mode=True,
             eval_mask_matrix=MASK_MATRIX, model_file_name=MODEL_FILE_NAME
         )
 

@@ -468,16 +468,66 @@ def _init_basic_score_table(
     return xarray.Dataset(data_vars=main_data_dict, coords=metadata_dict)
 
 
+def _find_eval_mask(prediction_dict):
+    """Finds evaluation mask for set of predictions.
+
+    M = number of rows in grid
+    N = number of columns in grid
+
+    :param prediction_dict: Dictionary with predicted and actual values (in
+        format returned by `prediction_io.read_file`).
+    :return: mask_matrix: M-by-N numpy array of Boolean flags, where True means
+        the grid cell is unmasked.
+    :return: model_file_name: Path to model that generated predictions.
+    :raises: ValueError: if cannot find evaluation mask.
+    """
+
+    forecast_prob_matrix = (
+        prediction_dict[prediction_io.PROBABILITY_MATRIX_KEY]
+    )
+    num_pixels = numpy.prod(forecast_prob_matrix.shape[1:])
+
+    model_file_name = prediction_dict[prediction_io.MODEL_FILE_KEY]
+    metafile_name = neural_net.find_metafile(
+        model_file_name=model_file_name, raise_error_if_missing=True
+    )
+
+    print('Reading model metadata from: "{0:s}"...'.format(
+        metafile_name
+    ))
+    metadata_dict = neural_net.read_metafile(metafile_name)
+
+    if metadata_dict[neural_net.FULL_MASK_MATRIX_KEY].size == num_pixels:
+        mask_matrix = metadata_dict[neural_net.FULL_MASK_MATRIX_KEY]
+    elif metadata_dict[neural_net.MASK_MATRIX_KEY].size == num_pixels:
+        mask_matrix = metadata_dict[neural_net.MASK_MATRIX_KEY]
+    else:
+        error_string = (
+            'Cannot find mask for predictions with {0:d} rows x {1:d} '
+            'columns.  Only masks available are {2:d} x {3:d} and '
+            '{4:d} x {5:d}.'
+        ).format(
+            forecast_prob_matrix.shape[1], forecast_prob_matrix.shape[2],
+            metadata_dict[neural_net.FULL_MASK_MATRIX_KEY].shape[1],
+            metadata_dict[neural_net.FULL_MASK_MATRIX_KEY].shape[2],
+            metadata_dict[neural_net.MASK_MATRIX_KEY].shape[1],
+            metadata_dict[neural_net.MASK_MATRIX_KEY].shape[2]
+        )
+
+        raise ValueError(error_string)
+
+    return mask_matrix, model_file_name
+
+
 def get_basic_scores_ungridded(
-        prediction_file_name, matching_distance_px, probability_thresholds,
+        prediction_dict, matching_distance_px, probability_thresholds,
         square_fss_filter=True,
         num_bins_for_reliability=DEFAULT_NUM_BINS_FOR_RELIABILITY,
-        test_mode=False, prediction_dict=None, eval_mask_matrix=None,
-        model_file_name=None):
+        test_mode=False, eval_mask_matrix=None, model_file_name=None):
     """Computes basic scores for full domain (aggregated in space).
 
-    :param prediction_file_name: Path to input file (will be read by
-        `prediction_io.read_file`).
+    :param prediction_dict: Dictionary with predicted and actual values (in
+        format returned by `prediction_io.read_file`).
     :param matching_distance_px: Matching distance (pixels) for neighbourhood
         evaluation.
     :param probability_thresholds: 1-D numpy array of probability thresholds.
@@ -487,7 +537,6 @@ def get_basic_scores_ungridded(
         not be "squared" -- i.e., some values in the matrix might be zero.
     :param num_bins_for_reliability: Number of bins for reliability curve.
     :param test_mode: Leave this alone.
-    :param prediction_dict: Leave this alone.
     :param eval_mask_matrix: Leave this alone.
     :param model_file_name: Leave this alone.
     :return: basic_score_table_xarray: xarray table with results (variable
@@ -497,30 +546,7 @@ def get_basic_scores_ungridded(
     error_checking.assert_is_boolean(test_mode)
 
     if not test_mode:
-        print('Reading data from: "{0:s}"...'.format(prediction_file_name))
-        prediction_dict = prediction_io.read_file(prediction_file_name)
-        radar_number = (
-            prediction_io.file_name_to_radar_number(prediction_file_name)
-        )
-
-        model_file_name = prediction_dict[prediction_io.MODEL_FILE_KEY]
-        model_metafile_name = neural_net.find_metafile(
-            model_file_name=model_file_name, raise_error_if_missing=True
-        )
-
-        print('Reading model metadata from: "{0:s}"...'.format(
-            model_metafile_name
-        ))
-        model_metadata_dict = neural_net.read_metafile(model_metafile_name)
-
-        if radar_number is None:
-            eval_mask_matrix = (
-                model_metadata_dict[neural_net.FULL_MASK_MATRIX_KEY]
-            )
-        else:
-            eval_mask_matrix = (
-                model_metadata_dict[neural_net.MASK_MATRIX_KEY]
-            )
+        eval_mask_matrix, model_file_name = _find_eval_mask(prediction_dict)
 
     # Check input args.
     general_utils.check_2d_binary_matrix(eval_mask_matrix)
@@ -666,16 +692,15 @@ def get_basic_scores_ungridded(
 
 
 def get_basic_scores_gridded(
-        prediction_file_name, matching_distance_px, probability_thresholds,
+        prediction_dict, matching_distance_px, probability_thresholds,
         training_event_freq_matrix, square_fss_filter=True,
-        test_mode=False, prediction_dict=None, eval_mask_matrix=None,
-        model_file_name=None):
+        test_mode=False, eval_mask_matrix=None, model_file_name=None):
     """Computes basic scores on grid (one set of scores for each grid point).
 
     M = number of rows in grid
     N = number of columns in grid
 
-    :param prediction_file_name: See doc for `get_basic_scores_ungridded`.
+    :param prediction_dict: See doc for `get_basic_scores_ungridded`.
     :param matching_distance_px: Same.
     :param probability_thresholds: 1-D numpy array of probability thresholds for
         contingency tables.
@@ -693,30 +718,7 @@ def get_basic_scores_gridded(
     error_checking.assert_is_boolean(test_mode)
 
     if not test_mode:
-        print('Reading data from: "{0:s}"...'.format(prediction_file_name))
-        prediction_dict = prediction_io.read_file(prediction_file_name)
-        radar_number = (
-            prediction_io.file_name_to_radar_number(prediction_file_name)
-        )
-
-        model_file_name = prediction_dict[prediction_io.MODEL_FILE_KEY]
-        model_metafile_name = neural_net.find_metafile(
-            model_file_name=model_file_name, raise_error_if_missing=True
-        )
-
-        print('Reading model metadata from: "{0:s}"...'.format(
-            model_metafile_name
-        ))
-        model_metadata_dict = neural_net.read_metafile(model_metafile_name)
-
-        if radar_number is None:
-            eval_mask_matrix = (
-                model_metadata_dict[neural_net.FULL_MASK_MATRIX_KEY]
-            )
-        else:
-            eval_mask_matrix = (
-                model_metadata_dict[neural_net.MASK_MATRIX_KEY]
-            )
+        eval_mask_matrix, model_file_name = _find_eval_mask(prediction_dict)
 
     # Check input args.
     general_utils.check_2d_binary_matrix(eval_mask_matrix)

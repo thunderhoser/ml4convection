@@ -113,7 +113,7 @@ def _run(top_echo_classifn_dir_name, first_date_string, last_date_string,
     )
 
     colour_map_object = pyplot.get_cmap('viridis')
-    max_colour_value = numpy.percentile(convective_freq_matrix, 99.)
+    max_colour_value = numpy.max(convective_freq_matrix)
     colour_norm_object = pyplot.Normalize(vmin=0., vmax=max_colour_value)
 
     radar_plotting.plot_latlng_grid(
