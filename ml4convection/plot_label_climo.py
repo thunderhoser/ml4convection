@@ -2,6 +2,7 @@
 
 import os
 import sys
+import pickle
 import argparse
 import numpy
 import matplotlib
@@ -159,6 +160,15 @@ def _run(top_echo_classifn_dir_name, first_date_string, last_date_string,
         pad_inches=0, bbox_inches='tight'
     )
     pyplot.close(figure_object)
+
+    pickle_file_name = output_file_name.replace('.jpg', '.p')
+    print(numpy.mean(convective_freq_matrix))
+    print(numpy.median(convective_freq_matrix))
+    print(numpy.max(convective_freq_matrix))
+
+    pickle_file_handle = open(pickle_file_name, 'wb')
+    pickle.dump(convective_freq_matrix, pickle_file_handle)
+    pickle_file_handle.close()
 
 
 if __name__ == '__main__':
