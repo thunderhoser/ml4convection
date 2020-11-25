@@ -1,37 +1,35 @@
 #!/bin/tcsh
 
-#SBATCH --job-name="apply_neural_nets_90"
+#SBATCH --job-name="train_neural_nets_patch"
 #SBATCH --partition="fge"
 #SBATCH --account="rda-ghpcs"
 #SBATCH --qos="batch"
-#SBATCH --ntasks=1
 #SBATCH --nodes=1
-#SBATCH --cpus-per-task=1
-#SBATCH --mem=32G
-##SBATCH --nodes=1
-##SBATCH --ntasks=1
-##SBATCH --cpus-per-task=1
-##SBATCH --ntasks-per-node=1
-#SBATCH --time=12:00:00
-#SBATCH --array=90
+#SBATCH --ntasks=8           # 8 tasks per node
+#SBATCH --cpus-per-task=2
+#SBATCH --ntasks-per-node=8  # 8 GPUs per node
+#SBATCH --exclusive
+#SBATCH --time=24:00:00
+#SBATCH --array=36,93,100,102,103,105-110,113-116,119,13,25,53,58,5,63,69,70,72,77,78,81,83,84,87,88,91,94,97,98
 #SBATCH --exclude=h28n12
 ##SBATCH --exclude=h31n03,h28n12
 ##SBATCH --exclude=h29n01,h26n05,h28n06,h29n07,h30n03,h30n15
 #SBATCH --mail-type=BEGIN,END,FAIL
 #SBATCH --mail-user=ryan.lagerquist@noaa.gov
-#SBATCH --output=apply_neural_nets_90_%A_%a.out
+#SBATCH --output=train_neural_nets_patch_%A_%a.out
 
 module load cuda/10.1
 source /scratch2/BMC/gsd-hpcs/Jebb.Q.Stewart/conda3.7/etc/profile.d/conda.csh
 conda activate base
 
 set CODE_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_standalone/ml4convection"
-set TOP_MODEL_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_models/experiment09"
-set TOP_PREDICTOR_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_project/predictors/quality_controlled/partial_grids"
-set TOP_TARGET_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_project/targets/new_echo_classification/partial_grids"
+set TEMPLATE_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_models/experiment09/templates"
+set TOP_OUTPUT_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_models/experiment09"
 
-set FIRST_VALIDN_DATE_STRING="20170101"
-set LAST_VALIDN_DATE_STRING="20171224"
+set TRAINING_PREDICTOR_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_project/predictors/quality_controlled/partial_grids"
+set VALIDN_PREDICTOR_DIR_NAME="${TRAINING_PREDICTOR_DIR_NAME}"
+set TRAINING_TARGET_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_project/targets/new_echo_classification/partial_grids"
+set VALIDN_TARGET_DIR_NAME="${TRAINING_TARGET_DIR_NAME}"
 
 set HALF_WINDOW_SIZES_PX=(1 1 1 1 1 2 2 2 2 2 3 3 3 3 3 4 4 4 4 4 5 5 5 5 5 1 1 1 1 1 2 2 2 2 2 3 3 3 3 3 4 4 4 4 4 5 5 5 5 5 1 1 1 1 1 2 2 2 2 2 3 3 3 3 3 4 4 4 4 4 5 5 5 5 5 1 1 1 1 1 2 2 2 2 2 3 3 3 3 3 4 4 4 4 4 5 5 5 5 5 1 1 1 1 1 2 2 2 2 2 3 3 3 3 3 4 4 4 4 4 5 5 5 5 5)
 set CONV_LAYER_DROPOUT_RATES=(0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.175 0.175 0.175 0.175 0.175 0.175 0.175 0.175 0.175 0.175 0.175 0.175 0.175 0.175 0.175 0.175 0.175 0.175 0.175 0.175 0.175 0.175 0.175 0.175 0.175 0.350 0.350 0.350 0.350 0.350 0.350 0.350 0.350 0.350 0.350 0.350 0.350 0.350 0.350 0.350 0.350 0.350 0.350 0.350 0.350 0.350 0.350 0.350 0.350 0.350 0.525 0.525 0.525 0.525 0.525 0.525 0.525 0.525 0.525 0.525 0.525 0.525 0.525 0.525 0.525 0.525 0.525 0.525 0.525 0.525 0.525 0.525 0.525 0.525 0.525 0.700 0.700 0.700 0.700 0.700 0.700 0.700 0.700 0.700 0.700 0.700 0.700 0.700 0.700 0.700 0.700 0.700 0.700 0.700 0.700 0.700 0.700 0.700 0.700 0.700)
@@ -45,15 +43,24 @@ set half_window_size_string=`printf "%d" $half_window_size_px`
 set conv_layer_dropout_string=`printf "%.3f" $conv_layer_dropout_rate`
 set l2_weight_string=`printf "%.6f" $l2_weight`
 
-set model_dir_name="${TOP_MODEL_DIR_NAME}/fss-half-window-size-px=${half_window_size_string}_conv-dropout=${conv_layer_dropout_string}_l2-weight=${l2_weight_string}"
-set model_file_name="${model_dir_name}/model.h5"
-set prediction_dir_name="${model_dir_name}/validation/partial_grids"
+set template_file_name="${TEMPLATE_DIR_NAME}/model_fss-half-window-size-px=${half_window_size_string}_conv-dropout=${conv_layer_dropout_string}_l2-weight=${l2_weight_string}.h5"
+set output_dir_name="${TOP_OUTPUT_DIR_NAME}/fss-half-window-size-px=${half_window_size_string}_conv-dropout=${conv_layer_dropout_string}_l2-weight=${l2_weight_string}"
+echo $output_dir_name
 
-python3 -u "${CODE_DIR_NAME}/apply_neural_net.py" \
---input_model_file_name="${model_file_name}" \
---input_predictor_dir_name="${TOP_PREDICTOR_DIR_NAME}" \
---input_target_dir_name="${TOP_TARGET_DIR_NAME}" \
---apply_to_full_grids=0 \
---first_valid_date_string="${FIRST_VALIDN_DATE_STRING}" \
---last_valid_date_string="${LAST_VALIDN_DATE_STRING}" \
---output_dir_name="${prediction_dir_name}"
+python3 -u "${CODE_DIR_NAME}/train_neural_net.py" \
+--training_predictor_dir_name="${TRAINING_PREDICTOR_DIR_NAME}" \
+--validn_predictor_dir_name="${VALIDN_PREDICTOR_DIR_NAME}" \
+--training_target_dir_name="${TRAINING_TARGET_DIR_NAME}" \
+--validn_target_dir_name="${VALIDN_TARGET_DIR_NAME}" \
+--input_model_file_name="${template_file_name}" \
+--output_model_dir_name="${output_dir_name}" \
+--lead_time_seconds=0 \
+--lag_times_seconds 0 \
+--normalize=1 \
+--uniformize=1 \
+--num_examples_per_batch=32 \
+--max_examples_per_day_in_batch=8 \
+--use_partial_grids=1 \
+--num_epochs=1000 \
+--num_training_batches_per_epoch=64 \
+--num_validn_batches_per_epoch=32
