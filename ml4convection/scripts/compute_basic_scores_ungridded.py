@@ -3,6 +3,7 @@
 import argparse
 import numpy
 from gewittergefahr.gg_utils import model_evaluation as gg_model_eval
+from gewittergefahr.gg_utils import error_checking
 from ml4convection.io import prediction_io
 from ml4convection.utils import evaluation
 from ml4convection.utils import radar_utils
@@ -14,6 +15,7 @@ NUM_RADARS = len(radar_utils.RADAR_LATITUDES_DEG_N)
 INPUT_DIR_ARG_NAME = 'input_prediction_dir_name'
 FIRST_DATE_ARG_NAME = 'first_date_string'
 LAST_DATE_ARG_NAME = 'last_date_string'
+TIME_INTERVAL_ARG_NAME = 'time_interval_steps'
 USE_PARTIAL_GRIDS_ARG_NAME = 'use_partial_grids'
 MATCHING_DISTANCES_ARG_NAME = 'matching_distances_px'
 NUM_PROB_THRESHOLDS_ARG_NAME = 'num_prob_thresholds'
@@ -28,6 +30,10 @@ DATE_HELP_STRING = (
     'Date (format "yyyymmdd").  Will evaluate predictions for all days in the '
     'period `{0:s}`...`{1:s}`.'
 ).format(FIRST_DATE_ARG_NAME, LAST_DATE_ARG_NAME)
+
+TIME_INTERVAL_HELP_STRING = (
+    'Will compute scores for every [k]th time step, where k = `{0:s}`.'
+).format(TIME_INTERVAL_ARG_NAME)
 
 USE_PARTIAL_GRIDS_HELP_STRING = (
     'Boolean flag.  If 1 (0), will compute scores for partial (full) grids.'
@@ -66,6 +72,10 @@ INPUT_ARG_PARSER.add_argument(
     '--' + LAST_DATE_ARG_NAME, type=str, required=True, help=DATE_HELP_STRING
 )
 INPUT_ARG_PARSER.add_argument(
+    '--' + TIME_INTERVAL_ARG_NAME, type=int, required=False, default=1,
+    help=TIME_INTERVAL_HELP_STRING
+)
+INPUT_ARG_PARSER.add_argument(
     '--' + USE_PARTIAL_GRIDS_ARG_NAME, type=int, required=False, default=0,
     help=USE_PARTIAL_GRIDS_HELP_STRING
 )
@@ -89,12 +99,14 @@ INPUT_ARG_PARSER.add_argument(
 
 def _compute_scores_full_grid(
         top_prediction_dir_name, first_date_string, last_date_string,
-        matching_distances_px, prob_thresholds, top_output_dir_name):
+        time_interval_steps, matching_distances_px, prob_thresholds,
+        top_output_dir_name):
     """Computes scores on full grid.
 
     :param top_prediction_dir_name: See documentation at top of file.
     :param first_date_string: Same.
     :param last_date_string: Same.
+    :param time_interval_steps: Same.
     :param matching_distances_px: Same.
     :param prob_thresholds: Same.
     :param top_output_dir_name: Same.
@@ -117,6 +129,16 @@ def _compute_scores_full_grid(
     for i in range(num_dates):
         print('Reading data from: "{0:s}"...'.format(prediction_file_names[i]))
         prediction_dict = prediction_io.read_file(prediction_file_names[i])
+
+        num_times = len(prediction_dict[prediction_io.VALID_TIMES_KEY])
+        desired_indices = numpy.linspace(
+            0, num_times - 1, num=num_times, dtype=int
+        )
+        desired_indices = desired_indices[::time_interval_steps]
+
+        prediction_dict = prediction_io.subset_by_index(
+            prediction_dict=prediction_dict, desired_indices=desired_indices
+        )
 
         for j in range(num_matching_distances):
             print('\n')
@@ -150,12 +172,14 @@ def _compute_scores_full_grid(
 
 def _compute_scores_partial_grids(
         top_prediction_dir_name, first_date_string, last_date_string,
-        matching_distances_px, prob_thresholds, top_output_dir_name):
+        time_interval_steps, matching_distances_px, prob_thresholds,
+        top_output_dir_name):
     """Computes scores on partial grids.
 
     :param top_prediction_dir_name: See documentation at top of file.
     :param first_date_string: Same.
     :param last_date_string: Same.
+    :param time_interval_steps: Same.
     :param matching_distances_px: Same.
     :param prob_thresholds: Same.
     :param top_output_dir_name: Same.
@@ -196,6 +220,16 @@ def _compute_scores_partial_grids(
             ))
             prediction_dict = prediction_io.read_file(prediction_file_names[i])
 
+            num_times = len(prediction_dict[prediction_io.VALID_TIMES_KEY])
+            desired_indices = numpy.linspace(
+                0, num_times - 1, num=num_times, dtype=int
+            )
+            desired_indices = desired_indices[::time_interval_steps]
+
+            prediction_dict = prediction_io.subset_by_index(
+                prediction_dict=prediction_dict, desired_indices=desired_indices
+            )
+
             for j in range(num_matching_distances):
                 print('\n')
 
@@ -231,8 +265,8 @@ def _compute_scores_partial_grids(
 
 
 def _run(top_prediction_dir_name, first_date_string, last_date_string,
-         use_partial_grids, matching_distances_px, num_prob_thresholds,
-         prob_thresholds, top_output_dir_name):
+         time_interval_steps, use_partial_grids, matching_distances_px,
+         num_prob_thresholds, prob_thresholds, top_output_dir_name):
     """Computes basic evaluation scores sans grid (combined over full domain).
 
     This is effectively the main method.
@@ -240,12 +274,15 @@ def _run(top_prediction_dir_name, first_date_string, last_date_string,
     :param top_prediction_dir_name: See documentation at top of file.
     :param first_date_string: Same.
     :param last_date_string: Same.
+    :param time_interval_steps: Same.
     :param use_partial_grids: Same.
     :param matching_distances_px: Same.
     :param num_prob_thresholds: Same.
     :param prob_thresholds: Same.
     :param top_output_dir_name: Same.
     """
+
+    error_checking.assert_is_geq(time_interval_steps, 1)
 
     if num_prob_thresholds > 0:
         prob_thresholds = gg_model_eval.get_binarization_thresholds(
@@ -257,6 +294,7 @@ def _run(top_prediction_dir_name, first_date_string, last_date_string,
             top_prediction_dir_name=top_prediction_dir_name,
             first_date_string=first_date_string,
             last_date_string=last_date_string,
+            time_interval_steps=time_interval_steps,
             matching_distances_px=matching_distances_px,
             prob_thresholds=prob_thresholds,
             top_output_dir_name=top_output_dir_name
@@ -268,6 +306,7 @@ def _run(top_prediction_dir_name, first_date_string, last_date_string,
         top_prediction_dir_name=top_prediction_dir_name,
         first_date_string=first_date_string,
         last_date_string=last_date_string,
+        time_interval_steps=time_interval_steps,
         matching_distances_px=matching_distances_px,
         prob_thresholds=prob_thresholds,
         top_output_dir_name=top_output_dir_name
@@ -281,6 +320,7 @@ if __name__ == '__main__':
         top_prediction_dir_name=getattr(INPUT_ARG_OBJECT, INPUT_DIR_ARG_NAME),
         first_date_string=getattr(INPUT_ARG_OBJECT, FIRST_DATE_ARG_NAME),
         last_date_string=getattr(INPUT_ARG_OBJECT, LAST_DATE_ARG_NAME),
+        time_interval_steps=getattr(INPUT_ARG_OBJECT, TIME_INTERVAL_ARG_NAME),
         use_partial_grids=bool(getattr(
             INPUT_ARG_OBJECT, USE_PARTIAL_GRIDS_ARG_NAME
         )),
