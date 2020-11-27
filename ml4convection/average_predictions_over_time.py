@@ -70,7 +70,7 @@ def _run(top_input_dir_name, first_date_string, last_date_string,
     input_file_names = prediction_io.find_many_files(
         top_directory_name=top_input_dir_name,
         first_date_string=first_date_string, last_date_string=last_date_string,
-        prefer_zipped=False, allow_other_format=False, radar_number=None,
+        prefer_zipped=False, allow_other_format=True, radar_number=None,
         raise_error_if_any_missing=True
     )
 
