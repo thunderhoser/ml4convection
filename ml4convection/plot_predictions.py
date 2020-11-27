@@ -179,7 +179,7 @@ def _plot_predictions_one_example(
         ).format(valid_time_string)
     else:
         prediction_plotting.plot_probabilistic(
-            target_matrix=target_matrix, probability_matrix=probability_matrix,
+            target_matrix=target_matrix, probability_matrix=100 * probability_matrix,
             figure_object=figure_object, axes_object=axes_object,
             min_latitude_deg_n=latitudes_deg_n[0],
             min_longitude_deg_e=longitudes_deg_e[0],
