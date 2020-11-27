@@ -26,13 +26,12 @@ CONV_LAYER_DROPOUT_RATES = numpy.array([0, 0.175, 0.35, 0.525, 0.7])
 L2_WEIGHTS = numpy.logspace(-4, -2, num=5)
 
 DEFAULT_FONT_SIZE = 20
-Y_TICK_LABEL_FONT_SIZE = 8
 
 pyplot.rc('font', size=DEFAULT_FONT_SIZE)
 pyplot.rc('axes', titlesize=DEFAULT_FONT_SIZE)
 pyplot.rc('axes', labelsize=DEFAULT_FONT_SIZE)
 pyplot.rc('xtick', labelsize=DEFAULT_FONT_SIZE)
-pyplot.rc('ytick', labelsize=Y_TICK_LABEL_FONT_SIZE)
+pyplot.rc('ytick', labelsize=DEFAULT_FONT_SIZE)
 pyplot.rc('legend', fontsize=DEFAULT_FONT_SIZE)
 pyplot.rc('figure', titlesize=DEFAULT_FONT_SIZE)
 
@@ -197,8 +196,10 @@ def _run(experiment_dir_name, matching_distance_px, output_dir_name):
         '{0:.3f}'.format(d) for d in CONV_LAYER_DROPOUT_RATES
     ]
     x_tick_labels = [
-        r'10$^{0:.2f}$'.format(numpy.log10(w)) for w in L2_WEIGHTS
+        '{0:.1f}'.format(numpy.log10(w)) for w in L2_WEIGHTS
     ]
+    x_tick_labels = [r'10$^{' + l + '}$' for l in x_tick_labels]
+
     y_axis_label = 'Dropout rate for conv layers'
     x_axis_label = r'L$_{2}$ weight'
 
@@ -270,7 +271,7 @@ def _run(experiment_dir_name, matching_distance_px, output_dir_name):
             2 * HALF_WINDOW_SIZES_PX[i] + 1
         ))
         figure_file_name = '{0:s}/aupd_grid_half-window-size={1:d}.jpg'.format(
-            experiment_dir_name, HALF_WINDOW_SIZES_PX[i]
+            output_dir_name, HALF_WINDOW_SIZES_PX[i]
         )
 
         print('Saving figure to: "{0:s}"...'.format(figure_file_name))
@@ -296,7 +297,7 @@ def _run(experiment_dir_name, matching_distance_px, output_dir_name):
             2 * HALF_WINDOW_SIZES_PX[i] + 1
         ))
         figure_file_name = '{0:s}/csi_grid_half-window-size={1:d}.jpg'.format(
-            experiment_dir_name, HALF_WINDOW_SIZES_PX[i]
+            output_dir_name, HALF_WINDOW_SIZES_PX[i]
         )
 
         print('Saving figure to: "{0:s}"...'.format(figure_file_name))
@@ -322,7 +323,7 @@ def _run(experiment_dir_name, matching_distance_px, output_dir_name):
             2 * HALF_WINDOW_SIZES_PX[i] + 1
         ))
         figure_file_name = '{0:s}/fss_grid_half-window-size={1:d}.jpg'.format(
-            experiment_dir_name, HALF_WINDOW_SIZES_PX[i]
+            output_dir_name, HALF_WINDOW_SIZES_PX[i]
         )
 
         print('Saving figure to: "{0:s}"...'.format(figure_file_name))
@@ -351,7 +352,7 @@ def _run(experiment_dir_name, matching_distance_px, output_dir_name):
             2 * HALF_WINDOW_SIZES_PX[i] + 1
         ))
         figure_file_name = '{0:s}/bss_grid_half-window-size={1:d}.jpg'.format(
-            experiment_dir_name, HALF_WINDOW_SIZES_PX[i]
+            output_dir_name, HALF_WINDOW_SIZES_PX[i]
         )
 
         print('Saving figure to: "{0:s}"...'.format(figure_file_name))
