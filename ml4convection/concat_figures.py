@@ -169,7 +169,7 @@ def _find_input_files(
 
     refl_figure_file_names = [
         '{0:s}/{1:s}/{2:s}/reflectivity_{3:s}_composite.jpg'.format(
-            refl_figure_dir_name, t, t[:4], t[:10].replace('-', '')
+            refl_figure_dir_name, t[:4], t[:10].replace('-', ''), t
         )
         for t in valid_time_strings
     ]
