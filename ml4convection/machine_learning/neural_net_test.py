@@ -9,10 +9,13 @@ from ml4convection.machine_learning import neural_net
 TOLERANCE = 1e-6
 
 # The following constants are used to test _reshape_predictor_matrix.
-ORIG_PREDICTOR_MATRIX_1LAG_TIME = numpy.random.normal(
+ORIG_PREDICTOR_MATRIX_1LAG = numpy.random.normal(
     loc=0., scale=5., size=(30, 50, 100, 7)
 )
-NEW_PREDICTOR_MATRIX_1LAG_TIME = ORIG_PREDICTOR_MATRIX_1LAG_TIME + 0.
+NEW_PREDICTOR_MATRIX_1LAG_SANS_TIME = ORIG_PREDICTOR_MATRIX_1LAG + 0.
+NEW_PREDICTOR_MATRIX_1LAG_WITH_TIME = numpy.expand_dims(
+    ORIG_PREDICTOR_MATRIX_1LAG, axis=-2
+)
 
 PREDICTOR_MATRIX_FIRST_LAG = numpy.random.normal(
     loc=0., scale=5., size=(10, 50, 100, 7)
@@ -24,31 +27,42 @@ PREDICTOR_MATRIX_THIRD_LAG = numpy.random.normal(
     loc=-3., scale=3., size=(10, 50, 100, 7)
 )
 
-ORIG_PREDICTOR_MATRIX_3LAG_TIMES = numpy.full((0, 50, 100, 7), numpy.nan)
-NEW_PREDICTOR_MATRIX_3LAG_TIMES = numpy.full((10, 50, 100, 21), numpy.nan)
+ORIG_PREDICTOR_MATRIX_3LAGS = numpy.full((0, 50, 100, 7), numpy.nan)
+NEW_PREDICTOR_MATRIX_3LAGS_SANS_TIME = numpy.full((10, 50, 100, 21), numpy.nan)
+NEW_PREDICTOR_MATRIX_3LAGS_WITH_TIME = numpy.full(
+    (10, 50, 100, 3, 7), numpy.nan
+)
 
 for i in range(10):
-    ORIG_PREDICTOR_MATRIX_3LAG_TIMES = numpy.concatenate((
-        ORIG_PREDICTOR_MATRIX_3LAG_TIMES, PREDICTOR_MATRIX_FIRST_LAG[[i], ...]
+    ORIG_PREDICTOR_MATRIX_3LAGS = numpy.concatenate((
+        ORIG_PREDICTOR_MATRIX_3LAGS, PREDICTOR_MATRIX_FIRST_LAG[[i], ...]
     ), axis=0)
 
-    ORIG_PREDICTOR_MATRIX_3LAG_TIMES = numpy.concatenate((
-        ORIG_PREDICTOR_MATRIX_3LAG_TIMES, PREDICTOR_MATRIX_SECOND_LAG[[i], ...]
+    ORIG_PREDICTOR_MATRIX_3LAGS = numpy.concatenate((
+        ORIG_PREDICTOR_MATRIX_3LAGS, PREDICTOR_MATRIX_SECOND_LAG[[i], ...]
     ), axis=0)
 
-    ORIG_PREDICTOR_MATRIX_3LAG_TIMES = numpy.concatenate((
-        ORIG_PREDICTOR_MATRIX_3LAG_TIMES, PREDICTOR_MATRIX_THIRD_LAG[[i], ...]
+    ORIG_PREDICTOR_MATRIX_3LAGS = numpy.concatenate((
+        ORIG_PREDICTOR_MATRIX_3LAGS, PREDICTOR_MATRIX_THIRD_LAG[[i], ...]
     ), axis=0)
 
-    NEW_PREDICTOR_MATRIX_3LAG_TIMES[i, ..., 0::3] = (
+    NEW_PREDICTOR_MATRIX_3LAGS_SANS_TIME[i, ..., 0::3] = (
         PREDICTOR_MATRIX_FIRST_LAG[i, ...]
     )
-    NEW_PREDICTOR_MATRIX_3LAG_TIMES[i, ..., 1::3] = (
+    NEW_PREDICTOR_MATRIX_3LAGS_SANS_TIME[i, ..., 1::3] = (
         PREDICTOR_MATRIX_SECOND_LAG[i, ...]
     )
-    NEW_PREDICTOR_MATRIX_3LAG_TIMES[i, ..., 2::3] = (
+    NEW_PREDICTOR_MATRIX_3LAGS_SANS_TIME[i, ..., 2::3] = (
         PREDICTOR_MATRIX_THIRD_LAG[i, ...]
     )
+
+    THIS_MATRIX = numpy.stack((
+        PREDICTOR_MATRIX_FIRST_LAG[i, ...],
+        PREDICTOR_MATRIX_SECOND_LAG[i, ...],
+        PREDICTOR_MATRIX_THIRD_LAG[i, ...]
+    ), axis=-2)
+
+    NEW_PREDICTOR_MATRIX_3LAGS_WITH_TIME[i, ...] = THIS_MATRIX
 
 # The following constants are used to test _find_days_with_both_inputs.
 TOP_PREDICTOR_DIR_NAME = 'foo'
@@ -175,35 +189,71 @@ FOURTH_PARTIAL_GRID_DICT_AFTER = {
 class NeuralNetTests(unittest.TestCase):
     """Each method is a unit test for neural_net.py."""
 
-    def test_reshape_predictor_matrix_1lag_time(self):
+    def test_reshape_predictor_matrix_1lag_sans_time(self):
         """Ensures correct output from _reshape_predictor_matrix.
 
-        In this case, there is only one lag time.
+        In this case, there is one lag time and the output matrix will *not*
+        include the time dimension.
         """
 
         this_predictor_matrix = neural_net._reshape_predictor_matrix(
-            predictor_matrix=ORIG_PREDICTOR_MATRIX_1LAG_TIME + 0.,
-            num_lag_times=1
+            predictor_matrix=ORIG_PREDICTOR_MATRIX_1LAG + 0.,
+            num_lag_times=1, add_time_dimension=False
         )
 
         self.assertTrue(numpy.allclose(
-            this_predictor_matrix, NEW_PREDICTOR_MATRIX_1LAG_TIME,
+            this_predictor_matrix, NEW_PREDICTOR_MATRIX_1LAG_SANS_TIME,
             atol=TOLERANCE
         ))
 
-    def test_reshape_predictor_matrix_3lag_times(self):
+    def test_reshape_predictor_matrix_1lag_with_time(self):
         """Ensures correct output from _reshape_predictor_matrix.
 
-        In this case, there are 3 lag times.
+        In this case, there is one lag time and the output matrix will include
+        the time dimension.
         """
 
         this_predictor_matrix = neural_net._reshape_predictor_matrix(
-            predictor_matrix=ORIG_PREDICTOR_MATRIX_3LAG_TIMES + 0.,
-            num_lag_times=3
+            predictor_matrix=ORIG_PREDICTOR_MATRIX_1LAG + 0.,
+            num_lag_times=1, add_time_dimension=True
         )
 
         self.assertTrue(numpy.allclose(
-            this_predictor_matrix, NEW_PREDICTOR_MATRIX_3LAG_TIMES,
+            this_predictor_matrix, NEW_PREDICTOR_MATRIX_1LAG_WITH_TIME,
+            atol=TOLERANCE
+        ))
+
+    def test_reshape_predictor_matrix_3lags_sans_time(self):
+        """Ensures correct output from _reshape_predictor_matrix.
+
+        In this case, there are 3 lag times and the output matrix will *not*
+        include the time dimension.
+        """
+
+        this_predictor_matrix = neural_net._reshape_predictor_matrix(
+            predictor_matrix=ORIG_PREDICTOR_MATRIX_3LAGS + 0.,
+            num_lag_times=3, add_time_dimension=False
+        )
+
+        self.assertTrue(numpy.allclose(
+            this_predictor_matrix, NEW_PREDICTOR_MATRIX_3LAGS_SANS_TIME,
+            atol=TOLERANCE
+        ))
+
+    def test_reshape_predictor_matrix_3lags_with_time(self):
+        """Ensures correct output from _reshape_predictor_matrix.
+
+        In this case, there are 3 lag times and the output matrix will include
+        the time dimension.
+        """
+
+        this_predictor_matrix = neural_net._reshape_predictor_matrix(
+            predictor_matrix=ORIG_PREDICTOR_MATRIX_3LAGS + 0.,
+            num_lag_times=3, add_time_dimension=True
+        )
+
+        self.assertTrue(numpy.allclose(
+            this_predictor_matrix, NEW_PREDICTOR_MATRIX_3LAGS_WITH_TIME,
             atol=TOLERANCE
         ))
 

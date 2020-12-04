@@ -33,6 +33,7 @@ MAX_DAILY_EXAMPLES_KEY = 'max_examples_per_day_in_batch'
 BAND_NUMBERS_KEY = 'band_numbers'
 LEAD_TIME_KEY = 'lead_time_seconds'
 LAG_TIMES_KEY = 'lag_times_seconds'
+INCLUDE_TIME_DIM_KEY = 'include_time_dimension'
 FIRST_VALID_DATE_KEY = 'first_valid_date_string'
 LAST_VALID_DATE_KEY = 'last_valid_date_string'
 NORMALIZE_FLAG_KEY = 'normalize'
@@ -118,6 +119,8 @@ def _check_generator_args(option_dict):
     )
     error_checking.assert_is_less_than(max_time_diff_seconds, DAYS_TO_SECONDS)
 
+    error_checking.assert_is_boolean(option_dict[INCLUDE_TIME_DIM_KEY])
+
     return option_dict
 
 
@@ -147,7 +150,8 @@ def _check_inference_args(predictor_matrix, num_examples_per_batch, verbose):
     return num_examples_per_batch
 
 
-def _reshape_predictor_matrix(predictor_matrix, num_lag_times):
+def _reshape_predictor_matrix(predictor_matrix, num_lag_times,
+                              add_time_dimension):
     """Reshapes predictor matrix to account for lag times.
 
     E = number of examples
@@ -158,7 +162,10 @@ def _reshape_predictor_matrix(predictor_matrix, num_lag_times):
 
     :param predictor_matrix: numpy array (EL x M x N x B) of predictors.
     :param num_lag_times: Number of lag times.
-    :return: predictor_matrix: numpy array (E x M x N x BL) of predictors.
+    :param add_time_dimension: Boolean flag.  If True, will add time dimension,
+        so output will be E x M x N x L x B.  If True, will just reorder data,
+        so output will be E x M x N x BL.
+    :return: predictor_matrix: numpy array of predictors.
     :raises: ValueError: if length of first axis of predictor matrix is not an
         integer multiple of L.
     """
@@ -177,11 +184,14 @@ def _reshape_predictor_matrix(predictor_matrix, num_lag_times):
         raise ValueError(error_string)
 
     # Do actual stuff.
-    num_bands = predictor_matrix.shape[-1]
-
     predictor_matrix_by_lag = [
         predictor_matrix[j::num_lag_times, ...] for j in range(num_lag_times)
     ]
+
+    if add_time_dimension:
+        return numpy.stack(predictor_matrix_by_lag, axis=-2)
+
+    num_bands = predictor_matrix.shape[-1]
     predictor_matrix = numpy.stack(predictor_matrix_by_lag, axis=-1)
 
     num_channels = num_bands * num_lag_times
@@ -192,7 +202,8 @@ def _reshape_predictor_matrix(predictor_matrix, num_lag_times):
 def _read_inputs_one_day(
         valid_date_string, predictor_file_names, band_numbers,
         normalize, uniformize, target_file_names, lead_time_seconds,
-        lag_times_seconds, num_examples_to_read, return_coords):
+        lag_times_seconds, include_time_dimension, num_examples_to_read,
+        return_coords):
     """Reads inputs (predictor and target files) for one day.
 
     E = number of examples
@@ -209,6 +220,7 @@ def _read_inputs_one_day(
         `example_io.read_target_file`).
     :param lead_time_seconds: See doc for `generator_full_grid`.
     :param lag_times_seconds: Same.
+    :param include_time_dimension: Same.
     :param num_examples_to_read: Number of examples to read.
     :param return_coords: Boolean flag.  If True, will return latitudes and
         longitudes for grid points.
@@ -344,7 +356,8 @@ def _read_inputs_one_day(
         )
 
     predictor_matrix = _reshape_predictor_matrix(
-        predictor_matrix=predictor_matrix, num_lag_times=num_lag_times
+        predictor_matrix=predictor_matrix, num_lag_times=num_lag_times,
+        add_time_dimension=include_time_dimension
     )
     target_matrix = target_dict[example_io.TARGET_MATRIX_KEY]
 
@@ -671,6 +684,7 @@ def create_data_full_grid(option_dict, return_coords=False):
     option_dict['band_numbers']: Same.
     option_dict['lead_time_seconds']: Same.
     option_dict['lag_times_seconds']: Same.
+    option_dict['include_time_dimension']: Same.
     option_dict['valid_date_string']: Valid date (format "yyyymmdd").  Will
         create examples with targets valid on this day.
     option_dict['normalize']: See doc for `generator_full_grid`.
@@ -688,6 +702,7 @@ def create_data_full_grid(option_dict, return_coords=False):
     band_numbers = option_dict[BAND_NUMBERS_KEY]
     lead_time_seconds = option_dict[LEAD_TIME_KEY]
     lag_times_seconds = option_dict[LAG_TIMES_KEY]
+    include_time_dimension = option_dict[INCLUDE_TIME_DIM_KEY]
     valid_date_string = option_dict[VALID_DATE_KEY]
     normalize = option_dict[NORMALIZE_FLAG_KEY]
     uniformize = option_dict[UNIFORMIZE_FLAG_KEY]
@@ -734,6 +749,7 @@ def create_data_full_grid(option_dict, return_coords=False):
         target_file_names=target_file_names,
         lead_time_seconds=lead_time_seconds,
         lag_times_seconds=lag_times_seconds,
+        include_time_dimension=include_time_dimension,
         num_examples_to_read=int(1e6), return_coords=return_coords
     )
 
@@ -752,6 +768,7 @@ def create_data_partial_grids(option_dict, return_coords=False):
     option_dict['band_numbers']: Same.
     option_dict['lead_time_seconds']: Same.
     option_dict['lag_times_seconds']: Same.
+    option_dict['include_time_dimension']: Same.
     option_dict['valid_date_string']: Valid date (format "yyyymmdd").  Will
         create examples with targets valid on this day.
     option_dict['normalize']: See doc for `generator_full_grid`.
@@ -770,6 +787,7 @@ def create_data_partial_grids(option_dict, return_coords=False):
     band_numbers = option_dict[BAND_NUMBERS_KEY]
     lead_time_seconds = option_dict[LEAD_TIME_KEY]
     lag_times_seconds = option_dict[LAG_TIMES_KEY]
+    include_time_dimension = option_dict[INCLUDE_TIME_DIM_KEY]
     valid_date_string = option_dict[VALID_DATE_KEY]
     normalize = option_dict[NORMALIZE_FLAG_KEY]
     uniformize = option_dict[UNIFORMIZE_FLAG_KEY]
@@ -826,6 +844,7 @@ def create_data_partial_grids(option_dict, return_coords=False):
             target_file_names=these_target_file_names,
             lead_time_seconds=lead_time_seconds,
             lag_times_seconds=lag_times_seconds,
+            include_time_dimension=include_time_dimension,
             num_examples_to_read=int(1e6), return_coords=return_coords
         )
 
@@ -838,7 +857,8 @@ def generator_full_grid(option_dict):
     E = number of examples per batch
     M = number of rows in grid
     N = number of columns in grid
-    C = number of channels (num spectral bands * num lag times)
+    L = number of lag times
+    B = number of spectral bands
 
     :param option_dict: Dictionary with the following keys.
     option_dict['top_predictor_dir_name']: Name of top-level directory with
@@ -857,6 +877,9 @@ def generator_full_grid(option_dict):
         time).
     option_dict['lag_times_seconds']: 1-D numpy array of lag times.  Each lag
         time is forecast time minus predictor time, so must be >= 0.
+    option_dict['include_time_dimension']: Boolean flag.  If True, predictor
+        matrix will include a time dimension.  If False, times and spectral
+        bands will be combined into the last axis.
     option_dict['first_valid_date_string']: First valid date (format
         "yyyymmdd").  Will not generate examples with earlier valid times.
     option_dict['last_valid_date_string']: Last valid date (format
@@ -867,8 +890,8 @@ def generator_full_grid(option_dict):
         Boolean flag.  If True, will use uniformized and normalized predictors.
         If False, will use only normalized predictors.
 
-    :return: predictor_matrix: E-by-M-by-N-by-C numpy array of predictor values,
-        based on satellite data.
+    :return: predictor_matrix: numpy array (E x M x N x LB or E x M x N x L x B)
+        of predictor values, based on satellite data.
     :return: target_matrix: E-by-M-by-N-by-1 numpy array of target values
         (integers in 0...1, indicating whether or not convection occurs at
         the given lead time).
@@ -885,6 +908,7 @@ def generator_full_grid(option_dict):
     band_numbers = option_dict[BAND_NUMBERS_KEY]
     lead_time_seconds = option_dict[LEAD_TIME_KEY]
     lag_times_seconds = option_dict[LAG_TIMES_KEY]
+    include_time_dimension = option_dict[INCLUDE_TIME_DIM_KEY]
     first_valid_date_string = option_dict[FIRST_VALID_DATE_KEY]
     last_valid_date_string = option_dict[LAST_VALID_DATE_KEY]
     normalize = option_dict[NORMALIZE_FLAG_KEY]
@@ -951,6 +975,7 @@ def generator_full_grid(option_dict):
                 target_file_names=target_file_names,
                 lead_time_seconds=lead_time_seconds,
                 lag_times_seconds=lag_times_seconds,
+                include_time_dimension=include_time_dimension,
                 num_examples_to_read=num_examples_to_read, return_coords=False
             )
 
@@ -998,6 +1023,7 @@ def generator_partial_grids(option_dict):
     band_numbers = option_dict[BAND_NUMBERS_KEY]
     lead_time_seconds = option_dict[LEAD_TIME_KEY]
     lag_times_seconds = option_dict[LAG_TIMES_KEY]
+    include_time_dimension = option_dict[INCLUDE_TIME_DIM_KEY]
     first_valid_date_string = option_dict[FIRST_VALID_DATE_KEY]
     last_valid_date_string = option_dict[LAST_VALID_DATE_KEY]
     normalize = option_dict[NORMALIZE_FLAG_KEY]
@@ -1124,6 +1150,7 @@ def generator_partial_grids(option_dict):
                 target_file_name_matrix[:, current_radar_index],
                 lead_time_seconds=lead_time_seconds,
                 lag_times_seconds=lag_times_seconds,
+                include_time_dimension=include_time_dimension,
                 num_examples_to_read=num_examples_to_read, return_coords=False
             )
 
@@ -1441,6 +1468,10 @@ def read_metafile(dill_file_name):
     if LAG_TIMES_KEY not in training_option_dict:
         training_option_dict[LAG_TIMES_KEY] = numpy.array([0], dtype=int)
         validation_option_dict[LAG_TIMES_KEY] = numpy.array([0], dtype=int)
+
+    if INCLUDE_TIME_DIM_KEY not in training_option_dict:
+        training_option_dict[INCLUDE_TIME_DIM_KEY] = False
+        validation_option_dict[INCLUDE_TIME_DIM_KEY] = False
 
     metadata_dict[TRAINING_OPTIONS_KEY] = training_option_dict
     metadata_dict[VALIDATION_OPTIONS_KEY] = validation_option_dict

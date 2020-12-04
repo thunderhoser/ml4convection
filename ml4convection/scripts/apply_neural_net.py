@@ -288,6 +288,8 @@ def _run(model_file_name, top_predictor_dir_name, top_target_dir_name,
             training_option_dict[neural_net.LEAD_TIME_KEY],
         neural_net.LAG_TIMES_KEY:
             training_option_dict[neural_net.LAG_TIMES_KEY],
+        neural_net.INCLUDE_TIME_DIM_KEY:
+            training_option_dict[neural_net.INCLUDE_TIME_DIM_KEY],
         neural_net.NORMALIZE_FLAG_KEY:
             training_option_dict[neural_net.NORMALIZE_FLAG_KEY],
         neural_net.UNIFORMIZE_FLAG_KEY:
