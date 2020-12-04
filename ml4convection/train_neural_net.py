@@ -22,8 +22,8 @@ INPUT_ARG_PARSER = training_args.add_input_args(parser_object=INPUT_ARG_PARSER)
 
 def _run(training_predictor_dir_name, training_target_dir_name,
          validn_predictor_dir_name, validn_target_dir_name,
-         input_model_file_name, output_model_dir_name,
-         band_numbers, lead_time_seconds, lag_times_seconds,
+         input_model_file_name, output_model_dir_name, band_numbers,
+         lead_time_seconds, lag_times_seconds, include_time_dimension,
          first_training_date_string, last_training_date_string,
          first_validn_date_string, last_validn_date_string,
          normalize, uniformize,
@@ -44,6 +44,7 @@ def _run(training_predictor_dir_name, training_target_dir_name,
     :param band_numbers: Same.
     :param lead_time_seconds: Same.
     :param lag_times_seconds: Same.
+    :param include_time_dimension: Same.
     :param first_training_date_string: Same.
     :param last_training_date_string: Same.
     :param first_validn_date_string: Same.
@@ -67,6 +68,7 @@ def _run(training_predictor_dir_name, training_target_dir_name,
         neural_net.BAND_NUMBERS_KEY: band_numbers,
         neural_net.LEAD_TIME_KEY: lead_time_seconds,
         neural_net.LAG_TIMES_KEY: lag_times_seconds,
+        neural_net.INCLUDE_TIME_DIM_KEY: include_time_dimension,
         neural_net.FIRST_VALID_DATE_KEY: first_training_date_string,
         neural_net.LAST_VALID_DATE_KEY: last_training_date_string,
         neural_net.NORMALIZE_FLAG_KEY: normalize,
@@ -142,6 +144,9 @@ if __name__ == '__main__':
             getattr(INPUT_ARG_OBJECT, training_args.LAG_TIMES_ARG_NAME),
             dtype=int
         ),
+        include_time_dimension=bool(getattr(
+            INPUT_ARG_OBJECT, training_args.INCLUDE_TIME_DIM_ARG_NAME
+        )),
         first_training_date_string=getattr(
             INPUT_ARG_OBJECT, training_args.FIRST_TRAIN_DATE_ARG_NAME
         ),

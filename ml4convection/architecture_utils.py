@@ -1,7 +1,7 @@
 """Helper methods for building CNN architecture."""
 
+import os
 import sys
-import os.path
 import numpy
 import keras
 
@@ -133,7 +133,7 @@ def _check_pooling_options(
     """
 
     error_checking.assert_is_integer(num_rows_in_window)
-    error_checking.assert_is_geq(num_rows_in_window, 2)
+    error_checking.assert_is_geq(num_rows_in_window, 1)
     error_checking.assert_is_integer(num_rows_per_stride)
     error_checking.assert_is_geq(num_rows_per_stride, 1)
     error_checking.assert_is_leq(num_rows_per_stride, num_rows_in_window)
@@ -153,7 +153,7 @@ def _check_pooling_options(
 
     if num_dimensions >= 2:
         error_checking.assert_is_integer(num_columns_in_window)
-        error_checking.assert_is_geq(num_columns_in_window, 2)
+        error_checking.assert_is_geq(num_columns_in_window, 1)
         error_checking.assert_is_integer(num_columns_per_stride)
         error_checking.assert_is_geq(num_columns_per_stride, 1)
         error_checking.assert_is_leq(num_columns_per_stride,
@@ -353,7 +353,8 @@ def get_1d_separable_conv_layer(
 def get_2d_conv_layer(
         num_kernel_rows, num_kernel_columns, num_rows_per_stride,
         num_columns_per_stride, num_filters,
-        padding_type_string=NO_PADDING_STRING, weight_regularizer=None):
+        padding_type_string=NO_PADDING_STRING, weight_regularizer=None,
+        layer_name=None):
     """Creates layer for 2-D convolution.
 
     :param num_kernel_rows: See doc for `_check_convolution_options`.
@@ -363,6 +364,7 @@ def get_2d_conv_layer(
     :param num_filters: Same.
     :param padding_type_string: Same.
     :param weight_regularizer: See doc for `get_1d_conv_layer`.
+    :param layer_name: Same.
     :return: layer_object: Instance of `keras.layers.Conv2D`.
     """
 
@@ -381,7 +383,8 @@ def get_2d_conv_layer(
         kernel_initializer=KERNEL_INITIALIZER_NAME,
         bias_initializer=BIAS_INITIALIZER_NAME,
         kernel_regularizer=weight_regularizer,
-        bias_regularizer=weight_regularizer)
+        bias_regularizer=weight_regularizer, name=layer_name
+    )
 
 
 def get_2d_separable_conv_layer(
@@ -433,7 +436,7 @@ def get_3d_conv_layer(
         num_kernel_rows, num_kernel_columns, num_kernel_heights,
         num_rows_per_stride, num_columns_per_stride, num_heights_per_stride,
         num_filters, padding_type_string=NO_PADDING_STRING,
-        weight_regularizer=None):
+        weight_regularizer=None, layer_name=None):
     """Creates layer for 2-D convolution.
 
     :param num_kernel_rows: See doc for `_check_convolution_options`.
@@ -445,6 +448,7 @@ def get_3d_conv_layer(
     :param num_filters: Same.
     :param padding_type_string: Same.
     :param weight_regularizer: See doc for `get_1d_conv_layer`.
+    :param layer_name: Same.
     :return: layer_object: Instance of `keras.layers.Conv2D`.
     """
 
@@ -467,16 +471,20 @@ def get_3d_conv_layer(
         kernel_initializer=KERNEL_INITIALIZER_NAME,
         bias_initializer=BIAS_INITIALIZER_NAME,
         kernel_regularizer=weight_regularizer,
-        bias_regularizer=weight_regularizer)
+        bias_regularizer=weight_regularizer, name=layer_name
+    )
 
 
-def get_1d_pooling_layer(num_rows_in_window, num_rows_per_stride,
-                         pooling_type_string=MAX_POOLING_STRING):
+def get_1d_pooling_layer(
+        num_rows_in_window, num_rows_per_stride,
+        pooling_type_string=MAX_POOLING_STRING, layer_name=None):
     """Creates layer for 1-D pooling.
 
     :param num_rows_in_window: See doc for `_check_pooling_options`.
     :param num_rows_per_stride: Same.
     :param pooling_type_string: Same.
+    :param layer_name: Layer name (string).  If None, will use default name in
+        Keras.
     :return: layer_object: Instance of `keras.layers.MaxPooling1D` or
         `keras.layers.AveragePooling1D`.
     """
@@ -489,16 +497,19 @@ def get_1d_pooling_layer(num_rows_in_window, num_rows_per_stride,
     if pooling_type_string == MAX_POOLING_STRING:
         return keras.layers.MaxPooling1D(
             pool_size=num_rows_in_window, strides=num_rows_per_stride,
-            padding=NO_PADDING_STRING)
+            padding=NO_PADDING_STRING, name=layer_name
+        )
 
     return keras.layers.AveragePooling1D(
         pool_size=num_rows_in_window, strides=num_rows_per_stride,
-        padding=NO_PADDING_STRING)
+        padding=NO_PADDING_STRING, name=layer_name
+    )
 
 
 def get_2d_pooling_layer(
         num_rows_in_window, num_columns_in_window, num_rows_per_stride,
-        num_columns_per_stride, pooling_type_string=MAX_POOLING_STRING):
+        num_columns_per_stride, pooling_type_string=MAX_POOLING_STRING,
+        layer_name=None):
     """Creates layer for 2-D pooling.
 
     :param num_rows_in_window: See doc for `_check_pooling_options`.
@@ -506,6 +517,7 @@ def get_2d_pooling_layer(
     :param num_rows_per_stride: Same.
     :param num_columns_per_stride: Same.
     :param pooling_type_string: Same.
+    :param layer_name: See doc for `get_1d_pooling_layer`.
     :return: layer_object: Instance of `keras.layers.MaxPooling2D` or
         `keras.layers.AveragePooling2D`.
     """
@@ -521,18 +533,20 @@ def get_2d_pooling_layer(
         return keras.layers.MaxPooling2D(
             pool_size=(num_rows_in_window, num_columns_in_window),
             strides=(num_rows_per_stride, num_columns_per_stride),
-            padding=NO_PADDING_STRING)
+            padding=NO_PADDING_STRING, name=layer_name
+        )
 
     return keras.layers.AveragePooling2D(
         pool_size=(num_rows_in_window, num_columns_in_window),
         strides=(num_rows_per_stride, num_columns_per_stride),
-        padding=NO_PADDING_STRING)
+        padding=NO_PADDING_STRING, name=layer_name
+    )
 
 
 def get_3d_pooling_layer(
         num_rows_in_window, num_columns_in_window, num_heights_in_window,
         num_rows_per_stride, num_columns_per_stride, num_heights_per_stride,
-        pooling_type_string=MAX_POOLING_STRING):
+        pooling_type_string=MAX_POOLING_STRING, layer_name=None):
     """Creates layer for 2-D pooling.
 
     :param num_rows_in_window: See doc for `_check_pooling_options`.
@@ -542,6 +556,7 @@ def get_3d_pooling_layer(
     :param num_columns_per_stride: Same.
     :param num_heights_per_stride: Same.
     :param pooling_type_string: Same.
+    :param layer_name: See doc for `get_1d_pooling_layer`.
     :return: layer_object: Instance of `keras.layers.MaxPooling2D` or
         `keras.layers.AveragePooling2D`.
     """
@@ -561,14 +576,16 @@ def get_3d_pooling_layer(
                        num_heights_in_window),
             strides=(num_rows_per_stride, num_columns_per_stride,
                      num_heights_per_stride),
-            padding=NO_PADDING_STRING)
+            padding=NO_PADDING_STRING, name=layer_name
+        )
 
     return keras.layers.AveragePooling3D(
         pool_size=(num_rows_in_window, num_columns_in_window,
                    num_heights_in_window),
         strides=(num_rows_per_stride, num_columns_per_stride,
                  num_heights_per_stride),
-        padding=NO_PADDING_STRING)
+        padding=NO_PADDING_STRING, name=layer_name
+    )
 
 
 def get_dense_layer(num_output_units, weight_regularizer=None, layer_name=None):
@@ -640,14 +657,17 @@ def get_dropout_layer(dropout_fraction, layer_name=None):
     return keras.layers.Dropout(rate=dropout_fraction, name=layer_name)
 
 
-def get_batch_norm_layer():
+def get_batch_norm_layer(layer_name=None):
     """Creates batch-normalization layer.
 
+    :param layer_name: See doc for `get_dropout_layer`.
     :return: Instance of `keras.layers.BatchNormalization`.
     """
 
     return keras.layers.BatchNormalization(
-        axis=-1, momentum=0.99, epsilon=0.001, center=True, scale=True)
+        axis=-1, momentum=0.99, epsilon=0.001, center=True, scale=True,
+        name=layer_name
+    )
 
 
 def get_flattening_layer():
