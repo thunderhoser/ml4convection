@@ -1,0 +1,35 @@
+#!/bin/tcsh
+
+#SBATCH --job-name="plot_hyperparam_grids"
+#SBATCH --partition="fge"
+#SBATCH --account="rda-ghpcs"
+#SBATCH --qos="batch"
+#SBATCH --ntasks=1
+#SBATCH --nodes=1
+#SBATCH --mem=8G
+#SBATCH --time=02:00:00
+#SBATCH --exclude=h28n12
+##SBATCH --exclude=h31n03,h28n12
+##SBATCH --exclude=h29n01,h26n05,h28n06,h29n07,h30n03,h30n15
+#SBATCH --mail-type=BEGIN,END,FAIL
+#SBATCH --mail-user=ryan.lagerquist@noaa.gov
+#SBATCH --output=plot_hyperparam_grids_%A.out
+
+module load cuda/10.1
+source /scratch2/BMC/gsd-hpcs/Jebb.Q.Stewart/conda3.7/etc/profile.d/conda.csh
+conda activate base
+
+set CODE_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_standalone/ml4convection"
+set EXPERIMENT_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_models/experiment11"
+
+set MATCHING_DISTANCES_PX=("1.000000" "2.000000" "3.000000" "4.000000")
+set j=1
+
+while ($j <= ${#MATCHING_DISTANCES_PX})
+    python3 -u "${CODE_DIR_NAME}/plot_hyperparam_grids_exp11.py" \
+    --experiment_dir_name="${EXPERIMENT_DIR_NAME}" \
+    --matching_distance_px=${MATCHING_DISTANCES_PX[$j]} \
+    --output_dir_name="${EXPERIMENT_DIR_NAME}/matching_distance_px=${MATCHING_DISTANCES_PX[$j]}"
+
+    @ j = $j + 1
+end

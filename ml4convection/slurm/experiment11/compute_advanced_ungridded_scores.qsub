@@ -1,68 +1,63 @@
 #!/bin/tcsh
 
-#SBATCH --job-name="train_neural_nets"
+#SBATCH --job-name="compute_advanced_ungridded_scores"
 #SBATCH --partition="fge"
 #SBATCH --account="rda-ghpcs"
 #SBATCH --qos="batch"
+#SBATCH --ntasks=1
 #SBATCH --nodes=1
-#SBATCH --ntasks=8           # 8 tasks per node
-#SBATCH --cpus-per-task=2
-#SBATCH --ntasks-per-node=8  # 8 GPUs per node
-#SBATCH --exclusive
-#SBATCH --time=30:00:00
-#SBATCH --array=1-112%77
+#SBATCH --cpus-per-task=1
+#SBATCH --mem=8G
+##SBATCH --nodes=1
+##SBATCH --ntasks=1
+##SBATCH --cpus-per-task=1
+##SBATCH --ntasks-per-node=1
+#SBATCH --time=02:00:00
+#SBATCH --array=1-112
 #SBATCH --exclude=h28n12
 ##SBATCH --exclude=h31n03,h28n12
 ##SBATCH --exclude=h29n01,h26n05,h28n06,h29n07,h30n03,h30n15
 #SBATCH --mail-type=BEGIN,END,FAIL
 #SBATCH --mail-user=ryan.lagerquist@noaa.gov
-#SBATCH --output=train_neural_nets_%A_%a.out
+#SBATCH --output=compute_advanced_ungridded_scores_%A_%a.out
 
 module load cuda/10.1
 source /scratch2/BMC/gsd-hpcs/Jebb.Q.Stewart/conda3.7/etc/profile.d/conda.csh
 conda activate base
 
 set CODE_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_standalone/ml4convection"
-set TEMPLATE_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_models/experiment11/templates"
-set TOP_OUTPUT_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_models/experiment11"
+set TOP_TARGET_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_project/targets/new_echo_classification/no_tracking/full_grids"
+set TOP_MODEL_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_models/experiment11"
 
-set TRAINING_PREDICTOR_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_project/predictors/quality_controlled/partial_grids"
-set VALIDN_PREDICTOR_DIR_NAME="${TRAINING_PREDICTOR_DIR_NAME}"
-set TRAINING_TARGET_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_project/targets/new_echo_classification/no_tracking/partial_grids"
-set VALIDN_TARGET_DIR_NAME="${TRAINING_TARGET_DIR_NAME}"
+set FIRST_VALIDN_DATE_STRING="20170101"
+set LAST_VALIDN_DATE_STRING="20171224"
 
 set BATCH_SIZES=(16 16 16 16 32 32 32 32 48 48 48 48 64 64 64 64 16 16 16 16 32 32 32 32 48 48 48 48 64 64 64 64 16 16 16 16 32 32 32 32 48 48 48 48 64 64 64 64 16 16 16 16 32 32 32 32 48 48 48 48 64 64 64 64 16 16 16 16 32 32 32 32 48 48 48 48 64 64 64 64 16 16 16 16 32 32 32 32 48 48 48 48 64 64 64 64 16 16 16 16 32 32 32 32 48 48 48 48 64 64 64 64)
 set L2_WEIGHTS=(0.0000001000 0.0000001000 0.0000001000 0.0000001000 0.0000001000 0.0000001000 0.0000001000 0.0000001000 0.0000001000 0.0000001000 0.0000001000 0.0000001000 0.0000001000 0.0000001000 0.0000001000 0.0000001000 0.0000004642 0.0000004642 0.0000004642 0.0000004642 0.0000004642 0.0000004642 0.0000004642 0.0000004642 0.0000004642 0.0000004642 0.0000004642 0.0000004642 0.0000004642 0.0000004642 0.0000004642 0.0000004642 0.0000021544 0.0000021544 0.0000021544 0.0000021544 0.0000021544 0.0000021544 0.0000021544 0.0000021544 0.0000021544 0.0000021544 0.0000021544 0.0000021544 0.0000021544 0.0000021544 0.0000021544 0.0000021544 0.0000100000 0.0000100000 0.0000100000 0.0000100000 0.0000100000 0.0000100000 0.0000100000 0.0000100000 0.0000100000 0.0000100000 0.0000100000 0.0000100000 0.0000100000 0.0000100000 0.0000100000 0.0000100000 0.0000464159 0.0000464159 0.0000464159 0.0000464159 0.0000464159 0.0000464159 0.0000464159 0.0000464159 0.0000464159 0.0000464159 0.0000464159 0.0000464159 0.0000464159 0.0000464159 0.0000464159 0.0000464159 0.0002154435 0.0002154435 0.0002154435 0.0002154435 0.0002154435 0.0002154435 0.0002154435 0.0002154435 0.0002154435 0.0002154435 0.0002154435 0.0002154435 0.0002154435 0.0002154435 0.0002154435 0.0002154435 0.0010000000 0.0010000000 0.0010000000 0.0010000000 0.0010000000 0.0010000000 0.0010000000 0.0010000000 0.0010000000 0.0010000000 0.0010000000 0.0010000000 0.0010000000 0.0010000000 0.0010000000 0.0010000000)
-set LAG_TIME_COUNTS=(2 3 4 5 2 3 4 5 2 3 4 5 2 3 4 5 2 3 4 5 2 3 4 5 2 3 4 5 2 3 4 5 2 3 4 5 2 3 4 5 2 3 4 5 2 3 4 5 2 3 4 5 2 3 4 5 2 3 4 5 2 3 4 5 2 3 4 5 2 3 4 5 2 3 4 5 2 3 4 5 2 3 4 5 2 3 4 5 2 3 4 5 2 3 4 5 2 3 4 5 2 3 4 5 2 3 4 5 2 3 4 5)
 set LAG_TIME_COMBO_STRINGS=("0 600" "0 600 1200" "0 600 1200 1800" "0 600 1200 1800 2400" "0 600" "0 600 1200" "0 600 1200 1800" "0 600 1200 1800 2400" "0 600" "0 600 1200" "0 600 1200 1800" "0 600 1200 1800 2400" "0 600" "0 600 1200" "0 600 1200 1800" "0 600 1200 1800 2400" "0 600" "0 600 1200" "0 600 1200 1800" "0 600 1200 1800 2400" "0 600" "0 600 1200" "0 600 1200 1800" "0 600 1200 1800 2400" "0 600" "0 600 1200" "0 600 1200 1800" "0 600 1200 1800 2400" "0 600" "0 600 1200" "0 600 1200 1800" "0 600 1200 1800 2400" "0 600" "0 600 1200" "0 600 1200 1800" "0 600 1200 1800 2400" "0 600" "0 600 1200" "0 600 1200 1800" "0 600 1200 1800 2400" "0 600" "0 600 1200" "0 600 1200 1800" "0 600 1200 1800 2400" "0 600" "0 600 1200" "0 600 1200 1800" "0 600 1200 1800 2400" "0 600" "0 600 1200" "0 600 1200 1800" "0 600 1200 1800 2400" "0 600" "0 600 1200" "0 600 1200 1800" "0 600 1200 1800 2400" "0 600" "0 600 1200" "0 600 1200 1800" "0 600 1200 1800 2400" "0 600" "0 600 1200" "0 600 1200 1800" "0 600 1200 1800 2400" "0 600" "0 600 1200" "0 600 1200 1800" "0 600 1200 1800 2400" "0 600" "0 600 1200" "0 600 1200 1800" "0 600 1200 1800 2400" "0 600" "0 600 1200" "0 600 1200 1800" "0 600 1200 1800 2400" "0 600" "0 600 1200" "0 600 1200 1800" "0 600 1200 1800 2400" "0 600" "0 600 1200" "0 600 1200 1800" "0 600 1200 1800 2400" "0 600" "0 600 1200" "0 600 1200 1800" "0 600 1200 1800 2400" "0 600" "0 600 1200" "0 600 1200 1800" "0 600 1200 1800 2400" "0 600" "0 600 1200" "0 600 1200 1800" "0 600 1200 1800 2400" "0 600" "0 600 1200" "0 600 1200 1800" "0 600 1200 1800 2400" "0 600" "0 600 1200" "0 600 1200 1800" "0 600 1200 1800 2400" "0 600" "0 600 1200" "0 600 1200 1800" "0 600 1200 1800 2400" "0 600" "0 600 1200" "0 600 1200 1800" "0 600 1200 1800 2400")
 
 set batch_size=${BATCH_SIZES[$SLURM_ARRAY_TASK_ID]}
 set l2_weight=${L2_WEIGHTS[$SLURM_ARRAY_TASK_ID]}
-set lag_time_count=${LAG_TIME_COUNTS[$SLURM_ARRAY_TASK_ID]}
 
 set batch_size_string=`printf "%02d" $batch_size`
 set l2_weight_string=`printf "%.10f" $l2_weight`
-set lag_time_count_string=`printf "%d" $lag_time_count`
 
-set template_file_name="${TEMPLATE_DIR_NAME}/model_l2-weight=${l2_weight_string}_num-lag-times=${lag_time_count_string}.h5"
-set output_dir_name="${TOP_OUTPUT_DIR_NAME}/batch-size=${batch_size_string}_l2-weight=${l2_weight_string}_num-lag-times=${lag_time_count_string}"
-echo $output_dir_name
+set model_dir_name="${TOP_MODEL_DIR_NAME}/batch-size=${batch_size_string}_l2-weight=${l2_weight_string}_num-lag-times=${lag_time_count_string}"
+set top_evaluation_dir_name="${model_dir_name}/validation/partial_grids/evaluation"
 
-python3 -u "${CODE_DIR_NAME}/train_neural_net.py" \
---training_predictor_dir_name="${TRAINING_PREDICTOR_DIR_NAME}" \
---validn_predictor_dir_name="${VALIDN_PREDICTOR_DIR_NAME}" \
---training_target_dir_name="${TRAINING_TARGET_DIR_NAME}" \
---validn_target_dir_name="${VALIDN_TARGET_DIR_NAME}" \
---input_model_file_name="${template_file_name}" \
---output_model_dir_name="${output_dir_name}" \
---lead_time_seconds=0 \
---lag_times_seconds ${LAG_TIME_COMBO_STRINGS[$SLURM_ARRAY_TASK_ID]} \
---include_time_dimension=1 \
---normalize=1 \
---uniformize=1 \
---num_examples_per_batch=${batch_size} \
---max_examples_per_day_in_batch=8 \
---use_partial_grids=1 \
---num_epochs=1000 \
---num_training_batches_per_epoch=64 \
---num_validn_batches_per_epoch=32
+set MATCHING_DISTANCES_PX=("1.000000" "2.000000" "3.000000" "4.000000")
+set j=1
+
+while ($j <= ${#MATCHING_DISTANCES_PX})
+    set evaluation_dir_name="${top_evaluation_dir_name}/matching_distance_px=${MATCHING_DISTANCES_PX[$j]}"
+
+    python3 -u "${CODE_DIR_NAME}/compute_advanced_scores_ungridded.py" \
+    --input_basic_score_dir_name="${evaluation_dir_name}" \
+    --first_date_string="${FIRST_VALIDN_DATE_STRING}" \
+    --last_date_string="${LAST_VALIDN_DATE_STRING}" \
+    --use_partial_grids=1 \
+    --input_climo_file_name="${TOP_TARGET_DIR_NAME}/climo_dilation-distance-px=${MATCHING_DISTANCES_PX[$j]}.p" \
+    --output_dir_name="${evaluation_dir_name}"
+
+    @ j = $j + 1
+end
