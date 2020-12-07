@@ -335,8 +335,6 @@ def create_model(option_dict, loss_function, mask_matrix):
         axis=-2, name='concat_times'
     )(last_conv_layer_matrix[:, -1].tolist())
 
-    print(fc_module_layer_object.get_shape())
-
     for j in range(num_conv_layers_in_fc_module):
         this_name = 'fc_module_conv{0:d}'.format(j)
 
@@ -375,14 +373,14 @@ def create_model(option_dict, loss_function, mask_matrix):
                 layer_name=this_name
             )(fc_module_layer_object)
 
-    fc_module_layer_object = architecture_utils.get_3d_pooling_layer(
-        num_rows_in_window=1, num_columns_in_window=1,
-        num_heights_in_window=num_input_times,
-        num_rows_per_stride=1, num_columns_per_stride=1,
-        num_heights_per_stride=num_input_times,
-        pooling_type_string=architecture_utils.MAX_POOLING_STRING,
-        layer_name='fc_module_pooling'
-    )(fc_module_layer_object)
+    # fc_module_layer_object = architecture_utils.get_3d_pooling_layer(
+    #     num_rows_in_window=1, num_columns_in_window=1,
+    #     num_heights_in_window=num_input_times,
+    #     num_rows_per_stride=1, num_columns_per_stride=1,
+    #     num_heights_per_stride=num_input_times,
+    #     pooling_type_string=architecture_utils.MAX_POOLING_STRING,
+    #     layer_name='fc_module_pooling'
+    # )(fc_module_layer_object)
 
     shape_sans_time = (
         fc_module_layer_object.shape[1:3] + [fc_module_layer_object.shape[-1]]
