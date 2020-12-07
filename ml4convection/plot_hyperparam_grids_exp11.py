@@ -206,7 +206,7 @@ def _run(experiment_dir_name, matching_distance_px, output_dir_name):
                     '{0:s}/'
                     'batch-size={1:02d}_l2-weight={2:.10f}_num-lag-times={3:d}/'
                     'validation/partial_grids/evaluation/'
-                    'matching_distance_px={3:.6f}/'
+                    'matching_distance_px={4:.6f}/'
                     'advanced_scores_gridded=0.p'
                 ).format(
                     experiment_dir_name, BATCH_SIZES[i], L2_WEIGHTS[k],
