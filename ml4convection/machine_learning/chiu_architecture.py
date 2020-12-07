@@ -52,7 +52,7 @@ def _check_args(option_dict):
     L = number of levels in encoder = number of levels in decoder
 
     :param option_dict: Dictionary with the following keys.
-    option_dict['input_dimensions']: length-3 numpy array with input dimensions
+    option_dict['input_dimensions']: numpy array with input dimensions
         (num_rows, num_columns, num_times, num_channels).
     option_dict['num_conv_layers_in_fc_module']: Number of conv layers in
         forecasting module.
@@ -194,7 +194,7 @@ def create_model(option_dict, loss_function, mask_matrix):
     M = number of rows in grid
     N = number of columns in grid
 
-    :param option_dict: See doc for `_check_architecture_args`.
+    :param option_dict: See doc for `_check_args`.
     :param loss_function: Loss function.
     :param mask_matrix: M-by-N numpy array of Boolean flags.  Only pixels marked
         "True" are considered in the loss function and metrics.
@@ -331,12 +331,12 @@ def create_model(option_dict, loss_function, mask_matrix):
         this_name = 'fc_module_conv{0:d}'.format(j)
 
         fc_module_layer_object = architecture_utils.get_3d_conv_layer(
-            num_kernel_rows=3, num_kernel_columns=3,
+            num_kernel_rows=1, num_kernel_columns=1,
             num_kernel_heights=num_input_times,
             num_rows_per_stride=1, num_columns_per_stride=1,
             num_heights_per_stride=1,
             num_filters=num_channels_by_level[-1],
-            padding_type_string=architecture_utils.YES_PADDING_STRING,
+            padding_type_string=architecture_utils.NO_PADDING_STRING,
             weight_regularizer=regularizer_object,
             layer_name=this_name
         )(fc_module_layer_object)
@@ -407,6 +407,15 @@ def create_model(option_dict, loss_function, mask_matrix):
         weight_regularizer=regularizer_object,
         layer_name=this_name
     )(this_layer_object)
+
+    this_name = 'upsampling_level{0:d}_activation'.format(num_levels - 1)
+
+    upconv_layer_by_level[i] = architecture_utils.get_activation_layer(
+        activation_function_string=inner_activ_function_name,
+        alpha_for_relu=inner_activ_function_alpha,
+        alpha_for_elu=inner_activ_function_alpha,
+        layer_name=this_name
+    )(upconv_layer_by_level[i])
 
     if decoder_dropout_rate_by_level[i] > 0:
         this_name = 'upsampling_level{0:d}_dropout'.format(i)
@@ -534,6 +543,15 @@ def create_model(option_dict, loss_function, mask_matrix):
             weight_regularizer=regularizer_object,
             layer_name=this_name
         )(this_layer_object)
+
+        this_name = 'upsampling_level{0:d}_activation'.format(i - 1)
+
+        upconv_layer_by_level[i - 1] = architecture_utils.get_activation_layer(
+            activation_function_string=inner_activ_function_name,
+            alpha_for_relu=inner_activ_function_alpha,
+            alpha_for_elu=inner_activ_function_alpha,
+            layer_name=this_name
+        )(upconv_layer_by_level[i - 1])
 
         if decoder_dropout_rate_by_level[i - 1] > 0:
             this_name = 'upsampling_level{0:d}_dropout'.format(i - 1)
