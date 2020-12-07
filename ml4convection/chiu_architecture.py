@@ -335,6 +335,8 @@ def create_model(option_dict, loss_function, mask_matrix):
         axis=-2, name='concat_times'
     )(last_conv_layer_matrix[:, -1].tolist())
 
+    print(fc_module_layer_object.get_shape())
+
     for j in range(num_conv_layers_in_fc_module):
         this_name = 'fc_module_conv{0:d}'.format(j)
 
