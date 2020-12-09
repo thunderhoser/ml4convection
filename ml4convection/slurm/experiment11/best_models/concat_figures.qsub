@@ -42,6 +42,10 @@ set lag_time_count=${LAG_TIME_COUNTS[$SLURM_ARRAY_TASK_ID]}
 set first_date_string=${FIRST_DATE_STRINGS[$SLURM_ARRAY_TASK_ID]}
 set last_date_string=${LAST_DATE_STRINGS[$SLURM_ARRAY_TASK_ID]}
 
+set batch_size_string=`printf "%02d" $batch_size`
+set l2_weight_string=`printf "%.10f" $l2_weight`
+set lag_time_count_string=`printf "%d" $lag_time_count`
+
 set model_dir_name="${TOP_MODEL_DIR_NAME}/batch-size=${batch_size_string}_l2-weight=${l2_weight_string}_num-lag-times=${lag_time_count_string}"
 set model_metafile_name="${model_dir_name}/model_metadata.dill"
 set prediction_figure_dir_name="${model_dir_name}/validation/full_grids/prediction_plots"
