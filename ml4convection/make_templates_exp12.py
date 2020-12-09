@@ -1,4 +1,4 @@
-"""Makes U-net templates for Experiment 12."""
+"""Makes Chiu-net templates for Experiment 12."""
 
 import sys
 import copy
@@ -19,7 +19,7 @@ import custom_losses
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 
 HOME_DIR_NAME = '/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist'
-OUTPUT_DIR_NAME = '{0:s}/ml4convection_models/experiment11/templates'.format(
+OUTPUT_DIR_NAME = '{0:s}/ml4convection_models/experiment12/templates'.format(
     HOME_DIR_NAME
 )
 TOP_TARGET_DIR_NAME = (
@@ -29,8 +29,8 @@ TOP_TARGET_DIR_NAME = (
 
 FSS_HALF_WINDOW_SIZE_PX = 4
 
-L2_WEIGHTS = numpy.logspace(-7, -3, num=7)
-LAG_TIME_COUNTS = numpy.array([2, 3, 4, 5], dtype=int)
+L2_WEIGHTS = numpy.logspace(-7, -3, num=9)
+LAG_TIME_COUNTS = numpy.array([2, 3], dtype=int)
 
 DEFAULT_OPTION_DICT = {
     chiu_architecture.NUM_FC_CONV_LAYERS_KEY: 1,
@@ -46,7 +46,7 @@ DEFAULT_OPTION_DICT = {
 
 
 def _run():
-    """Makes U-net templates for Experiment 12.
+    """Makes Chiu-net templates for Experiment 12.
 
     This is effectively the main method.
     """

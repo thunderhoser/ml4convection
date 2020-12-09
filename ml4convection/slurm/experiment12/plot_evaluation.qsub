@@ -1,0 +1,57 @@
+#!/bin/tcsh
+
+#SBATCH --job-name="plot_evaluation"
+#SBATCH --partition="fge"
+#SBATCH --account="rda-ghpcs"
+#SBATCH --qos="batch"
+#SBATCH --ntasks=1
+#SBATCH --nodes=1
+#SBATCH --cpus-per-task=1
+#SBATCH --mem=8G
+##SBATCH --nodes=1
+##SBATCH --ntasks=1
+##SBATCH --cpus-per-task=1
+##SBATCH --ntasks-per-node=1
+#SBATCH --time=01:00:00
+#SBATCH --array=1-2,9-10,11-12,21-22,31-32,41-42,51-52,61-62,71-72,81-82
+#SBATCH --exclude=h28n12
+##SBATCH --exclude=h31n03,h28n12
+##SBATCH --exclude=h29n01,h26n05,h28n06,h29n07,h30n03,h30n15
+#SBATCH --mail-type=BEGIN,END,FAIL
+#SBATCH --mail-user=ryan.lagerquist@noaa.gov
+#SBATCH --output=plot_evaluation_%A_%a.out
+
+module load cuda/10.1
+source /scratch2/BMC/gsd-hpcs/Jebb.Q.Stewart/conda3.7/etc/profile.d/conda.csh
+conda activate base
+
+set CODE_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_standalone/ml4convection"
+set TOP_MODEL_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_models/experiment12"
+
+set BATCH_SIZES=(64 64 96 96 128 128 192 192 256 256 64 64 96 96 128 128 192 192 256 256 64 64 96 96 128 128 192 192 256 256 64 64 96 96 128 128 192 192 256 256 64 64 96 96 128 128 192 192 256 256 64 64 96 96 128 128 192 192 256 256 64 64 96 96 128 128 192 192 256 256 64 64 96 96 128 128 192 192 256 256 64 64 96 96 128 128 192 192 256 256)
+set L2_WEIGHTS=(0.0000001000 0.0000001000 0.0000001000 0.0000001000 0.0000001000 0.0000001000 0.0000001000 0.0000001000 0.0000001000 0.0000001000 0.0000003162 0.0000003162 0.0000003162 0.0000003162 0.0000003162 0.0000003162 0.0000003162 0.0000003162 0.0000003162 0.0000003162 0.0000010000 0.0000010000 0.0000010000 0.0000010000 0.0000010000 0.0000010000 0.0000010000 0.0000010000 0.0000010000 0.0000010000 0.0000031623 0.0000031623 0.0000031623 0.0000031623 0.0000031623 0.0000031623 0.0000031623 0.0000031623 0.0000031623 0.0000031623 0.0000100000 0.0000100000 0.0000100000 0.0000100000 0.0000100000 0.0000100000 0.0000100000 0.0000100000 0.0000100000 0.0000100000 0.0000316228 0.0000316228 0.0000316228 0.0000316228 0.0000316228 0.0000316228 0.0000316228 0.0000316228 0.0000316228 0.0000316228 0.0001000000 0.0001000000 0.0001000000 0.0001000000 0.0001000000 0.0001000000 0.0001000000 0.0001000000 0.0001000000 0.0001000000 0.0003162278 0.0003162278 0.0003162278 0.0003162278 0.0003162278 0.0003162278 0.0003162278 0.0003162278 0.0003162278 0.0003162278 0.0010000000 0.0010000000 0.0010000000 0.0010000000 0.0010000000 0.0010000000 0.0010000000 0.0010000000 0.0010000000 0.0010000000)
+set LAG_TIME_COUNTS=(2 3 2 3 2 3 2 3 2 3 2 3 2 3 2 3 2 3 2 3 2 3 2 3 2 3 2 3 2 3 2 3 2 3 2 3 2 3 2 3 2 3 2 3 2 3 2 3 2 3 2 3 2 3 2 3 2 3 2 3 2 3 2 3 2 3 2 3 2 3 2 3 2 3 2 3 2 3 2 3 2 3 2 3 2 3 2 3 2 3)
+
+set batch_size=${BATCH_SIZES[$SLURM_ARRAY_TASK_ID]}
+set l2_weight=${L2_WEIGHTS[$SLURM_ARRAY_TASK_ID]}
+set lag_time_count=${LAG_TIME_COUNTS[$SLURM_ARRAY_TASK_ID]}
+
+set batch_size_string=`printf "%02d" $batch_size`
+set l2_weight_string=`printf "%.10f" $l2_weight`
+set lag_time_count_string=`printf "%d" $lag_time_count`
+
+set model_dir_name="${TOP_MODEL_DIR_NAME}/batch-size=${batch_size_string}_l2-weight=${l2_weight_string}_num-lag-times=${lag_time_count_string}"
+
+set MATCHING_DISTANCES_PX=("1.000000" "2.000000" "3.000000" "4.000000")
+set j=1
+
+while ($j <= ${#MATCHING_DISTANCES_PX})
+    set output_dir_name="${model_dir_name}/validation/partial_grids/evaluation/matching_distance_px=${MATCHING_DISTANCES_PX[$j]}/advanced_scores_gridded=0"
+    set advanced_score_file_name="${output_dir_name}.p"
+
+    python3 -u "${CODE_DIR_NAME}/plot_evaluation.py" \
+    --input_advanced_score_file_name="${advanced_score_file_name}" \
+    --output_dir_name="${output_dir_name}"
+
+    @ j = $j + 1
+end

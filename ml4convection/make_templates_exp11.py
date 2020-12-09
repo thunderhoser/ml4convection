@@ -1,4 +1,4 @@
-"""Makes U-net templates for Experiment 11."""
+"""Makes Chiu-net templates for Experiment 11."""
 
 import sys
 import copy
@@ -46,7 +46,7 @@ DEFAULT_OPTION_DICT = {
 
 
 def _run():
-    """Makes U-net templates for Experiment 11.
+    """Makes Chiu-net templates for Experiment 11.
 
     This is effectively the main method.
     """
