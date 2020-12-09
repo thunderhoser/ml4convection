@@ -218,10 +218,10 @@ def plot_probabilistic(
         occurs.
     """
 
-    error_checking.assert_is_geq_numpy_array(probability_matrix, 0.)
-    error_checking.assert_is_leq_numpy_array(probability_matrix, 1.)
     print(numpy.max(probability_matrix))
     print(numpy.nanmax(probability_matrix))
+    error_checking.assert_is_geq_numpy_array(probability_matrix, 0.)
+    error_checking.assert_is_leq_numpy_array(probability_matrix, 1.)
     error_checking.assert_is_numpy_array(probability_matrix, num_dimensions=2)
 
     error_checking.assert_is_integer_numpy_array(target_matrix)
