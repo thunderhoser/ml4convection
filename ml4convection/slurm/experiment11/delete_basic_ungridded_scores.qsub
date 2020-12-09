@@ -43,7 +43,7 @@ set lag_time_count_string=`printf "%d" $lag_time_count`
 set model_dir_name="${TOP_MODEL_DIR_NAME}/batch-size=${batch_size_string}_l2-weight=${l2_weight_string}_num-lag-times=${lag_time_count_string}"
 set evaluation_dir_name="${model_dir_name}/validation/partial_grids/evaluation"
 
-python3 -u "${CODE_DIR_NAME}/delete_basic_gridded_scores.py" \
+python3 -u "${CODE_DIR_NAME}/delete_basic_scores.py" \
 --evaluation_dir_name="${evaluation_dir_name}" \
 --first_date_string="20170101" \
 --last_date_string="20171224" \
