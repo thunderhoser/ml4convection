@@ -13,7 +13,6 @@ from gewittergefahr.plotting import plotting_utils as gg_plotting_utils
 from ml4convection.io import border_io
 from ml4convection.io import prediction_io
 from ml4convection.utils import radar_utils
-from ml4convection.utils import general_utils
 from ml4convection.machine_learning import neural_net
 from ml4convection.plotting import plotting_utils
 from ml4convection.plotting import prediction_plotting
