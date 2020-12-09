@@ -42,7 +42,7 @@ set l2_weight_string=`printf "%.10f" $l2_weight`
 set lag_time_count_string=`printf "%d" $lag_time_count`
 
 set model_dir_name="${TOP_MODEL_DIR_NAME}/batch-size=${batch_size_string}_l2-weight=${l2_weight_string}_num-lag-times=${lag_time_count_string}"
-set evaluation_dir_name="${model_dir_name}/validation/full_grids/evaluation"
+set evaluation_dir_name="${model_dir_name}/validation/full_grids/evaluation/matching_distance_px=4.000000"
 
 set MONTHS=(1 2 3 4 5 6 7 8 9 10 11 12)
 
