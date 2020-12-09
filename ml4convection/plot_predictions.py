@@ -157,7 +157,7 @@ def _plot_predictions_one_example(
 
     target_matrix = prediction_dict[prediction_io.TARGET_MATRIX_KEY][i, ...]
     probability_matrix = (
-        prediction_dict[prediction_io.PROBABILITY_MATRIX_KEY][i, ...]
+        50 * prediction_dict[prediction_io.PROBABILITY_MATRIX_KEY][i, ...]
     )
 
     if plot_deterministic:
