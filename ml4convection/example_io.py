@@ -585,7 +585,8 @@ def _read_targets(dataset_object):
 
         if downsampling_factor > 1:
             mask_dict = radar_io.downsample_in_space(
-                any_radar_dict=mask_dict, downsampling_factor=4
+                any_radar_dict=mask_dict,
+                downsampling_factor=downsampling_factor
             )
 
         target_dict[MASK_MATRIX_KEY] = (

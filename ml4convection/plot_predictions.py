@@ -157,7 +157,7 @@ def _plot_predictions_one_example(
 
     target_matrix = prediction_dict[prediction_io.TARGET_MATRIX_KEY][i, ...]
     probability_matrix = (
-        50 * prediction_dict[prediction_io.PROBABILITY_MATRIX_KEY][i, ...]
+        prediction_dict[prediction_io.PROBABILITY_MATRIX_KEY][i, ...]
     )
 
     if plot_deterministic:
@@ -249,7 +249,7 @@ def _plot_predictions_one_day(
 
     print('Reading model metadata from: "{0:s}"...'.format(model_metafile_name))
     model_metadata_dict = neural_net.read_metafile(model_metafile_name)
-    
+
     if use_partial_grids:
         mask_matrix = model_metadata_dict[neural_net.MASK_MATRIX_KEY]
     else:

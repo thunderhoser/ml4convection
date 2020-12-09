@@ -30,12 +30,14 @@ DATE_FORMAT = '%Y%m%d'
 TIME_FORMAT = '%Y-%m-%d-%H%M'
 COMPOSITE_REFL_NAME = 'reflectivity_column_max_dbz'
 
+MASK_OUTLINE_COLOUR = numpy.full(3, 152. / 255)
 FIGURE_RESOLUTION_DPI = 300
 FIGURE_WIDTH_INCHES = 15
 FIGURE_HEIGHT_INCHES = 15
 
 REFLECTIVITY_DIR_ARG_NAME = 'input_reflectivity_dir_name'
 ECHO_CLASSIFN_DIR_ARG_NAME = 'input_echo_classifn_dir_name'
+MASK_FILE_ARG_NAME = 'input_mask_file_name'
 FIRST_DATE_ARG_NAME = 'first_date_string'
 LAST_DATE_ARG_NAME = 'last_date_string'
 PLOT_ALL_HEIGHTS_ARG_NAME = 'plot_all_heights'
@@ -55,6 +57,11 @@ ECHO_CLASSIFN_DIR_HELP_STRING = (
     'over convective pixels.'
 ).format(REFLECTIVITY_DIR_ARG_NAME)
 
+MASK_FILE_HELP_STRING = (
+    'Name of mask file (will be read by `radar_io.read_mask_file`).  Unmasked '
+    'area will be plotted with grey outline.  If you do not want to plot a '
+    'mask, leave this alone.'
+)
 DATE_HELP_STRING = (
     'Date (format "yyyymmdd").  Will plot radar images for all days in the '
     'period `{0:s}`...`{1:s}`.'
@@ -88,6 +95,10 @@ INPUT_ARG_PARSER.add_argument(
     help=ECHO_CLASSIFN_DIR_HELP_STRING
 )
 INPUT_ARG_PARSER.add_argument(
+    '--' + MASK_FILE_ARG_NAME, type=str, required=False, default='',
+    help=MASK_FILE_HELP_STRING
+)
+INPUT_ARG_PARSER.add_argument(
     '--' + FIRST_DATE_ARG_NAME, type=str, required=True, help=DATE_HELP_STRING
 )
 INPUT_ARG_PARSER.add_argument(
@@ -116,13 +127,14 @@ INPUT_ARG_PARSER.add_argument(
 
 
 def _plot_radar_one_time(
-        reflectivity_dict, echo_classifn_dict, example_index,
+        reflectivity_dict, echo_classifn_dict, mask_dict, example_index,
         border_latitudes_deg_n, border_longitudes_deg_e, plot_all_heights,
         output_dir_name):
     """Plots radar images for one time step.
 
     :param reflectivity_dict: See doc for `_plot_radar_one_day`.
     :param echo_classifn_dict: Same.
+    :param mask_dict: Same.
     :param example_index: Will plot [i]th example, where i = `example_index`.
     :param border_latitudes_deg_n: See doc for `_plot_radar_one_day`.
     :param border_longitudes_deg_e: Same.
@@ -184,6 +196,15 @@ def _plot_radar_one_time(
             longitude_spacing_deg=numpy.diff(longitudes_deg_e[:2])[0]
         )
 
+        if mask_dict is not None:
+            pyplot.contour(
+                longitudes_deg_e, latitudes_deg_n,
+                mask_dict[radar_io.MASK_MATRIX_KEY].astype(int),
+                numpy.array([0.999]),
+                colors=(MASK_OUTLINE_COLOUR,), linewidths=2, linestyles='solid',
+                axes=axes_object
+            )
+
         if echo_classifn_dict is not None:
             convective_flag_matrix = echo_classifn_dict[
                 radar_io.CONVECTIVE_FLAGS_KEY
@@ -235,10 +256,10 @@ def _plot_radar_one_time(
 
 
 def _plot_radar_one_day(
-        reflectivity_dict, echo_classifn_dict, border_latitudes_deg_n,
-        border_longitudes_deg_e, plot_all_heights, daily_times_seconds,
-        spatial_downsampling_factor, expand_to_satellite_grid,
-        top_output_dir_name):
+        reflectivity_dict, echo_classifn_dict, mask_dict,
+        border_latitudes_deg_n, border_longitudes_deg_e, plot_all_heights,
+        daily_times_seconds, spatial_downsampling_factor,
+        expand_to_satellite_grid, top_output_dir_name):
     """Plots radar images for one day.
 
     P = number of points in border set
@@ -248,6 +269,9 @@ def _plot_radar_one_day(
     :param echo_classifn_dict: Dictionary in the format returned by
         `radar_io.read_echo_classifn_file`.  If specified, will plot convective
         pixels only.  If None, will plot all pixels.
+    :param mask_dict: Dictionary in the format returned by
+        `radar_io.read_mask_file`.  If specified, will plot grey outline around
+        unmasked area.
     :param border_latitudes_deg_n: length-P numpy array of latitudes (deg N).
     :param border_longitudes_deg_e: length-P numpy array of longitudes (deg E).
     :param plot_all_heights: See documentation at top of file.
@@ -327,7 +351,8 @@ def _plot_radar_one_day(
     for i in range(num_times):
         _plot_radar_one_time(
             reflectivity_dict=reflectivity_dict,
-            echo_classifn_dict=echo_classifn_dict, example_index=i,
+            echo_classifn_dict=echo_classifn_dict,
+            mask_dict=mask_dict, example_index=i,
             border_latitudes_deg_n=border_latitudes_deg_n,
             border_longitudes_deg_e=border_longitudes_deg_e,
             plot_all_heights=plot_all_heights,
@@ -335,7 +360,7 @@ def _plot_radar_one_day(
         )
 
 
-def _run(top_reflectivity_dir_name, top_echo_classifn_dir_name,
+def _run(top_reflectivity_dir_name, top_echo_classifn_dir_name, mask_file_name,
          first_date_string, last_date_string, plot_all_heights,
          daily_times_seconds, spatial_downsampling_factor,
          expand_to_satellite_grid, top_output_dir_name):
@@ -345,6 +370,7 @@ def _run(top_reflectivity_dir_name, top_echo_classifn_dir_name,
 
     :param top_reflectivity_dir_name: See documentation at top of file.
     :param top_echo_classifn_dir_name: Same.
+    :param mask_file_name: Same.
     :param first_date_string: Same.
     :param last_date_string: Same.
     :param plot_all_heights: Same.
@@ -361,6 +387,23 @@ def _run(top_reflectivity_dir_name, top_echo_classifn_dir_name,
 
     if top_echo_classifn_dir_name == '':
         top_echo_classifn_dir_name = None
+
+    if mask_file_name == '':
+        mask_dict = None
+    else:
+        print('Reading mask from: "{0:s}"...'.format(mask_file_name))
+        mask_dict = radar_io.read_mask_file(mask_file_name)
+
+        if expand_to_satellite_grid:
+            mask_dict = radar_io.expand_to_satellite_grid(
+                any_radar_dict=mask_dict
+            )
+
+        if spatial_downsampling_factor > 1:
+            mask_dict = radar_io.downsample_in_space(
+                any_radar_dict=mask_dict,
+                downsampling_factor=spatial_downsampling_factor
+            )
 
     error_checking.assert_is_geq_numpy_array(daily_times_seconds, 0)
     error_checking.assert_is_less_than_numpy_array(
@@ -403,7 +446,7 @@ def _run(top_reflectivity_dir_name, top_echo_classifn_dir_name,
 
         _plot_radar_one_day(
             reflectivity_dict=reflectivity_dict,
-            echo_classifn_dict=echo_classifn_dict,
+            echo_classifn_dict=echo_classifn_dict, mask_dict=mask_dict,
             plot_all_heights=plot_all_heights,
             daily_times_seconds=daily_times_seconds,
             border_latitudes_deg_n=border_latitudes_deg_n,
@@ -427,6 +470,7 @@ if __name__ == '__main__':
         top_echo_classifn_dir_name=getattr(
             INPUT_ARG_OBJECT, ECHO_CLASSIFN_DIR_ARG_NAME
         ),
+        mask_file_name=getattr(INPUT_ARG_OBJECT, MASK_FILE_ARG_NAME),
         first_date_string=getattr(INPUT_ARG_OBJECT, FIRST_DATE_ARG_NAME),
         last_date_string=getattr(INPUT_ARG_OBJECT, LAST_DATE_ARG_NAME),
         plot_all_heights=bool(
