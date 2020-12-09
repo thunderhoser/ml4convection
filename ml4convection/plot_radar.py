@@ -399,7 +399,7 @@ def _run(top_reflectivity_dir_name, top_echo_classifn_dir_name, mask_file_name,
                 any_radar_dict=mask_dict
             )
 
-        if spatial_downsampling_factor > 1:
+        if spatial_downsampling_factor is not None:
             mask_dict = radar_io.downsample_in_space(
                 any_radar_dict=mask_dict,
                 downsampling_factor=spatial_downsampling_factor
