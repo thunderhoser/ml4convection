@@ -13,6 +13,7 @@ from ml4convection.machine_learning import neural_net
 INPUT_DIMENSIONS_KEY = 'input_dimensions'
 NUM_FC_CONV_LAYERS_KEY = 'num_conv_layers_in_fc_module'
 FC_MODULE_DROPOUT_RATES_KEY = 'fc_module_dropout_rates'
+USE_3D_CONV_IN_FC_KEY = 'use_3d_conv_in_fc_module'
 NUM_LEVELS_KEY = 'num_levels'
 CONV_LAYER_COUNTS_KEY = 'num_conv_layers_by_level'
 CHANNEL_COUNTS_KEY = 'num_channels_by_level'
@@ -28,8 +29,9 @@ L2_WEIGHT_KEY = 'l2_weight'
 USE_BATCH_NORM_KEY = 'use_batch_normalization'
 
 DEFAULT_ARCHITECTURE_OPTION_DICT = {
-    NUM_FC_CONV_LAYERS_KEY: 4,
-    FC_MODULE_DROPOUT_RATES_KEY: numpy.full(4, 0.),
+    NUM_FC_CONV_LAYERS_KEY: 1,
+    FC_MODULE_DROPOUT_RATES_KEY: numpy.full(1, 0.),
+    USE_3D_CONV_IN_FC_KEY: True,
     NUM_LEVELS_KEY: 4,
     CONV_LAYER_COUNTS_KEY: numpy.array([2, 2, 2, 4, 4], dtype=int),
     CHANNEL_COUNTS_KEY: numpy.array([16, 24, 32, 64, 128], dtype=int),
@@ -110,6 +112,8 @@ def _check_args(option_dict):
     error_checking.assert_is_leq_numpy_array(
         fc_module_dropout_rates, 1., allow_nan=True
     )
+
+    error_checking.assert_is_boolean(option_dict[USE_3D_CONV_IN_FC_KEY])
 
     num_levels = option_dict[NUM_LEVELS_KEY]
     error_checking.assert_is_integer(num_levels)
@@ -208,6 +212,7 @@ def create_model(option_dict, loss_function, mask_matrix):
     input_dimensions = option_dict[INPUT_DIMENSIONS_KEY]
     num_conv_layers_in_fc_module = option_dict[NUM_FC_CONV_LAYERS_KEY]
     fc_module_dropout_rates = option_dict[FC_MODULE_DROPOUT_RATES_KEY]
+    use_3d_conv_in_fc_module = option_dict[USE_3D_CONV_IN_FC_KEY]
     num_levels = option_dict[NUM_LEVELS_KEY]
     num_conv_layers_by_level = option_dict[CONV_LAYER_COUNTS_KEY]
     num_channels_by_level = option_dict[CHANNEL_COUNTS_KEY]
@@ -327,19 +332,37 @@ def create_model(option_dict, loss_function, mask_matrix):
         axis=-2, name='concat_times'
     )(last_conv_layer_matrix[:, -1].tolist())
 
+    if not use_3d_conv_in_fc_module:
+        orig_shape = fc_module_layer_object.get_shape()
+        shape_sans_time = orig_shape[1:-2] + [orig_shape[-2] * orig_shape[-1]]
+
+        fc_module_layer_object = keras.layers.Reshape(
+            target_shape=shape_sans_time, name='fc_module_remove-time-dim'
+        )(fc_module_layer_object)
+
     for j in range(num_conv_layers_in_fc_module):
         this_name = 'fc_module_conv{0:d}'.format(j)
 
-        fc_module_layer_object = architecture_utils.get_3d_conv_layer(
-            num_kernel_rows=1, num_kernel_columns=1,
-            num_kernel_heights=num_input_times,
-            num_rows_per_stride=1, num_columns_per_stride=1,
-            num_heights_per_stride=1,
-            num_filters=num_channels_by_level[-1],
-            padding_type_string=architecture_utils.NO_PADDING_STRING,
-            weight_regularizer=regularizer_object,
-            layer_name=this_name
-        )(fc_module_layer_object)
+        if use_3d_conv_in_fc_module:
+            fc_module_layer_object = architecture_utils.get_3d_conv_layer(
+                num_kernel_rows=1, num_kernel_columns=1,
+                num_kernel_heights=num_input_times,
+                num_rows_per_stride=1, num_columns_per_stride=1,
+                num_heights_per_stride=1,
+                num_filters=num_channels_by_level[-1],
+                padding_type_string=architecture_utils.NO_PADDING_STRING,
+                weight_regularizer=regularizer_object,
+                layer_name=this_name
+            )(fc_module_layer_object)
+        else:
+            fc_module_layer_object = architecture_utils.get_2d_conv_layer(
+                num_kernel_rows=1, num_kernel_columns=1,
+                num_rows_per_stride=1, num_columns_per_stride=1,
+                num_filters=num_channels_by_level[-1],
+                padding_type_string=architecture_utils.YES_PADDING_STRING,
+                weight_regularizer=regularizer_object,
+                layer_name=this_name
+            )(fc_module_layer_object)
 
         this_name = 'fc_module_conv{0:d}_activation'.format(j)
 
@@ -365,21 +388,14 @@ def create_model(option_dict, loss_function, mask_matrix):
                 layer_name=this_name
             )(fc_module_layer_object)
 
-    # fc_module_layer_object = architecture_utils.get_3d_pooling_layer(
-    #     num_rows_in_window=1, num_columns_in_window=1,
-    #     num_heights_in_window=num_input_times,
-    #     num_rows_per_stride=1, num_columns_per_stride=1,
-    #     num_heights_per_stride=num_input_times,
-    #     pooling_type_string=architecture_utils.MAX_POOLING_STRING,
-    #     layer_name='fc_module_pooling'
-    # )(fc_module_layer_object)
-
-    shape_sans_time = (
-        fc_module_layer_object.shape[1:3] + [fc_module_layer_object.shape[-1]]
-    )
-    fc_module_layer_object = keras.layers.Reshape(
-        target_shape=shape_sans_time, name='fc_module_remove-time-dim'
-    )(fc_module_layer_object)
+    if use_3d_conv_in_fc_module:
+        shape_sans_time = (
+            fc_module_layer_object.shape[1:3] +
+            [fc_module_layer_object.shape[-1]]
+        )
+        fc_module_layer_object = keras.layers.Reshape(
+            target_shape=shape_sans_time, name='fc_module_remove-time-dim'
+        )(fc_module_layer_object)
 
     upconv_layer_by_level = [None] * num_levels
     skip_layer_by_level = [None] * num_levels
