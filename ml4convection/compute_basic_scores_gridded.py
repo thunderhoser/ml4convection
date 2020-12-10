@@ -147,14 +147,18 @@ def _run(top_prediction_dir_name, first_date_string, last_date_string,
             if first_unmasked_row is None:
                 unmasked_row_flags = numpy.any(numpy.invert(numpy.isnan(
                     basic_score_table_xarray[evaluation.ACTUAL_SSE_FOR_FSS_KEY]
-                )), axis=1)
+                )),
+                    axis=(0, 2)
+                )
 
                 first_unmasked_row = numpy.where(unmasked_row_flags)[0][0]
                 last_unmasked_row = numpy.where(unmasked_row_flags)[0][-1]
 
                 unmasked_column_flags = numpy.any(numpy.invert(numpy.isnan(
                     basic_score_table_xarray[evaluation.ACTUAL_SSE_FOR_FSS_KEY]
-                )), axis=0)
+                )),
+                    axis=(0, 1)
+                )
 
                 first_unmasked_column = numpy.where(unmasked_column_flags)[0][0]
                 last_unmasked_column = numpy.where(unmasked_column_flags)[0][-1]
