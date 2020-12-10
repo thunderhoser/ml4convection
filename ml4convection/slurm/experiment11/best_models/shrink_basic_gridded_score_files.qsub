@@ -1,0 +1,54 @@
+#!/bin/tcsh
+
+#SBATCH --job-name="shrink_basic_gridded_score_files"
+#SBATCH --partition="fge"
+#SBATCH --account="rda-ghpcs"
+#SBATCH --qos="batch"
+#SBATCH --ntasks=1
+#SBATCH --nodes=1
+#SBATCH --cpus-per-task=1
+#SBATCH --mem=100G
+##SBATCH --nodes=1
+##SBATCH --ntasks=1
+##SBATCH --cpus-per-task=1
+##SBATCH --ntasks-per-node=1
+#SBATCH --time=01:00:00
+#SBATCH --array=1-45
+#SBATCH --exclude=h28n12
+##SBATCH --exclude=h31n03,h28n12
+##SBATCH --exclude=h29n01,h26n05,h28n06,h29n07,h30n03,h30n15
+#SBATCH --mail-type=BEGIN,END,FAIL
+#SBATCH --mail-user=ryan.lagerquist@noaa.gov
+#SBATCH --output=shrink_basic_gridded_score_files_%A_%a.out
+
+module load cuda/10.1
+source /scratch2/BMC/gsd-hpcs/Jebb.Q.Stewart/conda3.7/etc/profile.d/conda.csh
+conda activate base
+
+set CODE_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_standalone/ml4convection"
+set TOP_MODEL_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_models/experiment11"
+
+set BATCH_SIZES=(64 64 64 64 64 64 64 64 64 64 64 64 64 64 64 64 64 64 64 64 64 64 64 64 64 64 64 64 64 64 64 64 64 64 64 64 64 64 64 64 64 64 64 64 64)
+set L2_WEIGHTS=(0.00001 0.00001 0.00001 0.00001 0.00001 0.00001 0.00001 0.00001 0.00001 0.00001 0.00001 0.00001 0.00001 0.00001 0.00001 0.00001 0.00001 0.00001 0.00001 0.00001 0.00001 0.00001 0.00001 0.00001 0.00001 0.00001 0.00001 0.00001 0.00001 0.00001 0.00001 0.00001 0.00001 0.00001 0.00001 0.00001 0.00001 0.00001 0.00001 0.00001 0.00001 0.00001 0.00001 0.00001 0.00001)
+set LAG_TIME_COUNTS=(2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2)
+set FIRST_DATE_STRINGS=("20170101" "20170109" "20170117" "20170125" "20170202" "20170210" "20170218" "20170226" "20170306" "20170314" "20170322" "20170330" "20170407" "20170415" "20170423" "20170501" "20170509" "20170517" "20170525" "20170602" "20170610" "20170618" "20170626" "20170704" "20170712" "20170720" "20170728" "20170805" "20170813" "20170821" "20170829" "20170906" "20170914" "20170922" "20170930" "20171008" "20171016" "20171024" "20171101" "20171109" "20171117" "20171125" "20171203" "20171211" "20171219")
+set LAST_DATE_STRINGS=("20170108" "20170116" "20170124" "20170201" "20170209" "20170217" "20170225" "20170305" "20170313" "20170321" "20170329" "20170406" "20170414" "20170422" "20170430" "20170508" "20170516" "20170524" "20170601" "20170609" "20170617" "20170625" "20170703" "20170711" "20170719" "20170727" "20170804" "20170812" "20170820" "20170828" "20170905" "20170913" "20170921" "20170929" "20171007" "20171015" "20171023" "20171031" "20171108" "20171116" "20171124" "20171202" "20171210" "20171218" "20171224")
+
+set batch_size=${BATCH_SIZES[$SLURM_ARRAY_TASK_ID]}
+set l2_weight=${L2_WEIGHTS[$SLURM_ARRAY_TASK_ID]}
+set lag_time_count=${LAG_TIME_COUNTS[$SLURM_ARRAY_TASK_ID]}
+set first_date_string=${FIRST_DATE_STRINGS[$SLURM_ARRAY_TASK_ID]}
+set last_date_string=${LAST_DATE_STRINGS[$SLURM_ARRAY_TASK_ID]}
+
+set batch_size_string=`printf "%02d" $batch_size`
+set l2_weight_string=`printf "%.10f" $l2_weight`
+set lag_time_count_string=`printf "%d" $lag_time_count`
+
+set model_dir_name="${TOP_MODEL_DIR_NAME}/batch-size=${batch_size_string}_l2-weight=${l2_weight_string}_num-lag-times=${lag_time_count_string}"
+set evaluation_dir_name="${model_dir_name}/validation/full_grids/evaluation/matching_distance_px=4.000000"
+
+python3 -u "${CODE_DIR_NAME}/shrink_basic_gridded_score_files.py" \
+--input_dir_name="${evaluation_dir_name}" \
+--first_date_string="${first_date_string}" \
+--last_date_string="${last_date_string}" \
+--output_dir_name="${evaluation_dir_name}"

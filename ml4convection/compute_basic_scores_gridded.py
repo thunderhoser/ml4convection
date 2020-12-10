@@ -125,6 +125,11 @@ def _run(top_prediction_dir_name, first_date_string, last_date_string,
             this_climo_dict[climatology_io.EVENT_FREQ_BY_PIXEL_KEY]
         )
 
+    first_unmasked_row = None
+    last_unmasked_row = None
+    first_unmasked_column = None
+    last_unmasked_column = None
+
     for i in range(num_dates):
         print('Reading data from: "{0:s}"...'.format(prediction_file_names[i]))
         prediction_dict = prediction_io.read_file(prediction_file_names[i])
@@ -137,6 +142,29 @@ def _run(top_prediction_dir_name, first_date_string, last_date_string,
                 matching_distance_px=matching_distances_px[j],
                 probability_thresholds=prob_thresholds,
                 training_event_freq_matrix=event_freq_matrices[j]
+            )
+
+            if first_unmasked_row is None:
+                unmasked_row_flags = numpy.any(numpy.invert(numpy.isnan(
+                    basic_score_table_xarray[evaluation.ACTUAL_SSE_FOR_FSS_KEY]
+                )), axis=1)
+
+                first_unmasked_row = numpy.where(unmasked_row_flags)[0][0]
+                last_unmasked_row = numpy.where(unmasked_row_flags)[0][-1]
+
+                unmasked_column_flags = numpy.any(numpy.invert(numpy.isnan(
+                    basic_score_table_xarray[evaluation.ACTUAL_SSE_FOR_FSS_KEY]
+                )), axis=0)
+
+                first_unmasked_column = numpy.where(unmasked_column_flags)[0][0]
+                last_unmasked_column = numpy.where(unmasked_column_flags)[0][-1]
+
+            basic_score_table_xarray = evaluation.subset_basic_scores_by_space(
+                basic_score_table_xarray=basic_score_table_xarray,
+                first_grid_row=first_unmasked_row,
+                last_grid_row=last_unmasked_row,
+                first_grid_column=first_unmasked_column,
+                last_grid_column=last_unmasked_column
             )
 
             output_dir_name = '{0:s}/matching_distance_px={1:.6f}'.format(
