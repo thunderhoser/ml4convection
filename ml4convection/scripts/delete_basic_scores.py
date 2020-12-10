@@ -1,5 +1,6 @@
 """Deletes files with basic scores."""
 
+import os
 import argparse
 from ml4convection.utils import evaluation
 from ml4convection.utils import radar_utils
@@ -93,7 +94,7 @@ def _run(top_evaluation_dir_name, first_date_string, last_date_string, gridded,
 
     for this_file_name in basic_score_file_names:
         print('Deleting file: "{0:s}"...'.format(this_file_name))
-        # os.remove(this_file_name)
+        os.remove(this_file_name)
 
 
 if __name__ == '__main__':
