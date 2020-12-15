@@ -8,7 +8,6 @@ import pickle
 import numpy
 import keras
 import tensorflow
-from keras.legacy import interfaces
 from keras.optimizers import Optimizer
 from keras import backend as K
 import tensorflow.keras as tf_keras
@@ -682,7 +681,6 @@ class AdamAccumulate(Optimizer):
         self.accum_iters = K.variable(accum_iters, K.dtype(self.iterations))
         self.accum_iters_float = K.cast(self.accum_iters, K.floatx())
 
-    @interfaces.legacy_get_updates_support
     def get_updates(self, loss, params):
         grads = self.get_gradients(loss, params)
         self.updates = [K.update_add(self.iterations, 1)]
