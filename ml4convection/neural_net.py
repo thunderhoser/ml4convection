@@ -576,6 +576,7 @@ class AccumOptimizer(keras.optimizers.Adam):
 
         super(AccumOptimizer, self).__init__(name='AccumOptimizer', **kwargs)
         self.name = 'AccumOptimizer'
+        self.optimizer = keras.optimizers.Adam()
 
         with K.name_scope(self.__class__.__name__):
             self.num_batches_per_update = num_batches_per_update
