@@ -615,6 +615,8 @@ class AccumOptimizer(Optimizer):
         coefficients = ((apply_state or {}).get((var.device, var.dtype.base_dtype))
                         or self._fallback_apply_state(var.device, var.dtype.base_dtype))
 
+        print(coefficients)
+
         return training_ops.resource_apply_gradient_descent(
             var.handle, coefficients["lr_t"], grad,
             use_locking=self._use_locking
