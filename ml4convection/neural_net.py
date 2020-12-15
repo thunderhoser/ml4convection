@@ -7,9 +7,8 @@ import random
 import pickle
 import numpy
 import keras
+import tensorflow
 from keras import backend as K
-from keras.optimizers import Optimizer
-from tensorflow.python.training import training_ops
 import tensorflow.keras as tf_keras
 
 THIS_DIRECTORY_NAME = os.path.dirname(os.path.realpath(
@@ -549,7 +548,7 @@ def _get_input_px_for_partial_grid(partial_grid_dict):
     return partial_grid_dict
 
 
-class AccumOptimizer(Optimizer):
+class AccumOptimizer(keras.optimizers.Adam):
     """Optimizer with accumulating gradients.
 
     "Accumulating gradients" means that the optimizer updates model weights
@@ -563,11 +562,9 @@ class AccumOptimizer(Optimizer):
     accum_optimizer.py
     """
 
-    def __init__(self, optimizer_object, num_batches_per_update, **kwargs):
+    def __init__(self, num_batches_per_update, **kwargs):
         """Constructor.
 
-        :param optimizer_object: Keras optimizer for which to accumulate
-            gradients.
         :param num_batches_per_update: Will update model weights after every N
             batches, where N = `num_batches_per_update`.
         :param kwargs: Keyword arguments.
@@ -578,7 +575,6 @@ class AccumOptimizer(Optimizer):
         error_checking.assert_is_greater(num_batches_per_update, 1)
 
         super(AccumOptimizer, self).__init__(name='AccumOptimizer', **kwargs)
-        self.optimizer = optimizer_object
         self.name = 'AccumOptimizer'
 
         with K.name_scope(self.__class__.__name__):
@@ -612,15 +608,12 @@ class AccumOptimizer(Optimizer):
             self.optimizer.get_gradients = get_gradients
 
     def _resource_apply_dense(self, grad, var, apply_state=None):
-        coefficients = ((apply_state or {}).get((var.device, var.dtype.base_dtype))
-                        or self._fallback_apply_state(var.device, var.dtype.base_dtype))
-
-        print(coefficients)
-
-        return training_ops.resource_apply_gradient_descent(
-            var.handle, coefficients["lr_t"], grad,
-            use_locking=self._use_locking
-        )
+        lr_t, kwargs = self._get_lr(var.device, var.dtype.base_dtype, apply_state)
+        decay = self._decay_weights_op(var, lr_t, apply_state)
+        with tensorflow.control_dependencies([decay]):
+            return super(AccumOptimizer, self)._resource_apply_dense(
+                grad, var, **kwargs
+            )
 
     def get_updates(self, loss, params):
         """Updates model weights.
@@ -1548,7 +1541,7 @@ def read_model(hdf5_file_name):
         optimizer_object = keras.optimizers.Adam()
     else:
         optimizer_object = AccumOptimizer(
-            optimizer_object=keras.optimizers.Adam(), num_batches_per_update=4
+            num_batches_per_update=num_batches_per_update
         )
 
     model_object.compile(
