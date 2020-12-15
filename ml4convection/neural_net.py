@@ -666,7 +666,9 @@ class AdamAccumulate(Optimizer):
                  epsilon=None, decay=0., amsgrad=False, accum_iters=1, **kwargs):
         if accum_iters < 1:
             raise ValueError('accum_iters must be >= 1')
-        super(AdamAccumulate, self).__init__(**kwargs)
+        super(AdamAccumulate, self).__init__(name='AdamAccumulate', **kwargs)
+        self.name = 'AdamAccumulate'
+
         with K.name_scope(self.__class__.__name__):
             self.iterations = K.variable(0, dtype='int64', name='iterations')
             self.lr = K.variable(lr, name='lr')
