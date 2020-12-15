@@ -609,12 +609,9 @@ class AccumOptimizer(keras.optimizers.Adam):
             self.optimizer.get_gradients = get_gradients
 
     def _resource_apply_dense(self, grad, var, apply_state=None):
-        lr_t, kwargs = self._get_lr(var.device, var.dtype.base_dtype, apply_state)
-        decay = self._decay_weights_op(var, lr_t, apply_state)
-        with tensorflow.control_dependencies([decay]):
-            return super(AccumOptimizer, self)._resource_apply_dense(
-                grad, var, **kwargs
-            )
+        return super(AccumOptimizer, self)._resource_apply_dense(
+            grad, var
+        )
 
     def get_updates(self, loss, params):
         """Updates model weights.
