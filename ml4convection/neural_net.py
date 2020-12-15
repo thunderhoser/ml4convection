@@ -610,6 +610,13 @@ class AccumOptimizer(Optimizer):
 
             self.optimizer.get_gradients = get_gradients
 
+    def _resource_apply_dense(self, grad, handle, apply_state):
+        return super(AccumOptimizer, self)._resource_apply_dense(grad, handle, apply_state)
+
+    def _resource_apply_sparse(self, grad, handle, indices, apply_state):
+        raise NotImplementedError()
+        # return super(AccumOptimizer, self)._resource_apply_sparse(grad, handle, indices, apply_state)
+
     def get_updates(self, loss, params):
         """Updates model weights.
 
