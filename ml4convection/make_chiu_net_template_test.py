@@ -28,7 +28,16 @@ TOP_TARGET_DIR_NAME = (
 
 OPTION_DICT = {
     chiu_architecture.INPUT_DIMENSIONS_KEY:
-        numpy.array([205, 205, 4, 7], dtype=int)
+        numpy.array([205, 205, 4, 7], dtype=int),
+    chiu_architecture.NUM_FC_CONV_LAYERS_KEY: 1,
+    chiu_architecture.FC_MODULE_DROPOUT_RATES_KEY: numpy.full(1, 0.),
+    chiu_architecture.NUM_LEVELS_KEY: 5,
+    chiu_architecture.CONV_LAYER_COUNTS_KEY: numpy.full(6, 2, dtype=int),
+    chiu_architecture.CHANNEL_COUNTS_KEY:
+        numpy.array([16, 24, 32, 48, 64, 96], dtype=int),
+    chiu_architecture.ENCODER_DROPOUT_RATES_KEY: numpy.full(6, 0.),
+    chiu_architecture.DECODER_DROPOUT_RATES_KEY: numpy.full(5, 0.),
+    chiu_architecture.SKIP_DROPOUT_RATES_KEY: numpy.full(5, 0.)
 }
 
 
@@ -62,7 +71,7 @@ def _run():
     )
     model_object = chiu_architecture.create_model(
         option_dict=OPTION_DICT, loss_function=loss_function,
-        mask_matrix=mask_matrix
+        mask_matrix=mask_matrix, num_batches_per_update=2
     )
 
     model_file_name = '{0:s}/model_template.h5'.format(OUTPUT_DIR_NAME)
@@ -86,6 +95,7 @@ def _run():
         validation_option_dict=dummy_option_dict,
         do_early_stopping=True, plateau_lr_multiplier=0.6,
         class_weights=None, fss_half_window_size_px=3,
+        num_batches_per_update=2,
         mask_matrix=mask_matrix, full_mask_matrix=full_mask_matrix
     )
 
