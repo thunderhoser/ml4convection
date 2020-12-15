@@ -9,6 +9,7 @@ import numpy
 import keras
 from keras import backend as K
 from keras.optimizers import Optimizer
+from tensorflow.python.training import training_ops
 import tensorflow.keras as tf_keras
 
 THIS_DIRECTORY_NAME = os.path.dirname(os.path.realpath(
@@ -610,12 +611,14 @@ class AccumOptimizer(Optimizer):
 
             self.optimizer.get_gradients = get_gradients
 
-    def _resource_apply_dense(self, grad, handle, apply_state):
-        return super(AccumOptimizer, self)._resource_apply_dense(grad, handle, apply_state)
+    def _resource_apply_dense(self, grad, var, apply_state=None):
+        coefficients = ((apply_state or {}).get((var.device, var.dtype.base_dtype))
+                        or self._fallback_apply_state(var.device, var.dtype.base_dtype))
 
-    def _resource_apply_sparse(self, grad, handle, indices, apply_state):
-        raise NotImplementedError()
-        # return super(AccumOptimizer, self)._resource_apply_sparse(grad, handle, indices, apply_state)
+        return training_ops.resource_apply_gradient_descent(
+            var.handle, coefficients["lr_t"], grad,
+            use_locking=self._use_locking
+        )
 
     def get_updates(self, loss, params):
         """Updates model weights.
