@@ -187,7 +187,8 @@ def _get_time_slicing_function(time_index):
     return time_slicing_function
 
 
-def create_model(option_dict, loss_function, mask_matrix):
+def create_model(option_dict, loss_function, mask_matrix,
+                 num_batches_per_update=None):
     """Creates Chiu net.
 
     This method sets up the architecture, loss function, and optimizer -- and
@@ -202,9 +203,16 @@ def create_model(option_dict, loss_function, mask_matrix):
     :param loss_function: Loss function.
     :param mask_matrix: M-by-N numpy array of Boolean flags.  Only pixels marked
         "True" are considered in the loss function and metrics.
+    :param num_batches_per_update: Number of batches per weight update.  If you
+        want to update weights after each batch, like a normal person, leave
+        this argument alone.
     :return: model_object: Instance of `keras.models.Model`, with the
         aforementioned architecture.
     """
+
+    if num_batches_per_update is not None:
+        error_checking.assert_is_integer(num_batches_per_update)
+        error_checking.assert_is_greater(num_batches_per_update, 1)
 
     metric_function_list = neural_net.get_metrics(mask_matrix)[0]
     option_dict = _check_args(option_dict)
@@ -628,8 +636,16 @@ def create_model(option_dict, loss_function, mask_matrix):
         inputs=input_layer_object, outputs=skip_layer_by_level[0]
     )
 
+    if num_batches_per_update is None:
+        optimizer_object = keras.optimizers.Adam()
+    else:
+        optimizer_object = neural_net.AccumOptimizer(
+            optimizer_object=keras.optimizers.Adam(),
+            num_batches_per_update=num_batches_per_update
+        )
+
     model_object.compile(
-        loss=loss_function, optimizer=keras.optimizers.Adam(),
+        loss=loss_function, optimizer=optimizer_object,
         metrics=metric_function_list
     )
 
