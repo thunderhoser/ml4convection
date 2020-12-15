@@ -660,7 +660,7 @@ class AccumOptimizer(keras.optimizers.Adam):
         return config
 
 
-class AdamAccumulate(Optimizer):
+class AdamAccumulate(keras.optimizers.Adam):
 
     def __init__(self, lr=0.001, beta_1=0.9, beta_2=0.999,
                  epsilon=None, decay=0., amsgrad=False, accum_iters=1, **kwargs):
@@ -682,6 +682,11 @@ class AdamAccumulate(Optimizer):
         self.amsgrad = amsgrad
         self.accum_iters = K.variable(accum_iters, K.dtype(self.iterations))
         self.accum_iters_float = K.cast(self.accum_iters, K.floatx())
+
+    def _resource_apply_dense(self, grad, var, apply_state=None):
+        return super(AdamAccumulate, self)._resource_apply_dense(
+            grad, var
+        )
 
     def get_updates(self, loss, params):
         grads = self.get_gradients(loss, params)
