@@ -1398,11 +1398,6 @@ def read_model(hdf5_file_name, for_mirrored_training=False):
     )
 
     if for_mirrored_training:
-        model_object.compile(
-            loss=custom_object_dict['loss'], optimizer=keras.optimizers.Adam(),
-            metrics=metric_list
-        )
-    else:
         strategy_object = tensorflow.distribute.MirroredStrategy()
 
         with strategy_object.scope():
@@ -1411,6 +1406,11 @@ def read_model(hdf5_file_name, for_mirrored_training=False):
                 optimizer=keras.optimizers.Adam(),
                 metrics=metric_list
             )
+    else:
+        model_object.compile(
+            loss=custom_object_dict['loss'], optimizer=keras.optimizers.Adam(),
+            metrics=metric_list
+        )
 
     return model_object
 
