@@ -6,10 +6,7 @@ import os.path
 import dill
 import numpy
 import keras
-from keras import backend as K
-from keras.optimizers import Optimizer
 import tensorflow.keras as tf_keras
-from gewittergefahr.gg_utils import number_rounding
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
 from ml4convection.io import satellite_io
@@ -65,16 +62,14 @@ EARLY_STOPPING_KEY = 'do_early_stopping'
 PLATEAU_LR_MUTIPLIER_KEY = 'plateau_lr_multiplier'
 CLASS_WEIGHTS_KEY = 'class_weights'
 FSS_HALF_WINDOW_SIZE_KEY = 'fss_half_window_size_px'
-NUM_BATCHES_PER_UPDATE_KEY = 'num_batches_per_update'
 MASK_MATRIX_KEY = 'mask_matrix'
 FULL_MASK_MATRIX_KEY = 'full_mask_matrix'
 
 METADATA_KEYS = [
     USE_PARTIAL_GRIDS_KEY, NUM_EPOCHS_KEY, NUM_TRAINING_BATCHES_KEY,
     TRAINING_OPTIONS_KEY, NUM_VALIDATION_BATCHES_KEY, VALIDATION_OPTIONS_KEY,
-    EARLY_STOPPING_KEY, PLATEAU_LR_MUTIPLIER_KEY,
-    CLASS_WEIGHTS_KEY, FSS_HALF_WINDOW_SIZE_KEY,
-    NUM_BATCHES_PER_UPDATE_KEY, MASK_MATRIX_KEY, FULL_MASK_MATRIX_KEY
+    EARLY_STOPPING_KEY, PLATEAU_LR_MUTIPLIER_KEY, CLASS_WEIGHTS_KEY,
+    FSS_HALF_WINDOW_SIZE_KEY, MASK_MATRIX_KEY, FULL_MASK_MATRIX_KEY
 ]
 
 PREDICTOR_MATRIX_KEY = 'predictor_matrix'
@@ -229,7 +224,6 @@ def _read_inputs_one_day(
     :param num_examples_to_read: Number of examples to read.
     :param return_coords: Boolean flag.  If True, will return latitudes and
         longitudes for grid points.
-
     :return: data_dict: Dictionary with the following keys.
     data_dict['predictor_matrix']: See doc for
         `generator_full_grid`.
@@ -371,7 +365,7 @@ def _read_inputs_one_day(
     ))
 
     data_dict = {
-        PREDICTOR_MATRIX_KEY: predictor_matrix,
+        PREDICTOR_MATRIX_KEY: predictor_matrix.astype('float16'),
         TARGET_MATRIX_KEY: numpy.expand_dims(target_matrix, axis=-1),
         VALID_TIMES_KEY: valid_times_unix_sec,
         LATITUDES_KEY: None,
@@ -390,8 +384,7 @@ def _write_metafile(
         num_training_batches_per_epoch,
         training_option_dict, num_validation_batches_per_epoch,
         validation_option_dict, do_early_stopping, plateau_lr_multiplier,
-        class_weights, fss_half_window_size_px, num_batches_per_update,
-        mask_matrix, full_mask_matrix):
+        class_weights, fss_half_window_size_px, mask_matrix, full_mask_matrix):
     """Writes metadata to Dill file.
 
     M = number of rows in prediction grid
@@ -408,7 +401,6 @@ def _write_metafile(
     :param plateau_lr_multiplier: Same.
     :param class_weights: Same.
     :param fss_half_window_size_px: Same.
-    :param num_batches_per_update: Same.
     :param mask_matrix: Same.
     :param full_mask_matrix: Same.
     """
@@ -424,7 +416,6 @@ def _write_metafile(
         PLATEAU_LR_MUTIPLIER_KEY: plateau_lr_multiplier,
         CLASS_WEIGHTS_KEY: class_weights,
         FSS_HALF_WINDOW_SIZE_KEY: fss_half_window_size_px,
-        NUM_BATCHES_PER_UPDATE_KEY: num_batches_per_update,
         MASK_MATRIX_KEY: mask_matrix,
         FULL_MASK_MATRIX_KEY: full_mask_matrix
     }
@@ -539,114 +530,6 @@ def _get_input_px_for_partial_grid(partial_grid_dict):
     partial_grid_dict[LAST_INPUT_COLUMN_KEY] = last_input_column
 
     return partial_grid_dict
-
-
-class AccumOptimizer(Optimizer):
-    """Optimizer with accumulating gradients.
-
-    "Accumulating gradients" means that the optimizer updates model weights
-    after every N batches, where N > 1.
-
-    This class inherits the class `keras.optimizers.Optimizer`.
-
-    Code adapted from:
-
-    https://github.com/bojone/accum_optimizer_for_keras/blob/master/
-    accum_optimizer.py
-    """
-
-    def __init__(self, optimizer_object, num_batches_per_update, **kwargs):
-        """Constructor.
-
-        :param optimizer_object: Keras optimizer for which to accumulate
-            gradients.
-        :param num_batches_per_update: Will update model weights after every N
-            batches, where N = `num_batches_per_update`.
-        :param kwargs: Keyword arguments.
-        :return: accum_optimizer_object: Gradient-accumulating version of input
-            `optimizer_object`.
-        """
-
-        error_checking.assert_is_greater(num_batches_per_update, 1)
-
-        super(AccumOptimizer, self).__init__(name='AccumOptimizer', **kwargs)
-        self.optimizer = optimizer_object
-        self.name = 'AccumOptimizer'
-
-        with K.name_scope(self.__class__.__name__):
-            self.num_batches_per_update = num_batches_per_update
-            self.iterations = K.variable(0, dtype='int64', name='iterations')
-            self.cond = K.equal(
-                self.iterations % self.num_batches_per_update, 0
-            )
-            self.lr = self.optimizer.lr
-            self.optimizer.lr = K.switch(self.cond, self.optimizer.lr, 0.)
-
-            for attr in ['momentum', 'rho', 'beta_1', 'beta_2']:
-                if hasattr(self.optimizer, attr):
-                    value = getattr(self.optimizer, attr)
-                    setattr(self, attr, value)
-                    setattr(
-                        self.optimizer, attr,
-                        K.switch(self.cond, value, 1 - 1e-7)
-                    )
-
-            for attr in self.optimizer.get_config():
-                if not hasattr(self, attr):
-                    value = getattr(self.optimizer, attr)
-                    setattr(self, attr, value)
-
-            def get_gradients(loss, params):
-                return [
-                    ag / self.num_batches_per_update for ag in self.accum_grads
-                ]
-
-            self.optimizer.get_gradients = get_gradients
-
-    def get_updates(self, loss, params):
-        """Updates model weights.
-
-        :param loss: Loss function.
-        :param params: Other parameters (no idea what the format of this
-            argument is).
-        :return: updates: No idea what the format of this argument is.
-        """
-
-        self.updates = [
-            K.update_add(self.iterations, 1),
-            K.update_add(self.optimizer.iterations, K.cast(self.cond, 'int64')),
-        ]
-        self.accum_grads = [
-            K.zeros(K.int_shape(p), dtype=K.dtype(p)) for p in params
-        ]
-
-        grads = self.get_gradients(loss, params)
-
-        for g, ag in zip(grads, self.accum_grads):
-            self.updates.append(K.update(
-                ag, K.switch(self.cond, ag * 0, ag + g)
-            ))
-
-        self.updates.extend(
-            self.optimizer.get_updates(loss, params)[1:]
-        )
-        self.weights.extend(self.optimizer.weights)
-
-        return self.updates
-
-    def get_config(self):
-        """Returns configuration of optimizer?
-
-        :return: config: No idea what the format of this argument is.
-        """
-
-        iterations = K.eval(self.iterations)
-        K.set_value(self.iterations, 0)
-
-        config = self.optimizer.get_config()
-        K.set_value(self.iterations, iterations)
-
-        return config
 
 
 def get_metrics(mask_matrix):
@@ -1115,8 +998,8 @@ def generator_full_grid(option_dict):
 
             num_examples_in_memory = predictor_matrix.shape[0]
 
-        predictor_matrix = predictor_matrix.astype('float32')
-        target_matrix = target_matrix.astype('float32')
+        predictor_matrix = predictor_matrix.astype('float16')
+        target_matrix = target_matrix.astype('float16')
         yield predictor_matrix, target_matrix
 
 
@@ -1290,8 +1173,8 @@ def generator_partial_grids(option_dict):
 
             num_examples_in_memory = predictor_matrix.shape[0]
 
-        predictor_matrix = predictor_matrix.astype('float32')
-        target_matrix = target_matrix.astype('float32')
+        predictor_matrix = predictor_matrix.astype('float16')
+        target_matrix = target_matrix.astype('float16')
         yield predictor_matrix, target_matrix
 
 
@@ -1301,8 +1184,7 @@ def train_model(
         num_validation_batches_per_epoch, validation_option_dict,
         mask_matrix, full_mask_matrix, do_early_stopping=True,
         plateau_lr_multiplier=DEFAULT_LEARNING_RATE_MULTIPLIER,
-        class_weights=None, fss_half_window_size_px=None,
-        num_batches_per_update=None):
+        class_weights=None, fss_half_window_size_px=None):
     """Trains neural net on either full grid or partial grids.
 
     M = number of rows in full grid
@@ -1345,7 +1227,6 @@ def train_model(
     :param fss_half_window_size_px: Number of pixels (grid cells) in half of
         smoothing window for fractions skill score (FSS).  If FSS is not the
         loss function, leave this alone.
-    :param num_batches_per_update: Number of batches per weight update.
     """
 
     file_system_utils.mkdir_recursive_if_necessary(
@@ -1360,26 +1241,6 @@ def train_model(
     error_checking.assert_is_integer(num_validation_batches_per_epoch)
     error_checking.assert_is_geq(num_validation_batches_per_epoch, 10)
     error_checking.assert_is_boolean(do_early_stopping)
-
-    if num_batches_per_update is not None:
-        error_checking.assert_is_integer(num_batches_per_update)
-        error_checking.assert_is_less_than(
-            num_batches_per_update, num_training_batches_per_epoch
-        )
-        error_checking.assert_is_less_than(
-            num_batches_per_update, num_validation_batches_per_epoch
-        )
-
-        num_training_batches_per_epoch = int(
-            number_rounding.ceiling_to_nearest(
-                float(num_training_batches_per_epoch), num_batches_per_update
-            )
-        )
-        num_validation_batches_per_epoch = int(
-            number_rounding.ceiling_to_nearest(
-                float(num_validation_batches_per_epoch), num_batches_per_update
-            )
-        )
 
     error_checking.assert_is_numpy_array(mask_matrix, num_dimensions=2)
     error_checking.assert_is_numpy_array(full_mask_matrix, num_dimensions=2)
@@ -1466,7 +1327,6 @@ def train_model(
         plateau_lr_multiplier=plateau_lr_multiplier,
         class_weights=class_weights,
         fss_half_window_size_px=fss_half_window_size_px,
-        num_batches_per_update=num_batches_per_update,
         mask_matrix=mask_matrix, full_mask_matrix=full_mask_matrix
     )
 
@@ -1502,42 +1362,38 @@ def read_model(hdf5_file_name):
     metafile_name = find_metafile(
         model_file_name=hdf5_file_name, raise_error_if_missing=True
     )
-
     metadata_dict = read_metafile(metafile_name)
     mask_matrix = metadata_dict[MASK_MATRIX_KEY]
+    custom_object_dict = get_metrics(mask_matrix)[1]
+
+    try:
+        return tf_keras.models.load_model(
+            hdf5_file_name, custom_objects=custom_object_dict
+        )
+    except ValueError:
+        pass
+
+    metafile_name = find_metafile(
+        model_file_name=hdf5_file_name, raise_error_if_missing=True
+    )
+
+    metadata_dict = read_metafile(metafile_name)
     class_weights = metadata_dict[CLASS_WEIGHTS_KEY]
     fss_half_window_size_px = metadata_dict[FSS_HALF_WINDOW_SIZE_KEY]
-    num_batches_per_update = metadata_dict[NUM_BATCHES_PER_UPDATE_KEY]
-
-    metric_list, custom_object_dict = get_metrics(mask_matrix)
 
     if fss_half_window_size_px is not None:
         custom_object_dict['loss'] = custom_losses.fractions_skill_score(
             half_window_size_px=fss_half_window_size_px,
             mask_matrix=mask_matrix, use_as_loss_function=True
         )
-    else:
+    elif class_weights is not None:
         custom_object_dict['loss'] = custom_losses.weighted_xentropy(
             class_weights
         )
 
-    model_object = tf_keras.models.load_model(
-        hdf5_file_name, custom_objects=custom_object_dict, compile=False
+    return tf_keras.models.load_model(
+        hdf5_file_name, custom_objects=custom_object_dict
     )
-
-    if num_batches_per_update is None:
-        optimizer_object = keras.optimizers.Adam()
-    else:
-        optimizer_object = AccumOptimizer(
-            optimizer_object=keras.optimizers.Adam(), num_batches_per_update=4
-        )
-
-    model_object.compile(
-        loss=custom_object_dict['loss'], optimizer=optimizer_object,
-        metrics=metric_list
-    )
-
-    return model_object
 
 
 def find_metafile(model_file_name, raise_error_if_missing=True):
@@ -1581,7 +1437,6 @@ def read_metafile(dill_file_name):
     metadata_dict['plateau_lr_multiplier']: Same.
     metadata_dict['class_weights']: Same.
     metadata_dict['fss_half_window_size_px']: Same.
-    metadata_dict['num_batches_per_update']: Same.
     metadata_dict['mask_matrix']: Same.
     metadata_dict['full_mask_matrix']: Same.
 
@@ -1599,9 +1454,6 @@ def read_metafile(dill_file_name):
 
     if FSS_HALF_WINDOW_SIZE_KEY not in metadata_dict:
         metadata_dict[FSS_HALF_WINDOW_SIZE_KEY] = None
-
-    if NUM_BATCHES_PER_UPDATE_KEY not in metadata_dict:
-        metadata_dict[NUM_BATCHES_PER_UPDATE_KEY] = None
 
     if USE_PARTIAL_GRIDS_KEY not in metadata_dict:
         metadata_dict[USE_PARTIAL_GRIDS_KEY] = False
