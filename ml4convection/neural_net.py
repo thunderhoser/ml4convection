@@ -684,6 +684,8 @@ class AdamAccumulate(keras.optimizers.Adam):
         self.accum_iters_float = K.cast(self.accum_iters, K.floatx())
 
     def _resource_apply_dense(self, grad, var, apply_state=None):
+        print('\n\n\nBLAHBLAHBLAH\n\n\n')
+
         return super(AdamAccumulate, self)._resource_apply_dense(
             grad, var
         )
