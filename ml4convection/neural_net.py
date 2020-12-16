@@ -1401,6 +1401,10 @@ def read_model(hdf5_file_name, for_mirrored_training=False):
         strategy_object = tensorflow.distribute.MirroredStrategy()
 
         with strategy_object.scope():
+            model_object = keras.models.Model.from_config(
+                model_object.get_config()
+            )
+
             model_object.compile(
                 loss=custom_object_dict['loss'],
                 optimizer=keras.optimizers.Adam(),
