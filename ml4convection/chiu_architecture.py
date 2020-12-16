@@ -352,19 +352,38 @@ def create_model(option_dict, loss_function, mask_matrix):
         this_name = 'fc_module_conv{0:d}'.format(j)
 
         if use_3d_conv_in_fc_module:
-            fc_module_layer_object = architecture_utils.get_3d_conv_layer(
-                num_kernel_rows=1, num_kernel_columns=1,
-                num_kernel_heights=num_input_times,
-                num_rows_per_stride=1, num_columns_per_stride=1,
-                num_heights_per_stride=1,
-                num_filters=num_channels_by_level[-1],
-                padding_type_string=architecture_utils.NO_PADDING_STRING,
-                weight_regularizer=regularizer_object,
-                layer_name=this_name
-            )(fc_module_layer_object)
+            if j == 0:
+                fc_module_layer_object = architecture_utils.get_3d_conv_layer(
+                    num_kernel_rows=1, num_kernel_columns=1,
+                    num_kernel_heights=num_input_times,
+                    num_rows_per_stride=1, num_columns_per_stride=1,
+                    num_heights_per_stride=1,
+                    num_filters=num_channels_by_level[-1],
+                    padding_type_string=architecture_utils.NO_PADDING_STRING,
+                    weight_regularizer=regularizer_object,
+                    layer_name=this_name
+                )(fc_module_layer_object)
+
+                shape_sans_time = (
+                    fc_module_layer_object.shape[1:3] +
+                    [fc_module_layer_object.shape[-1]]
+                )
+                fc_module_layer_object = keras.layers.Reshape(
+                    target_shape=shape_sans_time,
+                    name='fc_module_remove-time-dim'
+                )(fc_module_layer_object)
+            else:
+                fc_module_layer_object = architecture_utils.get_2d_conv_layer(
+                    num_kernel_rows=3, num_kernel_columns=3,
+                    num_rows_per_stride=1, num_columns_per_stride=1,
+                    num_filters=num_channels_by_level[-1],
+                    padding_type_string=architecture_utils.YES_PADDING_STRING,
+                    weight_regularizer=regularizer_object,
+                    layer_name=this_name
+                )(fc_module_layer_object)
         else:
             fc_module_layer_object = architecture_utils.get_2d_conv_layer(
-                num_kernel_rows=1, num_kernel_columns=1,
+                num_kernel_rows=3, num_kernel_columns=3,
                 num_rows_per_stride=1, num_columns_per_stride=1,
                 num_filters=num_channels_by_level[-1],
                 padding_type_string=architecture_utils.YES_PADDING_STRING,
@@ -395,15 +414,6 @@ def create_model(option_dict, loss_function, mask_matrix):
             fc_module_layer_object = architecture_utils.get_batch_norm_layer(
                 layer_name=this_name
             )(fc_module_layer_object)
-
-    if use_3d_conv_in_fc_module:
-        shape_sans_time = (
-            fc_module_layer_object.shape[1:3] +
-            [fc_module_layer_object.shape[-1]]
-        )
-        fc_module_layer_object = keras.layers.Reshape(
-            target_shape=shape_sans_time, name='fc_module_remove-time-dim'
-        )(fc_module_layer_object)
 
     upconv_layer_by_level = [None] * num_levels
     skip_layer_by_level = [None] * num_levels
