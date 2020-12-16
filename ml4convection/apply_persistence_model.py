@@ -104,7 +104,6 @@ def _write_metafile(target_file_names, dummy_model_file_name):
         num_validation_batches_per_epoch=100, validation_option_dict=dict(),
         do_early_stopping=True, plateau_lr_multiplier=0.6,
         class_weights=None, fss_half_window_size_px=1.,
-        num_batches_per_update=None,
         mask_matrix=mask_matrix, full_mask_matrix=mask_matrix
     )
 
@@ -191,11 +190,9 @@ def _make_predictions_one_day(
         ))
 
         for i in range(num_examples):
-            forecast_prob_matrix[i, ...] = (
-                gg_general_utils.apply_gaussian_filter(
-                    input_matrix=forecast_prob_matrix[i, ...],
-                    e_folding_radius_grid_cells=smoothing_radius_px
-                )
+            forecast_prob_matrix[i, ...] = general_utils.apply_gaussian_filter(
+                input_matrix=forecast_prob_matrix[i, ...],
+                e_folding_radius_grid_cells=smoothing_radius_px
             )
 
     return {

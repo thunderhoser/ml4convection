@@ -71,7 +71,7 @@ def _run():
     )
     model_object = chiu_architecture.create_model(
         option_dict=OPTION_DICT, loss_function=loss_function,
-        mask_matrix=mask_matrix, num_batches_per_update=2
+        mask_matrix=mask_matrix
     )
 
     model_file_name = '{0:s}/model_template.h5'.format(OUTPUT_DIR_NAME)
@@ -95,7 +95,6 @@ def _run():
         validation_option_dict=dummy_option_dict,
         do_early_stopping=True, plateau_lr_multiplier=0.6,
         class_weights=None, fss_half_window_size_px=3,
-        num_batches_per_update=2,
         mask_matrix=mask_matrix, full_mask_matrix=full_mask_matrix
     )
 
