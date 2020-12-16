@@ -77,7 +77,9 @@ def _run(training_predictor_dir_name, training_target_dir_name,
     print('Reading untrained model from: "{0:s}"...'.format(
         input_model_file_name
     ))
-    model_object = neural_net.read_model(input_model_file_name)
+    model_object = neural_net.read_model(
+        hdf5_file_name=input_model_file_name, for_mirrored_training=True
+    )
     input_metafile_name = neural_net.find_metafile(
         model_file_name=input_model_file_name
     )

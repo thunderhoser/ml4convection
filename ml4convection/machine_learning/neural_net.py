@@ -6,6 +6,7 @@ import os.path
 import dill
 import numpy
 import keras
+import tensorflow
 import tensorflow.keras as tf_keras
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
@@ -365,7 +366,8 @@ def _read_inputs_one_day(
     ))
 
     data_dict = {
-        PREDICTOR_MATRIX_KEY: predictor_matrix.astype('float16'),
+        # PREDICTOR_MATRIX_KEY: predictor_matrix.astype('float16'),
+        PREDICTOR_MATRIX_KEY: predictor_matrix,
         TARGET_MATRIX_KEY: numpy.expand_dims(target_matrix, axis=-1),
         VALID_TIMES_KEY: valid_times_unix_sec,
         LATITUDES_KEY: None,
@@ -1350,50 +1352,64 @@ def train_model(
     )
 
 
-def read_model(hdf5_file_name):
+def read_model(hdf5_file_name, for_mirrored_training=False):
     """Reads model from HDF5 file.
 
     :param hdf5_file_name: Path to input file.
+    :param for_mirrored_training: Boolean flag.  If True, will read model for
+        mirrored training (where each GPU reads one batch).  If False, will read
+        model for any other purpose (inference or normal training).
     :return: model_object: Instance of `keras.models.Model`.
     """
 
     error_checking.assert_file_exists(hdf5_file_name)
+    error_checking.assert_is_boolean(for_mirrored_training)
 
     metafile_name = find_metafile(
         model_file_name=hdf5_file_name, raise_error_if_missing=True
     )
+
     metadata_dict = read_metafile(metafile_name)
     mask_matrix = metadata_dict[MASK_MATRIX_KEY]
-    custom_object_dict = get_metrics(mask_matrix)[1]
-
-    try:
-        return tf_keras.models.load_model(
-            hdf5_file_name, custom_objects=custom_object_dict
-        )
-    except ValueError:
-        pass
-
-    metafile_name = find_metafile(
-        model_file_name=hdf5_file_name, raise_error_if_missing=True
-    )
-
-    metadata_dict = read_metafile(metafile_name)
     class_weights = metadata_dict[CLASS_WEIGHTS_KEY]
     fss_half_window_size_px = metadata_dict[FSS_HALF_WINDOW_SIZE_KEY]
+
+    metric_list, custom_object_dict = get_metrics(mask_matrix)
 
     if fss_half_window_size_px is not None:
         custom_object_dict['loss'] = custom_losses.fractions_skill_score(
             half_window_size_px=fss_half_window_size_px,
             mask_matrix=mask_matrix, use_as_loss_function=True
         )
-    elif class_weights is not None:
+    else:
         custom_object_dict['loss'] = custom_losses.weighted_xentropy(
             class_weights
         )
 
-    return tf_keras.models.load_model(
-        hdf5_file_name, custom_objects=custom_object_dict
+    model_object = tf_keras.models.load_model(
+        hdf5_file_name, custom_objects=custom_object_dict, compile=False
     )
+
+    if for_mirrored_training:
+        strategy_object = tensorflow.distribute.MirroredStrategy()
+
+        with strategy_object.scope():
+            model_object = keras.models.Model.from_config(
+                model_object.get_config()
+            )
+
+            model_object.compile(
+                loss=custom_object_dict['loss'],
+                optimizer=keras.optimizers.Adam(),
+                metrics=metric_list
+            )
+    else:
+        model_object.compile(
+            loss=custom_object_dict['loss'], optimizer=keras.optimizers.Adam(),
+            metrics=metric_list
+        )
+
+    return model_object
 
 
 def find_metafile(model_file_name, raise_error_if_missing=True):
