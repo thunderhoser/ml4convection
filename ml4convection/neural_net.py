@@ -709,6 +709,8 @@ class AdamAccumulate(keras.optimizers.Adam):
         # update_switch = 1:        x       x    (if accum_iters=4)
         update_switch = K.equal((self.iterations + 1) % self.accum_iters, 0)
         update_switch = K.cast(update_switch, K.floatx())
+        print('\n\n\n\nUPDATE SWITCH:\n\n\n\n')
+        print(update_switch)
 
         ms = [K.zeros(K.int_shape(p), dtype=K.dtype(p)) for p in params]
         vs = [K.zeros(K.int_shape(p), dtype=K.dtype(p)) for p in params]
