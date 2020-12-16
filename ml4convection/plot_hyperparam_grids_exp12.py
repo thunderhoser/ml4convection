@@ -145,7 +145,7 @@ def _print_ranking_one_score(score_matrix, score_name):
     :param score_name: Name of score.
     """
 
-    scores_1d = numpy.ravel(score_matrix)
+    scores_1d = numpy.ravel(score_matrix) + 0.
     scores_1d[numpy.isnan(scores_1d)] = -numpy.inf
     sort_indices_1d = numpy.argsort(-scores_1d)
     i_sort_indices, j_sort_indices, k_sort_indices = numpy.unravel_index(
