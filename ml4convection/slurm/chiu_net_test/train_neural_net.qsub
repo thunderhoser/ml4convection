@@ -42,7 +42,7 @@ python3 -u "${CODE_DIR_NAME}/train_neural_net.py" \
 --include_time_dimension=1 \
 --normalize=1 \
 --uniformize=1 \
---num_examples_per_batch=32 \
+--num_examples_per_batch=96 \
 --max_examples_per_day_in_batch=8 \
 --use_partial_grids=1 \
 --num_epochs=1000 \
