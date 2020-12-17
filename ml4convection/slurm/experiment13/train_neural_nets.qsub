@@ -64,4 +64,4 @@ python3 -u "${CODE_DIR_NAME}/train_neural_net.py" \
 --use_partial_grids=1 \
 --num_epochs=1000 \
 --num_training_batches_per_epoch=${training_batch_count} \
---num_validn_batches_per_epoch=`expr $training_batch_count / 8`
+--num_validn_batches_per_epoch=`expr $training_batch_count / 2`

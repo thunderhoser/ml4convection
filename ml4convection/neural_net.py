@@ -1246,9 +1246,9 @@ def train_model(
     error_checking.assert_is_geq(num_epochs, 2)
     error_checking.assert_is_boolean(use_partial_grids)
     error_checking.assert_is_integer(num_training_batches_per_epoch)
-    error_checking.assert_is_geq(num_training_batches_per_epoch, 10)
+    error_checking.assert_is_geq(num_training_batches_per_epoch, 2)
     error_checking.assert_is_integer(num_validation_batches_per_epoch)
-    error_checking.assert_is_geq(num_validation_batches_per_epoch, 10)
+    error_checking.assert_is_geq(num_validation_batches_per_epoch, 2)
     error_checking.assert_is_boolean(do_early_stopping)
 
     error_checking.assert_is_numpy_array(mask_matrix, num_dimensions=2)
