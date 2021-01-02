@@ -203,7 +203,7 @@ def _plot_predictions_one_example(
         )
 
         colour_map_object, colour_norm_object = (
-            prediction_plotting.get_prob_colour_scheme()
+            prediction_plotting.get_prob_colour_scheme(max_prob_in_colour_bar)
         )
 
         gg_plotting_utils.plot_colour_bar(

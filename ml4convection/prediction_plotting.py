@@ -99,9 +99,6 @@ def get_prob_colour_scheme(max_probability=1.):
     colour_map_object.set_over(BACKGROUND_COLOUR)
 
     colour_bounds = max_probability * numpy.linspace(0.05, 1, num=20)
-    print('\n\n\n\n\nCOLOUR BOUNDS\n\n\n\n\n')
-    print(colour_bounds)
-    print('\n\n\n\n\nCOLOUR BOUNDS\n\n\n\n\n')
     colour_norm_object = matplotlib.colors.BoundaryNorm(
         colour_bounds, colour_map_object.N
     )
