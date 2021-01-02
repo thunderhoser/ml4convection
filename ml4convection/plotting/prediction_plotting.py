@@ -58,12 +58,16 @@ def _get_deterministic_colour_scheme(for_targets):
     return colour_map_object, colour_norm_object
 
 
-def get_prob_colour_scheme():
+def get_prob_colour_scheme(max_probability=1.):
     """Returns colour scheme for probabilities.
 
+    :param max_probability: Max probability in colour bar.
     :return: colour_map_object: See doc for `_get_deterministic_colour_scheme`.
     :return: colour_norm_object: Same.
     """
+
+    error_checking.assert_is_greater(max_probability, 0.)
+    error_checking.assert_is_leq(max_probability, 1.)
 
     main_colour_list = [
         # numpy.array([0, 90, 50]),
@@ -86,7 +90,7 @@ def get_prob_colour_scheme():
     colour_map_object.set_under(BACKGROUND_COLOUR)
     colour_map_object.set_over(BACKGROUND_COLOUR)
 
-    colour_bounds = numpy.linspace(0.05, 1, num=20)
+    colour_bounds = max_probability * numpy.linspace(0.05, 1, num=20)
     colour_norm_object = matplotlib.colors.BoundaryNorm(
         colour_bounds, colour_map_object.N
     )
@@ -184,7 +188,8 @@ def plot_deterministic(
 def plot_probabilistic(
         target_matrix, probability_matrix, figure_object, axes_object,
         min_latitude_deg_n, min_longitude_deg_e, latitude_spacing_deg,
-        longitude_spacing_deg, target_marker_size_grid_cells=0.45,
+        longitude_spacing_deg, max_prob_in_colour_bar=1.,
+        target_marker_size_grid_cells=0.45,
         target_marker_type=DEFAULT_TARGET_MARKER_TYPE,
         target_marker_colour=DEFAULT_TARGET_MARKER_COLOUR):
     """Plots gridded probabilities and labels.
@@ -202,6 +207,7 @@ def plot_probabilistic(
     :param min_longitude_deg_e: Same.
     :param latitude_spacing_deg: Same.
     :param longitude_spacing_deg: Same.
+    :param max_prob_in_colour_bar: Max probability in colour bar.
     :param target_marker_size_grid_cells: Size of marker used to show where
         convection occurs.
     :param target_marker_type: Type of marker used to show where convection
@@ -240,7 +246,9 @@ def plot_probabilistic(
         )
     )
 
-    colour_map_object, colour_norm_object = get_prob_colour_scheme()
+    colour_map_object, colour_norm_object = get_prob_colour_scheme(
+        max_prob_in_colour_bar
+    )
 
     if hasattr(colour_norm_object, 'boundaries'):
         min_colour_value = colour_norm_object.boundaries[0]
