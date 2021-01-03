@@ -9,6 +9,7 @@ THIS_DIRECTORY_NAME = os.path.dirname(os.path.realpath(
 ))
 sys.path.append(os.path.normpath(os.path.join(THIS_DIRECTORY_NAME, '..')))
 
+import file_system_utils
 import imagemagick_utils
 
 INPUT_DIR_NAME = (
@@ -24,6 +25,10 @@ OUTPUT_DIR_NAME = '{0:s}/gif'.format(INPUT_DIR_NAME)
 
 def _run():
     """USE ONCE AND DESTROY."""
+
+    file_system_utils.mkdir_recursive_if_necessary(
+        directory_name=OUTPUT_DIR_NAME
+    )
 
     orig_image_file_names = glob.glob(INPUT_FILE_PATTERN)
     orig_image_file_names.sort()
