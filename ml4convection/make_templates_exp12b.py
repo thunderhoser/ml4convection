@@ -30,7 +30,7 @@ TOP_TARGET_DIR_NAME = (
 FSS_HALF_WINDOW_SIZE_PX = 4
 
 L2_WEIGHTS = numpy.logspace(-7, -3, num=5)
-LAG_TIME_COUNTS = numpy.array([1, 2, 3, 4], dtype=int)
+LAG_TIME_COUNTS = numpy.array([2, 3, 4], dtype=int)
 
 DEFAULT_OPTION_DICT = {
     chiu_architecture.NUM_FC_CONV_LAYERS_KEY: 1,
