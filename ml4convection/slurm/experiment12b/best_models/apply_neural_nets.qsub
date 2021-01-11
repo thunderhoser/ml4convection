@@ -44,7 +44,6 @@ set last_date_string=${LAST_DATE_STRINGS[$SLURM_ARRAY_TASK_ID]}
 
 set batch_size_string=`printf "%02d" $batch_size`
 set l2_weight_string=`printf "%.10f" $l2_weight`
-set lag_time_count_string=`printf "%d" $lag_time_count`
 
 set model_dir_name="${TOP_MODEL_DIR_NAME}/batch-size=${batch_size_string}_l2-weight=${l2_weight_string}_lag-times-sec=${LAG_TIME_STRINGS_DASHED[$SLURM_ARRAY_TASK_ID]}"
 set model_file_name="${model_dir_name}/model.h5"
