@@ -373,8 +373,8 @@ def _read_inputs_one_day(
     ))
 
     data_dict = {
-        # PREDICTOR_MATRIX_KEY: predictor_matrix.astype('float16'),
-        PREDICTOR_MATRIX_KEY: predictor_matrix,
+        PREDICTOR_MATRIX_KEY: predictor_matrix.astype('float16'),
+        # PREDICTOR_MATRIX_KEY: predictor_matrix,
         TARGET_MATRIX_KEY: numpy.expand_dims(target_matrix, axis=-1),
         VALID_TIMES_KEY: valid_times_unix_sec,
         LATITUDES_KEY: None,
