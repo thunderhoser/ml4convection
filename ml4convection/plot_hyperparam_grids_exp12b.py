@@ -21,9 +21,12 @@ import file_system_utils
 
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 
-BATCH_SIZES = numpy.array([64, 80, 96, 112, 128], dtype=int)
-LAG_TIME_COUNTS = numpy.array([2, 3], dtype=int)
-L2_WEIGHTS = numpy.logspace(-7, -3, num=9)
+BATCH_SIZES = numpy.array([36, 48, 60, 72], dtype=int)
+L2_WEIGHTS = numpy.logspace(-7, -3, num=5)
+LAG_TIME_STRINGS = [
+    '0-600', '0-600-1200', '0-600-1200-1800',
+    '0-1200', '0-1200-2400', '0-1200-2400-3600'
+]
 
 DEFAULT_FONT_SIZE = 20
 
@@ -159,10 +162,10 @@ def _print_ranking_one_score(score_matrix, score_name):
 
         print((
             '{0:d}th-highest {1:s} = {2:.4g} ... batch size = {3:d} ... '
-            'num lag times = {4:d} ... L_2 weight = 10^{5:.1f}'
+            'lag times in seconds = {4:s} ... L_2 weight = 10^{5:.1f}'
         ).format(
             m + 1, score_name, score_matrix[i, j, k],
-            BATCH_SIZES[i], LAG_TIME_COUNTS[j], numpy.log10(L2_WEIGHTS[k])
+            BATCH_SIZES[i], LAG_TIME_STRINGS[j], numpy.log10(L2_WEIGHTS[k])
         ))
 
 
@@ -181,16 +184,16 @@ def _run(experiment_dir_name, matching_distance_px, output_dir_name):
     )
 
     num_batch_sizes = len(BATCH_SIZES)
-    num_lag_time_counts = len(LAG_TIME_COUNTS)
+    num_lag_time_sets = len(LAG_TIME_STRINGS)
     num_l2_weights = len(L2_WEIGHTS)
-    dimensions = (num_batch_sizes, num_lag_time_counts, num_l2_weights)
+    dimensions = (num_batch_sizes, num_lag_time_sets, num_l2_weights)
 
     aupd_matrix = numpy.full(dimensions, numpy.nan)
     max_csi_matrix = numpy.full(dimensions, numpy.nan)
     fss_matrix = numpy.full(dimensions, numpy.nan)
     bss_matrix = numpy.full(dimensions, numpy.nan)
 
-    y_tick_labels = ['{0:d}'.format(c) for c in LAG_TIME_COUNTS]
+    y_tick_labels = ['{0:d}'.format(b) for b in BATCH_SIZES]
     x_tick_labels = [
         '{0:.2f}'.format(numpy.log10(w)) for w in L2_WEIGHTS
     ]
@@ -200,20 +203,17 @@ def _run(experiment_dir_name, matching_distance_px, output_dir_name):
     x_axis_label = r'L$_{2}$ weight'
 
     for i in range(num_batch_sizes):
-        for j in range(num_lag_time_counts):
-            if BATCH_SIZES[i] >= 112 and LAG_TIME_COUNTS[j] >= 3:
-                continue
-            
+        for j in range(num_lag_time_sets):
             for k in range(num_l2_weights):
                 this_score_file_name = (
                     '{0:s}/'
-                    'batch-size={1:02d}_l2-weight={2:.10f}_num-lag-times={3:d}/'
+                    'batch-size={1:02d}_l2-weight={2:.10f}_lag-times-sec={3:s}/'
                     'validation/partial_grids/evaluation/'
                     'matching_distance_px={4:.6f}/'
                     'advanced_scores_gridded=0.p'
                 ).format(
                     experiment_dir_name, BATCH_SIZES[i], L2_WEIGHTS[k],
-                    LAG_TIME_COUNTS[j], matching_distance_px
+                    LAG_TIME_STRINGS[j], matching_distance_px
                 )
 
                 print('Reading data from: "{0:s}"...'.format(
@@ -251,10 +251,11 @@ def _run(experiment_dir_name, matching_distance_px, output_dir_name):
     _print_ranking_one_score(score_matrix=bss_matrix, score_name='BSS')
     print(SEPARATOR_STRING)
 
-    for i in range(num_batch_sizes):
+    for j in range(num_lag_time_sets):
+
         # Plot AUPD.
         figure_object, axes_object = _plot_scores_2d(
-            score_matrix=aupd_matrix[i, ...],
+            score_matrix=aupd_matrix[:, j, :],
             min_colour_value=numpy.nanpercentile(aupd_matrix, 1),
             max_colour_value=numpy.nanpercentile(aupd_matrix, 99),
             x_tick_labels=x_tick_labels, y_tick_labels=y_tick_labels,
@@ -264,11 +265,11 @@ def _run(experiment_dir_name, matching_distance_px, output_dir_name):
         axes_object.set_xlabel(x_axis_label)
         axes_object.set_ylabel(y_axis_label)
 
-        axes_object.set_title('AUPD for batch size = {0:d}'.format(
-            BATCH_SIZES[i]
+        axes_object.set_title('AUPD for lag times = {0:s} sec'.format(
+            LAG_TIME_STRINGS[j].replace('-', ', ')
         ))
-        figure_file_name = '{0:s}/aupd_grid_batch-size={1:02d}.jpg'.format(
-            output_dir_name, BATCH_SIZES[i]
+        figure_file_name = '{0:s}/aupd_grid_lag-times-sec={1:s}.jpg'.format(
+            output_dir_name, LAG_TIME_STRINGS[j]
         )
 
         print('Saving figure to: "{0:s}"...'.format(figure_file_name))
@@ -280,7 +281,7 @@ def _run(experiment_dir_name, matching_distance_px, output_dir_name):
 
         # Plot max CSI.
         figure_object, axes_object = _plot_scores_2d(
-            score_matrix=max_csi_matrix[i, ...],
+            score_matrix=max_csi_matrix[:, j, :],
             min_colour_value=numpy.nanpercentile(max_csi_matrix, 1),
             max_colour_value=numpy.nanpercentile(max_csi_matrix, 99),
             x_tick_labels=x_tick_labels, y_tick_labels=y_tick_labels,
@@ -290,11 +291,11 @@ def _run(experiment_dir_name, matching_distance_px, output_dir_name):
         axes_object.set_xlabel(x_axis_label)
         axes_object.set_ylabel(y_axis_label)
 
-        axes_object.set_title('Max CSI for batch size = {0:d}'.format(
-            BATCH_SIZES[i]
+        axes_object.set_title('Max CSI for lag times = {0:s} sec'.format(
+            LAG_TIME_STRINGS[j].replace('-', ', ')
         ))
-        figure_file_name = '{0:s}/csi_grid_batch-size={1:02d}.jpg'.format(
-            output_dir_name, BATCH_SIZES[i]
+        figure_file_name = '{0:s}/csi_grid_lag-times-sec={1:s}.jpg'.format(
+            output_dir_name, LAG_TIME_STRINGS[j]
         )
 
         print('Saving figure to: "{0:s}"...'.format(figure_file_name))
@@ -306,7 +307,7 @@ def _run(experiment_dir_name, matching_distance_px, output_dir_name):
 
         # Plot FSS.
         figure_object, axes_object = _plot_scores_2d(
-            score_matrix=fss_matrix[i, ...],
+            score_matrix=fss_matrix[:, j, :],
             min_colour_value=numpy.nanpercentile(fss_matrix, 1),
             max_colour_value=numpy.nanpercentile(fss_matrix, 99),
             x_tick_labels=x_tick_labels, y_tick_labels=y_tick_labels,
@@ -316,11 +317,11 @@ def _run(experiment_dir_name, matching_distance_px, output_dir_name):
         axes_object.set_xlabel(x_axis_label)
         axes_object.set_ylabel(y_axis_label)
 
-        axes_object.set_title('FSS for batch size = {0:d}'.format(
-            BATCH_SIZES[i]
+        axes_object.set_title('FSS for lag times = {0:s} sec'.format(
+            LAG_TIME_STRINGS[j].replace('-', ', ')
         ))
-        figure_file_name = '{0:s}/fss_grid_batch-size={1:02d}.jpg'.format(
-            output_dir_name, BATCH_SIZES[i]
+        figure_file_name = '{0:s}/fss_grid_lag-times-sec={1:s}.jpg'.format(
+            output_dir_name, LAG_TIME_STRINGS[j]
         )
 
         print('Saving figure to: "{0:s}"...'.format(figure_file_name))
@@ -336,7 +337,7 @@ def _run(experiment_dir_name, matching_distance_px, output_dir_name):
         this_min_value = -1 * this_max_value
 
         figure_object, axes_object = _plot_scores_2d(
-            score_matrix=bss_matrix[i, ...],
+            score_matrix=bss_matrix[:, j, :],
             min_colour_value=this_min_value, max_colour_value=this_max_value,
             x_tick_labels=x_tick_labels, y_tick_labels=y_tick_labels,
             colour_map_object=BSS_COLOUR_MAP_OBJECT
@@ -345,11 +346,11 @@ def _run(experiment_dir_name, matching_distance_px, output_dir_name):
         axes_object.set_xlabel(x_axis_label)
         axes_object.set_ylabel(y_axis_label)
 
-        axes_object.set_title('BSS for batch size = {0:d}'.format(
-            BATCH_SIZES[i]
+        axes_object.set_title('BSS for lag times = {0:s} sec'.format(
+            LAG_TIME_STRINGS[j].replace('-', ', ')
         ))
-        figure_file_name = '{0:s}/bss_grid_batch-size={1:02d}.jpg'.format(
-            output_dir_name, BATCH_SIZES[i]
+        figure_file_name = '{0:s}/bss_grid_lag-times-sec={1:s}.jpg'.format(
+            output_dir_name, LAG_TIME_STRINGS[j]
         )
 
         print('Saving figure to: "{0:s}"...'.format(figure_file_name))
