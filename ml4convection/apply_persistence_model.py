@@ -256,7 +256,7 @@ def _run(top_target_dir_name, lead_time_seconds, smoothing_radius_px,
         this_output_file_name = prediction_io.find_file(
             top_directory_name=top_output_dir_name,
             valid_date_string=this_valid_date_string,
-            radar_number=None, prefer_zipped=False, allow_other_format=True,
+            radar_number=None, prefer_zipped=False, allow_other_format=False,
             raise_error_if_missing=False
         )
 
@@ -275,6 +275,9 @@ def _run(top_target_dir_name, lead_time_seconds, smoothing_radius_px,
             longitudes_deg_e=this_prediction_dict[prediction_io.LONGITUDES_KEY],
             model_file_name=dummy_model_file_name
         )
+
+        prediction_io.compress_file(this_output_file_name)
+        os.remove(this_output_file_name)
 
 
 if __name__ == '__main__':
