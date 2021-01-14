@@ -8,9 +8,6 @@ from ml4convection.io import example_io
 from ml4convection.io import prediction_io
 from ml4convection.machine_learning import neural_net
 
-# TODO(thunderhoser): Needs to deal with new prediction_io.py (full vs. partial
-# grids and zipped vs. unzipped).
-
 TARGET_DIR_ARG_NAME = 'input_target_dir_name'
 LEAD_TIME_ARG_NAME = 'lead_time_seconds'
 SMOOTHING_RADIUS_ARG_NAME = 'smoothing_radius_px'
@@ -223,7 +220,7 @@ def _run(top_target_dir_name, lead_time_seconds, smoothing_radius_px,
         top_directory_name=top_target_dir_name,
         first_date_string=first_valid_date_string,
         last_date_string=last_valid_date_string,
-        prefer_zipped=False, allow_other_format=True,
+        radar_number=None, prefer_zipped=False, allow_other_format=True,
         raise_error_if_all_missing=True,
         raise_error_if_any_missing=False
     )
@@ -249,6 +246,7 @@ def _run(top_target_dir_name, lead_time_seconds, smoothing_radius_px,
         this_output_file_name = prediction_io.find_file(
             top_directory_name=top_output_dir_name,
             valid_date_string=this_valid_date_string,
+            radar_number=None, prefer_zipped=False, allow_other_format=True,
             raise_error_if_missing=False
         )
 
