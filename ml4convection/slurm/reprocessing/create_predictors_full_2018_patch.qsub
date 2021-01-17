@@ -1,0 +1,41 @@
+#!/bin/tcsh
+
+#SBATCH --job-name="create_predictors_full_2018_patch"
+#SBATCH --partition="fge"
+#SBATCH --account="rda-ghpcs"
+#SBATCH --qos="batch"
+#SBATCH --ntasks=1
+#SBATCH --nodes=1
+#SBATCH --cpus-per-task=1
+#SBATCH --mem=64G
+#SBATCH --time=24:00:00
+#SBATCH --array=31
+##SBATCH --exclude=h31n03,h28n12
+##SBATCH --exclude=h29n01,h26n05,h28n06,h29n07,h30n03,h30n15
+#SBATCH --mail-type=BEGIN,END,FAIL
+#SBATCH --mail-user=ryan.lagerquist@noaa.gov
+#SBATCH --output=create_predictors_full_2018_patch_%A_%a.out
+
+module load cuda/10.1
+source /scratch2/BMC/gsd-hpcs/Jebb.Q.Stewart/conda3.7/etc/profile.d/conda.csh
+conda activate base
+
+set CODE_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_standalone/ml4convection"
+set TOP_SATELLITE_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_project/satellite_data/quality_controlled"
+set NORMALIZATION_FILE_NAME="${TOP_SATELLITE_DIR_NAME}/normalization_params_20160101-20161224.p"
+set TOP_PREDICTOR_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_project/predictors/quality_controlled/full_grids"
+
+set FIRST_DATE_STRINGS=("20180101" "20180108" "20180115" "20180122" "20180129" "20180205" "20180212" "20180219" "20180226" "20180304" "20180311" "20180318" "20180325" "20180401" "20180408" "20180415" "20180422" "20180429" "20180506" "20180513" "20180520" "20180527" "20180603" "20180610" "20180617" "20180624" "20180701" "20180708" "20180715" "20180722" "20180729" "20180805" "20180812" "20180819" "20180826" "20180902" "20180909" "20180916" "20180923" "20180930" "20181007" "20181014" "20181021" "20181028" "20181104" "20181111" "20181118" "20181125" "20181202" "20181209" "20181216" "20181223" "20181230")
+set LAST_DATE_STRINGS=("20180107" "20180114" "20180121" "20180128" "20180204" "20180211" "20180218" "20180225" "20180303" "20180310" "20180317" "20180324" "20180331" "20180407" "20180414" "20180421" "20180428" "20180505" "20180512" "20180519" "20180526" "20180602" "20180609" "20180616" "20180623" "20180630" "20180707" "20180714" "20180721" "20180728" "20180804" "20180811" "20180818" "20180825" "20180901" "20180908" "20180915" "20180922" "20180929" "20181006" "20181013" "20181020" "20181027" "20181103" "20181110" "20181117" "20181124" "20181201" "20181208" "20181215" "20181222" "20181229" "20181231")
+
+set first_date_string=${FIRST_DATE_STRINGS[$SLURM_ARRAY_TASK_ID]}
+set last_date_string=${LAST_DATE_STRINGS[$SLURM_ARRAY_TASK_ID]}
+
+python3 -u "${CODE_DIR_NAME}/create_predictors.py" \
+--input_satellite_dir_name="${TOP_SATELLITE_DIR_NAME}" \
+--use_partial_grids=0 \
+--spatial_downsampling_factor=1 \
+--first_date_string="${first_date_string}" \
+--last_date_string="${last_date_string}" \
+--input_normalization_file_name="${NORMALIZATION_FILE_NAME}" \
+--output_predictor_dir_name="${TOP_PREDICTOR_DIR_NAME}"
