@@ -1,0 +1,38 @@
+#!/bin/tcsh
+
+#SBATCH --job-name="process_radar_data_2017_patch"
+#SBATCH --partition="fge"
+#SBATCH --account="rda-ghpcs"
+#SBATCH --qos="batch"
+#SBATCH --ntasks=1
+#SBATCH --nodes=1
+#SBATCH --cpus-per-task=1
+#SBATCH --mem=16G
+#SBATCH --time=06:00:00
+#SBATCH --array=1-13
+##SBATCH --exclude=h31n03,h28n12
+##SBATCH --exclude=h29n01,h26n05,h28n06,h29n07,h30n03,h30n15
+#SBATCH --mail-type=BEGIN,END,FAIL
+#SBATCH --mail-user=ryan.lagerquist@noaa.gov
+#SBATCH --output=process_radar_data_2017_patch_%A_%a.out
+
+module load cuda/10.1
+source /scratch2/BMC/gsd-hpcs/Jebb.Q.Stewart/conda3.7/etc/profile.d/conda.csh
+conda activate base
+
+set CODE_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_standalone/ml4convection"
+set INPUT_DIR_NAME="/scratch2/BMC/gsd-hpcs/Jebb.Q.Stewart/mlp/cwb-ci/Radar/raw"
+set OUTPUT_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_project/radar_data"
+
+set FIRST_DATE_STRINGS=("20170614" "20170228" "20171212" "20170401" "20170303" "20170815" "20171009" "20170901" "20170305" "20171104" "20170215" "20170125" "20170412")
+set LAST_DATE_STRINGS=("20170614" "20170228" "20171212" "20170401" "20170303" "20170815" "20171009" "20170901" "20170305" "20171104" "20170215" "20170125" "20170412")
+
+set first_date_string=${FIRST_DATE_STRINGS[$SLURM_ARRAY_TASK_ID]}
+set last_date_string=${LAST_DATE_STRINGS[$SLURM_ARRAY_TASK_ID]}
+
+python3 -u "${CODE_DIR_NAME}/process_radar_data.py" \
+--input_radar_dir_name="${INPUT_DIR_NAME}" \
+--first_date_string="${first_date_string}" \
+--last_date_string="${last_date_string}" \
+--allow_missing_days=1 \
+--output_radar_dir_name="${OUTPUT_DIR_NAME}"
