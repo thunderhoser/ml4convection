@@ -18,7 +18,6 @@ from ml4convection.plotting import satellite_plotting
 
 TIME_FORMAT = '%Y-%m-%d-%H%M'
 DATE_FORMAT = '%Y%m%d'
-DAYS_TO_SECONDS = 86400
 COMPOSITE_REFL_NAME = 'reflectivity_column_max_dbz'
 
 MASK_OUTLINE_COLOUR = numpy.full(3, 152. / 255)
@@ -89,7 +88,7 @@ INPUT_ARG_PARSER.add_argument(
 def _plot_one_satellite_image(
         satellite_dict, time_index, band_index, border_latitudes_deg_n,
         border_longitudes_deg_e, letter_label, cbar_orientation_string,
-        output_dir_name):
+        output_dir_name, title_string=None):
     """Plots one satellite image.
 
     :param satellite_dict: Dictionary in format returned by
@@ -104,6 +103,8 @@ def _plot_one_satellite_image(
         `satellite_plotting.plot_2d_grid`.
     :param output_dir_name: Name of output directory.  Figure will be saved
         here.
+    :param title_string: Title (will be plotted at top of figure).  To use
+        default, leave this alone.
     :return: output_file_name: Path to output file.
     """
 
@@ -127,9 +128,11 @@ def _plot_one_satellite_image(
         valid_time_unix_sec, TIME_FORMAT
     )
     band_number = satellite_dict[satellite_io.BAND_NUMBERS_KEY][band_index]
-    title_string = 'Band-{0:d} brightness temperature (Kelvins)'.format(
-        band_number
-    )
+
+    if title_string is None:
+        title_string = 'Band-{0:d} brightness temperature (Kelvins)'.format(
+            band_number
+        )
 
     brightness_temp_matrix_kelvins = (
         satellite_dict[satellite_io.BRIGHTNESS_TEMP_KEY][
@@ -163,7 +166,6 @@ def _plot_one_satellite_image(
     ).format(
         output_dir_name, valid_time_string, band_number
     )
-    file_system_utils.mkdir_recursive_if_necessary(file_name=output_file_name)
 
     print('Saving figure to file: "{0:s}"...'.format(output_file_name))
     figure_object.savefig(
@@ -308,6 +310,10 @@ def _run(top_satellite_dir_name, top_reflectivity_dir_name,
     :param valid_time_string: Same.
     :param output_dir_name: Same.
     """
+
+    file_system_utils.mkdir_recursive_if_necessary(
+        directory_name=output_dir_name
+    )
 
     valid_time_unix_sec = time_conversion.string_to_unix_sec(
         valid_time_string, TIME_FORMAT
