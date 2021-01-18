@@ -63,7 +63,8 @@ def _get_colour_scheme(
 
 def plot_2d_grid(
         brightness_temp_matrix_kelvins, axes_object, min_latitude_deg_n,
-        min_longitude_deg_e, latitude_spacing_deg, longitude_spacing_deg):
+        min_longitude_deg_e, latitude_spacing_deg, longitude_spacing_deg,
+        cbar_orientation_string='vertical'):
     """Plots brightness temperatures on 2-D grid.
 
     M = number of rows in grid
@@ -79,9 +80,14 @@ def plot_2d_grid(
         grid points.
     :param latitude_spacing_deg: Spacing (deg N) between adjacent grid rows.
     :param longitude_spacing_deg: Spacing (deg E) between adjacent grid columns.
+    :param cbar_orientation_string: Colour-bar orientation.  May be
+        "horizontal", "vertical", or "".
     :return: colour_bar_object: Colour-bar handle (instance of
         `matplotlib.pyplot.colorbar`).
     """
+
+    if cbar_orientation_string is not None:
+        error_checking.assert_is_string(cbar_orientation_string)
 
     edge_temp_matrix_kelvins, edge_latitudes_deg_n, edge_longitudes_deg_e = (
         grids.latlng_field_grid_points_to_edges(
@@ -113,12 +119,16 @@ def plot_2d_grid(
         edgecolors='None', axes=axes_object, zorder=-1e11
     )
 
+    if cbar_orientation_string is None:
+        return None
+
     colour_bar_object = plotting_utils.plot_colour_bar(
         axes_object_or_matrix=axes_object,
         data_matrix=brightness_temp_matrix_kelvins,
         colour_map_object=colour_map_object,
         colour_norm_object=colour_norm_object,
-        orientation_string='vertical', extend_min=True, extend_max=True
+        orientation_string=cbar_orientation_string, extend_min=True,
+        extend_max=True
     )
 
     num_tick_values = 1 + int(numpy.round(
