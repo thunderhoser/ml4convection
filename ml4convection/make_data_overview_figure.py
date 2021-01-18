@@ -96,7 +96,7 @@ INPUT_ARG_PARSER.add_argument(
 def _plot_one_satellite_image(
         satellite_dict, time_index, band_index, border_latitudes_deg_n,
         border_longitudes_deg_e, letter_label, cbar_orientation_string,
-        output_dir_name):
+        output_dir_name, title_string=None):
     """Plots one satellite image.
 
     :param satellite_dict: Dictionary in format returned by
@@ -111,6 +111,8 @@ def _plot_one_satellite_image(
         `satellite_plotting.plot_2d_grid`.
     :param output_dir_name: Name of output directory.  Figure will be saved
         here.
+    :param title_string: Title (will be plotted at top of figure).  To use
+        default, leave this alone.
     :return: output_file_name: Path to output file.
     """
 
@@ -134,9 +136,11 @@ def _plot_one_satellite_image(
         valid_time_unix_sec, TIME_FORMAT
     )
     band_number = satellite_dict[satellite_io.BAND_NUMBERS_KEY][band_index]
-    title_string = 'Band-{0:d} brightness temperature (Kelvins)'.format(
-        band_number
-    )
+
+    if title_string is None:
+        title_string = 'Band-{0:d} brightness temperature (Kelvins)'.format(
+            band_number
+        )
 
     brightness_temp_matrix_kelvins = (
         satellite_dict[satellite_io.BRIGHTNESS_TEMP_KEY][
