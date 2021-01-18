@@ -133,7 +133,7 @@ def _run(top_raw_directory_name, top_qc_directory_name, valid_time_string,
         border_longitudes_deg_e=border_longitudes_deg_e,
         letter_label='a', output_dir_name=output_dir_name,
         cbar_orientation_string=None,
-        title_string='Band-8 brightness temp (Kelvins) before QC'
+        title_string='Before quality control'
     )
 
     raw_figure_file_name = '{0:s}_raw.jpg'.format(
@@ -147,7 +147,7 @@ def _run(top_raw_directory_name, top_qc_directory_name, valid_time_string,
         border_longitudes_deg_e=border_longitudes_deg_e,
         letter_label='b', output_dir_name=output_dir_name,
         cbar_orientation_string='vertical',
-        title_string='Band-8 brightness temp (Kelvins) after QC'
+        title_string='After quality control'
     )
 
     qc_figure_file_name = '{0:s}_qc.jpg'.format(
