@@ -194,6 +194,9 @@ def _make_predictions_one_day(
                 )
             )
 
+    forecast_prob_matrix[forecast_prob_matrix < 0.] = 0.
+    forecast_prob_matrix[forecast_prob_matrix > 1.] = 1.
+
     return {
         prediction_io.TARGET_MATRIX_KEY:
             valid_target_dict[example_io.TARGET_MATRIX_KEY],
