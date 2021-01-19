@@ -135,7 +135,7 @@ def _plot_climo(
     pyplot.contour(
         longitudes_deg_e, latitudes_deg_n, mask_matrix, numpy.array([0.999]),
         colors=(MASK_OUTLINE_COLOUR,), linewidths=2, linestyles='solid',
-        axes=axes_object
+        axes=axes_object, zorder=1e10
     )
 
     plotting_utils.plot_grid_lines(
