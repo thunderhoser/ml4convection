@@ -110,7 +110,7 @@ def _plot_climo(
     )
 
     dummy_target_matrix = numpy.full(event_freq_matrix.shape, 0, dtype=int)
-    max_colour_value = numpy.nanpercentile(event_freq_matrix, 99.)
+    max_colour_value = numpy.nanmax(event_freq_matrix)
 
     prediction_plotting.plot_probabilistic(
         probability_matrix=event_freq_matrix, target_matrix=dummy_target_matrix,
@@ -139,7 +139,7 @@ def _plot_climo(
         parallel_spacing_deg=2., meridian_spacing_deg=2.
     )
 
-    axes_object.set_title('Convection frequency in training data')
+    axes_object.set_title('Convection frequency from 2016-2018')
     gg_plotting_utils.label_axes(
         axes_object=axes_object, label_string='({0:s})'.format(letter_label)
     )
