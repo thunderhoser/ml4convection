@@ -116,6 +116,8 @@ def _plot_mask(mask_dict, border_latitudes_deg_n, border_longitudes_deg_e,
     this_index = numpy.argmin(radar_utils.RADAR_LATITUDES_DEG_N)
     radar_latitude_deg_n = radar_utils.RADAR_LATITUDES_DEG_N[this_index]
     radar_longitude_deg_e = radar_utils.RADAR_LONGITUDES_DEG_E[this_index]
+    print(radar_latitude_deg_n)
+    print(radar_longitude_deg_e)
 
     radar_row = numpy.argmin(numpy.absolute(
         radar_latitude_deg_n - latitudes_deg_n
@@ -123,6 +125,9 @@ def _plot_mask(mask_dict, border_latitudes_deg_n, border_longitudes_deg_e,
     radar_column = numpy.argmin(numpy.absolute(
         radar_longitude_deg_e - longitudes_deg_e
     ))
+
+    print(latitudes_deg_n[radar_row])
+    print(longitudes_deg_e[radar_column])
 
     inner_polygon_rows = numpy.array([
         radar_row - INNER_DOMAIN_HALF_WIDTH_PX,
