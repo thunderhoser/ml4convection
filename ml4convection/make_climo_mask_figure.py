@@ -137,7 +137,7 @@ def _plot_climo(
         parallel_spacing_deg=2., meridian_spacing_deg=2.
     )
 
-    axes_object.set_title('Convection frequency (2016-2018)')
+    axes_object.set_title('Convection frequency in training data')
     gg_plotting_utils.label_axes(
         axes_object=axes_object, label_string='({0:s})'.format(letter_label)
     )
