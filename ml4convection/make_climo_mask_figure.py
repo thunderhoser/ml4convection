@@ -108,6 +108,8 @@ def _plot_climo(
         climo_io.EVENT_FREQ_BY_PIXEL_KEY
     ][first_row:(last_row + 1), first_column:(last_column + 1)]
 
+    event_freq_matrix[numpy.isnan(event_freq_matrix)] = 0.
+
     figure_object, axes_object = pyplot.subplots(
         1, 1, figsize=(FIGURE_WIDTH_INCHES, FIGURE_HEIGHT_INCHES)
     )
