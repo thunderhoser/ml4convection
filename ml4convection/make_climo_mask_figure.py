@@ -17,6 +17,7 @@ import file_system_utils
 import radar_plotting
 import gg_plotting_utils
 import radar_io
+import twb_radar_io
 import border_io
 import climatology_io as climo_io
 import radar_utils
@@ -84,8 +85,28 @@ def _plot_climo(
     :param output_file_name: Same.
     """
 
-    latitudes_deg_n = climo_dict[climo_io.LATITUDES_KEY]
-    longitudes_deg_e = climo_dict[climo_io.LONGITUDES_KEY]
+    climo_latitudes_deg_n = climo_dict[climo_io.LATITUDES_KEY]
+    climo_longitudes_deg_e = climo_dict[climo_io.LONGITUDES_KEY]
+
+    first_row = numpy.argmin(numpy.absolute(
+        climo_latitudes_deg_n - twb_radar_io.GRID_LATITUDES_DEG_N[0]
+    ))
+    last_row = numpy.argmin(numpy.absolute(
+        climo_latitudes_deg_n - twb_radar_io.GRID_LATITUDES_DEG_N[-1]
+    ))
+    first_column = numpy.argmin(numpy.absolute(
+        climo_longitudes_deg_e - twb_radar_io.GRID_LONGITUDES_DEG_E[0]
+    ))
+    last_column = numpy.argmin(numpy.absolute(
+        climo_longitudes_deg_e - twb_radar_io.GRID_LONGITUDES_DEG_E[-1]
+    ))
+
+    latitudes_deg_n = climo_latitudes_deg_n[first_row:(last_row + 1)]
+    longitudes_deg_e = climo_longitudes_deg_e[first_column:(last_column + 1)]
+
+    event_freq_matrix = climo_dict[
+        climo_io.EVENT_FREQ_BY_PIXEL_KEY
+    ][first_row:(last_row + 1), first_column:(last_column + 1)]
 
     figure_object, axes_object = pyplot.subplots(
         1, 1, figsize=(FIGURE_WIDTH_INCHES, FIGURE_HEIGHT_INCHES)
@@ -106,7 +127,6 @@ def _plot_climo(
         axes=axes_object
     )
 
-    event_freq_matrix = climo_dict[climo_io.EVENT_FREQ_BY_PIXEL_KEY]
     dummy_target_matrix = numpy.full(event_freq_matrix.shape, 0, dtype=int)
     max_colour_value = numpy.nanpercentile(event_freq_matrix, 99.)
 
