@@ -9,8 +9,10 @@ from matplotlib import pyplot
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.plotting import radar_plotting
 from gewittergefahr.plotting import plotting_utils as gg_plotting_utils
+from gewittergefahr.plotting import imagemagick_utils
 from ml4convection.io import radar_io
 from ml4convection.io import border_io
+from ml4convection.io import twb_satellite_io
 from ml4convection.utils import radar_utils
 from ml4convection.plotting import plotting_utils
 from ml4convection.plotting import prediction_plotting
@@ -19,16 +21,17 @@ DUMMY_FIELD_NAME = 'reflectivity_column_max_dbz'
 
 MASK_COLOUR_MAP_OBJECT = pyplot.get_cmap('winter')
 MASK_COLOUR_NORM_OBJECT = pyplot.Normalize(vmin=0., vmax=1.)
-MASK_OUTLINE_COLOUR = numpy.full(3, 152. / 255)
-BORDER_COLOUR_WITH_MASK = numpy.full(3, 0.)
+MASK_OUTLINE_COLOUR = numpy.array([139, 69, 19], dtype=float) / 255
 
 INNER_DOMAIN_HALF_WIDTH_PX = 52
 COMPLETE_DOMAIN_HALF_WIDTH_PX = 102
+STRIDE_LENGTH_PX = 25
 
 INNER_DOMAIN_COLOUR = numpy.array([117, 112, 179], dtype=float) / 255
 COMPLETE_DOMAIN_COLOUR = numpy.array([217, 95, 2], dtype=float) / 255
 DOMAIN_LINE_WIDTH = 3.
 
+BORDER_COLOUR = numpy.full(3, 0.)
 FIGURE_WIDTH_INCHES = 15
 FIGURE_HEIGHT_INCHES = 15
 FIGURE_RESOLUTION_DPI = 300
@@ -89,7 +92,7 @@ def _plot_climo(
     plotting_utils.plot_borders(
         border_latitudes_deg_n=border_latitudes_deg_n,
         border_longitudes_deg_e=border_longitudes_deg_e,
-        axes_object=axes_object
+        axes_object=axes_object, line_colour=BORDER_COLOUR
     )
 
     dummy_target_matrix = numpy.full(event_freq_matrix.shape, 0, dtype=int)
@@ -121,12 +124,11 @@ def _plot_climo(
     colour_bar_object.set_ticks(tick_values)
     colour_bar_object.set_ticklabels(tick_strings)
 
-    mask_matrix = mask_dict[radar_io.MASK_MATRIX_KEY].astype(float)
-    mask_matrix[mask_matrix < 0.5] = numpy.nan
-
     pyplot.contour(
-        longitudes_deg_e, latitudes_deg_n, mask_matrix, numpy.array([0.999]),
-        colors=(MASK_OUTLINE_COLOUR,), linewidths=2, linestyles='solid',
+        longitudes_deg_e, latitudes_deg_n,
+        mask_dict[radar_io.MASK_MATRIX_KEY].astype(int),
+        numpy.array([0.999]),
+        colors=(MASK_OUTLINE_COLOUR,), linewidths=4, linestyles='solid',
         axes=axes_object
     )
 
@@ -172,7 +174,7 @@ def _plot_mask(mask_dict, border_latitudes_deg_n, border_longitudes_deg_e,
     plotting_utils.plot_borders(
         border_latitudes_deg_n=border_latitudes_deg_n,
         border_longitudes_deg_e=border_longitudes_deg_e,
-        axes_object=axes_object, line_colour=BORDER_COLOUR_WITH_MASK
+        axes_object=axes_object, line_colour=BORDER_COLOUR
     )
 
     mask_matrix = mask_dict[radar_io.MASK_MATRIX_KEY].astype(float)
@@ -265,6 +267,101 @@ def _plot_mask(mask_dict, border_latitudes_deg_n, border_longitudes_deg_e,
     pyplot.close(figure_object)
 
 
+def _plot_sliding_windows(
+        border_latitudes_deg_n, border_longitudes_deg_e, letter_label,
+        output_file_name):
+    """Plots sliding windows used for prediction on full grid.
+
+    :param border_latitudes_deg_n: See doc for `_plot_mask`.
+    :param border_longitudes_deg_e: Same.
+    :param letter_label: Same.
+    :param output_file_name: Same.
+    """
+
+    latitudes_deg_n = twb_satellite_io.GRID_LATITUDES_DEG_N
+    longitudes_deg_e = twb_satellite_io.GRID_LONGITUDES_DEG_E
+
+    figure_object, axes_object = pyplot.subplots(
+        1, 1, figsize=(FIGURE_WIDTH_INCHES, FIGURE_HEIGHT_INCHES)
+    )
+
+    plotting_utils.plot_borders(
+        border_latitudes_deg_n=border_latitudes_deg_n,
+        border_longitudes_deg_e=border_longitudes_deg_e,
+        axes_object=axes_object, line_colour=BORDER_COLOUR
+    )
+
+    center_row = len(latitudes_deg_n) - 1 - COMPLETE_DOMAIN_HALF_WIDTH_PX
+    center_column = COMPLETE_DOMAIN_HALF_WIDTH_PX - STRIDE_LENGTH_PX
+
+    for _ in range(5):
+        center_column += STRIDE_LENGTH_PX
+
+        inner_polygon_rows = numpy.array([
+            center_row - INNER_DOMAIN_HALF_WIDTH_PX,
+            center_row - INNER_DOMAIN_HALF_WIDTH_PX,
+            center_row + INNER_DOMAIN_HALF_WIDTH_PX,
+            center_row + INNER_DOMAIN_HALF_WIDTH_PX,
+            center_row - INNER_DOMAIN_HALF_WIDTH_PX
+        ], dtype=int)
+
+        complete_polygon_rows = numpy.array([
+            center_row - COMPLETE_DOMAIN_HALF_WIDTH_PX,
+            center_row - COMPLETE_DOMAIN_HALF_WIDTH_PX,
+            center_row + COMPLETE_DOMAIN_HALF_WIDTH_PX,
+            center_row + COMPLETE_DOMAIN_HALF_WIDTH_PX,
+            center_row - COMPLETE_DOMAIN_HALF_WIDTH_PX
+        ], dtype=int)
+
+        inner_polygon_columns = numpy.array([
+            center_column - INNER_DOMAIN_HALF_WIDTH_PX,
+            center_column + INNER_DOMAIN_HALF_WIDTH_PX,
+            center_column + INNER_DOMAIN_HALF_WIDTH_PX,
+            center_column - INNER_DOMAIN_HALF_WIDTH_PX,
+            center_column - INNER_DOMAIN_HALF_WIDTH_PX
+        ], dtype=int)
+
+        complete_polygon_columns = numpy.array([
+            center_column - COMPLETE_DOMAIN_HALF_WIDTH_PX,
+            center_column + COMPLETE_DOMAIN_HALF_WIDTH_PX,
+            center_column + COMPLETE_DOMAIN_HALF_WIDTH_PX,
+            center_column - COMPLETE_DOMAIN_HALF_WIDTH_PX,
+            center_column - COMPLETE_DOMAIN_HALF_WIDTH_PX
+        ], dtype=int)
+
+        axes_object.plot(
+            longitudes_deg_e[inner_polygon_columns],
+            latitudes_deg_n[inner_polygon_rows],
+            color=INNER_DOMAIN_COLOUR, linestyle='solid',
+            linewidth=DOMAIN_LINE_WIDTH
+        )
+
+        axes_object.plot(
+            longitudes_deg_e[complete_polygon_columns],
+            latitudes_deg_n[complete_polygon_rows],
+            color=COMPLETE_DOMAIN_COLOUR, linestyle='solid',
+            linewidth=DOMAIN_LINE_WIDTH
+        )
+
+    plotting_utils.plot_grid_lines(
+        plot_latitudes_deg_n=latitudes_deg_n,
+        plot_longitudes_deg_e=longitudes_deg_e, axes_object=axes_object,
+        parallel_spacing_deg=2., meridian_spacing_deg=2.
+    )
+
+    axes_object.set_title('Sliding-window approach')
+    gg_plotting_utils.label_axes(
+        axes_object=axes_object, label_string='({0:s})'.format(letter_label)
+    )
+
+    print('Saving figure to file: "{0:s}"...'.format(output_file_name))
+    figure_object.savefig(
+        output_file_name, dpi=FIGURE_RESOLUTION_DPI,
+        pad_inches=0, bbox_inches='tight'
+    )
+    pyplot.close(figure_object)
+
+
 def _run(climo_file_name, mask_file_name, output_dir_name):
     """Makes figure with radar climatology and radar mask.
 
@@ -304,6 +401,33 @@ def _run(climo_file_name, mask_file_name, output_dir_name):
         mask_dict=mask_dict, border_latitudes_deg_n=border_latitudes_deg_n,
         border_longitudes_deg_e=border_longitudes_deg_e,
         letter_label='b', output_file_name=mask_figure_file_name
+    )
+
+    window_figure_file_name = '{0:s}/sliding_windows.jpg'.format(
+        output_dir_name
+    )
+    _plot_sliding_windows(
+        border_latitudes_deg_n=border_latitudes_deg_n,
+        border_longitudes_deg_e=border_longitudes_deg_e,
+        letter_label='c', output_file_name=window_figure_file_name
+    )
+
+    concat_figure_file_name = '{0:s}/climo_and_mask.jpg'.format(output_dir_name)
+    print('Concatenating panels to: "{0:s}"...'.format(concat_figure_file_name))
+
+    panel_file_names = [
+        climo_figure_file_name, mask_figure_file_name, window_figure_file_name
+    ]
+
+    imagemagick_utils.concatenate_images(
+        input_file_names=panel_file_names,
+        output_file_name=concat_figure_file_name,
+        num_panel_rows=2, num_panel_columns=2
+    )
+    imagemagick_utils.resize_image(
+        input_file_name=concat_figure_file_name,
+        output_file_name=concat_figure_file_name,
+        output_size_pixels=CONCAT_FIGURE_SIZE_PX
     )
 
 
