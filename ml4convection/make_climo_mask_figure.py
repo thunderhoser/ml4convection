@@ -19,6 +19,7 @@ import radar_plotting
 import gg_plotting_utils
 import radar_io
 import border_io
+import twb_satellite_io
 import radar_utils
 import plotting_utils
 import prediction_plotting
@@ -27,16 +28,17 @@ DUMMY_FIELD_NAME = 'reflectivity_column_max_dbz'
 
 MASK_COLOUR_MAP_OBJECT = pyplot.get_cmap('winter')
 MASK_COLOUR_NORM_OBJECT = pyplot.Normalize(vmin=0., vmax=1.)
-MASK_OUTLINE_COLOUR = numpy.full(3, 152. / 255)
-BORDER_COLOUR_WITH_MASK = numpy.full(3, 0.)
+MASK_OUTLINE_COLOUR = numpy.array([139, 69, 19], dtype=float) / 255
 
 INNER_DOMAIN_HALF_WIDTH_PX = 52
 COMPLETE_DOMAIN_HALF_WIDTH_PX = 102
+STRIDE_LENGTH_PX = 25
 
 INNER_DOMAIN_COLOUR = numpy.array([117, 112, 179], dtype=float) / 255
 COMPLETE_DOMAIN_COLOUR = numpy.array([217, 95, 2], dtype=float) / 255
 DOMAIN_LINE_WIDTH = 3.
 
+BORDER_COLOUR = numpy.full(3, 0.)
 FIGURE_WIDTH_INCHES = 15
 FIGURE_HEIGHT_INCHES = 15
 FIGURE_RESOLUTION_DPI = 300
@@ -97,7 +99,7 @@ def _plot_climo(
     plotting_utils.plot_borders(
         border_latitudes_deg_n=border_latitudes_deg_n,
         border_longitudes_deg_e=border_longitudes_deg_e,
-        axes_object=axes_object
+        axes_object=axes_object, line_colour=BORDER_COLOUR
     )
 
     dummy_target_matrix = numpy.full(event_freq_matrix.shape, 0, dtype=int)
@@ -133,19 +135,9 @@ def _plot_climo(
         longitudes_deg_e, latitudes_deg_n,
         mask_dict[radar_io.MASK_MATRIX_KEY].astype(int),
         numpy.array([0.999]),
-        colors=(MASK_OUTLINE_COLOUR,), linewidths=2, linestyles='solid',
+        colors=(MASK_OUTLINE_COLOUR,), linewidths=4, linestyles='solid',
         axes=axes_object
     )
-
-    # mask_matrix = mask_dict[radar_io.MASK_MATRIX_KEY].astype(float)
-    # mask_matrix[mask_matrix < 0.5] = numpy.nan
-    # print(numpy.sum(mask_matrix >= 0.999))
-    #
-    # pyplot.contour(
-    #     longitudes_deg_e, latitudes_deg_n, mask_matrix, numpy.array([0.999]),
-    #     colors=(MASK_OUTLINE_COLOUR,), linewidths=2, linestyles='solid',
-    #     axes=axes_object, zorder=1e10
-    # )
 
     plotting_utils.plot_grid_lines(
         plot_latitudes_deg_n=latitudes_deg_n,
@@ -189,7 +181,7 @@ def _plot_mask(mask_dict, border_latitudes_deg_n, border_longitudes_deg_e,
     plotting_utils.plot_borders(
         border_latitudes_deg_n=border_latitudes_deg_n,
         border_longitudes_deg_e=border_longitudes_deg_e,
-        axes_object=axes_object, line_colour=BORDER_COLOUR_WITH_MASK
+        axes_object=axes_object, line_colour=BORDER_COLOUR
     )
 
     mask_matrix = mask_dict[radar_io.MASK_MATRIX_KEY].astype(float)
@@ -322,6 +314,83 @@ def _run(climo_file_name, mask_file_name, output_dir_name):
         border_longitudes_deg_e=border_longitudes_deg_e,
         letter_label='b', output_file_name=mask_figure_file_name
     )
+
+    latitudes_deg_n = twb_satellite_io.GRID_LATITUDES_DEG_N
+    longitudes_deg_e = twb_satellite_io.GRID_LONGITUDES_DEG_E
+
+    figure_object, axes_object = pyplot.subplots(
+        1, 1, figsize=(FIGURE_WIDTH_INCHES, FIGURE_HEIGHT_INCHES)
+    )
+
+    plotting_utils.plot_borders(
+        border_latitudes_deg_n=border_latitudes_deg_n,
+        border_longitudes_deg_e=border_longitudes_deg_e,
+        axes_object=axes_object, line_colour=BORDER_COLOUR
+    )
+
+    center_row = COMPLETE_DOMAIN_HALF_WIDTH_PX - STRIDE_LENGTH_PX
+    center_column = COMPLETE_DOMAIN_HALF_WIDTH_PX - STRIDE_LENGTH_PX
+    opacity = 1.1
+
+    for _ in range(5):
+        center_row += STRIDE_LENGTH_PX
+        center_column += STRIDE_LENGTH_PX
+        opacity -= 0.1
+
+        inner_polygon_rows = numpy.array([
+            center_row - INNER_DOMAIN_HALF_WIDTH_PX,
+            center_row - INNER_DOMAIN_HALF_WIDTH_PX,
+            center_row + INNER_DOMAIN_HALF_WIDTH_PX,
+            center_row + INNER_DOMAIN_HALF_WIDTH_PX,
+            center_row - INNER_DOMAIN_HALF_WIDTH_PX
+        ], dtype=int)
+
+        complete_polygon_rows = numpy.array([
+            center_row - COMPLETE_DOMAIN_HALF_WIDTH_PX,
+            center_row - COMPLETE_DOMAIN_HALF_WIDTH_PX,
+            center_row + COMPLETE_DOMAIN_HALF_WIDTH_PX,
+            center_row + COMPLETE_DOMAIN_HALF_WIDTH_PX,
+            center_row - COMPLETE_DOMAIN_HALF_WIDTH_PX
+        ], dtype=int)
+
+        inner_polygon_columns = numpy.array([
+            center_column - INNER_DOMAIN_HALF_WIDTH_PX,
+            center_column + INNER_DOMAIN_HALF_WIDTH_PX,
+            center_column + INNER_DOMAIN_HALF_WIDTH_PX,
+            center_column - INNER_DOMAIN_HALF_WIDTH_PX,
+            center_column - INNER_DOMAIN_HALF_WIDTH_PX
+        ], dtype=int)
+
+        complete_polygon_columns = numpy.array([
+            center_column - COMPLETE_DOMAIN_HALF_WIDTH_PX,
+            center_column + COMPLETE_DOMAIN_HALF_WIDTH_PX,
+            center_column + COMPLETE_DOMAIN_HALF_WIDTH_PX,
+            center_column - COMPLETE_DOMAIN_HALF_WIDTH_PX,
+            center_column - COMPLETE_DOMAIN_HALF_WIDTH_PX
+        ], dtype=int)
+
+        axes_object.plot(
+            longitudes_deg_e[inner_polygon_columns],
+            latitudes_deg_n[inner_polygon_rows],
+            color=INNER_DOMAIN_COLOUR, linestyle='solid',
+            linewidth=DOMAIN_LINE_WIDTH, alpha=opacity
+        )
+
+        axes_object.plot(
+            longitudes_deg_e[complete_polygon_columns],
+            latitudes_deg_n[complete_polygon_rows],
+            color=COMPLETE_DOMAIN_COLOUR, linestyle='solid',
+            linewidth=DOMAIN_LINE_WIDTH, alpha=opacity
+        )
+
+    output_file_name = '{0:s}/sliding_window.jpg'.format(output_dir_name)
+
+    print('Saving figure to file: "{0:s}"...'.format(output_file_name))
+    figure_object.savefig(
+        output_file_name, dpi=FIGURE_RESOLUTION_DPI,
+        pad_inches=0, bbox_inches='tight'
+    )
+    pyplot.close(figure_object)
 
 
 if __name__ == '__main__':
