@@ -3,6 +3,7 @@
 import argparse
 import numpy
 import matplotlib
+
 matplotlib.use('agg')
 from matplotlib import pyplot
 from gewittergefahr.gg_utils import file_system_utils
@@ -10,12 +11,16 @@ from gewittergefahr.plotting import radar_plotting
 from gewittergefahr.plotting import plotting_utils as gg_plotting_utils
 from ml4convection.io import radar_io
 from ml4convection.io import border_io
+from ml4convection.io import climatology_io as climo_io
 from ml4convection.utils import radar_utils
 from ml4convection.plotting import plotting_utils
+from ml4convection.plotting import prediction_plotting
 
 DUMMY_FIELD_NAME = 'reflectivity_column_max_dbz'
+
 MASK_COLOUR_MAP_OBJECT = pyplot.get_cmap('winter')
 MASK_COLOUR_NORM_OBJECT = pyplot.Normalize(vmin=0., vmax=1.)
+MASK_OUTLINE_COLOUR = numpy.full(3, 152. / 255)
 BORDER_COLOUR_WITH_MASK = numpy.full(3, 0.)
 
 INNER_DOMAIN_HALF_WIDTH_PX = 52
@@ -57,6 +62,85 @@ INPUT_ARG_PARSER.add_argument(
     '--' + OUTPUT_DIR_ARG_NAME, type=str, required=True,
     help=OUTPUT_DIR_HELP_STRING
 )
+
+
+def _plot_climo(
+        climo_dict, mask_dict, border_latitudes_deg_n, border_longitudes_deg_e,
+        letter_label, output_file_name):
+    """Plots climatology (convection frequency at each point).
+
+    :param climo_dict: Dictionary returned by `climatology_io.read_file`.
+    :param mask_dict: See doc for `_plot_mask`.
+    :param border_latitudes_deg_n: Same.
+    :param border_longitudes_deg_e: Same.
+    :param letter_label: Same.
+    :param output_file_name: Same.
+    """
+
+    latitudes_deg_n = climo_dict[climo_io.LATITUDES_KEY]
+    longitudes_deg_e = climo_dict[climo_io.LONGITUDES_KEY]
+
+    figure_object, axes_object = pyplot.subplots(
+        1, 1, figsize=(FIGURE_WIDTH_INCHES, FIGURE_HEIGHT_INCHES)
+    )
+
+    plotting_utils.plot_borders(
+        border_latitudes_deg_n=border_latitudes_deg_n,
+        border_longitudes_deg_e=border_longitudes_deg_e,
+        axes_object=axes_object
+    )
+
+    mask_matrix = mask_dict[radar_io.MASK_MATRIX_KEY].astype(float)
+    mask_matrix[mask_matrix < 0.5] = numpy.nan
+
+    pyplot.contour(
+        longitudes_deg_e, latitudes_deg_n, mask_matrix, numpy.array([0.999]),
+        colors=(MASK_OUTLINE_COLOUR,), linewidths=2, linestyles='solid',
+        axes=axes_object
+    )
+
+    event_freq_matrix = climo_dict[climo_io.EVENT_FREQ_BY_PIXEL_KEY]
+    dummy_target_matrix = numpy.full(event_freq_matrix.shape, 0, dtype=int)
+    max_colour_value = numpy.nanpercentile(event_freq_matrix, 99.)
+
+    prediction_plotting.plot_probabilistic(
+        probability_matrix=event_freq_matrix, target_matrix=dummy_target_matrix,
+        figure_object=figure_object, axes_object=axes_object,
+        min_latitude_deg_n=latitudes_deg_n[0],
+        min_longitude_deg_e=longitudes_deg_e[0],
+        latitude_spacing_deg=numpy.diff(latitudes_deg_n[:2])[0],
+        longitude_spacing_deg=numpy.diff(longitudes_deg_e[:2])[0],
+        max_prob_in_colour_bar=max_colour_value
+    )
+
+    colour_map_object, colour_norm_object = (
+        prediction_plotting.get_prob_colour_scheme(max_colour_value)
+    )
+
+    gg_plotting_utils.plot_colour_bar(
+        axes_object_or_matrix=axes_object, data_matrix=event_freq_matrix,
+        colour_map_object=colour_map_object,
+        colour_norm_object=colour_norm_object,
+        orientation_string='vertical', extend_min=False, extend_max=False
+    )
+
+    plotting_utils.plot_grid_lines(
+        plot_latitudes_deg_n=latitudes_deg_n,
+        plot_longitudes_deg_e=longitudes_deg_e, axes_object=axes_object,
+        parallel_spacing_deg=2., meridian_spacing_deg=2.
+    )
+
+    axes_object.set_title('Convection frequency (2016-2018)')
+    gg_plotting_utils.label_axes(
+        axes_object=axes_object, label_string='({0:s})'.format(letter_label)
+    )
+
+    print('Saving figure to file: "{0:s}"...'.format(output_file_name))
+    figure_object.savefig(
+        output_file_name, dpi=FIGURE_RESOLUTION_DPI,
+        pad_inches=0, bbox_inches='tight'
+    )
+    pyplot.close(figure_object)
 
 
 def _plot_mask(mask_dict, border_latitudes_deg_n, border_longitudes_deg_e,
@@ -149,15 +233,15 @@ def _plot_mask(mask_dict, border_latitudes_deg_n, border_longitudes_deg_e,
     ], dtype=int)
 
     axes_object.plot(
-        longitudes_deg_e[inner_polygon_rows],
-        latitudes_deg_n[inner_polygon_columns],
+        longitudes_deg_e[inner_polygon_columns],
+        latitudes_deg_n[inner_polygon_rows],
         color=INNER_DOMAIN_COLOUR, linestyle='solid',
         linewidth=DOMAIN_LINE_WIDTH
     )
 
     axes_object.plot(
-        longitudes_deg_e[complete_polygon_rows],
-        latitudes_deg_n[complete_polygon_columns],
+        longitudes_deg_e[complete_polygon_columns],
+        latitudes_deg_n[complete_polygon_rows],
         color=COMPLETE_DOMAIN_COLOUR, linestyle='solid',
         linewidth=DOMAIN_LINE_WIDTH
     )
@@ -194,12 +278,24 @@ def _run(climo_file_name, mask_file_name, output_dir_name):
     print('Reading data from: "{0:s}"...'.format(mask_file_name))
     mask_dict = radar_io.read_mask_file(mask_file_name)
 
-    mask_figure_file_name = '{0:s}/radar_mask.jpg'.format(output_dir_name)
+    print('Reading data from: "{0:s}"...'.format(climo_file_name))
+    climo_dict = climo_io.read_file(climo_file_name)
 
+    climo_figure_file_name = '{0:s}/convection_frequency_climo.jpg'.format(
+        output_dir_name
+    )
+    _plot_climo(
+        climo_dict=climo_dict, mask_dict=mask_dict,
+        border_latitudes_deg_n=border_latitudes_deg_n,
+        border_longitudes_deg_e=border_longitudes_deg_e,
+        letter_label='a', output_file_name=climo_figure_file_name
+    )
+
+    mask_figure_file_name = '{0:s}/radar_mask.jpg'.format(output_dir_name)
     _plot_mask(
         mask_dict=mask_dict, border_latitudes_deg_n=border_latitudes_deg_n,
         border_longitudes_deg_e=border_longitudes_deg_e,
-        letter_label='a', output_file_name=mask_figure_file_name
+        letter_label='b', output_file_name=mask_figure_file_name
     )
 
 
