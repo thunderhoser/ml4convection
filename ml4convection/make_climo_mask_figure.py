@@ -17,6 +17,7 @@ sys.path.append(os.path.normpath(os.path.join(THIS_DIRECTORY_NAME, '..')))
 import file_system_utils
 import radar_plotting
 import gg_plotting_utils
+import imagemagick_utils
 import radar_io
 import border_io
 import twb_satellite_io
@@ -274,6 +275,101 @@ def _plot_mask(mask_dict, border_latitudes_deg_n, border_longitudes_deg_e,
     pyplot.close(figure_object)
 
 
+def _plot_sliding_windows(
+        border_latitudes_deg_n, border_longitudes_deg_e, letter_label,
+        output_file_name):
+    """Plots sliding windows used for prediction on full grid.
+
+    :param border_latitudes_deg_n: See doc for `_plot_mask`.
+    :param border_longitudes_deg_e: Same.
+    :param letter_label: Same.
+    :param output_file_name: Same.
+    """
+
+    latitudes_deg_n = twb_satellite_io.GRID_LATITUDES_DEG_N
+    longitudes_deg_e = twb_satellite_io.GRID_LONGITUDES_DEG_E
+
+    figure_object, axes_object = pyplot.subplots(
+        1, 1, figsize=(FIGURE_WIDTH_INCHES, FIGURE_HEIGHT_INCHES)
+    )
+
+    plotting_utils.plot_borders(
+        border_latitudes_deg_n=border_latitudes_deg_n,
+        border_longitudes_deg_e=border_longitudes_deg_e,
+        axes_object=axes_object, line_colour=BORDER_COLOUR
+    )
+
+    center_row = len(latitudes_deg_n) - 1 - COMPLETE_DOMAIN_HALF_WIDTH_PX
+    center_column = COMPLETE_DOMAIN_HALF_WIDTH_PX - STRIDE_LENGTH_PX
+
+    for _ in range(5):
+        center_column += STRIDE_LENGTH_PX
+
+        inner_polygon_rows = numpy.array([
+            center_row - INNER_DOMAIN_HALF_WIDTH_PX,
+            center_row - INNER_DOMAIN_HALF_WIDTH_PX,
+            center_row + INNER_DOMAIN_HALF_WIDTH_PX,
+            center_row + INNER_DOMAIN_HALF_WIDTH_PX,
+            center_row - INNER_DOMAIN_HALF_WIDTH_PX
+        ], dtype=int)
+
+        complete_polygon_rows = numpy.array([
+            center_row - COMPLETE_DOMAIN_HALF_WIDTH_PX,
+            center_row - COMPLETE_DOMAIN_HALF_WIDTH_PX,
+            center_row + COMPLETE_DOMAIN_HALF_WIDTH_PX,
+            center_row + COMPLETE_DOMAIN_HALF_WIDTH_PX,
+            center_row - COMPLETE_DOMAIN_HALF_WIDTH_PX
+        ], dtype=int)
+
+        inner_polygon_columns = numpy.array([
+            center_column - INNER_DOMAIN_HALF_WIDTH_PX,
+            center_column + INNER_DOMAIN_HALF_WIDTH_PX,
+            center_column + INNER_DOMAIN_HALF_WIDTH_PX,
+            center_column - INNER_DOMAIN_HALF_WIDTH_PX,
+            center_column - INNER_DOMAIN_HALF_WIDTH_PX
+        ], dtype=int)
+
+        complete_polygon_columns = numpy.array([
+            center_column - COMPLETE_DOMAIN_HALF_WIDTH_PX,
+            center_column + COMPLETE_DOMAIN_HALF_WIDTH_PX,
+            center_column + COMPLETE_DOMAIN_HALF_WIDTH_PX,
+            center_column - COMPLETE_DOMAIN_HALF_WIDTH_PX,
+            center_column - COMPLETE_DOMAIN_HALF_WIDTH_PX
+        ], dtype=int)
+
+        axes_object.plot(
+            longitudes_deg_e[inner_polygon_columns],
+            latitudes_deg_n[inner_polygon_rows],
+            color=INNER_DOMAIN_COLOUR, linestyle='solid',
+            linewidth=DOMAIN_LINE_WIDTH
+        )
+
+        axes_object.plot(
+            longitudes_deg_e[complete_polygon_columns],
+            latitudes_deg_n[complete_polygon_rows],
+            color=COMPLETE_DOMAIN_COLOUR, linestyle='solid',
+            linewidth=DOMAIN_LINE_WIDTH
+        )
+
+    plotting_utils.plot_grid_lines(
+        plot_latitudes_deg_n=latitudes_deg_n,
+        plot_longitudes_deg_e=longitudes_deg_e, axes_object=axes_object,
+        parallel_spacing_deg=2., meridian_spacing_deg=2.
+    )
+
+    axes_object.set_title('Sliding-window approach')
+    gg_plotting_utils.label_axes(
+        axes_object=axes_object, label_string='({0:s})'.format(letter_label)
+    )
+
+    print('Saving figure to file: "{0:s}"...'.format(output_file_name))
+    figure_object.savefig(
+        output_file_name, dpi=FIGURE_RESOLUTION_DPI,
+        pad_inches=0, bbox_inches='tight'
+    )
+    pyplot.close(figure_object)
+
+
 def _run(climo_file_name, mask_file_name, output_dir_name):
     """Makes figure with radar climatology and radar mask.
 
@@ -315,86 +411,32 @@ def _run(climo_file_name, mask_file_name, output_dir_name):
         letter_label='b', output_file_name=mask_figure_file_name
     )
 
-    latitudes_deg_n = twb_satellite_io.GRID_LATITUDES_DEG_N
-    longitudes_deg_e = twb_satellite_io.GRID_LONGITUDES_DEG_E
-
-    figure_object, axes_object = pyplot.subplots(
-        1, 1, figsize=(FIGURE_WIDTH_INCHES, FIGURE_HEIGHT_INCHES)
+    window_figure_file_name = '{0:s}/sliding_windows.jpg'.format(
+        output_dir_name
     )
-
-    plotting_utils.plot_borders(
+    _plot_sliding_windows(
         border_latitudes_deg_n=border_latitudes_deg_n,
         border_longitudes_deg_e=border_longitudes_deg_e,
-        axes_object=axes_object, line_colour=BORDER_COLOUR
+        letter_label='c', output_file_name=window_figure_file_name
     )
 
-    center_row = len(latitudes_deg_n) - 1 - COMPLETE_DOMAIN_HALF_WIDTH_PX
-    center_column = COMPLETE_DOMAIN_HALF_WIDTH_PX - STRIDE_LENGTH_PX
-    opacity = 1.
+    concat_figure_file_name = '{0:s}/climo_and_mask.jpg'.format(output_dir_name)
+    print('Concatenating panels to: "{0:s}"...'.format(concat_figure_file_name))
 
-    for _ in range(5):
-        center_column += STRIDE_LENGTH_PX
+    panel_file_names = [
+        climo_figure_file_name, mask_figure_file_name, window_figure_file_name
+    ]
 
-        inner_polygon_rows = numpy.array([
-            center_row - INNER_DOMAIN_HALF_WIDTH_PX,
-            center_row - INNER_DOMAIN_HALF_WIDTH_PX,
-            center_row + INNER_DOMAIN_HALF_WIDTH_PX,
-            center_row + INNER_DOMAIN_HALF_WIDTH_PX,
-            center_row - INNER_DOMAIN_HALF_WIDTH_PX
-        ], dtype=int)
-
-        complete_polygon_rows = numpy.array([
-            center_row - COMPLETE_DOMAIN_HALF_WIDTH_PX,
-            center_row - COMPLETE_DOMAIN_HALF_WIDTH_PX,
-            center_row + COMPLETE_DOMAIN_HALF_WIDTH_PX,
-            center_row + COMPLETE_DOMAIN_HALF_WIDTH_PX,
-            center_row - COMPLETE_DOMAIN_HALF_WIDTH_PX
-        ], dtype=int)
-
-        inner_polygon_columns = numpy.array([
-            center_column - INNER_DOMAIN_HALF_WIDTH_PX,
-            center_column + INNER_DOMAIN_HALF_WIDTH_PX,
-            center_column + INNER_DOMAIN_HALF_WIDTH_PX,
-            center_column - INNER_DOMAIN_HALF_WIDTH_PX,
-            center_column - INNER_DOMAIN_HALF_WIDTH_PX
-        ], dtype=int)
-
-        complete_polygon_columns = numpy.array([
-            center_column - COMPLETE_DOMAIN_HALF_WIDTH_PX,
-            center_column + COMPLETE_DOMAIN_HALF_WIDTH_PX,
-            center_column + COMPLETE_DOMAIN_HALF_WIDTH_PX,
-            center_column - COMPLETE_DOMAIN_HALF_WIDTH_PX,
-            center_column - COMPLETE_DOMAIN_HALF_WIDTH_PX
-        ], dtype=int)
-
-        axes_object.plot(
-            longitudes_deg_e[inner_polygon_columns],
-            latitudes_deg_n[inner_polygon_rows],
-            color=INNER_DOMAIN_COLOUR, linestyle='solid',
-            linewidth=DOMAIN_LINE_WIDTH, alpha=opacity
-        )
-
-        axes_object.plot(
-            longitudes_deg_e[complete_polygon_columns],
-            latitudes_deg_n[complete_polygon_rows],
-            color=COMPLETE_DOMAIN_COLOUR, linestyle='solid',
-            linewidth=DOMAIN_LINE_WIDTH, alpha=opacity
-        )
-
-    plotting_utils.plot_grid_lines(
-        plot_latitudes_deg_n=latitudes_deg_n,
-        plot_longitudes_deg_e=longitudes_deg_e, axes_object=axes_object,
-        parallel_spacing_deg=2., meridian_spacing_deg=2.
+    imagemagick_utils.concatenate_images(
+        input_file_names=panel_file_names,
+        output_file_name=concat_figure_file_name,
+        num_panel_rows=2, num_panel_columns=2
     )
-
-    output_file_name = '{0:s}/sliding_window.jpg'.format(output_dir_name)
-
-    print('Saving figure to file: "{0:s}"...'.format(output_file_name))
-    figure_object.savefig(
-        output_file_name, dpi=FIGURE_RESOLUTION_DPI,
-        pad_inches=0, bbox_inches='tight'
+    imagemagick_utils.resize_image(
+        input_file_name=concat_figure_file_name,
+        output_file_name=concat_figure_file_name,
+        output_size_pixels=CONCAT_FIGURE_SIZE_PX
     )
-    pyplot.close(figure_object)
 
 
 if __name__ == '__main__':
