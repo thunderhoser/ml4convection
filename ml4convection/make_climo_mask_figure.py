@@ -333,7 +333,7 @@ def _run(climo_file_name, mask_file_name, output_dir_name):
     opacity = 1.1
 
     for _ in range(5):
-        center_row += STRIDE_LENGTH_PX
+        # center_row += STRIDE_LENGTH_PX
         center_column += STRIDE_LENGTH_PX
         opacity -= 0.1
 
@@ -382,6 +382,12 @@ def _run(climo_file_name, mask_file_name, output_dir_name):
             color=COMPLETE_DOMAIN_COLOUR, linestyle='solid',
             linewidth=DOMAIN_LINE_WIDTH, alpha=opacity
         )
+
+    plotting_utils.plot_grid_lines(
+        plot_latitudes_deg_n=latitudes_deg_n,
+        plot_longitudes_deg_e=longitudes_deg_e, axes_object=axes_object,
+        parallel_spacing_deg=2., meridian_spacing_deg=2.
+    )
 
     output_file_name = '{0:s}/sliding_window.jpg'.format(output_dir_name)
 
