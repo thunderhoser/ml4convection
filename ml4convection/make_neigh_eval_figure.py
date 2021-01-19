@@ -54,7 +54,7 @@ COLOUR_MAP_OBJECT = matplotlib.colors.ListedColormap(
 COLOUR_MAP_OBJECT.set_under(BACKGROUND_COLOUR)
 COLOUR_MAP_OBJECT.set_over(BACKGROUND_COLOUR)
 
-COLOUR_BOUNDS = numpy.array([0, 1, 2], dtype=float) - 0.01
+COLOUR_BOUNDS = numpy.array([0, 1, 2], dtype=float) - 0.5
 COLOUR_NORM_OBJECT = matplotlib.colors.BoundaryNorm(
     boundaries=COLOUR_BOUNDS, ncolors=COLOUR_MAP_OBJECT.N
 )
