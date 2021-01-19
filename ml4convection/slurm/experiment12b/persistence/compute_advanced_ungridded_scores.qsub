@@ -34,7 +34,7 @@ set smoothing_radius_px=${SMOOTHING_RADII_PX[$SLURM_ARRAY_TASK_ID]}
 set smoothing_radius_string=`printf "%.10f" $smoothing_radius_px`
 
 set model_dir_name="${TOP_MODEL_DIR_NAME}/smoothing_radius_px=${smoothing_radius_string}"
-set evaluation_dir_name="${model_dir_name}/validation/full_grids/evaluation"
+set evaluation_dir_name="${model_dir_name}/validation/evaluation"
 
 python3 -u "${CODE_DIR_NAME}/compute_advanced_scores_ungridded.py" \
 --input_basic_score_dir_name="${evaluation_dir_name}" \

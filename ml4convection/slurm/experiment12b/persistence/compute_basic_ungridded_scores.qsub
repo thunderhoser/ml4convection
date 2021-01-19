@@ -38,7 +38,7 @@ set first_date_string=${FIRST_DATE_STRINGS[$SLURM_ARRAY_TASK_ID]}
 set last_date_string=${LAST_DATE_STRINGS[$SLURM_ARRAY_TASK_ID]}
 
 set model_dir_name="${TOP_MODEL_DIR_NAME}/smoothing_radius_px=${smoothing_radius_string}"
-set prediction_dir_name="${model_dir_name}/validation/full_grids"
+set prediction_dir_name="${model_dir_name}/validation"
 
 python3 -u "${CODE_DIR_NAME}/compute_basic_scores_ungridded.py" \
 --input_prediction_dir_name="${prediction_dir_name}" \
