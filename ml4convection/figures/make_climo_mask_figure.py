@@ -1,5 +1,6 @@
 """Makes figure with radar climatology and radar mask."""
 
+import pickle
 import argparse
 import numpy
 import matplotlib
@@ -91,17 +92,8 @@ def _plot_climo(
         axes_object=axes_object
     )
 
-    mask_matrix = mask_dict[radar_io.MASK_MATRIX_KEY].astype(float)
-    mask_matrix[mask_matrix < 0.5] = numpy.nan
-
-    pyplot.contour(
-        longitudes_deg_e, latitudes_deg_n, mask_matrix, numpy.array([0.999]),
-        colors=(MASK_OUTLINE_COLOUR,), linewidths=2, linestyles='solid',
-        axes=axes_object
-    )
-
     dummy_target_matrix = numpy.full(event_freq_matrix.shape, 0, dtype=int)
-    max_colour_value = numpy.nanpercentile(event_freq_matrix, 99.)
+    max_colour_value = numpy.nanmax(event_freq_matrix)
 
     prediction_plotting.plot_probabilistic(
         probability_matrix=event_freq_matrix, target_matrix=dummy_target_matrix,
@@ -117,11 +109,25 @@ def _plot_climo(
         prediction_plotting.get_prob_colour_scheme(max_colour_value)
     )
 
-    gg_plotting_utils.plot_colour_bar(
+    colour_bar_object = gg_plotting_utils.plot_colour_bar(
         axes_object_or_matrix=axes_object, data_matrix=event_freq_matrix,
         colour_map_object=colour_map_object,
         colour_norm_object=colour_norm_object,
         orientation_string='vertical', extend_min=False, extend_max=False
+    )
+
+    tick_values = colour_bar_object.get_ticks()
+    tick_strings = ['{0:.4f}'.format(v) for v in tick_values]
+    colour_bar_object.set_ticks(tick_values)
+    colour_bar_object.set_ticklabels(tick_strings)
+
+    mask_matrix = mask_dict[radar_io.MASK_MATRIX_KEY].astype(float)
+    mask_matrix[mask_matrix < 0.5] = numpy.nan
+
+    pyplot.contour(
+        longitudes_deg_e, latitudes_deg_n, mask_matrix, numpy.array([0.999]),
+        colors=(MASK_OUTLINE_COLOUR,), linewidths=2, linestyles='solid',
+        axes=axes_object
     )
 
     plotting_utils.plot_grid_lines(
@@ -130,7 +136,7 @@ def _plot_climo(
         parallel_spacing_deg=2., meridian_spacing_deg=2.
     )
 
-    axes_object.set_title('Convection frequency in training data')
+    axes_object.set_title('Convection frequency from 2016-2018')
     gg_plotting_utils.label_axes(
         axes_object=axes_object, label_string='({0:s})'.format(letter_label)
     )
