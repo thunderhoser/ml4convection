@@ -330,11 +330,10 @@ def _run(climo_file_name, mask_file_name, output_dir_name):
 
     center_row = len(latitudes_deg_n) - 1 - COMPLETE_DOMAIN_HALF_WIDTH_PX
     center_column = COMPLETE_DOMAIN_HALF_WIDTH_PX - STRIDE_LENGTH_PX
-    opacity = 1.15
+    opacity = 1.
 
     for _ in range(5):
         center_column += STRIDE_LENGTH_PX
-        opacity -= 0.15
 
         inner_polygon_rows = numpy.array([
             center_row - INNER_DOMAIN_HALF_WIDTH_PX,
