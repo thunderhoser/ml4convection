@@ -3,7 +3,6 @@
 import argparse
 import numpy
 import matplotlib
-
 matplotlib.use('agg')
 from matplotlib import pyplot
 from gewittergefahr.gg_utils import file_system_utils
@@ -11,7 +10,6 @@ from gewittergefahr.plotting import radar_plotting
 from gewittergefahr.plotting import plotting_utils as gg_plotting_utils
 from ml4convection.io import radar_io
 from ml4convection.io import border_io
-from ml4convection.io import climatology_io as climo_io
 from ml4convection.utils import radar_utils
 from ml4convection.plotting import plotting_utils
 from ml4convection.plotting import prediction_plotting
@@ -65,11 +63,14 @@ INPUT_ARG_PARSER.add_argument(
 
 
 def _plot_climo(
-        climo_dict, mask_dict, border_latitudes_deg_n, border_longitudes_deg_e,
-        letter_label, output_file_name):
+        event_freq_matrix, mask_dict, border_latitudes_deg_n,
+        border_longitudes_deg_e, letter_label, output_file_name):
     """Plots climatology (convection frequency at each point).
 
-    :param climo_dict: Dictionary returned by `climatology_io.read_file`.
+    M = number of rows in grid
+    N = number of columns in grid
+
+    :param event_freq_matrix: M-by-N numpy array of frequencies.
     :param mask_dict: See doc for `_plot_mask`.
     :param border_latitudes_deg_n: Same.
     :param border_longitudes_deg_e: Same.
@@ -77,8 +78,8 @@ def _plot_climo(
     :param output_file_name: Same.
     """
 
-    latitudes_deg_n = climo_dict[climo_io.LATITUDES_KEY]
-    longitudes_deg_e = climo_dict[climo_io.LONGITUDES_KEY]
+    latitudes_deg_n = mask_dict[radar_io.LATITUDES_KEY]
+    longitudes_deg_e = mask_dict[radar_io.LONGITUDES_KEY]
 
     figure_object, axes_object = pyplot.subplots(
         1, 1, figsize=(FIGURE_WIDTH_INCHES, FIGURE_HEIGHT_INCHES)
@@ -99,7 +100,6 @@ def _plot_climo(
         axes=axes_object
     )
 
-    event_freq_matrix = climo_dict[climo_io.EVENT_FREQ_BY_PIXEL_KEY]
     dummy_target_matrix = numpy.full(event_freq_matrix.shape, 0, dtype=int)
     max_colour_value = numpy.nanpercentile(event_freq_matrix, 99.)
 
@@ -130,7 +130,7 @@ def _plot_climo(
         parallel_spacing_deg=2., meridian_spacing_deg=2.
     )
 
-    axes_object.set_title('Convection frequency (2016-2018)')
+    axes_object.set_title('Convection frequency in training data')
     gg_plotting_utils.label_axes(
         axes_object=axes_object, label_string='({0:s})'.format(letter_label)
     )
@@ -279,13 +279,15 @@ def _run(climo_file_name, mask_file_name, output_dir_name):
     mask_dict = radar_io.read_mask_file(mask_file_name)
 
     print('Reading data from: "{0:s}"...'.format(climo_file_name))
-    climo_dict = climo_io.read_file(climo_file_name)
+    climo_file_handle = open(climo_file_name, 'rb')
+    event_freq_matrix = pickle.load(climo_file_handle)
+    climo_file_handle.close()
 
     climo_figure_file_name = '{0:s}/convection_frequency_climo.jpg'.format(
         output_dir_name
     )
     _plot_climo(
-        climo_dict=climo_dict, mask_dict=mask_dict,
+        event_freq_matrix=event_freq_matrix, mask_dict=mask_dict,
         border_latitudes_deg_n=border_latitudes_deg_n,
         border_longitudes_deg_e=border_longitudes_deg_e,
         letter_label='a', output_file_name=climo_figure_file_name
