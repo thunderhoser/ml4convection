@@ -103,15 +103,15 @@ def _plot_climo(
     dummy_target_matrix = numpy.full(event_freq_matrix.shape, 0, dtype=int)
     max_colour_value = numpy.nanmax(event_freq_matrix)
 
-    # prediction_plotting.plot_probabilistic(
-    #     probability_matrix=event_freq_matrix, target_matrix=dummy_target_matrix,
-    #     figure_object=figure_object, axes_object=axes_object,
-    #     min_latitude_deg_n=latitudes_deg_n[0],
-    #     min_longitude_deg_e=longitudes_deg_e[0],
-    #     latitude_spacing_deg=numpy.diff(latitudes_deg_n[:2])[0],
-    #     longitude_spacing_deg=numpy.diff(longitudes_deg_e[:2])[0],
-    #     max_prob_in_colour_bar=max_colour_value
-    # )
+    prediction_plotting.plot_probabilistic(
+        probability_matrix=event_freq_matrix, target_matrix=dummy_target_matrix,
+        figure_object=figure_object, axes_object=axes_object,
+        min_latitude_deg_n=latitudes_deg_n[0],
+        min_longitude_deg_e=longitudes_deg_e[0],
+        latitude_spacing_deg=numpy.diff(latitudes_deg_n[:2])[0],
+        longitude_spacing_deg=numpy.diff(longitudes_deg_e[:2])[0],
+        max_prob_in_colour_bar=max_colour_value
+    )
 
     colour_map_object, colour_norm_object = (
         prediction_plotting.get_prob_colour_scheme(max_colour_value)
@@ -129,15 +129,23 @@ def _plot_climo(
     colour_bar_object.set_ticks(tick_values)
     colour_bar_object.set_ticklabels(tick_strings)
 
-    mask_matrix = mask_dict[radar_io.MASK_MATRIX_KEY].astype(float)
-    mask_matrix[mask_matrix < 0.5] = numpy.nan
-    print(numpy.nansum(mask_matrix))
-
     pyplot.contour(
-        longitudes_deg_e, latitudes_deg_n, mask_matrix, numpy.array([0.999]),
+        longitudes_deg_e, latitudes_deg_n,
+        mask_dict[radar_io.MASK_MATRIX_KEY].astype(int),
+        numpy.array([0.999]),
         colors=(MASK_OUTLINE_COLOUR,), linewidths=2, linestyles='solid',
-        axes=axes_object, zorder=1e10
+        axes=axes_object
     )
+
+    # mask_matrix = mask_dict[radar_io.MASK_MATRIX_KEY].astype(float)
+    # mask_matrix[mask_matrix < 0.5] = numpy.nan
+    # print(numpy.sum(mask_matrix >= 0.999))
+    #
+    # pyplot.contour(
+    #     longitudes_deg_e, latitudes_deg_n, mask_matrix, numpy.array([0.999]),
+    #     colors=(MASK_OUTLINE_COLOUR,), linewidths=2, linestyles='solid',
+    #     axes=axes_object, zorder=1e10
+    # )
 
     plotting_utils.plot_grid_lines(
         plot_latitudes_deg_n=latitudes_deg_n,
