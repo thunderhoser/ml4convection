@@ -256,9 +256,6 @@ def _run(top_target_dir_name, lead_time_seconds, smoothing_radius_px,
     )
     print('\n')
 
-    # TODO(thunderhoser): HACK!!
-    return
-
     valid_date_strings = [
         example_io.file_name_to_date(f) for f in target_file_names
     ]
