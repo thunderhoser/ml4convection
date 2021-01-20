@@ -7,6 +7,7 @@ from gewittergefahr.gg_utils import general_utils
 from gewittergefahr.gg_utils import error_checking
 from ml4convection.io import example_io
 from ml4convection.io import prediction_io
+from ml4convection.io import satellite_io
 from ml4convection.machine_learning import neural_net
 
 TARGET_DIR_ARG_NAME = 'input_target_dir_name'
@@ -71,12 +72,14 @@ INPUT_ARG_PARSER.add_argument(
 )
 
 
-def _write_metafile(target_file_names, dummy_model_file_name):
+def _write_metafile(target_file_names, lead_time_seconds,
+                    dummy_model_file_name):
     """Writes metafile (readable by `neural_net.read_metafile`).
 
     :param target_file_names: 1-D list of paths to target files.  Will be read
         by `example_io.read_target_file`.
-    :param dummy_model_file_name: See documentation at top of file.
+    :param lead_time_seconds: See documentation at top of file.
+    :param dummy_model_file_name: Same.
     """
 
     first_target_dict = example_io.read_target_file(target_file_names[0])
@@ -87,11 +90,19 @@ def _write_metafile(target_file_names, dummy_model_file_name):
     )
     print('Writing metafile to: "{0:s}"...'.format(metafile_name))
 
+    training_option_dict = {
+        neural_net.BAND_NUMBERS_KEY: satellite_io.BAND_NUMBERS,
+        neural_net.LEAD_TIME_KEY: lead_time_seconds,
+        neural_net.LAG_TIMES_KEY: numpy.array([0], dtype=int)
+    }
+
     neural_net._write_metafile(
         dill_file_name=metafile_name,
         use_partial_grids=False, num_epochs=100,
-        num_training_batches_per_epoch=100, training_option_dict=dict(),
-        num_validation_batches_per_epoch=100, validation_option_dict=dict(),
+        num_training_batches_per_epoch=100,
+        training_option_dict=training_option_dict,
+        num_validation_batches_per_epoch=100,
+        validation_option_dict=training_option_dict,
         do_early_stopping=True, plateau_lr_multiplier=0.6,
         class_weights=None, fss_half_window_size_px=1.,
         mask_matrix=mask_matrix, full_mask_matrix=mask_matrix
@@ -231,9 +242,13 @@ def _run(top_target_dir_name, lead_time_seconds, smoothing_radius_px,
 
     _write_metafile(
         target_file_names=target_file_names,
+        lead_time_seconds=lead_time_seconds,
         dummy_model_file_name=dummy_model_file_name
     )
     print('\n')
+
+    # TODO(thunderhoser): HACK!!
+    return
 
     valid_date_strings = [
         example_io.file_name_to_date(f) for f in target_file_names
