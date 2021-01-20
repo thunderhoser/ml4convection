@@ -237,6 +237,10 @@ def _run(output_dir_name):
         output_file_name=concat_figure_file_name,
         num_panel_rows=2, num_panel_columns=2
     )
+    imagemagick_utils.trim_whitespace(
+        input_file_name=concat_figure_file_name,
+        output_file_name=concat_figure_file_name
+    )
     imagemagick_utils.resize_image(
         input_file_name=concat_figure_file_name,
         output_file_name=concat_figure_file_name,

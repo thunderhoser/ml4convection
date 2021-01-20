@@ -158,6 +158,10 @@ def _run(top_raw_directory_name, top_qc_directory_name, valid_time_string,
         output_file_name=concat_figure_file_name,
         num_panel_rows=1, num_panel_columns=2
     )
+    imagemagick_utils.trim_whitespace(
+        input_file_name=concat_figure_file_name,
+        output_file_name=concat_figure_file_name
+    )
     imagemagick_utils.resize_image(
         input_file_name=concat_figure_file_name,
         output_file_name=concat_figure_file_name,
