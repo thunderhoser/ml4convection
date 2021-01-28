@@ -367,11 +367,11 @@ def _bias_from_sr_and_pod(success_ratio_array, pod_array):
     return pod_array / success_ratio_array
 
 
-def _get_csi_colour_scheme(use_green_scheme):
+def _get_csi_colour_scheme(use_grey_scheme):
     """Returns colour scheme for CSI (critical success index).
 
-    :param use_green_scheme: Boolean flag.  If True (False), will use green
-        (blue) colour scheme.
+    :param use_grey_scheme: Boolean flag.  If True (False), will use grey (blue)
+        colour scheme.
     :return: colour_map_object: Colour scheme (instance of
         `matplotlib.colors.ListedColormap`).
     :return: colour_norm_object: Instance of `matplotlib.colors.BoundaryNorm`,
@@ -379,15 +379,21 @@ def _get_csi_colour_scheme(use_green_scheme):
     """
 
     this_colour_map_object = pyplot.get_cmap(
-        'Greens' if use_green_scheme else 'Blues'
+        'gist_yarg' if use_grey_scheme else 'Blues'
     )
     this_colour_norm_object = matplotlib.colors.BoundaryNorm(
         CSI_LEVELS, this_colour_map_object.N
     )
 
-    rgba_matrix = this_colour_map_object(this_colour_norm_object(
-        CSI_LEVELS
-    ))
+    if use_grey_scheme:
+        rgba_matrix = this_colour_map_object(this_colour_norm_object(
+            CSI_LEVELS * 0.9
+        ))
+    else:
+        rgba_matrix = this_colour_map_object(this_colour_norm_object(
+            CSI_LEVELS
+        ))
+
     colour_list = [
         rgba_matrix[i, ..., :-1] for i in range(rgba_matrix.shape[0])
     ]
@@ -568,7 +574,7 @@ def plot_roc_curve(axes_object, pod_by_threshold, pofd_by_threshold,
 def plot_performance_diagram(
         axes_object, pod_by_threshold, success_ratio_by_threshold,
         line_colour=PERF_DIAGRAM_COLOUR, plot_background=True,
-        plot_csi_in_green=False):
+        plot_csi_in_grey=False):
     """Plots performance diagram.
 
     T = number of probability thresholds
@@ -580,8 +586,8 @@ def plot_performance_diagram(
     :param line_colour: Line colour.
     :param plot_background: Boolean flag.  If True, will plot background
         (frequency-bias and CSI contours).
-    :param plot_csi_in_green: Boolean flag.  If True (False), will plot CSI in
-        green (blue) colour scheme.
+    :param plot_csi_in_grey: Boolean flag.  If True (False), will plot CSI in
+        grey (blue) colour scheme.
     :return: line_handle: Line handle for ROC curve.
     """
 
@@ -607,7 +613,7 @@ def plot_performance_diagram(
     )
 
     error_checking.assert_is_boolean(plot_background)
-    error_checking.assert_is_boolean(plot_csi_in_green)
+    error_checking.assert_is_boolean(plot_csi_in_grey)
 
     if plot_background:
         success_ratio_matrix, pod_matrix = _get_sr_pod_grid()
@@ -619,7 +625,7 @@ def plot_performance_diagram(
         )
 
         this_colour_map_object, this_colour_norm_object = (
-            _get_csi_colour_scheme(use_green_scheme=plot_csi_in_green)
+            _get_csi_colour_scheme(use_grey_scheme=plot_csi_in_grey)
         )
         pyplot.contourf(
             success_ratio_matrix, pod_matrix, csi_matrix, CSI_LEVELS,
@@ -636,7 +642,11 @@ def plot_performance_diagram(
         )
         colour_bar_object.set_label('CSI (critical success index)')
 
-        bias_colour_tuple = tuple(FREQ_BIAS_COLOUR.tolist())
+        if plot_csi_in_grey:
+            bias_colour_tuple = (0., 0., 0.)
+        else:
+            bias_colour_tuple = tuple(FREQ_BIAS_COLOUR.tolist())
+
         bias_colours_2d_tuple = ()
         for _ in range(len(FREQ_BIAS_LEVELS)):
             bias_colours_2d_tuple += (bias_colour_tuple,)
