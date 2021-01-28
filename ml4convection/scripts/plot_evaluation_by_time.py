@@ -6,11 +6,9 @@ import matplotlib
 matplotlib.use('agg')
 from matplotlib import pyplot
 import matplotlib.colors
+from scipy.interpolate import interp1d
 from gewittergefahr.gg_utils import time_conversion
-from gewittergefahr.gg_utils import model_evaluation as gg_model_eval
 from gewittergefahr.gg_utils import file_system_utils
-from gewittergefahr.plotting import plotting_utils as gg_plotting_utils
-from gewittergefahr.plotting import imagemagick_utils
 from ml4convection.utils import evaluation
 from ml4convection.plotting import evaluation_plotting as eval_plotting
 
@@ -33,11 +31,11 @@ HISTOGRAM_FACE_COLOUR = numpy.full(3, 152. / 255)
 HISTOGRAM_FACE_COLOUR = matplotlib.colors.to_rgba(HISTOGRAM_FACE_COLOUR, 0.5)
 HISTOGRAM_EDGE_COLOUR = numpy.full(3, 152. / 255)
 
-LABEL_FONT_SIZE = 16
+LABEL_FONT_SIZE = 24
 LABEL_BOUNDING_BOX_DICT = {
     'alpha': 0.5, 'edgecolor': 'k', 'linewidth': 1
 }
-TEMPORAL_COLOUR_MAP_OBJECT = pyplot.get_cmap('twilight')
+TEMPORAL_COLOUR_MAP_OBJECT = pyplot.get_cmap('hsv')
 
 FIGURE_WIDTH_INCHES = 15
 FIGURE_HEIGHT_INCHES = 15
@@ -108,17 +106,8 @@ def _plot_performance_diagrams(score_tables_xarray, output_file_name):
             axes_object=axes_object, pod_by_threshold=these_pod,
             success_ratio_by_threshold=these_success_ratios,
             line_colour=colour_matrix[i, ...],
-            plot_background=i == 0, plot_csi_in_green=True
+            plot_background=i == 0, plot_csi_in_grey=True
         )
-
-        normalized_index = float(i) / (num_tables - 1)
-        label_index = int(numpy.round(
-            normalized_index * (len(these_pod) - 4)
-        ))
-
-        if label_index < 0:
-            pyplot.close(figure_object)
-            return
 
         if num_tables == NUM_HOURS_PER_DAY:
             label_string = '{0:02d}'.format(i)
@@ -134,9 +123,22 @@ def _plot_performance_diagrams(score_tables_xarray, output_file_name):
                 label_string[0].upper(), label_string[1:]
             )
 
+        real_indices = numpy.where(numpy.invert(numpy.logical_or(
+            numpy.isnan(these_success_ratios), numpy.isnan(these_pod)
+        )))[0]
+
+        interp_object = interp1d(
+            x=these_pod[real_indices], y=these_success_ratios[real_indices],
+            kind='linear', assume_sorted=False, bounds_error=False,
+            fill_value='extrapolate'
+        )
+
+        label_y_coord = 1. - float(i) / (num_tables - 1)
+        label_x_coord = interp_object(label_y_coord)
+
         axes_object.text(
-            these_success_ratios[label_index], these_pod[label_index],
-            label_string, fontsize=LABEL_FONT_SIZE, color=colour_matrix[i, ...],
+            label_x_coord, label_y_coord, label_string,
+            fontsize=LABEL_FONT_SIZE, color=colour_matrix[i, ...],
             bbox=LABEL_BOUNDING_BOX_DICT, horizontalalignment='center',
             verticalalignment='center', zorder=1e10
         )
@@ -185,15 +187,6 @@ def _plot_reliability_curves(score_tables_xarray, output_file_name):
             line_colour=colour_matrix[i, ...], plot_background=i == 0
         )
 
-        normalized_index = float(i) / (num_tables - 1)
-        label_index = int(numpy.round(
-            normalized_index * (len(these_mean_probs) - 1)
-        ))
-
-        if label_index < 0:
-            pyplot.close(figure_object)
-            return
-
         if num_tables == NUM_HOURS_PER_DAY:
             label_string = '{0:02d}'.format(i)
         else:
@@ -208,9 +201,22 @@ def _plot_reliability_curves(score_tables_xarray, output_file_name):
                 label_string[0].upper(), label_string[1:]
             )
 
+        real_indices = numpy.where(numpy.invert(numpy.logical_or(
+            numpy.isnan(these_mean_probs), numpy.isnan(these_event_freqs)
+        )))[0]
+
+        interp_object = interp1d(
+            x=these_mean_probs[real_indices], y=these_event_freqs[real_indices],
+            kind='linear', assume_sorted=True, bounds_error=False,
+            fill_value='extrapolate'
+        )
+
+        label_x_coord = 1. - float(i) / (num_tables - 1)
+        label_y_coord = interp_object(label_x_coord)
+
         axes_object.text(
-            these_mean_probs[label_index], these_event_freqs[label_index],
-            label_string, fontsize=LABEL_FONT_SIZE, color=colour_matrix[i, ...],
+            label_x_coord, label_y_coord, label_string,
+            fontsize=LABEL_FONT_SIZE, color=colour_matrix[i, ...],
             bbox=LABEL_BOUNDING_BOX_DICT, horizontalalignment='center',
             verticalalignment='center', zorder=1e10
         )
@@ -223,18 +229,12 @@ def _plot_reliability_curves(score_tables_xarray, output_file_name):
     pyplot.close(figure_object)
 
 
-def _plot_scores_as_graph(
-        score_tables_xarray, plot_total_example_counts, plot_legend,
-        probability_threshold=None):
+def _plot_scores_as_graph(score_tables_xarray, probability_threshold):
     """Plots scores vs. time as graph.
 
     :param score_tables_xarray: See doc for `_plot_performance_diagrams`.
-    :param plot_total_example_counts: Boolean flag.  If True (False), will plot
-        histogram with number of total (positive) examples for each time split.
-    :param plot_legend: Boolean flag.
-    :param probability_threshold: Probability threshold at which to compute
-        scores.  If specified, this method will plot POD, success ratio, CSI,
-        and frequency bias.  If None, this method will plot BSS, FSS, and AUPD.
+    :param probability_threshold: Probability threshold at which to compute CSI
+        and frequency bias.
     :return: figure_object: Figure handle (instance of
         `matplotlib.figure.Figure`).
     :return: axes_object: Axes handle (instance of
@@ -254,176 +254,117 @@ def _plot_scores_as_graph(
     num_tables = len(score_tables_xarray)
     x_values = numpy.linspace(0, num_tables - 1, num=num_tables, dtype=float)
 
-    # Plot first score.
-    prob_threshold_index = -1
-
-    if probability_threshold is None:
-        y_values = numpy.array([
-            t[evaluation.FSS_KEY][0] for t in score_tables_xarray
-        ])
-    else:
-        all_prob_thresholds = score_tables_xarray[0].coords[
-            evaluation.PROBABILITY_THRESHOLD_DIM
-        ].values
-
-        prob_threshold_index = numpy.argmin(numpy.absolute(
-            all_prob_thresholds - probability_threshold
-        ))
-        min_difference = (
-            all_prob_thresholds[prob_threshold_index] - probability_threshold
-        )
-
-        if min_difference > TOLERANCE:
-            error_string = (
-                'Cannot find desired probability threshold ({0:.6f}).  Nearest '
-                'is {1:.6f}.'
-            ).format(
-                probability_threshold, all_prob_thresholds[prob_threshold_index]
-            )
-
-            raise ValueError(error_string)
-
-        y_values = numpy.array([
-            t[evaluation.CSI_KEY][prob_threshold_index]
-            for t in score_tables_xarray
-        ])
+    # Plot FSS.
+    fss_values = numpy.array([
+        t[evaluation.FSS_KEY][0] for t in score_tables_xarray
+    ])
 
     this_handle = main_axes_object.plot(
-        x_values, y_values, color=FIRST_SCORE_COLOUR, linewidth=LINE_WIDTH,
+        x_values, fss_values, color=FIRST_SCORE_COLOUR, linewidth=LINE_WIDTH,
         marker=MARKER_TYPE, markersize=MARKER_SIZE, markeredgewidth=0,
         markerfacecolor=FIRST_SCORE_COLOUR,
         markeredgecolor=FIRST_SCORE_COLOUR
     )[0]
 
     legend_handles = [this_handle]
-    legend_strings = ['FSS' if probability_threshold is None else 'CSI']
+    legend_strings = ['FSS']
 
-    # Plot second score.
-    if probability_threshold is None:
-        y_values = numpy.array([
-            t[evaluation.BRIER_SKILL_SCORE_KEY][0]
-            for t in score_tables_xarray
-        ])
-    else:
-        y_values = numpy.array([
-            t[evaluation.FREQUENCY_BIAS_KEY][prob_threshold_index]
-            for t in score_tables_xarray
-        ])
+    # Plot BSS.
+    bss_values = numpy.array([
+        t[evaluation.BRIER_SKILL_SCORE_KEY][0] for t in score_tables_xarray
+    ])
 
     this_handle = main_axes_object.plot(
-        x_values, y_values, color=SECOND_SCORE_COLOUR, linewidth=LINE_WIDTH,
+        x_values, bss_values, color=SECOND_SCORE_COLOUR, linewidth=LINE_WIDTH,
         marker=MARKER_TYPE, markersize=MARKER_SIZE, markeredgewidth=0,
         markerfacecolor=SECOND_SCORE_COLOUR,
         markeredgecolor=SECOND_SCORE_COLOUR
     )[0]
 
     legend_handles.append(this_handle)
-    legend_strings.append(
-        'BSS' if probability_threshold is None else 'Freq bias'
+    legend_strings.append('BSS')
+
+    # Plot CSI.
+    all_prob_thresholds = score_tables_xarray[0].coords[
+        evaluation.PROBABILITY_THRESHOLD_DIM
+    ].values
+
+    prob_threshold_index = numpy.argmin(numpy.absolute(
+        all_prob_thresholds - probability_threshold
+    ))
+    min_difference = (
+        all_prob_thresholds[prob_threshold_index] - probability_threshold
     )
 
-    # Plot third score.
-    if probability_threshold is None:
-        y_values = numpy.array([
-            t[evaluation.BRIER_SCORE_KEY][0]
-            for t in score_tables_xarray
-        ])
-    else:
-        y_values = numpy.array([
-            t[evaluation.POD_KEY][prob_threshold_index]
-            for t in score_tables_xarray
-        ])
+    if min_difference > TOLERANCE:
+        error_string = (
+            'Cannot find desired probability threshold ({0:.6f}).  Nearest '
+            'is {1:.6f}.'
+        ).format(
+            probability_threshold, all_prob_thresholds[prob_threshold_index]
+        )
+
+        raise ValueError(error_string)
+
+    csi_values = numpy.array([
+        t[evaluation.CSI_KEY][prob_threshold_index]
+        for t in score_tables_xarray
+    ])
 
     this_handle = main_axes_object.plot(
-        x_values, y_values, color=THIRD_SCORE_COLOUR, linewidth=LINE_WIDTH,
+        x_values, csi_values, color=THIRD_SCORE_COLOUR, linewidth=LINE_WIDTH,
         marker=MARKER_TYPE, markersize=MARKER_SIZE, markeredgewidth=0,
         markerfacecolor=THIRD_SCORE_COLOUR,
         markeredgecolor=THIRD_SCORE_COLOUR
     )[0]
 
     legend_handles.append(this_handle)
-    legend_strings.append(
-        'BS' if probability_threshold is None else 'POD'
-    )
+    legend_strings.append('CSI')
 
-    # Plot fourth score.
-    if probability_threshold is None:
-        y_values = numpy.array([
-            gg_model_eval.get_area_under_perf_diagram(
-                pod_by_threshold=t[evaluation.POD_KEY].values,
-                success_ratio_by_threshold=
-                t[evaluation.SUCCESS_RATIO_KEY].values
-            )
-            for t in score_tables_xarray
-        ])
-    else:
-        y_values = numpy.array([
-            t[evaluation.SUCCESS_RATIO_KEY][prob_threshold_index]
-            for t in score_tables_xarray
-        ])
+    # Plot frequency bias.
+    bias_values = numpy.array([
+        t[evaluation.FREQUENCY_BIAS_KEY][prob_threshold_index]
+        for t in score_tables_xarray
+    ])
 
     this_handle = main_axes_object.plot(
-        x_values, y_values, color=FOURTH_SCORE_COLOUR, linewidth=LINE_WIDTH,
+        x_values, bias_values, color=FOURTH_SCORE_COLOUR, linewidth=LINE_WIDTH,
         marker=MARKER_TYPE, markersize=MARKER_SIZE, markeredgewidth=0,
         markerfacecolor=FOURTH_SCORE_COLOUR,
         markeredgecolor=FOURTH_SCORE_COLOUR
     )[0]
 
     legend_handles.append(this_handle)
-    legend_strings.append(
-        'AUPD' if probability_threshold is None else 'Success ratio'
-    )
+    legend_strings.append('Bias')
 
-    # Plot histogram.
-    if plot_total_example_counts:
-        y_values = numpy.array([
-            numpy.sum(t[evaluation.BINNED_NUM_EXAMPLES_KEY].values)
-            for t in score_tables_xarray
-        ], dtype=int)
+    y_min, y_max = main_axes_object.get_ylim()
+    y_min = max([y_min, -1.])
+    y_max = min([y_max, 2.])
+    main_axes_object.set_ylim(y_min, y_max)
 
-        histogram_name = r'Num examples'
-    else:
-        y_values = numpy.array([
-            numpy.nansum(
-                t[evaluation.BINNED_NUM_EXAMPLES_KEY].values *
-                t[evaluation.BINNED_EVENT_FREQS_KEY].values
-            )
-            for t in score_tables_xarray
-        ])
-
-        y_values = numpy.round(y_values).astype(int)
-        histogram_name = r'Num positive examples'
-
-    # y_values = numpy.maximum(numpy.log10(y_values), 0.)
+    # Plot event frequencies.
+    event_frequencies = numpy.array([
+        t[evaluation.BINNED_EVENT_FREQS_KEY].values for t in score_tables_xarray
+    ])
+    event_frequencies[numpy.isnan(event_frequencies)] = 0.
 
     this_handle = histogram_axes_object.bar(
-        x=x_values, height=y_values, width=1., color=HISTOGRAM_FACE_COLOUR,
-        edgecolor=HISTOGRAM_EDGE_COLOUR, linewidth=HISTOGRAM_EDGE_WIDTH
+        x=x_values, height=event_frequencies, width=1.,
+        color=HISTOGRAM_FACE_COLOUR, edgecolor=HISTOGRAM_EDGE_COLOUR,
+        linewidth=HISTOGRAM_EDGE_WIDTH
     )[0]
 
     legend_handles.append(this_handle)
-    legend_strings.append(histogram_name)
-    histogram_axes_object.set_ylabel(histogram_name)
+    legend_strings.append('Event freq')
+    histogram_axes_object.set_ylabel('Event frequency')
 
-    # tick_values = histogram_axes_object.get_yticks()
-    # tick_strings = [
-    #     '{0:d}'.format(int(numpy.round(10 ** v))) for v in tick_values
-    # ]
-    # histogram_axes_object.set_yticklabels(tick_strings)
+    print('Event frequency by split: {0:s}'.format(str(event_frequencies)))
 
-    # print('{0:s} by split: {1:s}'.format(
-    #     histogram_name, str(10 ** y_values)
-    # ))
-    print('{0:s} by split: {1:s}'.format(
-        histogram_name, str(y_values)
-    ))
-
-    if plot_legend:
-        main_axes_object.legend(
-            legend_handles, legend_strings, loc='lower center',
-            bbox_to_anchor=(0.5, 1), fancybox=True, shadow=True,
-            ncol=len(legend_handles)
-        )
+    main_axes_object.legend(
+        legend_handles, legend_strings, loc='lower center',
+        bbox_to_anchor=(0.5, 1), fancybox=True, shadow=True,
+        ncol=len(legend_handles)
+    )
 
     return figure_object, main_axes_object
 
@@ -455,7 +396,6 @@ def _run(input_dir_name, probability_threshold, output_dir_name):
 
     num_hours = len(hours)
     hourly_score_tables_xarray = [None] * num_hours
-    num_prob_thresholds = -1
 
     for i in range(num_hours):
         print('Reading data from: "{0:s}"...'.format(
@@ -463,15 +403,6 @@ def _run(input_dir_name, probability_threshold, output_dir_name):
         ))
         hourly_score_tables_xarray[i] = evaluation.read_advanced_score_file(
             hourly_input_file_names[i]
-        )
-
-        if num_prob_thresholds > 0:
-            continue
-
-        num_prob_thresholds = len(
-            hourly_score_tables_xarray[i].coords[
-                evaluation.PROBABILITY_THRESHOLD_DIM
-            ].values
         )
 
     months = numpy.linspace(1, 12, num=12, dtype=int)
@@ -491,15 +422,6 @@ def _run(input_dir_name, probability_threshold, output_dir_name):
         ))
         monthly_score_tables_xarray[i] = evaluation.read_advanced_score_file(
             monthly_input_file_names[i]
-        )
-
-        if num_prob_thresholds > 0:
-            continue
-
-        num_prob_thresholds = len(
-            monthly_score_tables_xarray[i].coords[
-                evaluation.PROBABILITY_THRESHOLD_DIM
-            ].values
         )
 
     print(SEPARATOR_STRING)
@@ -528,159 +450,47 @@ def _run(input_dir_name, probability_threshold, output_dir_name):
         '{0:s}/monthly_reliability_curves.jpg'.format(output_dir_name)
     )
 
+    if probability_threshold is None:
+        return
+
     hour_strings = ['{0:02d}'.format(i) for i in range(24)]
     month_strings = [
         'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
         'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
     ]
 
-    panel_file_names = []
-    letter_label = ''
-
-    if num_prob_thresholds >= 10:
-        figure_object, axes_object = _plot_scores_as_graph(
-            score_tables_xarray=hourly_score_tables_xarray,
-            plot_total_example_counts=True, plot_legend=True,
-            probability_threshold=None
-        )
-
-        axes_object.set_xticks(hours)
-        axes_object.set_xticklabels(hour_strings, rotation=90.)
-        axes_object.set_xlabel('Hour (UTC)')
-
-        if letter_label == '':
-            letter_label = 'a'
-        else:
-            letter_label = chr(ord(letter_label) + 1)
-
-        gg_plotting_utils.label_axes(
-            axes_object=axes_object,
-            label_string='({0:s})'.format(letter_label),
-            x_coord_normalized=-0.075, y_coord_normalized=1.02
-        )
-
-        panel_file_names.append(
-            '{0:s}/hourly_scores_with_total_counts.jpg'.format(output_dir_name)
-        )
-
-        print('Saving figure to: "{0:s}"...'.format(panel_file_names[-1]))
-        figure_object.savefig(
-            panel_file_names[-1], dpi=FIGURE_RESOLUTION_DPI,
-            pad_inches=0, bbox_inches='tight'
-        )
-        pyplot.close(figure_object)
-
     figure_object, axes_object = _plot_scores_as_graph(
         score_tables_xarray=hourly_score_tables_xarray,
-        plot_total_example_counts=False, plot_legend=True,
         probability_threshold=probability_threshold
     )
 
     axes_object.set_xticks(hours)
     axes_object.set_xticklabels(hour_strings, rotation=90.)
     axes_object.set_xlabel('Hour (UTC)')
+    output_file_name = '{0:s}/hourly_scores.jpg'.format(output_dir_name)
 
-    if letter_label == '':
-        letter_label = 'a'
-    else:
-        letter_label = chr(ord(letter_label) + 1)
-
-    gg_plotting_utils.label_axes(
-        axes_object=axes_object,
-        label_string='({0:s})'.format(letter_label),
-        x_coord_normalized=-0.075, y_coord_normalized=1.02
-    )
-
-    panel_file_names.append(
-        '{0:s}/hourly_scores_with_positive_counts.jpg'.format(output_dir_name)
-    )
-
-    print('Saving figure to: "{0:s}"...'.format(panel_file_names[-1]))
+    print('Saving figure to: "{0:s}"...'.format(output_file_name))
     figure_object.savefig(
-        panel_file_names[-1], dpi=FIGURE_RESOLUTION_DPI,
+        output_file_name, dpi=FIGURE_RESOLUTION_DPI,
         pad_inches=0, bbox_inches='tight'
     )
     pyplot.close(figure_object)
 
-    if num_prob_thresholds >= 10:
-        figure_object, axes_object = _plot_scores_as_graph(
-            score_tables_xarray=monthly_score_tables_xarray,
-            plot_total_example_counts=True, plot_legend=True,
-            probability_threshold=None
-        )
-
-        axes_object.set_xticks(months - 1)
-        axes_object.set_xticklabels(month_strings, rotation=90.)
-
-        if letter_label == '':
-            letter_label = 'a'
-        else:
-            letter_label = chr(ord(letter_label) + 1)
-
-        gg_plotting_utils.label_axes(
-            axes_object=axes_object,
-            label_string='({0:s})'.format(letter_label),
-            x_coord_normalized=-0.075, y_coord_normalized=1.02
-        )
-
-        panel_file_names.append(
-            '{0:s}/monthly_scores_with_total_counts.jpg'.format(output_dir_name)
-        )
-
-        print('Saving figure to: "{0:s}"...'.format(panel_file_names[-1]))
-        figure_object.savefig(
-            panel_file_names[-1], dpi=FIGURE_RESOLUTION_DPI,
-            pad_inches=0, bbox_inches='tight'
-        )
-        pyplot.close(figure_object)
-
     figure_object, axes_object = _plot_scores_as_graph(
         score_tables_xarray=monthly_score_tables_xarray,
-        plot_total_example_counts=False, plot_legend=True,
         probability_threshold=probability_threshold
     )
 
     axes_object.set_xticks(months - 1)
     axes_object.set_xticklabels(month_strings, rotation=90.)
+    output_file_name = '{0:s}/monthly_scores.jpg'.format(output_dir_name)
 
-    if letter_label == '':
-        letter_label = 'a'
-    else:
-        letter_label = chr(ord(letter_label) + 1)
-
-    gg_plotting_utils.label_axes(
-        axes_object=axes_object,
-        label_string='({0:s})'.format(letter_label),
-        x_coord_normalized=-0.075, y_coord_normalized=1.02
-    )
-
-    panel_file_names.append(
-        '{0:s}/monthly_scores_with_positive_counts.jpg'.format(output_dir_name)
-    )
-
-    print('Saving figure to: "{0:s}"...'.format(panel_file_names[-1]))
+    print('Saving figure to: "{0:s}"...'.format(output_file_name))
     figure_object.savefig(
-        panel_file_names[-1], dpi=FIGURE_RESOLUTION_DPI,
+        output_file_name, dpi=FIGURE_RESOLUTION_DPI,
         pad_inches=0, bbox_inches='tight'
     )
     pyplot.close(figure_object)
-
-    concat_file_name = '{0:s}/scores_by_time.jpg'.format(output_dir_name)
-    print('Concatenating panels to: "{0:s}"...'.format(concat_file_name))
-
-    num_panels = len(panel_file_names)
-    num_panel_rows = int(numpy.ceil(
-        float(num_panels) / 2
-    ))
-
-    imagemagick_utils.concatenate_images(
-        input_file_names=panel_file_names, output_file_name=concat_file_name,
-        num_panel_rows=num_panel_rows, num_panel_columns=2
-    )
-    imagemagick_utils.resize_image(
-        input_file_name=concat_file_name, output_file_name=concat_file_name,
-        output_size_pixels=CONCAT_FIGURE_SIZE_PX
-    )
 
 
 if __name__ == '__main__':
