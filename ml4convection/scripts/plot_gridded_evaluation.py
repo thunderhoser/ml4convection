@@ -328,7 +328,7 @@ def _run(advanced_score_file_name, sequential_colour_map_name,
         is_frequency_bias=False, is_bss=False,
         output_file_name=
         '{0:s}/climo_event_frequency.jpg'.format(output_dir_name),
-        title_string='Climatological event frequency (in training data)'
+        title_string='Event frequency in training data'
     )
 
     _plot_one_score(

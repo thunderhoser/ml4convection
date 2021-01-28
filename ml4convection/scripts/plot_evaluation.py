@@ -10,6 +10,14 @@ from gewittergefahr.gg_utils import file_system_utils
 from ml4convection.utils import evaluation
 from ml4convection.plotting import evaluation_plotting as eval_plotting
 
+BOUNDING_BOX_DICT = {
+    'facecolor': 'white',
+    'alpha': 0.5,
+    'edgecolor': 'black',
+    'linewidth': 2,
+    'boxstyle': 'round'
+}
+
 FIGURE_RESOLUTION_DPI = 300
 FIGURE_WIDTH_INCHES = 15
 FIGURE_HEIGHT_INCHES = 15
@@ -85,12 +93,19 @@ def _run(advanced_score_file_name, output_dir_name):
         best_threshold_index
     ]
 
-    title_string = 'Area under curve = {0:.3f} ... max CSI = {1:.3f}'.format(
-        area_under_curve, max_csi
-    )
-    axes_object.set_title(title_string)
+    axes_object.set_title('Performance diagram')
 
-    print(title_string)
+    annotation_string = (
+        'Area under curve = {0:.3g}\nMaximum CSI = {1:.3g}'
+    ).format(area_under_curve, max_csi)
+
+    axes_object.text(
+        0.98, 0.98, annotation_string, bbox=BOUNDING_BOX_DICT, color='k',
+        horizontalalignment='right', verticalalignment='top',
+        transform=axes_object.transAxes
+    )
+
+    print(annotation_string)
     print('Corresponding prob threshold = {0:.4f}'.format(best_prob_threshold))
 
     figure_file_name = '{0:s}/performance_diagram.jpg'.format(output_dir_name)
@@ -114,15 +129,25 @@ def _run(advanced_score_file_name, output_dir_name):
         min_value_to_plot=0., max_value_to_plot=1.
     )
 
-    title_string = (
-        'BS = {0:.3f} ... BSS = {1:.3f} ... REL = {2:.3f} ... RES = {3:.3f}'
+    axes_object.set_title('Attributes diagram')
+
+    annotation_string = (
+        'Brier score = {0:.2g}\n'
+        'Brier skill score = {1:.2g}\n'
+        'Reliability = {2:.2g}\n'
+        'Resolution = {3:.2g}'
     ).format(
         a[evaluation.BRIER_SCORE_KEY].values[0],
         a[evaluation.BRIER_SKILL_SCORE_KEY].values[0],
         a[evaluation.RELIABILITY_KEY].values[0],
         a[evaluation.RESOLUTION_KEY].values[0]
     )
-    axes_object.set_title(title_string)
+
+    axes_object.text(
+        0.98, 0.02, annotation_string, bbox=BOUNDING_BOX_DICT, color='k',
+        horizontalalignment='right', verticalalignment='bottom',
+        transform=axes_object.transAxes
+    )
 
     figure_file_name = '{0:s}/attributes_diagram.jpg'.format(output_dir_name)
     print('Saving figure to: "{0:s}"...'.format(figure_file_name))
