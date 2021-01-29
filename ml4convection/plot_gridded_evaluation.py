@@ -30,7 +30,7 @@ FIGURE_RESOLUTION_DPI = 300
 FIGURE_WIDTH_INCHES = 15
 FIGURE_HEIGHT_INCHES = 15
 
-FONT_SIZE = 40
+FONT_SIZE = 50
 pyplot.rc('font', size=FONT_SIZE)
 pyplot.rc('axes', titlesize=FONT_SIZE)
 pyplot.rc('axes', labelsize=FONT_SIZE)
@@ -345,7 +345,7 @@ def _run(advanced_score_file_name, sequential_colour_map_name,
         is_frequency_bias=False, is_bss=False,
         output_file_name=
         '{0:s}/climo_event_frequency.jpg'.format(output_dir_name),
-        title_string='Event frequency in training data'
+        title_string='Event freq in training'
     )
 
     _plot_one_score(
