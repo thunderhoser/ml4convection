@@ -30,6 +30,15 @@ FIGURE_RESOLUTION_DPI = 300
 FIGURE_WIDTH_INCHES = 15
 FIGURE_HEIGHT_INCHES = 15
 
+FONT_SIZE = 40
+pyplot.rc('font', size=FONT_SIZE)
+pyplot.rc('axes', titlesize=FONT_SIZE)
+pyplot.rc('axes', labelsize=FONT_SIZE)
+pyplot.rc('xtick', labelsize=FONT_SIZE)
+pyplot.rc('ytick', labelsize=FONT_SIZE)
+pyplot.rc('legend', fontsize=FONT_SIZE)
+pyplot.rc('figure', titlesize=FONT_SIZE)
+
 INPUT_FILE_ARG_NAME = 'input_advanced_score_file_name'
 SEQ_COLOUR_MAP_ARG_NAME = 'sequential_colour_map_name'
 DIV_COLOUR_MAP_ARG_NAME = 'diverging_colour_map_name'
