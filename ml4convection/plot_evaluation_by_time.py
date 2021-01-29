@@ -82,13 +82,16 @@ INPUT_ARG_PARSER.add_argument(
 )
 
 
-def _plot_performance_diagrams(score_tables_xarray, output_file_name):
+def _plot_performance_diagrams(score_tables_xarray):
     """Plots performance diagrams.
 
     :param score_tables_xarray: 1-D list of tables in format returned by
         `evaluation.read_advanced_score_file`, where each table corresponds to
         either one month or one hour.
-    :param output_file_name: Path to output file.  Figure will be saved here.
+    :return: figure_object: Figure handle (instance of
+        `matplotlib.figure.Figure`).
+    :return: axes_object: Axes handle (instance of
+        `matplotlib.axes._subplots.AxesSubplot`).
     """
 
     num_tables = len(score_tables_xarray)
@@ -151,19 +154,15 @@ def _plot_performance_diagrams(score_tables_xarray, output_file_name):
             verticalalignment='center', zorder=1e10
         )
 
-    print('Saving figure to: "{0:s}"...'.format(output_file_name))
-    figure_object.savefig(
-        output_file_name, dpi=FIGURE_RESOLUTION_DPI,
-        pad_inches=0, bbox_inches='tight'
-    )
-    pyplot.close(figure_object)
+    return figure_object, axes_object
 
 
-def _plot_reliability_curves(score_tables_xarray, output_file_name):
+def _plot_reliability_curves(score_tables_xarray):
     """Plots reliability curves.
 
     :param score_tables_xarray: See doc for `_plot_performance_diagrams`.
-    :param output_file_name: Same.
+    :return: figure_object: Same.
+    :return: axes_object: Same.
     """
 
     num_tables = len(score_tables_xarray)
@@ -229,12 +228,7 @@ def _plot_reliability_curves(score_tables_xarray, output_file_name):
             verticalalignment='center', zorder=1e10
         )
 
-    print('Saving figure to: "{0:s}"...'.format(output_file_name))
-    figure_object.savefig(
-        output_file_name, dpi=FIGURE_RESOLUTION_DPI,
-        pad_inches=0, bbox_inches='tight'
-    )
-    pyplot.close(figure_object)
+    return figure_object, axes_object
 
 
 def _plot_scores_as_graph(score_tables_xarray, probability_threshold):
@@ -243,10 +237,8 @@ def _plot_scores_as_graph(score_tables_xarray, probability_threshold):
     :param score_tables_xarray: See doc for `_plot_performance_diagrams`.
     :param probability_threshold: Probability threshold at which to compute CSI
         and frequency bias.
-    :return: figure_object: Figure handle (instance of
-        `matplotlib.figure.Figure`).
-    :return: axes_object: Axes handle (instance of
-        `matplotlib.axes._subplots.AxesSubplot`).
+    :return: figure_object: See doc for `_plot_performance_diagrams`.
+    :return: axes_object: Same.
     :raises: ValueError: if desired probability threshold cannot be found.
     """
 
@@ -351,9 +343,21 @@ def _plot_scores_as_graph(score_tables_xarray, probability_threshold):
     main_axes_object.set_ylim(y_min, y_max)
 
     # Plot event frequencies.
-    event_frequencies = numpy.array([
-        t[evaluation.BINNED_EVENT_FREQS_KEY].values for t in score_tables_xarray
+    example_counts = numpy.array([
+        numpy.sum(t[evaluation.BINNED_NUM_EXAMPLES_KEY].values)
+        for t in score_tables_xarray
+    ], dtype=float)
+
+    positive_example_counts = numpy.array([
+        numpy.nansum(
+            t[evaluation.BINNED_NUM_EXAMPLES_KEY].values *
+            t[evaluation.BINNED_EVENT_FREQS_KEY].values
+        )
+        for t in score_tables_xarray
     ])
+
+    example_counts[example_counts == 0] = numpy.nan
+    event_frequencies = positive_example_counts / example_counts
     event_frequencies[numpy.isnan(event_frequencies)] = 0.
 
     this_handle = histogram_axes_object.bar(
@@ -363,7 +367,7 @@ def _plot_scores_as_graph(score_tables_xarray, probability_threshold):
     )[0]
 
     legend_handles.append(this_handle)
-    legend_strings.append('Event freq')
+    legend_strings.append('Event frequency')
     histogram_axes_object.set_ylabel('Event frequency')
 
     print('Event frequency by split: {0:s}'.format(str(event_frequencies)))
@@ -434,29 +438,72 @@ def _run(input_dir_name, probability_threshold, output_dir_name):
 
     print(SEPARATOR_STRING)
 
-    _plot_performance_diagrams(
-        score_tables_xarray=hourly_score_tables_xarray,
-        output_file_name=
-        '{0:s}/hourly_performance_diagrams.jpg'.format(output_dir_name)
+    # Plot hourly performance diagrams.
+    figure_object, axes_object = _plot_performance_diagrams(
+        score_tables_xarray=hourly_score_tables_xarray
+    )
+    axes_object.set_title('Performance diagram by UTC hour')
+
+    output_file_name = '{0:s}/hourly_performance_diagrams.jpg'.format(
+        output_dir_name
+    )
+    print('Saving figure to: "{0:s}"...'.format(output_file_name))
+    figure_object.savefig(
+        output_file_name, dpi=FIGURE_RESOLUTION_DPI,
+        pad_inches=0, bbox_inches='tight'
+    )
+    pyplot.close(figure_object)
+
+    # Plot monthly performance diagrams.
+    figure_object, axes_object = _plot_performance_diagrams(
+        score_tables_xarray=monthly_score_tables_xarray
+    )
+    axes_object.set_title('Performance diagram by month')
+
+    output_file_name = '{0:s}/monthly_performance_diagrams.jpg'.format(
+        output_dir_name
     )
 
-    _plot_performance_diagrams(
-        score_tables_xarray=monthly_score_tables_xarray,
-        output_file_name=
-        '{0:s}/monthly_performance_diagrams.jpg'.format(output_dir_name)
+    print('Saving figure to: "{0:s}"...'.format(output_file_name))
+    figure_object.savefig(
+        output_file_name, dpi=FIGURE_RESOLUTION_DPI,
+        pad_inches=0, bbox_inches='tight'
+    )
+    pyplot.close(figure_object)
+
+    # Plot hourly reliability curves.
+    figure_object, axes_object = _plot_reliability_curves(
+        score_tables_xarray=hourly_score_tables_xarray
+    )
+    axes_object.set_title('Reliability curve by UTC hour')
+
+    output_file_name = '{0:s}/hourly_reliability_curves.jpg'.format(
+        output_dir_name
     )
 
-    _plot_reliability_curves(
-        score_tables_xarray=hourly_score_tables_xarray,
-        output_file_name=
-        '{0:s}/hourly_reliability_curves.jpg'.format(output_dir_name)
+    print('Saving figure to: "{0:s}"...'.format(output_file_name))
+    figure_object.savefig(
+        output_file_name, dpi=FIGURE_RESOLUTION_DPI,
+        pad_inches=0, bbox_inches='tight'
+    )
+    pyplot.close(figure_object)
+
+    # Plot monthly reliability curves.
+    figure_object, axes_object = _plot_reliability_curves(
+        score_tables_xarray=monthly_score_tables_xarray
+    )
+    axes_object.set_title('Reliability curve by month')
+
+    output_file_name = '{0:s}/monthly_reliability_curves.jpg'.format(
+        output_dir_name
     )
 
-    _plot_reliability_curves(
-        score_tables_xarray=monthly_score_tables_xarray,
-        output_file_name=
-        '{0:s}/monthly_reliability_curves.jpg'.format(output_dir_name)
+    print('Saving figure to: "{0:s}"...'.format(output_file_name))
+    figure_object.savefig(
+        output_file_name, dpi=FIGURE_RESOLUTION_DPI,
+        pad_inches=0, bbox_inches='tight'
     )
+    pyplot.close(figure_object)
 
     if probability_threshold is None:
         return
@@ -467,14 +514,17 @@ def _run(input_dir_name, probability_threshold, output_dir_name):
         'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
     ]
 
+    # Plot other scores by hour.
     figure_object, axes_object = _plot_scores_as_graph(
         score_tables_xarray=hourly_score_tables_xarray,
         probability_threshold=probability_threshold
     )
 
+    axes_object.set_title('Other scores by UTC hour', y=1.06)
     axes_object.set_xticks(hours)
     axes_object.set_xticklabels(hour_strings, rotation=90.)
-    axes_object.set_xlabel('Hour (UTC)')
+    axes_object.set_xlabel('UTC hour')
+
     output_file_name = '{0:s}/hourly_scores.jpg'.format(output_dir_name)
 
     print('Saving figure to: "{0:s}"...'.format(output_file_name))
@@ -484,13 +534,16 @@ def _run(input_dir_name, probability_threshold, output_dir_name):
     )
     pyplot.close(figure_object)
 
+    # Plot other scores by month.
     figure_object, axes_object = _plot_scores_as_graph(
         score_tables_xarray=monthly_score_tables_xarray,
         probability_threshold=probability_threshold
     )
 
+    axes_object.set_title('Other scores by month', y=1.06)
     axes_object.set_xticks(months - 1)
     axes_object.set_xticklabels(month_strings, rotation=90.)
+
     output_file_name = '{0:s}/monthly_scores.jpg'.format(output_dir_name)
 
     print('Saving figure to: "{0:s}"...'.format(output_file_name))
