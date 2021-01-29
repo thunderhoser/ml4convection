@@ -1,4 +1,4 @@
-"""Plots scores on hyperparameter grid for Experiment 12c."""
+"""Plots scores on hyperparameter grid for Experiment 12d."""
 
 import os
 import sys
@@ -21,12 +21,12 @@ import file_system_utils
 
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 
-BATCH_SIZES = numpy.array([36, 48, 60, 72], dtype=int)
+BATCH_SIZES = numpy.array([36, 48, 60], dtype=int)
 L2_WEIGHTS = numpy.logspace(-7, -5, num=5)
 LAG_TIME_STRINGS = [
-    '0-600-1200', '0-600-1200-1800-2400', '0-600-1200-1800-2400-3000-3600',
-    '0-1200', '0-1200-2400', '0-1200-2400-3600', '0-1200-2400-3600-4800',
-    '0-1200-2400-3600-4800-6000', '0-1200-2400-3600-4800-6000-7200'
+    '0', '0-600-1200', '0-600-1200-1800-2400', '0-600-1200-1800-2400-3000-3600',
+    '0-1200-2400', '0-1200-2400-3600-4800', '0-1200-2400-3600-4800-6000-7200',
+    '0-1800-3600', '0-1800-3600-5400-7200', '0-1800-3600-5400-7200-9000-10800'
 ]
 
 DEFAULT_FONT_SIZE = 20
@@ -171,7 +171,7 @@ def _print_ranking_one_score(score_matrix, score_name):
 
 
 def _run(experiment_dir_name, matching_distance_px, output_dir_name):
-    """Plots scores on hyperparameter grid for Experiment 12c.
+    """Plots scores on hyperparameter grid for Experiment 12d.
 
     This is effectively the main method.
 
@@ -195,9 +195,7 @@ def _run(experiment_dir_name, matching_distance_px, output_dir_name):
     bss_matrix = numpy.full(dimensions, numpy.nan)
 
     y_tick_labels = ['{0:d}'.format(b) for b in BATCH_SIZES]
-    x_tick_labels = [
-        '{0:.1f}'.format(numpy.log10(w)) for w in L2_WEIGHTS
-    ]
+    x_tick_labels = ['{0:.1f}'.format(numpy.log10(w)) for w in L2_WEIGHTS]
     x_tick_labels = [r'10$^{' + l + '}$' for l in x_tick_labels]
 
     y_axis_label = 'Batch size'
