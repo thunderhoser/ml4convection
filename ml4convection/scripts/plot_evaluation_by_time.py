@@ -31,7 +31,7 @@ HISTOGRAM_FACE_COLOUR = numpy.full(3, 152. / 255)
 HISTOGRAM_FACE_COLOUR = matplotlib.colors.to_rgba(HISTOGRAM_FACE_COLOUR, 0.5)
 HISTOGRAM_EDGE_COLOUR = numpy.full(3, 152. / 255)
 
-LABEL_FONT_SIZE = 24
+LABEL_FONT_SIZE = 40
 LABEL_BOUNDING_BOX_DICT = {
     'alpha': 0.5, 'edgecolor': 'k', 'linewidth': 1
 }
@@ -130,10 +130,15 @@ def _plot_performance_diagrams(score_tables_xarray):
             numpy.isnan(these_success_ratios), numpy.isnan(these_pod)
         )))[0]
 
+        fill_values = (
+            these_success_ratios[real_indices][0],
+            these_success_ratios[real_indices][-1]
+        )
+
         interp_object = interp1d(
             x=these_pod[real_indices], y=these_success_ratios[real_indices],
             kind='linear', assume_sorted=False, bounds_error=False,
-            fill_value='extrapolate'
+            fill_value=fill_values
         )
 
         label_y_coord = 1. - float(i) / (num_tables - 1)
@@ -204,13 +209,18 @@ def _plot_reliability_curves(score_tables_xarray):
             numpy.isnan(these_mean_probs), numpy.isnan(these_event_freqs)
         )))[0]
 
+        fill_values = (
+            these_event_freqs[real_indices][0],
+            these_event_freqs[real_indices][-1]
+        )
+
         interp_object = interp1d(
             x=these_mean_probs[real_indices], y=these_event_freqs[real_indices],
             kind='linear', assume_sorted=True, bounds_error=False,
-            fill_value='extrapolate'
+            fill_value=fill_values
         )
 
-        label_x_coord = 1. - float(i) / (num_tables - 1)
+        label_x_coord = float(i) / (num_tables - 1)
         label_y_coord = interp_object(label_x_coord)
 
         axes_object.text(
@@ -352,16 +362,13 @@ def _plot_scores_as_graph(score_tables_xarray, probability_threshold):
     event_frequencies = positive_example_counts / example_counts
     event_frequencies[numpy.isnan(event_frequencies)] = 0.
 
-    this_handle = histogram_axes_object.bar(
+    histogram_axes_object.bar(
         x=x_values, height=event_frequencies, width=1.,
         color=HISTOGRAM_FACE_COLOUR, edgecolor=HISTOGRAM_EDGE_COLOUR,
         linewidth=HISTOGRAM_EDGE_WIDTH
-    )[0]
+    )
 
-    legend_handles.append(this_handle)
-    legend_strings.append('Event frequency')
     histogram_axes_object.set_ylabel('Event frequency')
-
     print('Event frequency by split: {0:s}'.format(str(event_frequencies)))
 
     main_axes_object.legend(
