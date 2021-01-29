@@ -150,6 +150,10 @@ def _run(input_dir_name, output_dir_name):
         output_file_name=concat_figure_file_name,
         output_size_pixels=CONCAT_FIGURE_SIZE_PX
     )
+    imagemagick_utils.trim_whitespace(
+        input_file_name=concat_figure_file_name,
+        output_file_name=concat_figure_file_name
+    )
 
 
 if __name__ == '__main__':

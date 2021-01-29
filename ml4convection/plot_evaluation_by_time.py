@@ -39,7 +39,7 @@ HISTOGRAM_FACE_COLOUR = numpy.full(3, 152. / 255)
 HISTOGRAM_FACE_COLOUR = matplotlib.colors.to_rgba(HISTOGRAM_FACE_COLOUR, 0.5)
 HISTOGRAM_EDGE_COLOUR = numpy.full(3, 152. / 255)
 
-LABEL_FONT_SIZE = 24
+LABEL_FONT_SIZE = 40
 LABEL_BOUNDING_BOX_DICT = {
     'alpha': 0.5, 'edgecolor': 'k', 'linewidth': 1
 }

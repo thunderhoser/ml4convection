@@ -43,9 +43,9 @@ POSITIVE_SKILL_AREA_OPACITY = 0.2
 HISTOGRAM_FACE_COLOUR = numpy.array([228, 26, 28], dtype=float) / 255
 HISTOGRAM_EDGE_COLOUR = numpy.full(3, 0.)
 HISTOGRAM_EDGE_WIDTH = 2.
-HISTOGRAM_FONT_SIZE = 16
+HISTOGRAM_FONT_SIZE = 30
 
-FONT_SIZE = 20
+FONT_SIZE = 40
 pyplot.rc('font', size=FONT_SIZE)
 pyplot.rc('axes', titlesize=FONT_SIZE)
 pyplot.rc('axes', labelsize=FONT_SIZE)
@@ -196,9 +196,9 @@ def _plot_inset_histogram(
     bin_frequencies = bin_counts.astype(float) / numpy.sum(bin_counts)
 
     if has_predictions:
-        inset_axes_object = figure_object.add_axes([0.2, 0.65, 0.2, 0.2])
+        inset_axes_object = figure_object.add_axes([0.2, 0.65, 0.3, 0.3])
     else:
-        inset_axes_object = figure_object.add_axes([0.675, 0.2, 0.2, 0.2])
+        inset_axes_object = figure_object.add_axes([0.675, 0.2, 0.3, 0.3])
 
     num_bins = len(bin_centers)
     fake_bin_centers = (
