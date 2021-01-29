@@ -374,7 +374,7 @@ def _plot_scores_as_graph(score_tables_xarray, probability_threshold):
     main_axes_object.legend(
         legend_handles, legend_strings, loc='lower center',
         bbox_to_anchor=(0.5, 1), fancybox=True, shadow=True,
-        ncol=len(legend_handles)
+        ncol=2
     )
 
     return figure_object, main_axes_object
@@ -519,7 +519,7 @@ def _run(input_dir_name, probability_threshold, output_dir_name):
         probability_threshold=probability_threshold
     )
 
-    axes_object.set_title('Other scores by UTC hour', y=1.06)
+    axes_object.set_title('Other scores by UTC hour', y=1.15)
     axes_object.set_xticks(hours)
     axes_object.set_xticklabels(hour_strings, rotation=90.)
     axes_object.set_xlabel('UTC hour')
