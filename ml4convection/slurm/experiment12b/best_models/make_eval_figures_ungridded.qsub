@@ -45,7 +45,7 @@ set temporal_eval_dir_name="${model_dir_name}/validation/evaluation/matching_dis
 set non_temporal_eval_dir_name="${model_dir_name}/validation/evaluation/matching_distance_px=4.000000/advanced_scores_gridded=0"
 set output_dir_name="${TOP_OUTPUT_DIR_NAME}/batch-size=${batch_size_string}_l2-weight=${l2_weight_string}_lag-times-sec=${lag_time_string_dashed}"
 
-python3 -u "${CODE_DIR_NAME}/make_eval_figures_ungridded.py" \
+python3 -u "${CODE_DIR_NAME}/make_eval_figure_ungridded.py" \
 --input_temporal_eval_dir_name="${temporal_eval_dir_name}" \
 --input_non_temporal_eval_dir_name="${non_temporal_eval_dir_name}" \
 --output_dir_name="${output_dir_name}"
