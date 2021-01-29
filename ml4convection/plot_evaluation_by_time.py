@@ -527,7 +527,7 @@ def _run(input_dir_name, probability_threshold, output_dir_name):
         probability_threshold=probability_threshold
     )
 
-    axes_object.set_title('Other scores by UTC hour', y=1.15)
+    axes_object.set_title('Other scores by UTC hour', y=1.2)
     axes_object.set_xticks(hours)
     axes_object.set_xticklabels(hour_strings, rotation=90.)
     axes_object.set_xlabel('UTC hour')
@@ -547,7 +547,7 @@ def _run(input_dir_name, probability_threshold, output_dir_name):
         probability_threshold=probability_threshold
     )
 
-    axes_object.set_title('Other scores by month', y=1.06)
+    axes_object.set_title('Other scores by month', y=1.2)
     axes_object.set_xticks(months - 1)
     axes_object.set_xticklabels(month_strings, rotation=90.)
 
