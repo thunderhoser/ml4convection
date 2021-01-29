@@ -223,7 +223,8 @@ def _plot_one_score(
             axes_object_or_matrix=axes_object, data_matrix=score_matrix,
             colour_map_object=colour_map_object,
             colour_norm_object=colour_norm_object,
-            orientation_string='vertical', extend_min=False, extend_max=True
+            orientation_string='vertical', extend_min=False, extend_max=True,
+            font_size=FONT_SIZE
         )
 
         tick_values = colour_bar_object.get_ticks()
@@ -236,7 +237,8 @@ def _plot_one_score(
             min_value=min_colour_value, max_value=max_colour_value,
             orientation_string='vertical',
             extend_min=is_bss or min_colour_value > TOLERANCE,
-            extend_max=max_colour_value < 1. - TOLERANCE
+            extend_max=max_colour_value < 1. - TOLERANCE,
+            font_size=FONT_SIZE
         )
 
         tick_values = colour_bar_object.get_ticks()
@@ -249,7 +251,7 @@ def _plot_one_score(
     plotting_utils.plot_grid_lines(
         plot_latitudes_deg_n=latitudes_deg_n,
         plot_longitudes_deg_e=longitudes_deg_e, axes_object=axes_object,
-        parallel_spacing_deg=2., meridian_spacing_deg=2.
+        parallel_spacing_deg=2., meridian_spacing_deg=2., font_size=FONT_SIZE
     )
 
     if title_string is not None:
