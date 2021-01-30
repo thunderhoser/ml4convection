@@ -45,8 +45,8 @@ set lag_time_count_string=`printf "%d" $lag_time_count`
 set prob_threshold_string=`printf "%.2f" $prob_threshold`
 
 set model_dir_name="${TOP_MODEL_DIR_NAME}/batch-size=${batch_size_string}_l2-weight=${l2_weight_string}_num-lag-times=${lag_time_count_string}"
-set temporal_eval_dir_name="${model_dir_name}/validation/evaluation/matching_distance_px=4.000000"
-set non_temporal_eval_dir_name="${model_dir_name}/validation/evaluation/matching_distance_px=4.000000/advanced_scores_gridded=0"
+set temporal_eval_dir_name="${model_dir_name}/validation/full_grids/evaluation/matching_distance_px=4.000000"
+set non_temporal_eval_dir_name="${model_dir_name}/validation/full_grids/evaluation/matching_distance_px=4.000000/advanced_scores_gridded=0"
 set output_dir_name="${TOP_OUTPUT_DIR_NAME}/batch-size=${batch_size_string}_l2-weight=${l2_weight_string}_num-lag-times=${lag_time_count_string}"
 
 python3 -u "${CODE_DIR_NAME}/make_eval_figure_ungridded.py" \
