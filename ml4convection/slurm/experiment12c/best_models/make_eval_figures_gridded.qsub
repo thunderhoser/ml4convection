@@ -13,7 +13,7 @@
 ##SBATCH --cpus-per-task=1
 ##SBATCH --ntasks-per-node=1
 #SBATCH --time=01:00:04
-#SBATCH --array=1-6
+#SBATCH --array=1-4
 #SBATCH --exclude=h28n12
 ##SBATCH --exclude=h31n03,h28n12
 ##SBATCH --exclude=h29n01,h26n05,h28n06,h29n07,h30n03,h30n15
@@ -44,6 +44,6 @@ set model_dir_name="${TOP_MODEL_DIR_NAME}/batch-size=${batch_size_string}_l2-wei
 set input_dir_name="${model_dir_name}/validation/full_grids/evaluation/matching_distance_px=4.000000/advanced_scores_gridded=1"
 set output_dir_name="${TOP_OUTPUT_DIR_NAME}/batch-size=${batch_size_string}_l2-weight=${l2_weight_string}_lag-times-sec=${lag_time_string_dashed}"
 
-python3 -u "${CODE_DIR_NAME}/make_eval_figures_gridded.py" \
+python3 -u "${CODE_DIR_NAME}/make_eval_figure_gridded.py" \
 --input_dir_name="${input_dir_name}" \
 --output_dir_name="${output_dir_name}"

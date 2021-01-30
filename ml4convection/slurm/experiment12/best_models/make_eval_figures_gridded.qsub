@@ -48,6 +48,6 @@ set model_dir_name="${TOP_MODEL_DIR_NAME}/batch-size=${batch_size_string}_l2-wei
 set input_dir_name="${model_dir_name}/validation/full_grids/evaluation/matching_distance_px=4.000000/advanced_scores_gridded=1"
 set output_dir_name="${TOP_OUTPUT_DIR_NAME}/batch-size=${batch_size_string}_l2-weight=${l2_weight_string}_num-lag-times=${lag_time_count_string}"
 
-python3 -u "${CODE_DIR_NAME}/make_eval_figures_gridded.py" \
+python3 -u "${CODE_DIR_NAME}/make_eval_figure_gridded.py" \
 --input_dir_name="${input_dir_name}" \
 --output_dir_name="${output_dir_name}"
