@@ -146,8 +146,8 @@ def _plot_performance_diagrams(score_tables_xarray):
 
         label_y_coord = 1. - float(i) / (num_tables - 1)
         label_x_coord = interp_object(label_y_coord)
-        label_x_coord = min([0., label_x_coord])
-        label_x_coord = max([1., label_x_coord])
+        label_x_coord = max([0., label_x_coord])
+        label_x_coord = min([1., label_x_coord])
 
         axes_object.text(
             label_x_coord, label_y_coord, label_string,
@@ -222,8 +222,8 @@ def _plot_reliability_curves(score_tables_xarray):
 
         label_x_coord = float(i) / (num_tables - 1)
         label_y_coord = interp_object(label_x_coord)
-        label_y_coord = min([0., label_y_coord])
-        label_y_coord = max([1., label_y_coord])
+        label_y_coord = max([0., label_y_coord])
+        label_y_coord = min([1., label_y_coord])
 
         axes_object.text(
             label_x_coord, label_y_coord, label_string,
