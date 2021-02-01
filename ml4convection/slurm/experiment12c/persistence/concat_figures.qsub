@@ -46,6 +46,7 @@ python3 -u "${CODE_DIR_NAME}/concat_figures.py" \
 --refl_figure_dir_name="${REFL_FIGURE_DIR_NAME}" \
 --satellite_figure_dir_name="${SATELLITE_FIGURE_DIR_NAME}" \
 --model_metafile_name="${model_metafile_name}" \
+--is_persistence_model=1 \
 --first_date_string="${date_string}" \
 --last_date_string="${date_string}" \
 --daily_valid_times_seconds 0 7200 14400 21600 28800 36000 43200 50400 57600 64800 72000 79200 \
