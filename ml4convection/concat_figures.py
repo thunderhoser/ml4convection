@@ -30,6 +30,7 @@ PREDICTION_FIGURE_DIR_ARG_NAME = 'prediction_figure_dir_name'
 REFL_FIGURE_DIR_ARG_NAME = 'refl_figure_dir_name'
 SATELLITE_FIGURE_DIR_ARG_NAME = 'satellite_figure_dir_name'
 MODEL_METAFILE_ARG_NAME = 'model_metafile_name'
+PERSISTENCE_ARG_NAME = 'is_persistence_model'
 FIRST_DATE_ARG_NAME = 'first_date_string'
 LAST_DATE_ARG_NAME = 'last_date_string'
 DAILY_VALID_TIMES_ARG_NAME = 'daily_valid_times_seconds'
@@ -50,6 +51,9 @@ SATELLITE_FIGURE_DIR_HELP_STRING = (
 MODEL_METAFILE_HELP_STRING = (
     'Path to file with metadata for model that generated predictions.  Will be '
     'read by `neural_net.read_metafile`.'
+)
+PERSISTENCE_HELP_STRING = (
+    'Boolean flag.  If 1 (0), is persistence (actual) model.'
 )
 DATE_HELP_STRING = (
     'Date (format "yyyymmdd").  Will concatenate figures for all days in the '
@@ -83,6 +87,10 @@ INPUT_ARG_PARSER.add_argument(
     help=MODEL_METAFILE_HELP_STRING
 )
 INPUT_ARG_PARSER.add_argument(
+    '--' + PERSISTENCE_ARG_NAME, type=int, required=False, default=0,
+    help=PERSISTENCE_HELP_STRING
+)
+INPUT_ARG_PARSER.add_argument(
     '--' + FIRST_DATE_ARG_NAME, type=str, required=True, help=DATE_HELP_STRING
 )
 INPUT_ARG_PARSER.add_argument(
@@ -100,8 +108,8 @@ INPUT_ARG_PARSER.add_argument(
 
 def _find_input_files(
         prediction_figure_dir_name, refl_figure_dir_name,
-        satellite_figure_dir_name, model_metafile_name, first_date_string,
-        last_date_string, daily_valid_times_seconds):
+        satellite_figure_dir_name, model_metafile_name, is_persistence_model,
+        first_date_string, last_date_string, daily_valid_times_seconds):
     """Finds input files (figures to concatenate).
 
     V = number of valid times
@@ -112,6 +120,7 @@ def _find_input_files(
     :param refl_figure_dir_name: Same.
     :param satellite_figure_dir_name: Same.
     :param model_metafile_name: Same.
+    :param is_persistence_model: Same.
     :param first_date_string: Same.
     :param last_date_string: Same.
     :param daily_valid_times_seconds: Same.
@@ -173,19 +182,34 @@ def _find_input_files(
         )
         for t in valid_time_strings
     ]
-    bad_file_names = [
-        f for f in refl_figure_file_names if not os.path.isfile(f)
+
+    if not is_persistence_model:
+        bad_file_names = [
+            f for f in refl_figure_file_names if not os.path.isfile(f)
+        ]
+
+        if len(bad_file_names) > 0:
+            error_string = (
+                '\nFiles were expected, but not found, at the following '
+                'locations:\n{0:s}'
+            ).format(
+                str(bad_file_names)
+            )
+
+            raise ValueError(error_string)
+
+    good_flags = numpy.array([
+        os.path.isfile(f) for f in refl_figure_file_names
+    ], dtype=bool)
+
+    good_indices = numpy.where(good_flags)[0]
+
+    valid_times_unix_sec = valid_times_unix_sec[good_indices]
+    valid_time_strings = [valid_time_strings[k] for k in good_indices]
+    prediction_figure_file_names = [
+        prediction_figure_file_names[k] for k in good_indices
     ]
-
-    if len(bad_file_names) > 0:
-        error_string = (
-            '\nFiles were expected, but not found, at the following locations:'
-            '\n{0:s}'
-        ).format(
-            str(bad_file_names)
-        )
-
-        raise ValueError(error_string)
+    refl_figure_file_names = [refl_figure_file_names[k] for k in good_indices]
 
     training_option_dict = model_metadata_dict[neural_net.TRAINING_OPTIONS_KEY]
     band_numbers = training_option_dict[neural_net.BAND_NUMBERS_KEY]
@@ -217,20 +241,41 @@ def _find_input_files(
                     this_time_string, band_numbers[j]
                 )
 
-    bad_file_names = [
-        f for f in numpy.ravel(satellite_fig_file_name_matrix)
-        if not os.path.isfile(f)
+    if not is_persistence_model:
+        bad_file_names = [
+            f for f in numpy.ravel(satellite_fig_file_name_matrix)
+            if not os.path.isfile(f)
+        ]
+
+        if len(bad_file_names) > 0:
+            error_string = (
+                '\nFiles were expected, but not found, at the following '
+                'locations:\n{0:s}'
+            ).format(
+                str(bad_file_names)
+            )
+
+            raise ValueError(error_string)
+
+    good_flags = numpy.array([
+        os.path.isfile(f) for f in numpy.ravel(satellite_fig_file_name_matrix)
+    ], dtype=bool)
+
+    good_flag_matrix = numpy.reshape(
+        good_flags, satellite_fig_file_name_matrix.shape
+    )
+    good_flags = numpy.all(good_flag_matrix, axis=(1, 2))
+    good_indices = numpy.where(good_flags)[0]
+
+    valid_times_unix_sec = valid_times_unix_sec[good_indices]
+    valid_time_strings = [valid_time_strings[k] for k in good_indices]
+    prediction_figure_file_names = [
+        prediction_figure_file_names[k] for k in good_indices
     ]
-
-    if len(bad_file_names) > 0:
-        error_string = (
-            '\nFiles were expected, but not found, at the following locations:'
-            '\n{0:s}'
-        ).format(
-            str(bad_file_names)
-        )
-
-        raise ValueError(error_string)
+    refl_figure_file_names = [refl_figure_file_names[k] for k in good_indices]
+    satellite_fig_file_name_matrix = (
+        satellite_fig_file_name_matrix[good_indices, ...]
+    )
 
     return (
         prediction_figure_file_names,
@@ -241,8 +286,9 @@ def _find_input_files(
 
 
 def _run(prediction_figure_dir_name, refl_figure_dir_name,
-         satellite_figure_dir_name, model_metafile_name, first_date_string,
-         last_date_string, daily_valid_times_seconds, output_dir_name):
+         satellite_figure_dir_name, model_metafile_name, is_persistence_model,
+         first_date_string, last_date_string, daily_valid_times_seconds,
+         output_dir_name):
     """For each time step, concatenates figures with the following data:
 
     - Predictions (forecast convection probabilities) and targets
@@ -255,6 +301,7 @@ def _run(prediction_figure_dir_name, refl_figure_dir_name,
     :param refl_figure_dir_name: Same.
     :param satellite_figure_dir_name: Same.
     :param model_metafile_name: Same.
+    :param is_persistence_model: Same.
     :param first_date_string: Same.
     :param last_date_string: Same.
     :param daily_valid_times_seconds: Same.
@@ -280,6 +327,7 @@ def _run(prediction_figure_dir_name, refl_figure_dir_name,
         refl_figure_dir_name=refl_figure_dir_name,
         satellite_figure_dir_name=satellite_figure_dir_name,
         model_metafile_name=model_metafile_name,
+        is_persistence_model=is_persistence_model,
         first_date_string=first_date_string,
         last_date_string=last_date_string,
         daily_valid_times_seconds=daily_valid_times_seconds
@@ -344,6 +392,9 @@ if __name__ == '__main__':
             INPUT_ARG_OBJECT, SATELLITE_FIGURE_DIR_ARG_NAME
         ),
         model_metafile_name=getattr(INPUT_ARG_OBJECT, MODEL_METAFILE_ARG_NAME),
+        is_persistence_model=bool(getattr(
+            INPUT_ARG_OBJECT, PERSISTENCE_ARG_NAME
+        )),
         first_date_string=getattr(INPUT_ARG_OBJECT, FIRST_DATE_ARG_NAME),
         last_date_string=getattr(INPUT_ARG_OBJECT, LAST_DATE_ARG_NAME),
         daily_valid_times_seconds=numpy.array(
