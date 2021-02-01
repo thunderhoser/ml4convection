@@ -138,19 +138,16 @@ def _plot_performance_diagrams(score_tables_xarray):
             numpy.isnan(these_success_ratios), numpy.isnan(these_pod)
         )))[0]
 
-        fill_values = (
-            these_success_ratios[real_indices][0],
-            these_success_ratios[real_indices][-1]
-        )
-
         interp_object = interp1d(
             x=these_pod[real_indices], y=these_success_ratios[real_indices],
             kind='linear', assume_sorted=False, bounds_error=False,
-            fill_value=fill_values
+            fill_value='extrapolate'
         )
 
         label_y_coord = 1. - float(i) / (num_tables - 1)
         label_x_coord = interp_object(label_y_coord)
+        label_x_coord = min([0., label_x_coord])
+        label_x_coord = max([1., label_x_coord])
 
         axes_object.text(
             label_x_coord, label_y_coord, label_string,
@@ -217,19 +214,16 @@ def _plot_reliability_curves(score_tables_xarray):
             numpy.isnan(these_mean_probs), numpy.isnan(these_event_freqs)
         )))[0]
 
-        fill_values = (
-            these_event_freqs[real_indices][0],
-            these_event_freqs[real_indices][-1]
-        )
-
         interp_object = interp1d(
             x=these_mean_probs[real_indices], y=these_event_freqs[real_indices],
             kind='linear', assume_sorted=True, bounds_error=False,
-            fill_value=fill_values
+            fill_value='extrapolate'
         )
 
         label_x_coord = float(i) / (num_tables - 1)
         label_y_coord = interp_object(label_x_coord)
+        label_y_coord = min([0., label_y_coord])
+        label_y_coord = max([1., label_y_coord])
 
         axes_object.text(
             label_x_coord, label_y_coord, label_string,
@@ -445,72 +439,80 @@ def _run(input_dir_name, probability_threshold, output_dir_name):
 
     print(SEPARATOR_STRING)
 
-    # Plot hourly performance diagrams.
-    figure_object, axes_object = _plot_performance_diagrams(
-        score_tables_xarray=hourly_score_tables_xarray
-    )
-    axes_object.set_title('Performance diagram by UTC hour')
+    all_prob_thresholds = monthly_score_tables_xarray[0].coords[
+        evaluation.PROBABILITY_THRESHOLD_DIM
+    ].values
 
-    output_file_name = '{0:s}/hourly_performance_diagrams.jpg'.format(
-        output_dir_name
-    )
-    print('Saving figure to: "{0:s}"...'.format(output_file_name))
-    figure_object.savefig(
-        output_file_name, dpi=FIGURE_RESOLUTION_DPI,
-        pad_inches=0, bbox_inches='tight'
-    )
-    pyplot.close(figure_object)
+    num_prob_thresholds = len(all_prob_thresholds)
 
-    # Plot monthly performance diagrams.
-    figure_object, axes_object = _plot_performance_diagrams(
-        score_tables_xarray=monthly_score_tables_xarray
-    )
-    axes_object.set_title('Performance diagram by month')
+    if num_prob_thresholds >= 5:
 
-    output_file_name = '{0:s}/monthly_performance_diagrams.jpg'.format(
-        output_dir_name
-    )
+        # Plot hourly performance diagrams.
+        figure_object, axes_object = _plot_performance_diagrams(
+            score_tables_xarray=hourly_score_tables_xarray
+        )
+        axes_object.set_title('Performance diagram by UTC hour')
 
-    print('Saving figure to: "{0:s}"...'.format(output_file_name))
-    figure_object.savefig(
-        output_file_name, dpi=FIGURE_RESOLUTION_DPI,
-        pad_inches=0, bbox_inches='tight'
-    )
-    pyplot.close(figure_object)
+        output_file_name = '{0:s}/hourly_performance_diagrams.jpg'.format(
+            output_dir_name
+        )
+        print('Saving figure to: "{0:s}"...'.format(output_file_name))
+        figure_object.savefig(
+            output_file_name, dpi=FIGURE_RESOLUTION_DPI,
+            pad_inches=0, bbox_inches='tight'
+        )
+        pyplot.close(figure_object)
 
-    # Plot hourly reliability curves.
-    figure_object, axes_object = _plot_reliability_curves(
-        score_tables_xarray=hourly_score_tables_xarray
-    )
-    axes_object.set_title('Reliability curve by UTC hour')
+        # Plot monthly performance diagrams.
+        figure_object, axes_object = _plot_performance_diagrams(
+            score_tables_xarray=monthly_score_tables_xarray
+        )
+        axes_object.set_title('Performance diagram by month')
 
-    output_file_name = '{0:s}/hourly_reliability_curves.jpg'.format(
-        output_dir_name
-    )
+        output_file_name = '{0:s}/monthly_performance_diagrams.jpg'.format(
+            output_dir_name
+        )
 
-    print('Saving figure to: "{0:s}"...'.format(output_file_name))
-    figure_object.savefig(
-        output_file_name, dpi=FIGURE_RESOLUTION_DPI,
-        pad_inches=0, bbox_inches='tight'
-    )
-    pyplot.close(figure_object)
+        print('Saving figure to: "{0:s}"...'.format(output_file_name))
+        figure_object.savefig(
+            output_file_name, dpi=FIGURE_RESOLUTION_DPI,
+            pad_inches=0, bbox_inches='tight'
+        )
+        pyplot.close(figure_object)
 
-    # Plot monthly reliability curves.
-    figure_object, axes_object = _plot_reliability_curves(
-        score_tables_xarray=monthly_score_tables_xarray
-    )
-    axes_object.set_title('Reliability curve by month')
+        # Plot hourly reliability curves.
+        figure_object, axes_object = _plot_reliability_curves(
+            score_tables_xarray=hourly_score_tables_xarray
+        )
+        axes_object.set_title('Reliability curve by UTC hour')
 
-    output_file_name = '{0:s}/monthly_reliability_curves.jpg'.format(
-        output_dir_name
-    )
+        output_file_name = '{0:s}/hourly_reliability_curves.jpg'.format(
+            output_dir_name
+        )
 
-    print('Saving figure to: "{0:s}"...'.format(output_file_name))
-    figure_object.savefig(
-        output_file_name, dpi=FIGURE_RESOLUTION_DPI,
-        pad_inches=0, bbox_inches='tight'
-    )
-    pyplot.close(figure_object)
+        print('Saving figure to: "{0:s}"...'.format(output_file_name))
+        figure_object.savefig(
+            output_file_name, dpi=FIGURE_RESOLUTION_DPI,
+            pad_inches=0, bbox_inches='tight'
+        )
+        pyplot.close(figure_object)
+
+        # Plot monthly reliability curves.
+        figure_object, axes_object = _plot_reliability_curves(
+            score_tables_xarray=monthly_score_tables_xarray
+        )
+        axes_object.set_title('Reliability curve by month')
+
+        output_file_name = '{0:s}/monthly_reliability_curves.jpg'.format(
+            output_dir_name
+        )
+
+        print('Saving figure to: "{0:s}"...'.format(output_file_name))
+        figure_object.savefig(
+            output_file_name, dpi=FIGURE_RESOLUTION_DPI,
+            pad_inches=0, bbox_inches='tight'
+        )
+        pyplot.close(figure_object)
 
     if probability_threshold is None:
         return
