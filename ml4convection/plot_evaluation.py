@@ -26,6 +26,10 @@ BOUNDING_BOX_DICT = {
     'boxstyle': 'round'
 }
 
+MARKER_TYPE = '*'
+MARKER_SIZE = 50
+MARKER_EDGE_WIDTH = 0
+
 FIGURE_RESOLUTION_DPI = 300
 FIGURE_WIDTH_INCHES = 15
 FIGURE_HEIGHT_INCHES = 15
@@ -95,13 +99,35 @@ def _run(advanced_score_file_name, output_dir_name):
         pod_by_threshold=a[evaluation.POD_KEY].values,
         success_ratio_by_threshold=a[evaluation.SUCCESS_RATIO_KEY].values
     )
+
+    best_threshold_index = numpy.nanargmin(
+        numpy.absolute(a[evaluation.FREQUENCY_BIAS_KEY].values - 1.)
+    )
     max_csi = numpy.nanmax(a[evaluation.CSI_KEY].values)
-    best_threshold_index = numpy.nanargmax(a[evaluation.CSI_KEY].values)
+    csi_at_best_threshold = a[evaluation.CSI_KEY].values[best_threshold_index]
+
+    if csi_at_best_threshold < 0.9 * max_csi:
+        best_threshold_index = numpy.nanargmax(a[evaluation.CSI_KEY].values)
+
     best_prob_threshold = a.coords[evaluation.PROBABILITY_THRESHOLD_DIM].values[
         best_threshold_index
     ]
+    csi_at_best_threshold = a[evaluation.CSI_KEY].values[best_threshold_index]
+    bias_at_best_threshold = (
+        a[evaluation.FREQUENCY_BIAS_KEY].values[best_threshold_index]
+    )
 
-    axes_object.set_title('Performance diagram')
+    annotation_string = (
+        'Area under curve = {0:.3g}\n'
+        'Best prob threshold = {1:.2g}\n'
+        'CSI = {2:.3g}\n'
+        'Frequency bias = {3:.3g}'
+    ).format(
+        area_under_curve, best_prob_threshold,
+        csi_at_best_threshold, bias_at_best_threshold
+    )
+
+    print(annotation_string)
 
     annotation_string = (
         'Area under curve = {0:.3g}\nMaximum CSI = {1:.3g}'
@@ -113,8 +139,16 @@ def _run(advanced_score_file_name, output_dir_name):
         transform=axes_object.transAxes
     )
 
-    print(annotation_string)
-    print('Corresponding prob threshold = {0:.4f}'.format(best_prob_threshold))
+    axes_object.plot(
+        a[evaluation.SUCCESS_RATIO_KEY].values[best_threshold_index],
+        a[evaluation.POD_KEY].values[best_threshold_index],
+        linestyle='None', marker=MARKER_TYPE, markersize=MARKER_SIZE,
+        markeredgewidth=MARKER_EDGE_WIDTH,
+        markerfacecolor=eval_plotting.PERF_DIAGRAM_COLOUR,
+        markeredgecolor=eval_plotting.PERF_DIAGRAM_COLOUR
+    )
+
+    axes_object.set_title('Performance diagram')
 
     figure_file_name = '{0:s}/performance_diagram.jpg'.format(output_dir_name)
     print('Saving figure to: "{0:s}"...'.format(figure_file_name))
