@@ -35,6 +35,7 @@ NUM_FALSE_NEGATIVES_KEY = 'num_false_negatives'
 NUM_FALSE_POSITIVES_KEY = 'num_false_positives'
 TOTAL_NUM_EXAMPLES_KEY = 'total_num_examples'
 MEAN_FORECAST_PROBS_KEY = 'mean_forecast_probs'
+EVENT_FREQUENCY_KEY = 'event_frequency'
 
 BINNED_NUM_EXAMPLES_KEY = 'num_examples_by_bin'
 BINNED_SUM_PROBS_KEY = 'sum_forecast_probs_by_bin'
@@ -256,6 +257,8 @@ def _get_bss_components_one_time(
         squared errors) at each grid cell.
     :return: climo_sse_matrix: M-by-N numpy array with climatological SSE at
         each grid cell, obtained by always predicting climatology.
+    :return: dilated_actual_target_matrix: Dilated version of input
+        `actual_target_matrix`.
     """
 
     dilated_actual_target_matrix = general_utils.dilate_binary_matrix(
@@ -271,7 +274,12 @@ def _get_bss_components_one_time(
     actual_sse_matrix[eroded_eval_mask_matrix.astype(bool) == False] = numpy.nan
     climo_sse_matrix[eroded_eval_mask_matrix.astype(bool) == False] = numpy.nan
 
-    return actual_sse_matrix, climo_sse_matrix
+    dilated_actual_target_matrix = dilated_actual_target_matrix.astype(float)
+    dilated_actual_target_matrix[
+        eroded_eval_mask_matrix.astype(bool) == False
+    ] = numpy.nan
+
+    return actual_sse_matrix, climo_sse_matrix, dilated_actual_target_matrix
 
 
 def _get_pod(contingency_table_dict):
@@ -431,7 +439,8 @@ def _init_basic_score_table(
             MEAN_FORECAST_PROBS_KEY: (these_dim_3d, this_float_array_3d + 0.),
             ACTUAL_SSE_FOR_BRIER_KEY: (these_dim_3d, this_float_array_3d + 0.),
             CLIMO_SSE_FOR_BRIER_KEY: (these_dim_3d, this_float_array_3d + 0.),
-            TRAINING_EVENT_FREQ_KEY: (these_dim_2d, this_array_2d + 0.)
+            TRAINING_EVENT_FREQ_KEY: (these_dim_2d, this_array_2d + 0.),
+            EVENT_FREQUENCY_KEY: (these_dim_3d, this_float_array_3d + 0.)
         }
         main_data_dict.update(new_dict)
     else:
@@ -781,7 +790,8 @@ def get_basic_scores_gridded(
 
         (
             basic_score_table_xarray[ACTUAL_SSE_FOR_BRIER_KEY].values[i, ...],
-            basic_score_table_xarray[CLIMO_SSE_FOR_BRIER_KEY].values[i, ...]
+            basic_score_table_xarray[CLIMO_SSE_FOR_BRIER_KEY].values[i, ...],
+            basic_score_table_xarray[EVENT_FREQUENCY_KEY].values[i, ...]
         ) = _get_bss_components_one_time(
             actual_target_matrix=
             prediction_dict[prediction_io.TARGET_MATRIX_KEY][i, ...],
@@ -1036,6 +1046,9 @@ def get_advanced_scores_gridded(basic_score_table_xarray):
         (num_grid_rows, num_grid_columns), numpy.nan
     )
 
+    event_frequency_matrix = numpy.mean(
+        basic_score_table_xarray[EVENT_FREQUENCY_KEY].values, axis=0
+    )
     mean_forecast_prob_matrix = numpy.mean(
         basic_score_table_xarray[MEAN_FORECAST_PROBS_KEY].values, axis=0
     )
@@ -1047,6 +1060,7 @@ def get_advanced_scores_gridded(basic_score_table_xarray):
         BRIER_SKILL_SCORE_KEY: (these_dim, this_float_array + 0.),
         FSS_KEY: (these_dim, this_float_array + 0.),
         TRAINING_EVENT_FREQ_KEY: (these_dim, training_event_freq_matrix + 0.),
+        EVENT_FREQUENCY_KEY: (these_dim, event_frequency_matrix + 0.),
         MEAN_FORECAST_PROBS_KEY: (these_dim, mean_forecast_prob_matrix + 0.)
     }
     main_data_dict.update(new_dict)

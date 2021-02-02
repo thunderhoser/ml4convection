@@ -85,7 +85,7 @@ def _run(input_dir_name, output_dir_name):
         '{0:s}/frequency_bias.jpg'.format(input_dir_name),
         '{0:s}/pod.jpg'.format(input_dir_name),
         '{0:s}/success_ratio.jpg'.format(input_dir_name),
-        '{0:s}/climo_event_frequency.jpg'.format(input_dir_name),
+        '{0:s}/event_frequency.jpg'.format(input_dir_name),
         '{0:s}/mean_forecast_prob.jpg'.format(input_dir_name)
     ]
 

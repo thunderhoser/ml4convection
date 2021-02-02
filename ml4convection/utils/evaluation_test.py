@@ -180,6 +180,9 @@ MEAN_PROB_MATRIX = numpy.array([
 
 MEAN_PROB_MATRIX[MEAN_PROB_MATRIX < 0] = numpy.nan
 
+EVENT_FREQUENCY_MATRIX = ACTUAL_TARGET_MATRIX + 0.
+EVENT_FREQUENCY_MATRIX[MASK_MATRIX.astype(bool) == False] = numpy.nan
+
 FIRST_MATCHING_DISTANCE_PX = 0.
 # FIRST_NUM_ACTUAL_ORIENTED_TP = 0
 # FIRST_NUM_FALSE_NEGATIVES = 16
@@ -394,7 +397,6 @@ THIS_NUM_PO_TRUE_POS_MATRIX = THIS_NUM_AO_TRUE_POS_MATRIX + 0
 THIS_NUM_FALSE_NEG_MATRIX = numpy.full(THESE_DIM, 0, dtype=int)
 THIS_NUM_FALSE_NEG_MATRIX[0, 3:7, 4:8, 1:] = 1
 
-# TODO(thunderhoser): Work NaN's into these matrices.
 THIS_NUM_FALSE_POS_MATRIX = numpy.array([
     [1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0],
     [1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0],
@@ -418,7 +420,7 @@ THIS_NUM_FALSE_POS_MATRIX = numpy.repeat(
 for j in range(1, len(PROB_THRESHOLDS)):
     THIS_NUM_FALSE_POS_MATRIX[0, ..., j][
         PROBABILITY_MATRIX < PROB_THRESHOLDS[j]
-        ] = 0
+    ] = 0
 
 THESE_DIM = (
     evaluation.TIME_DIM, evaluation.LATITUDE_DIM, evaluation.LONGITUDE_DIM,
@@ -457,6 +459,9 @@ NEW_DICT = {
     ),
     evaluation.TOTAL_NUM_EXAMPLES_KEY: (
         THESE_DIM, numpy.expand_dims(THIS_EXAMPLE_COUNT_MATRIX, axis=0)
+    ),
+    evaluation.EVENT_FREQUENCY_KEY: (
+        THESE_DIM, numpy.expand_dims(EVENT_FREQUENCY_MATRIX, axis=0)
     ),
     evaluation.MEAN_FORECAST_PROBS_KEY: (
         THESE_DIM, numpy.expand_dims(MEAN_PROB_MATRIX, axis=0)
@@ -550,6 +555,9 @@ NEW_DICT = {
     ),
     evaluation.TOTAL_NUM_EXAMPLES_KEY: (
         THESE_DIM, numpy.stack([THIS_EXAMPLE_COUNT_MATRIX] * 2, axis=0)
+    ),
+    evaluation.EVENT_FREQUENCY_KEY: (
+        THESE_DIM, numpy.stack([EVENT_FREQUENCY_MATRIX] * 2, axis=0)
     ),
     evaluation.MEAN_FORECAST_PROBS_KEY: (
         THESE_DIM, numpy.stack([MEAN_PROB_MATRIX] * 2, axis=0)
@@ -669,6 +677,9 @@ NEW_DICT = {
     evaluation.TOTAL_NUM_EXAMPLES_KEY: (
         THESE_DIM,
         numpy.expand_dims(THIS_EXAMPLE_COUNT_MATRIX[2:9, 3:9], axis=0)
+    ),
+    evaluation.EVENT_FREQUENCY_KEY: (
+        THESE_DIM, numpy.expand_dims(EVENT_FREQUENCY_MATRIX[2:9, 3:9], axis=0)
     ),
     evaluation.MEAN_FORECAST_PROBS_KEY: (
         THESE_DIM, numpy.expand_dims(MEAN_PROB_MATRIX[2:9, 3:9], axis=0)
@@ -1002,6 +1013,7 @@ NEW_DICT = {
     evaluation.CLIMO_SSE_FOR_BRIER_KEY: (THESE_DIM, THIS_CLIMO_SSE_MATRIX + 0.),
     evaluation.TOTAL_NUM_EXAMPLES_KEY:
         (THESE_DIM, THIS_EXAMPLE_COUNT_MATRIX + 0),
+    evaluation.EVENT_FREQUENCY_KEY: (THESE_DIM, EVENT_FREQUENCY_MATRIX + 0.),
     evaluation.MEAN_FORECAST_PROBS_KEY: (THESE_DIM, MEAN_PROB_MATRIX + 0.)
 }
 MAIN_DICT_ADVANCED_GRIDDED.update(NEW_DICT)
@@ -1093,7 +1105,8 @@ def _compare_basic_score_tables(first_table, second_table):
             evaluation.ACTUAL_SSE_FOR_BRIER_KEY,
             evaluation.CLIMO_SSE_FOR_BRIER_KEY,
             evaluation.TRAINING_EVENT_FREQ_KEY,
-            evaluation.MEAN_FORECAST_PROBS_KEY
+            evaluation.MEAN_FORECAST_PROBS_KEY,
+            evaluation.EVENT_FREQUENCY_KEY
         ]
         integer_keys += [evaluation.TOTAL_NUM_EXAMPLES_KEY]
     else:
@@ -1183,7 +1196,8 @@ def _compare_advanced_score_tables(first_table, second_table):
         float_keys += [
             evaluation.ACTUAL_SSE_FOR_BRIER_KEY,
             evaluation.CLIMO_SSE_FOR_BRIER_KEY,
-            evaluation.MEAN_FORECAST_PROBS_KEY
+            evaluation.MEAN_FORECAST_PROBS_KEY,
+            evaluation.EVENT_FREQUENCY_KEY
         ]
     else:
         float_keys += [
@@ -1534,7 +1548,7 @@ class EvaluationTests(unittest.TestCase):
             PROBABILITY_MATRIX.shape, TRAINING_EVENT_FREQUENCY
         )
 
-        this_actual_sse_matrix, this_climo_sse_matrix = (
+        this_actual_sse_matrix, this_climo_sse_matrix, _ = (
             evaluation._get_bss_components_one_time(
                 actual_target_matrix=ACTUAL_TARGET_MATRIX,
                 probability_matrix=PROBABILITY_MATRIX,

@@ -131,16 +131,24 @@ def _run(advanced_score_file_name, output_dir_name):
 
     axes_object.set_title('Attributes diagram')
 
+    # annotation_string = (
+    #     'Brier score = {0:.2g}\n'
+    #     'Brier skill score = {1:.2g}\n'
+    #     'Reliability = {2:.2g}\n'
+    #     'Resolution = {3:.2g}'
+    # ).format(
+    #     a[evaluation.BRIER_SCORE_KEY].values[0],
+    #     a[evaluation.BRIER_SKILL_SCORE_KEY].values[0],
+    #     a[evaluation.RELIABILITY_KEY].values[0],
+    #     a[evaluation.RESOLUTION_KEY].values[0]
+    # )
+
     annotation_string = (
         'Brier score = {0:.2g}\n'
-        'Brier skill score = {1:.2g}\n'
-        'Reliability = {2:.2g}\n'
-        'Resolution = {3:.2g}'
+        'Brier skill score = {1:.2g}'
     ).format(
         a[evaluation.BRIER_SCORE_KEY].values[0],
-        a[evaluation.BRIER_SKILL_SCORE_KEY].values[0],
-        a[evaluation.RELIABILITY_KEY].values[0],
-        a[evaluation.RESOLUTION_KEY].values[0]
+        a[evaluation.BRIER_SKILL_SCORE_KEY].values[0]
     )
 
     axes_object.text(

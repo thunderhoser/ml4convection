@@ -331,15 +331,15 @@ def _run(advanced_score_file_name, sequential_colour_map_name,
 
     _plot_one_score(
         score_matrix=
-        advanced_score_table_xarray[evaluation.TRAINING_EVENT_FREQ_KEY].values,
+        advanced_score_table_xarray[evaluation.EVENT_FREQUENCY_KEY].values,
         advanced_score_table_xarray=advanced_score_table_xarray,
         border_latitudes_deg_n=border_latitudes_deg_n,
         border_longitudes_deg_e=border_longitudes_deg_e,
         colour_map_name=sequential_colour_map_name,
         is_frequency_bias=False, is_bss=False,
         output_file_name=
-        '{0:s}/climo_event_frequency.jpg'.format(output_dir_name),
-        title_string='Event freq in training'
+        '{0:s}/event_frequency.jpg'.format(output_dir_name),
+        title_string='Event frequency'
     )
 
     _plot_one_score(
