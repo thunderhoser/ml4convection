@@ -16,6 +16,7 @@ SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 TOLERANCE = 1e-6
 
 NUM_HOURS_PER_DAY = 24
+UTC_OFFSET_HOURS = 8
 
 MARKER_TYPE = 'o'
 MARKER_SIZE = 16
@@ -138,8 +139,8 @@ def _plot_performance_diagrams(score_tables_xarray):
 
         label_y_coord = 1. - float(i) / (num_tables - 1)
         label_x_coord = interp_object(label_y_coord)
-        label_x_coord = min([0., label_x_coord])
-        label_x_coord = max([1., label_x_coord])
+        label_x_coord = max([0., label_x_coord])
+        label_x_coord = min([1., label_x_coord])
 
         axes_object.text(
             label_x_coord, label_y_coord, label_string,
@@ -214,8 +215,8 @@ def _plot_reliability_curves(score_tables_xarray):
 
         label_x_coord = float(i) / (num_tables - 1)
         label_y_coord = interp_object(label_x_coord)
-        label_y_coord = min([0., label_y_coord])
-        label_y_coord = max([1., label_y_coord])
+        label_y_coord = max([0., label_y_coord])
+        label_y_coord = min([1., label_y_coord])
 
         axes_object.text(
             label_x_coord, label_y_coord, label_string,
@@ -399,6 +400,11 @@ def _run(input_dir_name, probability_threshold, output_dir_name):
         for h in hours
     ]
 
+    hourly_input_file_names = (
+        hourly_input_file_names[-UTC_OFFSET_HOURS:] +
+        hourly_input_file_names[:-UTC_OFFSET_HOURS]
+    )
+
     num_hours = len(hours)
     hourly_score_tables_xarray = [None] * num_hours
 
@@ -443,7 +449,7 @@ def _run(input_dir_name, probability_threshold, output_dir_name):
         figure_object, axes_object = _plot_performance_diagrams(
             score_tables_xarray=hourly_score_tables_xarray
         )
-        axes_object.set_title('Performance diagram by UTC hour')
+        axes_object.set_title('Performance diagram by hour')
 
         output_file_name = '{0:s}/hourly_performance_diagrams.jpg'.format(
             output_dir_name
@@ -476,7 +482,7 @@ def _run(input_dir_name, probability_threshold, output_dir_name):
         figure_object, axes_object = _plot_reliability_curves(
             score_tables_xarray=hourly_score_tables_xarray
         )
-        axes_object.set_title('Reliability curve by UTC hour')
+        axes_object.set_title('Reliability curve by hour')
 
         output_file_name = '{0:s}/hourly_reliability_curves.jpg'.format(
             output_dir_name
@@ -521,10 +527,10 @@ def _run(input_dir_name, probability_threshold, output_dir_name):
         probability_threshold=probability_threshold
     )
 
-    axes_object.set_title('Other scores by UTC hour', y=1.2)
+    axes_object.set_title('Other scores by hour', y=1.2)
     axes_object.set_xticks(hours)
     axes_object.set_xticklabels(hour_strings, rotation=90.)
-    axes_object.set_xlabel('UTC hour')
+    axes_object.set_xlabel('Hour (Taipei Standard Time)')
 
     output_file_name = '{0:s}/hourly_scores.jpg'.format(output_dir_name)
 
