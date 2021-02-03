@@ -35,6 +35,7 @@ BAND_NUMBERS_KEY = 'band_numbers'
 LEAD_TIME_KEY = 'lead_time_seconds'
 LAG_TIMES_KEY = 'lag_times_seconds'
 INCLUDE_TIME_DIM_KEY = 'include_time_dimension'
+OMIT_NORTH_RADAR_KEY = 'omit_north_radar'
 FIRST_VALID_DATE_KEY = 'first_valid_date_string'
 LAST_VALID_DATE_KEY = 'last_valid_date_string'
 NORMALIZE_FLAG_KEY = 'normalize'
@@ -47,6 +48,7 @@ DEFAULT_GENERATOR_OPTION_DICT = {
     MAX_DAILY_EXAMPLES_KEY: 64,
     BAND_NUMBERS_KEY: satellite_io.BAND_NUMBERS,
     LAG_TIMES_KEY: numpy.array([0], dtype=int),
+    OMIT_NORTH_RADAR_KEY: False,
     NORMALIZE_FLAG_KEY: True,
     UNIFORMIZE_FLAG_KEY: True
 }
@@ -93,7 +95,8 @@ LAST_INPUT_COLUMN_KEY = 'last_input_column'
 def _check_generator_args(option_dict):
     """Error-checks input arguments for generator.
 
-    :param option_dict: See doc for `generator_full_grid`.
+    :param option_dict: See doc for `generator_full_grid` or
+        `generator_partial_grids`.
     :return: option_dict: Same as input, except defaults may have been added.
     """
 
@@ -121,6 +124,7 @@ def _check_generator_args(option_dict):
     error_checking.assert_is_less_than(max_time_diff_seconds, DAYS_TO_SECONDS)
 
     error_checking.assert_is_boolean(option_dict[INCLUDE_TIME_DIM_KEY])
+    error_checking.assert_is_boolean(option_dict[OMIT_NORTH_RADAR_KEY])
 
     return option_dict
 
@@ -764,15 +768,17 @@ def create_data_partial_grids(option_dict, return_coords=False):
     R = number of radar sites
 
     :param option_dict: Dictionary with the following keys.
-    option_dict['top_predictor_dir_name']: See doc for `generator_full_grid`.
+    option_dict['top_predictor_dir_name']: See doc for
+        `generator_partial_grids`.
     option_dict['top_target_dir_name']: Same.
     option_dict['band_numbers']: Same.
     option_dict['lead_time_seconds']: Same.
     option_dict['lag_times_seconds']: Same.
     option_dict['include_time_dimension']: Same.
+    option_dict['omit_north_radar']: Same.
     option_dict['valid_date_string']: Valid date (format "yyyymmdd").  Will
         create examples with targets valid on this day.
-    option_dict['normalize']: See doc for `generator_full_grid`.
+    option_dict['normalize']: See doc for `generator_partial_grids`.
     option_dict['uniformize']: Same.
 
     :param return_coords: See doc for `_read_inputs_one_day`.
@@ -789,6 +795,7 @@ def create_data_partial_grids(option_dict, return_coords=False):
     lead_time_seconds = option_dict[LEAD_TIME_KEY]
     lag_times_seconds = option_dict[LAG_TIMES_KEY]
     include_time_dimension = option_dict[INCLUDE_TIME_DIM_KEY]
+    omit_north_radar = option_dict[OMIT_NORTH_RADAR_KEY]
     valid_date_string = option_dict[VALID_DATE_KEY]
     normalize = option_dict[NORMALIZE_FLAG_KEY]
     uniformize = option_dict[UNIFORMIZE_FLAG_KEY]
@@ -804,6 +811,9 @@ def create_data_partial_grids(option_dict, return_coords=False):
     data_dicts = [dict()] * NUM_RADARS
 
     for k in range(NUM_RADARS):
+        if omit_north_radar and k == 0:
+            continue
+
         these_predictor_file_names = example_io.find_many_predictor_files(
             top_directory_name=top_predictor_dir_name,
             first_date_string=first_init_date_string,
@@ -848,6 +858,9 @@ def create_data_partial_grids(option_dict, return_coords=False):
             include_time_dimension=include_time_dimension,
             num_examples_to_read=int(1e6), return_coords=return_coords
         )
+
+    if omit_north_radar:
+        return data_dicts[1:]
 
     return data_dicts
 
@@ -1008,7 +1021,11 @@ def generator_full_grid(option_dict):
 def generator_partial_grids(option_dict):
     """Generates training data on partial, radar-centered grids.
 
-    :param option_dict: See doc for `generator_full_grid`.
+    :param option_dict: Same as input to `generator_full_grid`, except with one
+        extra key.
+    option_dict['omit_north_radar']: Boolean flag.  If True, will not generate
+        partial grids centered on northernmost radar.
+
     :return: predictor_matrix: Same.
     :return: target_matrix: Same.
     :raises: ValueError: if no valid date can be found for which predictors and
@@ -1025,6 +1042,7 @@ def generator_partial_grids(option_dict):
     lead_time_seconds = option_dict[LEAD_TIME_KEY]
     lag_times_seconds = option_dict[LAG_TIMES_KEY]
     include_time_dimension = option_dict[INCLUDE_TIME_DIM_KEY]
+    omit_north_radar = option_dict[OMIT_NORTH_RADAR_KEY]
     first_valid_date_string = option_dict[FIRST_VALID_DATE_KEY]
     last_valid_date_string = option_dict[LAST_VALID_DATE_KEY]
     normalize = option_dict[NORMALIZE_FLAG_KEY]
@@ -1079,7 +1097,7 @@ def generator_partial_grids(option_dict):
     if len(valid_date_strings) == 0:
         raise ValueError(
             'Cannot find any valid date for which both predictors and targets '
-            ' are available.'
+            'are available.'
         )
 
     for k in range(1, NUM_RADARS):
@@ -1104,7 +1122,12 @@ def generator_partial_grids(option_dict):
         )
         target_file_name_matrix[:, k] = numpy.array(these_target_file_names)
 
-    radar_indices = numpy.linspace(0, NUM_RADARS - 1, num=NUM_RADARS, dtype=int)
+    if omit_north_radar:
+        predictor_file_name_matrix = predictor_file_name_matrix[:, 1:]
+        target_file_name_matrix = target_file_name_matrix[:, 1:]
+
+    num_radars = predictor_file_name_matrix.shape[1]
+    radar_indices = numpy.linspace(0, num_radars - 1, num=num_radars, dtype=int)
     date_indices = numpy.linspace(
         0, len(valid_date_strings) - 1, num=len(valid_date_strings), dtype=int
     )
@@ -1487,6 +1510,10 @@ def read_metafile(dill_file_name):
     if INCLUDE_TIME_DIM_KEY not in training_option_dict:
         training_option_dict[INCLUDE_TIME_DIM_KEY] = False
         validation_option_dict[INCLUDE_TIME_DIM_KEY] = False
+
+    if OMIT_NORTH_RADAR_KEY not in training_option_dict:
+        training_option_dict[OMIT_NORTH_RADAR_KEY] = False
+        validation_option_dict[OMIT_NORTH_RADAR_KEY] = False
 
     metadata_dict[TRAINING_OPTIONS_KEY] = training_option_dict
     metadata_dict[VALIDATION_OPTIONS_KEY] = validation_option_dict

@@ -121,10 +121,6 @@ def _run(advanced_score_file_name, output_dir_name):
 
     print(annotation_string)
 
-    annotation_string = (
-        'Area under curve = {0:.3g}\nMaximum CSI = {1:.3g}'
-    ).format(area_under_curve, max_csi)
-
     axes_object.text(
         0.98, 0.98, annotation_string, bbox=BOUNDING_BOX_DICT, color='k',
         horizontalalignment='right', verticalalignment='top',

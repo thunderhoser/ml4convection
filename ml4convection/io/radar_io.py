@@ -60,12 +60,8 @@ ECHO_CLASSIFN_METADATA_KEYS = [
 ]
 
 MASK_MATRIX_KEY = 'mask_matrix'
-MAX_MASK_HEIGHT_KEY = 'max_mask_height_m_asl'
-MIN_OBSERVATIONS_KEY = 'min_num_observations'
-
-# TODO(thunderhoser): Messy, since there's also a min_height_fraction for echo
-# classification.
-MIN_HEIGHT_FRACTION_FOR_MASK_KEY = 'min_height_fraction'
+MAX_MASK_DISTANCE_KEY = 'max_mask_distance_metres'
+OMIT_NORTH_RADAR_KEY = 'omit_north_radar'
 
 
 def _check_file_type(file_type_string):
@@ -84,29 +80,6 @@ def _check_file_type(file_type_string):
             file_type_string, str(VALID_FILE_TYPE_STRINGS)
         )
         raise ValueError(error_string)
-
-
-def check_mask_options(option_dict):
-    """Checks options for mask.
-
-    :param option_dict: Dictionary with the following keys.
-    option_dict['max_mask_height_m_asl']: Max height (metres above sea level).
-        Radar observations above this height will not be considered.
-    option_dict['min_observations']: Minimum number of observations.  Each grid
-        column (horizontal location) will be included if it contains >= N
-        observations at >= fraction f of heights up to `max_mask_height_m_asl`,
-        where N = `min_num_observations` and f = `min_height_fraction`.
-    option_dict['max_mask_height_m_asl']: See above.
-    """
-
-    error_checking.assert_is_geq(option_dict[MAX_MASK_HEIGHT_KEY], 5000.)
-    error_checking.assert_is_geq(option_dict[MIN_OBSERVATIONS_KEY], 1)
-    error_checking.assert_is_greater(
-        option_dict[MIN_HEIGHT_FRACTION_FOR_MASK_KEY], 0.
-    )
-    error_checking.assert_is_leq(
-        option_dict[MIN_HEIGHT_FRACTION_FOR_MASK_KEY], 1.
-    )
 
 
 def find_file(
@@ -877,10 +850,9 @@ def read_mask_file(netcdf_file_name):
             dataset_object.variables[MASK_MATRIX_KEY][:].astype(bool),
         LATITUDES_KEY: dataset_object.variables[LATITUDES_KEY][:],
         LONGITUDES_KEY: dataset_object.variables[LONGITUDES_KEY][:],
-        MAX_MASK_HEIGHT_KEY: getattr(dataset_object, MAX_MASK_HEIGHT_KEY),
-        MIN_OBSERVATIONS_KEY: getattr(dataset_object, MIN_OBSERVATIONS_KEY),
-        MIN_HEIGHT_FRACTION_FOR_MASK_KEY:
-            getattr(dataset_object, MIN_HEIGHT_FRACTION_FOR_MASK_KEY)
+        MAX_MASK_DISTANCE_KEY: getattr(dataset_object, MAX_MASK_DISTANCE_KEY),
+        OMIT_NORTH_RADAR_KEY:
+            bool(getattr(dataset_object, OMIT_NORTH_RADAR_KEY))
     }
 
     dataset_object.close()
@@ -889,7 +861,7 @@ def read_mask_file(netcdf_file_name):
 
 def write_mask_file(
         netcdf_file_name, mask_matrix, latitudes_deg_n, longitudes_deg_e,
-        option_dict):
+        max_distance_metres, omit_north_radar):
     """Writes mask to NetCDF file.
 
     M = number of rows in grid
@@ -900,12 +872,15 @@ def write_mask_file(
         False will be censored out.
     :param latitudes_deg_n: length-M numpy array of latitudes (deg N).
     :param longitudes_deg_e: length-N numpy array of longitudes (deg E).
-    :param option_dict: See doc for `check_mask_options`.
+    :param max_distance_metres: Metadata (see documentation at top of
+        create_radar_mask.py).
+    :param omit_north_radar: Same.
     :raises: ValueError: if output file is a gzip file.
     """
 
     # Check input args.
-    check_mask_options(option_dict)
+    error_checking.assert_is_greater(max_distance_metres, 0.)
+    error_checking.assert_is_boolean(omit_north_radar)
 
     error_checking.assert_is_numpy_array(latitudes_deg_n, num_dimensions=1)
     error_checking.assert_is_valid_lat_numpy_array(latitudes_deg_n)
@@ -930,16 +905,8 @@ def write_mask_file(
         netcdf_file_name, 'w', format='NETCDF3_64BIT_OFFSET'
     )
 
-    dataset_object.setncattr(
-        MAX_MASK_HEIGHT_KEY, option_dict[MAX_MASK_HEIGHT_KEY]
-    )
-    dataset_object.setncattr(
-        MIN_OBSERVATIONS_KEY, option_dict[MIN_OBSERVATIONS_KEY]
-    )
-    dataset_object.setncattr(
-        MIN_HEIGHT_FRACTION_FOR_MASK_KEY,
-        option_dict[MIN_HEIGHT_FRACTION_FOR_MASK_KEY]
-    )
+    dataset_object.setncattr(MAX_MASK_DISTANCE_KEY, max_distance_metres)
+    dataset_object.setncattr(OMIT_NORTH_RADAR_KEY, int(omit_north_radar))
 
     dataset_object.createDimension(ROW_DIMENSION_KEY, num_grid_rows)
     dataset_object.createDimension(COLUMN_DIMENSION_KEY, num_grid_columns)
