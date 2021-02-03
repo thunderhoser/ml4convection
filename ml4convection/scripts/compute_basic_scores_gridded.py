@@ -7,8 +7,6 @@ from ml4convection.io import climatology_io
 from ml4convection.utils import evaluation
 from ml4convection.utils import radar_utils
 
-# TODO(thunderhoser): Need better baselines than climo.
-
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 
 NUM_RADARS = len(radar_utils.RADAR_LATITUDES_DEG_N)
@@ -16,6 +14,7 @@ NUM_RADARS = len(radar_utils.RADAR_LATITUDES_DEG_N)
 INPUT_DIR_ARG_NAME = 'input_prediction_dir_name'
 FIRST_DATE_ARG_NAME = 'first_date_string'
 LAST_DATE_ARG_NAME = 'last_date_string'
+SMOOTHING_RADIUS_ARG_NAME = 'smoothing_radius_px'
 MATCHING_DISTANCES_ARG_NAME = 'matching_distances_px'
 CLIMO_FILES_ARG_NAME = 'climo_file_names'
 PROB_THRESHOLDS_ARG_NAME = 'prob_thresholds'
@@ -30,6 +29,10 @@ DATE_HELP_STRING = (
     'period `{0:s}`...`{1:s}`.'
 ).format(FIRST_DATE_ARG_NAME, LAST_DATE_ARG_NAME)
 
+SMOOTHING_RADIUS_HELP_STRING = (
+    'Radius for Gaussian smoother.  If you do not want to smooth predictions, '
+    'leave this alone.'
+)
 MATCHING_DISTANCES_HELP_STRING = (
     'List of matching distances (pixels).  Neighbourhood evaluation will be '
     'done for each matching distance.'
@@ -60,6 +63,10 @@ INPUT_ARG_PARSER.add_argument(
     '--' + LAST_DATE_ARG_NAME, type=str, required=True, help=DATE_HELP_STRING
 )
 INPUT_ARG_PARSER.add_argument(
+    '--' + SMOOTHING_RADIUS_ARG_NAME, type=float, required=False, default=-1,
+    help=SMOOTHING_RADIUS_HELP_STRING
+)
+INPUT_ARG_PARSER.add_argument(
     '--' + MATCHING_DISTANCES_ARG_NAME, type=float, nargs='+', required=True,
     help=MATCHING_DISTANCES_HELP_STRING
 )
@@ -78,8 +85,8 @@ INPUT_ARG_PARSER.add_argument(
 
 
 def _run(top_prediction_dir_name, first_date_string, last_date_string,
-         matching_distances_px, climo_file_names, prob_thresholds,
-         top_output_dir_name):
+         smoothing_radius_px, matching_distances_px, climo_file_names,
+         prob_thresholds, top_output_dir_name):
     """Computes basic evaluation scores on grid (one set of scores per px).
 
     This is effectively the main method.
@@ -87,11 +94,15 @@ def _run(top_prediction_dir_name, first_date_string, last_date_string,
     :param top_prediction_dir_name: See documentation at top of file.
     :param first_date_string: Same.
     :param last_date_string: Same.
+    :param smoothing_radius_px: Same.
     :param matching_distances_px: Same.
     :param climo_file_names: Same.
     :param prob_thresholds: Same.
     :param top_output_dir_name: Same.
     """
+
+    if smoothing_radius_px <= 0:
+        smoothing_radius_px = None
 
     prediction_file_names = prediction_io.find_many_files(
         top_directory_name=top_prediction_dir_name,
@@ -126,6 +137,12 @@ def _run(top_prediction_dir_name, first_date_string, last_date_string,
         print('Reading data from: "{0:s}"...'.format(prediction_file_names[i]))
         prediction_dict = prediction_io.read_file(prediction_file_names[i])
 
+        if smoothing_radius_px is not None:
+            prediction_dict = prediction_io.smooth_probabilities(
+                prediction_dict=prediction_dict,
+                smoothing_radius_px=smoothing_radius_px
+            )
+
         for j in range(num_matching_distances):
             print('\n')
 
@@ -137,19 +154,23 @@ def _run(top_prediction_dir_name, first_date_string, last_date_string,
             )
 
             if first_unmasked_row is None:
-                unmasked_row_flags = numpy.any(numpy.invert(numpy.isnan(
-                    basic_score_table_xarray[evaluation.ACTUAL_SSE_FOR_FSS_KEY]
-                )),
-                    axis=(0, 2)
+                unmasked_row_flags = numpy.any(
+                    numpy.invert(numpy.isnan(
+                        basic_score_table_xarray[
+                            evaluation.ACTUAL_SSE_FOR_FSS_KEY
+                        ]
+                    )), axis=(0, 2)
                 )
 
                 first_unmasked_row = numpy.where(unmasked_row_flags)[0][0]
                 last_unmasked_row = numpy.where(unmasked_row_flags)[0][-1]
 
-                unmasked_column_flags = numpy.any(numpy.invert(numpy.isnan(
-                    basic_score_table_xarray[evaluation.ACTUAL_SSE_FOR_FSS_KEY]
-                )),
-                    axis=(0, 1)
+                unmasked_column_flags = numpy.any(
+                    numpy.invert(numpy.isnan(
+                        basic_score_table_xarray[
+                            evaluation.ACTUAL_SSE_FOR_FSS_KEY
+                        ]
+                    )), axis=(0, 1)
                 )
 
                 first_unmasked_column = numpy.where(unmasked_column_flags)[0][0]
@@ -191,6 +212,9 @@ if __name__ == '__main__':
         top_prediction_dir_name=getattr(INPUT_ARG_OBJECT, INPUT_DIR_ARG_NAME),
         first_date_string=getattr(INPUT_ARG_OBJECT, FIRST_DATE_ARG_NAME),
         last_date_string=getattr(INPUT_ARG_OBJECT, LAST_DATE_ARG_NAME),
+        smoothing_radius_px=getattr(
+            INPUT_ARG_OBJECT, SMOOTHING_RADIUS_ARG_NAME
+        ),
         matching_distances_px=numpy.array(
             getattr(INPUT_ARG_OBJECT, MATCHING_DISTANCES_ARG_NAME), dtype=float
         ),

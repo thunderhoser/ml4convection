@@ -17,6 +17,7 @@ FIRST_DATE_ARG_NAME = 'first_date_string'
 LAST_DATE_ARG_NAME = 'last_date_string'
 TIME_INTERVAL_ARG_NAME = 'time_interval_steps'
 USE_PARTIAL_GRIDS_ARG_NAME = 'use_partial_grids'
+SMOOTHING_RADIUS_ARG_NAME = 'smoothing_radius_px'
 MATCHING_DISTANCES_ARG_NAME = 'matching_distances_px'
 NUM_PROB_THRESHOLDS_ARG_NAME = 'num_prob_thresholds'
 PROB_THRESHOLDS_ARG_NAME = 'prob_thresholds'
@@ -38,6 +39,11 @@ TIME_INTERVAL_HELP_STRING = (
 USE_PARTIAL_GRIDS_HELP_STRING = (
     'Boolean flag.  If 1 (0), will compute scores for partial (full) grids.'
 )
+SMOOTHING_RADIUS_HELP_STRING = (
+    '[used only if {0:s} == 0] Radius for Gaussian smoother.  If you do not '
+    'want to smooth predictions, leave this alone.'
+).format(USE_PARTIAL_GRIDS_ARG_NAME)
+
 MATCHING_DISTANCES_HELP_STRING = (
     'List of matching distances (pixels).  Neighbourhood evaluation will be '
     'done for each matching distance.'
@@ -80,6 +86,10 @@ INPUT_ARG_PARSER.add_argument(
     help=USE_PARTIAL_GRIDS_HELP_STRING
 )
 INPUT_ARG_PARSER.add_argument(
+    '--' + SMOOTHING_RADIUS_ARG_NAME, type=float, required=False, default=-1,
+    help=SMOOTHING_RADIUS_HELP_STRING
+)
+INPUT_ARG_PARSER.add_argument(
     '--' + MATCHING_DISTANCES_ARG_NAME, type=float, nargs='+', required=True,
     help=MATCHING_DISTANCES_HELP_STRING
 )
@@ -99,14 +109,15 @@ INPUT_ARG_PARSER.add_argument(
 
 def _compute_scores_full_grid(
         top_prediction_dir_name, first_date_string, last_date_string,
-        time_interval_steps, matching_distances_px, prob_thresholds,
-        top_output_dir_name):
+        time_interval_steps, smoothing_radius_px, matching_distances_px,
+        prob_thresholds, top_output_dir_name):
     """Computes scores on full grid.
 
     :param top_prediction_dir_name: See documentation at top of file.
     :param first_date_string: Same.
     :param last_date_string: Same.
     :param time_interval_steps: Same.
+    :param smoothing_radius_px: Same.
     :param matching_distances_px: Same.
     :param prob_thresholds: Same.
     :param top_output_dir_name: Same.
@@ -139,6 +150,12 @@ def _compute_scores_full_grid(
         prediction_dict = prediction_io.subset_by_index(
             prediction_dict=prediction_dict, desired_indices=desired_indices
         )
+
+        if smoothing_radius_px is not None:
+            prediction_dict = prediction_io.smooth_probabilities(
+                prediction_dict=prediction_dict,
+                smoothing_radius_px=smoothing_radius_px
+            )
 
         for j in range(num_matching_distances):
             print('\n')
@@ -265,8 +282,9 @@ def _compute_scores_partial_grids(
 
 
 def _run(top_prediction_dir_name, first_date_string, last_date_string,
-         time_interval_steps, use_partial_grids, matching_distances_px,
-         num_prob_thresholds, prob_thresholds, top_output_dir_name):
+         time_interval_steps, use_partial_grids, smoothing_radius_px,
+         matching_distances_px, num_prob_thresholds, prob_thresholds,
+         top_output_dir_name):
     """Computes basic evaluation scores sans grid (combined over full domain).
 
     This is effectively the main method.
@@ -276,6 +294,7 @@ def _run(top_prediction_dir_name, first_date_string, last_date_string,
     :param last_date_string: Same.
     :param time_interval_steps: Same.
     :param use_partial_grids: Same.
+    :param smoothing_radius_px: Same.
     :param matching_distances_px: Same.
     :param num_prob_thresholds: Same.
     :param prob_thresholds: Same.
@@ -290,11 +309,15 @@ def _run(top_prediction_dir_name, first_date_string, last_date_string,
         )
 
     if not use_partial_grids:
+        if smoothing_radius_px <= 0:
+            smoothing_radius_px = None
+
         _compute_scores_full_grid(
             top_prediction_dir_name=top_prediction_dir_name,
             first_date_string=first_date_string,
             last_date_string=last_date_string,
             time_interval_steps=time_interval_steps,
+            smoothing_radius_px=smoothing_radius_px,
             matching_distances_px=matching_distances_px,
             prob_thresholds=prob_thresholds,
             top_output_dir_name=top_output_dir_name
@@ -324,6 +347,9 @@ if __name__ == '__main__':
         use_partial_grids=bool(getattr(
             INPUT_ARG_OBJECT, USE_PARTIAL_GRIDS_ARG_NAME
         )),
+        smoothing_radius_px=getattr(
+            INPUT_ARG_OBJECT, SMOOTHING_RADIUS_ARG_NAME
+        ),
         matching_distances_px=numpy.array(
             getattr(INPUT_ARG_OBJECT, MATCHING_DISTANCES_ARG_NAME), dtype=float
         ),

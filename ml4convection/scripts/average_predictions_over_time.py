@@ -12,6 +12,7 @@ DATE_FORMAT = prediction_io.DATE_FORMAT
 INPUT_DIR_ARG_NAME = 'input_dir_name'
 FIRST_DATE_ARG_NAME = 'first_date_string'
 LAST_DATE_ARG_NAME = 'last_date_string'
+SMOOTHING_RADIUS_ARG_NAME = 'smoothing_radius_px'
 OUTPUT_DIR_ARG_NAME = 'output_dir_name'
 
 INPUT_DIR_HELP_STRING = (
@@ -24,6 +25,11 @@ DATE_HELP_STRING = (
     'period `{0:s}`...`{1:s}`.'
 ).format(FIRST_DATE_ARG_NAME, LAST_DATE_ARG_NAME)
 
+SMOOTHING_RADIUS_HELP_STRING = (
+    'Radius for Gaussian smoother (predictions at each time will be smoothed '
+    'before averaging).  If you do not want to smooth predictions, leave this '
+    'alone.'
+)
 OUTPUT_DIR_HELP_STRING = (
     'Name of top-level output directory.  Averaged predictions will be written '
     'here by `prediction_io.write_file`, to an exact location determined by '
@@ -42,13 +48,17 @@ INPUT_ARG_PARSER.add_argument(
     '--' + LAST_DATE_ARG_NAME, type=str, required=True, help=DATE_HELP_STRING
 )
 INPUT_ARG_PARSER.add_argument(
+    '--' + SMOOTHING_RADIUS_ARG_NAME, type=float, required=False, default=-1,
+    help=SMOOTHING_RADIUS_HELP_STRING
+)
+INPUT_ARG_PARSER.add_argument(
     '--' + OUTPUT_DIR_ARG_NAME, type=str, required=True,
     help=OUTPUT_DIR_HELP_STRING
 )
 
 
 def _run(top_input_dir_name, first_date_string, last_date_string,
-         top_output_dir_name):
+         smoothing_radius_px, top_output_dir_name):
     """Averages full-grid predictions over time at each grid cell.
 
     This is effectively the main method.
@@ -56,8 +66,12 @@ def _run(top_input_dir_name, first_date_string, last_date_string,
     :param top_input_dir_name: See documentation at top of file.
     :param first_date_string: Same.
     :param last_date_string: Same.
+    :param smoothing_radius_px: Same.
     :param top_output_dir_name: Same.
     """
+
+    if smoothing_radius_px <= 0:
+        smoothing_radius_px = None
 
     input_file_names = prediction_io.find_many_files(
         top_directory_name=top_input_dir_name,
@@ -72,6 +86,12 @@ def _run(top_input_dir_name, first_date_string, last_date_string,
     for this_file_name in input_file_names:
         print('Reading data from: "{0:s}"...'.format(this_file_name))
         this_prediction_dict = prediction_io.read_file(this_file_name)
+
+        if smoothing_radius_px is not None:
+            this_prediction_dict = prediction_io.smooth_probabilities(
+                prediction_dict=this_prediction_dict,
+                smoothing_radius_px=smoothing_radius_px
+            )
 
         # this_prediction_dict[prediction_io.TARGET_MATRIX_KEY] = numpy.sum(
         #     this_prediction_dict[prediction_io.TARGET_MATRIX_KEY],
@@ -138,5 +158,8 @@ if __name__ == '__main__':
         top_input_dir_name=getattr(INPUT_ARG_OBJECT, INPUT_DIR_ARG_NAME),
         first_date_string=getattr(INPUT_ARG_OBJECT, FIRST_DATE_ARG_NAME),
         last_date_string=getattr(INPUT_ARG_OBJECT, LAST_DATE_ARG_NAME),
+        smoothing_radius_px=getattr(
+            INPUT_ARG_OBJECT, SMOOTHING_RADIUS_ARG_NAME
+        ),
         top_output_dir_name=getattr(INPUT_ARG_OBJECT, OUTPUT_DIR_ARG_NAME)
     )
