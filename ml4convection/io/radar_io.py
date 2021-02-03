@@ -849,11 +849,19 @@ def read_mask_file(netcdf_file_name):
         MASK_MATRIX_KEY:
             dataset_object.variables[MASK_MATRIX_KEY][:].astype(bool),
         LATITUDES_KEY: dataset_object.variables[LATITUDES_KEY][:],
-        LONGITUDES_KEY: dataset_object.variables[LONGITUDES_KEY][:],
-        MAX_MASK_DISTANCE_KEY: getattr(dataset_object, MAX_MASK_DISTANCE_KEY),
-        OMIT_NORTH_RADAR_KEY:
-            bool(getattr(dataset_object, OMIT_NORTH_RADAR_KEY))
+        LONGITUDES_KEY: dataset_object.variables[LONGITUDES_KEY][:]
     }
+
+    if hasattr(dataset_object, MAX_MASK_DISTANCE_KEY):
+        mask_dict[MAX_MASK_DISTANCE_KEY] = getattr(
+            dataset_object, MAX_MASK_DISTANCE_KEY
+        )
+        mask_dict[OMIT_NORTH_RADAR_KEY] = bool(getattr(
+            dataset_object, OMIT_NORTH_RADAR_KEY
+        ))
+    else:
+        mask_dict[MAX_MASK_DISTANCE_KEY] = 1e5
+        mask_dict[OMIT_NORTH_RADAR_KEY] = False
 
     dataset_object.close()
     return mask_dict
