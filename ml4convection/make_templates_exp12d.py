@@ -24,7 +24,7 @@ OUTPUT_DIR_NAME = '{0:s}/ml4convection_models/experiment12d/templates'.format(
 )
 TOP_TARGET_DIR_NAME = (
     '{0:s}/ml4convection_project/targets/new_echo_classification/no_tracking/'
-    'partial_grids'
+    'omit_north_radar/partial_grids'
 ).format(HOME_DIR_NAME)
 
 FSS_HALF_WINDOW_SIZE_PX = 4
