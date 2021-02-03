@@ -11,6 +11,7 @@ THIS_DIRECTORY_NAME = os.path.dirname(os.path.realpath(
 ))
 sys.path.append(os.path.normpath(os.path.join(THIS_DIRECTORY_NAME, '..')))
 
+import gg_general_utils
 import time_conversion
 import longitude_conversion as lng_conversion
 import file_system_utils
@@ -408,3 +409,32 @@ def subset_by_time(prediction_dict, desired_times_unix_sec):
     )
 
     return prediction_dict, desired_indices
+
+
+def smooth_probabilities(prediction_dict, smoothing_radius_px):
+    """Smooths the map of predicted probabilities at each time step.
+
+    :param prediction_dict: Dictionary returned by `read_file`.
+    :param smoothing_radius_px: e-folding radius for Gaussian smoother (pixels).
+    :return: prediction_dict: Same as input but with smoothed fields.
+    """
+
+    error_checking.assert_is_greater(smoothing_radius_px, 0.)
+
+    probability_matrix = prediction_dict[PROBABILITY_MATRIX_KEY]
+    num_times = probability_matrix.shape[0]
+
+    print((
+        'Applying Gaussian smoother with e-folding radius = {0:f} pixels...'
+    ).format(
+        smoothing_radius_px
+    ))
+
+    for i in range(num_times):
+        probability_matrix[i, ...] = gg_general_utils.apply_gaussian_filter(
+            input_matrix=probability_matrix[i, ...],
+            e_folding_radius_grid_cells=smoothing_radius_px
+        )
+
+    prediction_dict[PROBABILITY_MATRIX_KEY] = probability_matrix
+    return prediction_dict

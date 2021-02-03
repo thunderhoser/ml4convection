@@ -44,7 +44,7 @@ set batch_size_string=`printf "%02d" $batch_size`
 set l2_weight_string=`printf "%.10f" $l2_weight`
 
 set model_dir_name="${TOP_MODEL_DIR_NAME}/batch-size=${batch_size_string}_l2-weight=${l2_weight_string}_lag-times-sec=${lag_time_string_dashed}"
-set prediction_dir_name="${model_dir_name}/validation/full_grids/smooth4"
+set prediction_dir_name="${model_dir_name}/validation/full_grids"
 
 python3 -u "${CODE_DIR_NAME}/compute_basic_scores_ungridded.py" \
 --input_prediction_dir_name="${prediction_dir_name}" \
@@ -52,6 +52,7 @@ python3 -u "${CODE_DIR_NAME}/compute_basic_scores_ungridded.py" \
 --last_date_string="${last_date_string}" \
 --time_interval_steps=1 \
 --use_partial_grids=0 \
+--smoothing_radius_px=4 \
 --matching_distances_px 4 \
 --num_prob_thresholds=21 \
---output_dir_name="${prediction_dir_name}/evaluation"
+--output_dir_name="${prediction_dir_name}/evaluation_smooth4"

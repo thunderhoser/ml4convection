@@ -40,6 +40,8 @@ INPUT_DIR_ARG_NAME = 'input_prediction_dir_name'
 FIRST_DATE_ARG_NAME = 'first_date_string'
 LAST_DATE_ARG_NAME = 'last_date_string'
 USE_PARTIAL_GRIDS_ARG_NAME = 'use_partial_grids'
+SMOOTHING_RADIUS_ARG_NAME = '' \
+                            ''
 DAILY_TIMES_ARG_NAME = 'daily_times_seconds'
 PLOT_DETERMINISTIC_ARG_NAME = 'plot_deterministic'
 PROB_THRESHOLD_ARG_NAME = 'probability_threshold'
@@ -58,6 +60,11 @@ DATE_HELP_STRING = (
 USE_PARTIAL_GRIDS_HELP_STRING = (
     'Boolean flag.  If 1 (0), will plot predictions on partial (full) grids.'
 )
+SMOOTHING_RADIUS_HELP_STRING = (
+    '[used only if {0:s} == 0] Radius for Gaussian smoother.  If you do not '
+    'want to smooth predictions, leave this alone.'
+).format(USE_PARTIAL_GRIDS_ARG_NAME)
+
 DAILY_TIMES_HELP_STRING = (
     'List of times to plot for each day.  All values should be in the range '
     '0...86399.'
@@ -95,6 +102,10 @@ INPUT_ARG_PARSER.add_argument(
 INPUT_ARG_PARSER.add_argument(
     '--' + USE_PARTIAL_GRIDS_ARG_NAME, type=int, required=False, default=0,
     help=USE_PARTIAL_GRIDS_HELP_STRING
+)
+INPUT_ARG_PARSER.add_argument(
+    '--' + SMOOTHING_RADIUS_ARG_NAME, type=float, required=False, default=-1,
+    help=SMOOTHING_RADIUS_HELP_STRING
 )
 INPUT_ARG_PARSER.add_argument(
     '--' + DAILY_TIMES_ARG_NAME, type=int, nargs='+', required=True,
@@ -236,7 +247,8 @@ def _plot_predictions_one_example(
 def _plot_predictions_one_day(
         prediction_file_name, border_latitudes_deg_n, border_longitudes_deg_e,
         use_partial_grids, daily_times_seconds, plot_deterministic,
-        probability_threshold, max_prob_in_colour_bar, output_dir_name):
+        probability_threshold, max_prob_in_colour_bar, output_dir_name,
+        smoothing_radius_px=None):
     """Plots predictions (and targets) for one day.
 
     P = number of points in border set
@@ -251,10 +263,17 @@ def _plot_predictions_one_day(
     :param probability_threshold: Same.
     :param max_prob_in_colour_bar: Same.
     :param output_dir_name: Same.
+    :param smoothing_radius_px: Same.
     """
 
     print('Reading data from: "{0:s}"...'.format(prediction_file_name))
     prediction_dict = prediction_io.read_file(prediction_file_name)
+
+    if smoothing_radius_px is not None:
+        prediction_dict = prediction_io.smooth_probabilities(
+            prediction_dict=prediction_dict,
+            smoothing_radius_px=smoothing_radius_px
+        )
 
     model_file_name = prediction_dict[prediction_io.MODEL_FILE_KEY]
     model_metafile_name = neural_net.find_metafile(model_file_name)
@@ -313,8 +332,9 @@ def _plot_predictions_one_day(
 
 
 def _run(top_prediction_dir_name, first_date_string, last_date_string,
-         use_partial_grids, daily_times_seconds, plot_deterministic,
-         probability_threshold, max_prob_in_colour_bar, output_dir_name):
+         use_partial_grids, smoothing_radius_px, daily_times_seconds,
+         plot_deterministic, probability_threshold, max_prob_in_colour_bar,
+         output_dir_name):
     """Plot predictions (and targets) for the given days.
 
     This is effectively the main method.
@@ -323,6 +343,7 @@ def _run(top_prediction_dir_name, first_date_string, last_date_string,
     :param first_date_string: Same.
     :param last_date_string: Same.
     :param use_partial_grids: Same.
+    :param smoothing_radius_px: Same.
     :param daily_times_seconds: Same.
     :param plot_deterministic: Same.
     :param probability_threshold: Same.
@@ -348,6 +369,9 @@ def _run(top_prediction_dir_name, first_date_string, last_date_string,
         probability_threshold = None
 
     if not use_partial_grids:
+        if smoothing_radius_px <= 0:
+            smoothing_radius_px = None
+
         prediction_file_names = prediction_io.find_many_files(
             top_directory_name=top_prediction_dir_name,
             first_date_string=first_date_string,
@@ -363,6 +387,7 @@ def _run(top_prediction_dir_name, first_date_string, last_date_string,
                 border_latitudes_deg_n=border_latitudes_deg_n,
                 border_longitudes_deg_e=border_longitudes_deg_e,
                 use_partial_grids=use_partial_grids,
+                smoothing_radius_px=smoothing_radius_px,
                 plot_deterministic=plot_deterministic,
                 probability_threshold=probability_threshold,
                 max_prob_in_colour_bar=max_prob_in_colour_bar,
@@ -433,6 +458,9 @@ if __name__ == '__main__':
         last_date_string=getattr(INPUT_ARG_OBJECT, LAST_DATE_ARG_NAME),
         use_partial_grids=bool(
             getattr(INPUT_ARG_OBJECT, USE_PARTIAL_GRIDS_ARG_NAME)
+        ),
+        smoothing_radius_px=getattr(
+            INPUT_ARG_OBJECT, SMOOTHING_RADIUS_ARG_NAME
         ),
         daily_times_seconds=numpy.array(
             getattr(INPUT_ARG_OBJECT, DAILY_TIMES_ARG_NAME), dtype=int

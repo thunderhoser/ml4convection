@@ -45,7 +45,7 @@ set l2_weight_string=`printf "%.10f" $l2_weight`
 
 set model_dir_name="${TOP_MODEL_DIR_NAME}/batch-size=${batch_size_string}_l2-weight=${l2_weight_string}_lag-times-sec=${lag_time_string_dashed}"
 set model_metafile_name="${model_dir_name}/model_metadata.dill"
-set prediction_figure_dir_name="${model_dir_name}/validation/full_grids/smooth4/prediction_plots_focused"
+set prediction_figure_dir_name="${model_dir_name}/validation/full_grids/prediction_plots_focused_smooth4"
 
 python3 -u "${CODE_DIR_NAME}/concat_figures.py" \
 --prediction_figure_dir_name="${prediction_figure_dir_name}" \
@@ -55,4 +55,4 @@ python3 -u "${CODE_DIR_NAME}/concat_figures.py" \
 --first_date_string="${date_string}" \
 --last_date_string="${date_string}" \
 --daily_valid_times_seconds 0 600 1200 1800 2400 3000 3600 4200 4800 5400 6000 6600 7200 7800 8400 9000 9600 10200 10800 11400 12000 12600 13200 13800 14400 15000 15600 16200 16800 17400 18000 18600 19200 19800 20400 21000 21600 22200 22800 23400 24000 24600 25200 25800 26400 27000 27600 28200 28800 29400 30000 30600 31200 31800 32400 33000 33600 34200 34800 35400 36000 36600 37200 37800 38400 39000 39600 40200 40800 41400 42000 42600 43200 43800 44400 45000 45600 46200 46800 47400 48000 48600 49200 49800 50400 51000 51600 52200 52800 53400 54000 54600 55200 55800 56400 57000 57600 58200 58800 59400 60000 60600 61200 61800 62400 63000 63600 64200 64800 65400 66000 66600 67200 67800 68400 69000 69600 70200 70800 71400 72000 72600 73200 73800 74400 75000 75600 76200 76800 77400 78000 78600 79200 79800 80400 81000 81600 82200 82800 83400 84000 84600 85200 85800 \
---output_dir_name="${prediction_figure_dir_name}/concat_focused"
+--output_dir_name="${prediction_figure_dir_name}/concat"

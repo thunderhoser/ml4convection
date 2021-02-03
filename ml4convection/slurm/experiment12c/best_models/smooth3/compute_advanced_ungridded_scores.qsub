@@ -44,7 +44,7 @@ set batch_size_string=`printf "%02d" $batch_size`
 set l2_weight_string=`printf "%.10f" $l2_weight`
 
 set model_dir_name="${TOP_MODEL_DIR_NAME}/batch-size=${batch_size_string}_l2-weight=${l2_weight_string}_lag-times-sec=${lag_time_string_dashed}"
-set evaluation_dir_name="${model_dir_name}/validation/full_grids/smooth3/evaluation/matching_distance_px=4.000000"
+set evaluation_dir_name="${model_dir_name}/validation/full_grids/evaluation_smooth3/matching_distance_px=4.000000"
 
 python3 -u "${CODE_DIR_NAME}/compute_advanced_scores_ungridded.py" \
 --input_basic_score_dir_name="${evaluation_dir_name}" \
