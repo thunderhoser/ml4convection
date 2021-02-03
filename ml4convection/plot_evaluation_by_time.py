@@ -529,13 +529,13 @@ def _run(input_dir_name, probability_threshold, output_dir_name):
         'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
     ]
 
-    # Plot other scores by hour.
+    # Plot scalar scores by hour.
     figure_object, axes_object = _plot_scores_as_graph(
         score_tables_xarray=hourly_score_tables_xarray,
         probability_threshold=probability_threshold
     )
 
-    axes_object.set_title('Other scores by hour', y=1.2)
+    axes_object.set_title('Scalar scores by hour', y=1.2)
     axes_object.set_xticks(hours)
     axes_object.set_xticklabels(hour_strings, rotation=90.)
     axes_object.set_xlabel('Hour (Taipei Standard Time)')
@@ -549,13 +549,13 @@ def _run(input_dir_name, probability_threshold, output_dir_name):
     )
     pyplot.close(figure_object)
 
-    # Plot other scores by month.
+    # Plot scalar scores by month.
     figure_object, axes_object = _plot_scores_as_graph(
         score_tables_xarray=monthly_score_tables_xarray,
         probability_threshold=probability_threshold
     )
 
-    axes_object.set_title('Other scores by month', y=1.2)
+    axes_object.set_title('Scalar scores by month', y=1.2)
     axes_object.set_xticks(months - 1)
     axes_object.set_xticklabels(month_strings, rotation=90.)
 
