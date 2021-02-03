@@ -11,7 +11,7 @@ THIS_DIRECTORY_NAME = os.path.dirname(os.path.realpath(
 ))
 sys.path.append(os.path.normpath(os.path.join(THIS_DIRECTORY_NAME, '..')))
 
-import general_utils
+import gg_general_utils
 import time_conversion
 import prediction_io
 import neural_net
@@ -153,7 +153,7 @@ def _apply_to_full_grid_one_day(
 
             for i in range(num_examples):
                 forecast_probability_matrix[i, ...] = (
-                    general_utils.apply_gaussian_filter(
+                    gg_general_utils.apply_gaussian_filter(
                         input_matrix=forecast_probability_matrix[i, ...],
                         e_folding_radius_grid_cells=smoothing_radius_px
                     )
@@ -297,6 +297,8 @@ def _run(model_file_name, top_predictor_dir_name, top_target_dir_name,
             training_option_dict[neural_net.LAG_TIMES_KEY],
         neural_net.INCLUDE_TIME_DIM_KEY:
             training_option_dict[neural_net.INCLUDE_TIME_DIM_KEY],
+        neural_net.OMIT_NORTH_RADAR_KEY:
+            training_option_dict[neural_net.OMIT_NORTH_RADAR_KEY],
         neural_net.NORMALIZE_FLAG_KEY:
             training_option_dict[neural_net.NORMALIZE_FLAG_KEY],
         neural_net.UNIFORMIZE_FLAG_KEY:

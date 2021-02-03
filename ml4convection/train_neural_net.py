@@ -28,8 +28,9 @@ def _run(training_predictor_dir_name, training_target_dir_name,
          first_validn_date_string, last_validn_date_string,
          normalize, uniformize,
          num_examples_per_batch, max_examples_per_day_in_batch,
-         use_partial_grids, num_epochs, num_training_batches_per_epoch,
-         num_validn_batches_per_epoch, plateau_lr_multiplier):
+         use_partial_grids, omit_north_radar, num_epochs,
+         num_training_batches_per_epoch, num_validn_batches_per_epoch,
+         plateau_lr_multiplier):
     """Trains neural net.
 
     This is effectively the main method.
@@ -54,6 +55,7 @@ def _run(training_predictor_dir_name, training_target_dir_name,
     :param num_examples_per_batch: Same.
     :param max_examples_per_day_in_batch: Same.
     :param use_partial_grids: Same.
+    :param omit_north_radar: Same.
     :param num_epochs: Same.
     :param num_training_batches_per_epoch: Same.
     :param num_validn_batches_per_epoch: Same.
@@ -69,6 +71,7 @@ def _run(training_predictor_dir_name, training_target_dir_name,
         neural_net.LEAD_TIME_KEY: lead_time_seconds,
         neural_net.LAG_TIMES_KEY: lag_times_seconds,
         neural_net.INCLUDE_TIME_DIM_KEY: include_time_dimension,
+        neural_net.OMIT_NORTH_RADAR_KEY: omit_north_radar,
         neural_net.FIRST_VALID_DATE_KEY: first_training_date_string,
         neural_net.LAST_VALID_DATE_KEY: last_training_date_string,
         neural_net.NORMALIZE_FLAG_KEY: normalize,
@@ -175,6 +178,9 @@ if __name__ == '__main__':
         ),
         use_partial_grids=bool(getattr(
             INPUT_ARG_OBJECT, training_args.USE_PARTIAL_GRIDS_ARG_NAME
+        )),
+        omit_north_radar=bool(getattr(
+            INPUT_ARG_OBJECT, training_args.OMIT_NORTH_RADAR_ARG_NAME
         )),
         num_epochs=getattr(INPUT_ARG_OBJECT, training_args.NUM_EPOCHS_ARG_NAME),
         num_training_batches_per_epoch=getattr(

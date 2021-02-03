@@ -267,7 +267,7 @@ def _find_input_files(
     good_flags = numpy.all(good_flag_matrix, axis=(1, 2))
     good_indices = numpy.where(good_flags)[0]
 
-    valid_times_unix_sec = valid_times_unix_sec[good_indices]
+    # valid_times_unix_sec = valid_times_unix_sec[good_indices]
     valid_time_strings = [valid_time_strings[k] for k in good_indices]
     prediction_figure_file_names = [
         prediction_figure_file_names[k] for k in good_indices
