@@ -13,7 +13,7 @@
 ##SBATCH --cpus-per-task=1
 ##SBATCH --ntasks-per-node=1
 #SBATCH --time=01:00:00
-#SBATCH --array=1-4
+#SBATCH --array=1
 #SBATCH --exclude=h28n12
 ##SBATCH --exclude=h31n03,h28n12
 ##SBATCH --exclude=h29n01,h26n05,h28n06,h29n07,h30n03,h30n15
@@ -28,9 +28,9 @@ conda activate base
 set CODE_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_standalone/ml4convection"
 set TOP_MODEL_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_models/experiment12c"
 
-set BATCH_SIZES=(60 60 60 60)
-set L2_WEIGHTS=(0.0000001000 0.0000001000 0.0000003162 0.0000031623)
-set LAG_TIME_STRINGS_DASHED=("0-600-1200-1800-2400" "0-600-1200-1800-2400-3000-3600" "0-600-1200-1800-2400-3000-3600" "0-1200-2400-3600-4800")
+set BATCH_SIZES=(60)
+set L2_WEIGHTS=(0.0000001000)
+set LAG_TIME_STRINGS_DASHED=("0-600-1200-1800-2400")
 
 set batch_size=${BATCH_SIZES[$SLURM_ARRAY_TASK_ID]}
 set l2_weight=${L2_WEIGHTS[$SLURM_ARRAY_TASK_ID]}

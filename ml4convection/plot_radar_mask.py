@@ -19,11 +19,11 @@ import radar_io
 import border_io
 import plotting_utils
 
+METRES_TO_KM = 0.001
+
 DUMMY_FIELD_NAME = 'reflectivity_column_max_dbz'
 COLOUR_MAP_OBJECT = pyplot.get_cmap('winter')
 COLOUR_NORM_OBJECT = pyplot.Normalize(vmin=0., vmax=1.)
-
-TITLE_FONT_SIZE = 16
 
 FIGURE_RESOLUTION_DPI = 300
 FIGURE_WIDTH_INCHES = 15
@@ -97,15 +97,14 @@ def _run(mask_file_name, output_file_name):
         parallel_spacing_deg=2., meridian_spacing_deg=2.
     )
 
+    max_distance_km = int(numpy.round(
+        METRES_TO_KM * mask_dict[radar_io.MAX_MASK_DISTANCE_KEY]
+    ))
     title_string = (
-        'Mask (grid columns with >= {0:d} obs at >= {1:.1f}% of heights up to '
-        '{2:d} m ASL)'
-    ).format(
-        mask_dict[radar_io.MIN_OBSERVATIONS_KEY],
-        100 * mask_dict[radar_io.MIN_HEIGHT_FRACTION_FOR_MASK_KEY],
-        int(numpy.round(mask_dict[radar_io.MAX_MASK_HEIGHT_KEY]))
-    )
-    axes_object.set_title(title_string, fontsize=TITLE_FONT_SIZE)
+        'Mask (based on {0:d}-km distance from nearest radar)'
+    ).format(max_distance_km)
+
+    axes_object.set_title(title_string)
 
     print('Saving figure to file: "{0:s}"...'.format(output_file_name))
     figure_object.savefig(
