@@ -1,5 +1,6 @@
 """Makes figure with predictions from different models."""
 
+import os
 import argparse
 import numpy
 import matplotlib
@@ -195,7 +196,9 @@ def _plot_reflectivity(
     )
 
     axes_object.set_title('Composite reflectivity (dBZ)')
-    gg_plotting_utils.label_axes(axes_object=axes_object, label_string='(b)')
+    gg_plotting_utils.label_axes(
+        axes_object=axes_object, label_string='(b)', x_coord_normalized=-0.025
+    )
 
 
 def _plot_predictions_one_model(
@@ -348,10 +351,10 @@ def _run(top_prediction_dir_names, model_descriptions_abbrev, valid_time_string,
     for k in range(num_models):
         if top_radar_dir_name is not None and k >= 1:
             panel_index = k + 1
-            letter_label = chr(ord('a') + k)
+            letter_label = chr(ord('a') + k + 1)
         else:
             panel_index = k + 0
-            letter_label = chr(ord('a') + k + 1)
+            letter_label = chr(ord('a') + k)
 
         figure_object, axes_object = pyplot.subplots(
             1, 1, figsize=(FIGURE_WIDTH_INCHES, FIGURE_HEIGHT_INCHES)
@@ -369,7 +372,8 @@ def _run(top_prediction_dir_names, model_descriptions_abbrev, valid_time_string,
 
         gg_plotting_utils.label_axes(
             axes_object=axes_object,
-            label_string='({0:s})'.format(letter_label)
+            label_string='({0:s})'.format(letter_label),
+            x_coord_normalized=-0.025
         )
 
         if k == num_models - 1:
@@ -449,6 +453,9 @@ def _run(top_prediction_dir_names, model_descriptions_abbrev, valid_time_string,
         output_file_name=concat_figure_file_name,
         output_size_pixels=CONCAT_FIGURE_SIZE_PX
     )
+
+    for k in range(num_panels):
+        os.remove(panel_file_names[k])
 
 
 if __name__ == '__main__':
