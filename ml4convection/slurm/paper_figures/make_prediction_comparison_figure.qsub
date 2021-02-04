@@ -31,7 +31,7 @@ set TOP_PREDICTION_DIR_NAMES="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4conv
 set MODEL_DESCRIPTION_STRINGS="0-minute_U-net 30-minute_U-net 30-minute_persistence_model 60-minute_U-net 60-minute_persistence_model"
 
 set VALID_TIME_STRING="2017-06-03-1200"
-set OUTPUT_FILE_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_project/journal_paper/prediction_comparison_figures/${VALID_TIME_STRING}.jpg"
+set OUTPUT_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_project/journal_paper/prediction_comparison_figures"
 
 python3 -u "${CODE_DIR_NAME}/make_prediction_comparison_figure.py" \
 --input_prediction_dir_names ${TOP_PREDICTION_DIR_NAMES} \
@@ -39,4 +39,4 @@ python3 -u "${CODE_DIR_NAME}/make_prediction_comparison_figure.py" \
 --valid_time_string="${VALID_TIME_STRING}" \
 --input_radar_dir_name="${TOP_RADAR_DIR_NAME}" \
 --smoothing_radius_px=2 \
---output_file_name="${OUTPUT_FILE_NAME}"
+--output_dir_name="${OUTPUT_DIR_NAME}"
