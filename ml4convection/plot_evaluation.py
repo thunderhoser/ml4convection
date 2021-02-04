@@ -15,8 +15,11 @@ sys.path.append(os.path.normpath(os.path.join(THIS_DIRECTORY_NAME, '..')))
 
 import gg_model_evaluation as gg_model_eval
 import file_system_utils
+import error_checking
 import evaluation
 import evaluation_plotting as eval_plotting
+
+TOLERANCE = 1e-6
 
 BOUNDING_BOX_DICT = {
     'facecolor': 'white',
@@ -35,11 +38,18 @@ FIGURE_WIDTH_INCHES = 15
 FIGURE_HEIGHT_INCHES = 15
 
 ADVANCED_SCORE_FILE_ARG_NAME = 'input_advanced_score_file_name'
+BEST_THRESHOLD_ARG_NAME = 'best_prob_threshold'
 OUTPUT_DIR_ARG_NAME = 'output_dir_name'
 
 ADVANCED_SCORE_FILE_HELP_STRING = (
     'Path to file with advanced evaluation scores.  Will be read by '
     '`evaluation.read_advanced_score_file`.'
+)
+BEST_THRESHOLD_HELP_STRING = (
+    'Best probability threshold (ideally chosen based on validation data).  '
+    'Will be marked with a star in the performance diagram.  If you want to let'
+    ' this script choose the best probability threshold (e.g., if you are '
+    'plotting validation data), leave this argument empty.'
 )
 OUTPUT_DIR_HELP_STRING = (
     'Name of output directory.  Figures will be saved here.'
@@ -51,20 +61,30 @@ INPUT_ARG_PARSER.add_argument(
     help=ADVANCED_SCORE_FILE_HELP_STRING
 )
 INPUT_ARG_PARSER.add_argument(
+    '--' + BEST_THRESHOLD_ARG_NAME, type=float, required=False, default=1,
+    help=BEST_THRESHOLD_HELP_STRING
+)
+INPUT_ARG_PARSER.add_argument(
     '--' + OUTPUT_DIR_ARG_NAME, type=str, required=True,
     help=OUTPUT_DIR_HELP_STRING
 )
 
 
-def _run(advanced_score_file_name, output_dir_name):
+def _run(advanced_score_file_name, best_prob_threshold, output_dir_name):
     """Plots results of model evaluation.
 
     This is effectively the main method.
 
     :param advanced_score_file_name: See documentation at top of file.
+    :param best_prob_threshold: Same.
     :param output_dir_name: Same.
     :raises: ValueError: if input file contains gridded scores.
     """
+
+    if best_prob_threshold < 0:
+        best_prob_threshold = None
+    if best_prob_threshold is not None:
+        error_checking.assert_is_leq(best_prob_threshold, 1.)
 
     file_system_utils.mkdir_recursive_if_necessary(
         directory_name=output_dir_name
@@ -100,14 +120,23 @@ def _run(advanced_score_file_name, output_dir_name):
         success_ratio_by_threshold=a[evaluation.SUCCESS_RATIO_KEY].values
     )
 
-    best_threshold_index = numpy.nanargmin(
-        numpy.absolute(a[evaluation.FREQUENCY_BIAS_KEY].values - 1.)
-    )
-    max_csi = numpy.nanmax(a[evaluation.CSI_KEY].values)
-    csi_at_best_threshold = a[evaluation.CSI_KEY].values[best_threshold_index]
+    if best_prob_threshold is None:
+        best_threshold_index = numpy.nanargmin(
+            numpy.absolute(a[evaluation.FREQUENCY_BIAS_KEY].values - 1.)
+        )
+        max_csi = numpy.nanmax(a[evaluation.CSI_KEY].values)
+        csi_at_best_threshold = (
+            a[evaluation.CSI_KEY].values[best_threshold_index]
+        )
 
-    if csi_at_best_threshold < 0.9 * max_csi:
-        best_threshold_index = numpy.nanargmax(a[evaluation.CSI_KEY].values)
+        if csi_at_best_threshold < 0.9 * max_csi:
+            best_threshold_index = numpy.nanargmax(a[evaluation.CSI_KEY].values)
+    else:
+        threshold_diffs = numpy.absolute(
+            a.coords[evaluation.PROBABILITY_THRESHOLD_DIM].values -
+            best_prob_threshold
+        )
+        best_threshold_index = numpy.where(threshold_diffs <= TOLERANCE)[0][0]
 
     best_prob_threshold = a.coords[evaluation.PROBABILITY_THRESHOLD_DIM].values[
         best_threshold_index
@@ -211,5 +240,6 @@ if __name__ == '__main__':
         advanced_score_file_name=getattr(
             INPUT_ARG_OBJECT, ADVANCED_SCORE_FILE_ARG_NAME
         ),
+        best_prob_threshold=getattr(INPUT_ARG_OBJECT, BEST_THRESHOLD_ARG_NAME),
         output_dir_name=getattr(INPUT_ARG_OBJECT, OUTPUT_DIR_ARG_NAME)
     )
