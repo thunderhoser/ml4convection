@@ -75,7 +75,7 @@ def plot_grid_lines(
         for p in parallels_deg_n
     ]
     parallel_label_strings = [
-        s + r' $^{\circ}$N' for s in parallel_label_strings
+        s + r'$^{\circ}$' for s in parallel_label_strings
     ]
 
     meridians_deg_e = numpy.unique(
@@ -93,7 +93,7 @@ def plot_grid_lines(
         for m in meridians_deg_e
     ]
     meridian_label_strings = [
-        s + r' $^{\circ}$N' for s in meridian_label_strings
+        s + r'$^{\circ}$' for s in meridian_label_strings
     ]
 
     axes_object.set_yticks(parallels_deg_n)

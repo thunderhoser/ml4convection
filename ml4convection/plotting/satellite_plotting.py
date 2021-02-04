@@ -64,7 +64,7 @@ def _get_colour_scheme(
 def plot_2d_grid(
         brightness_temp_matrix_kelvins, axes_object, min_latitude_deg_n,
         min_longitude_deg_e, latitude_spacing_deg, longitude_spacing_deg,
-        cbar_orientation_string='vertical'):
+        cbar_orientation_string='vertical', font_size=plotting_utils.FONT_SIZE):
     """Plots brightness temperatures on 2-D grid.
 
     M = number of rows in grid
@@ -82,6 +82,7 @@ def plot_2d_grid(
     :param longitude_spacing_deg: Spacing (deg E) between adjacent grid columns.
     :param cbar_orientation_string: Colour-bar orientation.  May be
         "horizontal", "vertical", or "".
+    :param font_size: Font size.
     :return: colour_bar_object: Colour-bar handle (instance of
         `matplotlib.pyplot.colorbar`).
     """
@@ -127,8 +128,8 @@ def plot_2d_grid(
         data_matrix=brightness_temp_matrix_kelvins,
         colour_map_object=colour_map_object,
         colour_norm_object=colour_norm_object,
-        orientation_string=cbar_orientation_string, extend_min=True,
-        extend_max=True
+        orientation_string=cbar_orientation_string,
+        extend_min=True, extend_max=True, font_size=font_size
     )
 
     num_tick_values = 1 + int(numpy.round(
