@@ -551,7 +551,7 @@ def _run(top_satellite_dir_name, top_radar_dir_name, top_prediction_dir_name,
                 border_longitudes_deg_e=border_longitudes_deg_e,
                 mask_matrix=mask_matrix, axes_object=axes_object,
                 cbar_orientation_string=(
-                    'horizontal' if j == num_bands - 1 else ''
+                    'horizontal' if j == num_bands - 1 else None
                 )
             )
 
