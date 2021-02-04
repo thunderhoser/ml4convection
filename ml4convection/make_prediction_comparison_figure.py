@@ -128,7 +128,7 @@ def _plot_reflectivity(
     )[0]
 
     reflectivity_dict = radar_io.expand_to_satellite_grid(
-        any_radar_dict=reflectivity_dict
+        any_radar_dict=reflectivity_dict, fill_nans=True
     )
 
     latitudes_deg_n = reflectivity_dict[radar_io.LATITUDES_KEY]
