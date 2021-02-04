@@ -356,10 +356,10 @@ def _run(top_prediction_dir_names, model_descriptions_abbrev, valid_time_string,
     for k in range(num_models):
         if top_radar_dir_name is not None and k >= 1:
             panel_index = k + 1
-            letter_label = chr(ord('a') + k)
+            letter_label = chr(ord('a') + k + 1)
         else:
             panel_index = k + 0
-            letter_label = chr(ord('a') + k + 1)
+            letter_label = chr(ord('a') + k)
 
         figure_object, axes_object = pyplot.subplots(
             1, 1, figsize=(FIGURE_WIDTH_INCHES, FIGURE_HEIGHT_INCHES)
