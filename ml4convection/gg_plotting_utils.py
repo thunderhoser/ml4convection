@@ -19,6 +19,9 @@ VERTICAL_CBAR_PADDING = 0.05
 HORIZONTAL_CBAR_PADDING = 0.075
 DEFAULT_CBAR_ORIENTATION_STRING = 'horizontal'
 
+DEFAULT_FIGURE_WIDTH_INCHES = 15.
+DEFAULT_FIGURE_HEIGHT_INCHES = 15.
+
 FONT_SIZE = 30
 pyplot.rc('font', size=FONT_SIZE)
 pyplot.rc('axes', titlesize=FONT_SIZE)
@@ -177,3 +180,76 @@ def label_axes(
         horizontalalignment='right', verticalalignment='bottom',
         transform=axes_object.transAxes
     )
+
+
+def create_paneled_figure(
+        num_rows, num_columns, figure_width_inches=DEFAULT_FIGURE_WIDTH_INCHES,
+        figure_height_inches=DEFAULT_FIGURE_HEIGHT_INCHES,
+        horizontal_spacing=0.075, vertical_spacing=0., shared_x_axis=False,
+        shared_y_axis=False, keep_aspect_ratio=True):
+    """Creates paneled figure.
+
+    This method only initializes the panels.  It does not plot anything.
+
+    J = number of panel rows
+    K = number of panel columns
+
+    :param num_rows: J in the above discussion.
+    :param num_columns: K in the above discussion.
+    :param figure_width_inches: Width of the entire figure (including all
+        panels).
+    :param figure_height_inches: Height of the entire figure (including all
+        panels).
+    :param horizontal_spacing: Spacing (in figure-relative coordinates, from
+        0...1) between adjacent panel columns.
+    :param vertical_spacing: Spacing (in figure-relative coordinates, from
+        0...1) between adjacent panel rows.
+    :param shared_x_axis: Boolean flag.  If True, all panels will share the same
+        x-axis.
+    :param shared_y_axis: Boolean flag.  If True, all panels will share the same
+        y-axis.
+    :param keep_aspect_ratio: Boolean flag.  If True, the aspect ratio of each
+        panel will be preserved (reflect the aspect ratio of the data plotted
+        therein).
+    :return: figure_object: Figure handle (instance of
+        `matplotlib.figure.Figure`).
+    :return: axes_object_matrix: J-by-K numpy array of axes handles (instances
+        of `matplotlib.axes._subplots.AxesSubplot`).
+    """
+
+    error_checking.assert_is_geq(horizontal_spacing, 0.)
+    error_checking.assert_is_less_than(horizontal_spacing, 1.)
+    error_checking.assert_is_geq(vertical_spacing, 0.)
+    error_checking.assert_is_less_than(vertical_spacing, 1.)
+    error_checking.assert_is_boolean(shared_x_axis)
+    error_checking.assert_is_boolean(shared_y_axis)
+    error_checking.assert_is_boolean(keep_aspect_ratio)
+
+    figure_object, axes_object_matrix = pyplot.subplots(
+        num_rows, num_columns, sharex=shared_x_axis, sharey=shared_y_axis,
+        figsize=(figure_width_inches, figure_height_inches)
+    )
+
+    if num_rows == num_columns == 1:
+        axes_object_matrix = numpy.full(
+            (1, 1), axes_object_matrix, dtype=object
+        )
+
+    if num_rows == 1 or num_columns == 1:
+        axes_object_matrix = numpy.reshape(
+            axes_object_matrix, (num_rows, num_columns)
+        )
+
+    pyplot.subplots_adjust(
+        left=0.02, bottom=0.02, right=0.98, top=0.95,
+        hspace=horizontal_spacing, wspace=vertical_spacing
+    )
+
+    if not keep_aspect_ratio:
+        return figure_object, axes_object_matrix
+
+    for i in range(num_rows):
+        for j in range(num_columns):
+            axes_object_matrix[i][j].set(aspect='equal')
+
+    return figure_object, axes_object_matrix
