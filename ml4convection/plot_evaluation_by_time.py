@@ -149,8 +149,11 @@ def _plot_performance_diagrams(score_tables_xarray):
         )
 
         label_y_coord = 1. - float(i) / (num_tables - 1)
+        print('\n\n\n\n\n\n')
+        print(these_pod[real_indices])
+        print('\n\n\n\n\n\n')
 
-        if these_pod[real_indices][-1] >= label_y_coord:
+        if these_pod[real_indices][-1] < label_y_coord:
             label_x_coord = interp_object(label_y_coord)
         else:
             label_y_coord = these_pod[real_indices][-1]
@@ -232,7 +235,7 @@ def _plot_reliability_curves(score_tables_xarray):
 
         label_x_coord = float(i) / (num_tables - 1)
 
-        if these_mean_probs[real_indices][-1] <= label_x_coord:
+        if these_mean_probs[real_indices][-1] > label_x_coord:
             label_y_coord = interp_object(label_x_coord)
         else:
             label_x_coord = these_mean_probs[real_indices][-1]
@@ -363,7 +366,7 @@ def _plot_scores_as_graph(score_tables_xarray, probability_threshold):
     main_axes_object.set_ylim(y_min, y_max)
 
     main_axes_object.grid(
-        b=True, which='major', axis='both', linestyle='--',
+        b=True, which='major', axis='y', linestyle='--',
         linewidth=GRID_LINE_WIDTH, color=GRID_LINE_COLOUR
     )
 
