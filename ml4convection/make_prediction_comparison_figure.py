@@ -202,7 +202,8 @@ def _plot_reflectivity(
         parallel_spacing_deg=2., meridian_spacing_deg=2., font_size=FONT_SIZE
     )
 
-    axes_object.set_title('(b) Composite reflectivity, in dBZ')
+    axes_object.set_title('Composite reflectivity (dBZ)')
+    gg_plotting_utils.label_axes(axes_object=axes_object, label_string='(b)')
 
 
 def _plot_predictions_one_model(
@@ -348,37 +349,35 @@ def _run(top_prediction_dir_names, model_descriptions_abbrev, valid_time_string,
     # Do actual stuff.
     border_latitudes_deg_n, border_longitudes_deg_e = border_io.read_file()
 
-    letter_label = None
     target_matrix = None
     mask_matrix = None
     panel_file_names = [''] * num_panels
 
     for k in range(num_models):
-        if letter_label is None:
-            letter_label = 'a'
-        else:
-            letter_label = chr(ord(letter_label) + 1)
-
         if top_radar_dir_name is not None and k >= 1:
             panel_index = k + 1
+            letter_label = chr(ord('a') + k)
         else:
             panel_index = k + 0
+            letter_label = chr(ord('a') + k + 1)
 
         figure_object, axes_object = pyplot.subplots(
             1, 1, figsize=(FIGURE_WIDTH_INCHES, FIGURE_HEIGHT_INCHES)
-        )
-
-        title_string = '({0:s}) {1:s}'.format(
-            letter_label, model_descriptions_verbose[k]
         )
 
         target_matrix, mask_matrix = _plot_predictions_one_model(
             top_prediction_dir_name=top_prediction_dir_names[k],
             border_latitudes_deg_n=border_latitudes_deg_n,
             border_longitudes_deg_e=border_longitudes_deg_e,
-            valid_time_string=valid_time_string, title_string=title_string,
+            valid_time_string=valid_time_string,
+            title_string=model_descriptions_verbose[k],
             figure_object=figure_object, axes_object=axes_object,
             smoothing_radius_px=smoothing_radius_px
+        )
+
+        gg_plotting_utils.label_axes(
+            axes_object=axes_object,
+            label_string='({0:s})'.format(letter_label)
         )
 
         if k == num_models - 1:

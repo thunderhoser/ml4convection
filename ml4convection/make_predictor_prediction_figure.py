@@ -141,7 +141,7 @@ def _plot_one_satellite_image(
     valid_time_string = time_conversion.unix_sec_to_string(
         valid_time_unix_sec, TIME_FORMAT
     )
-    title_string = 'Band-{0:d} brightness temp (K) at {1:s}'.format(
+    title_string = 'Band-{0:d} temp (K) at {1:s}'.format(
         band_number, valid_time_string
     )
 
@@ -277,9 +277,7 @@ def _plot_reflectivity(
         parallel_spacing_deg=2., meridian_spacing_deg=2., font_size=FONT_SIZE
     )
 
-    title_string = 'Composite reflectivity (dBZ) at {0:s}'.format(
-        valid_time_string
-    )
+    title_string = 'Reflectivity (dBZ) at {0:s}'.format(valid_time_string)
     axes_object.set_title(title_string)
 
 
@@ -419,7 +417,7 @@ def _run(top_satellite_dir_name, top_radar_dir_name, top_prediction_dir_name,
     figure_object, axes_object = pyplot.subplots(
         1, 1, figsize=(FIGURE_WIDTH_INCHES, FIGURE_HEIGHT_INCHES)
     )
-    title_string = 'Convection probabilities at {0:s}'.format(valid_time_string)
+    title_string = 'Convection probs at {0:s}'.format(valid_time_string)
 
     target_matrix, model_metadata_dict = _plot_predictions(
         top_prediction_dir_name=top_prediction_dir_name,
