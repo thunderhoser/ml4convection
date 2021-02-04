@@ -352,6 +352,9 @@ def _run(top_prediction_dir_names, model_descriptions_abbrev, valid_time_string,
             i, j = numpy.unravel_index(k, axes_object_matrix.shape)
 
         axes_used_matrix[i, j] = True
+        print('\n\n\n\n')
+        print('{0:d}, {1:d}'.format(i, j))
+        print('\n\n\n\n')
 
         title_string = '({0:s}) {1:s}'.format(
             letter_label, model_descriptions_verbose[k]
