@@ -338,7 +338,8 @@ def _run(top_prediction_dir_names, model_descriptions_abbrev, valid_time_string,
         float(num_panels) / NUM_PANEL_COLUMNS
     ))
     figure_object, axes_object_matrix = gg_plotting_utils.create_paneled_figure(
-        num_rows=num_panel_rows, num_columns=NUM_PANEL_COLUMNS
+        num_rows=num_panel_rows, num_columns=NUM_PANEL_COLUMNS,
+        horizontal_spacing=0.1, vertical_spacing=0.1
     )
 
     border_latitudes_deg_n, border_longitudes_deg_e = border_io.read_file()
