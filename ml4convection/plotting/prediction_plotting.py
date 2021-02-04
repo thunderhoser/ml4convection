@@ -157,12 +157,11 @@ def plot_deterministic(
         min_colour_value = colour_norm_object.vmin
         max_colour_value = colour_norm_object.vmax
 
-    pyplot.pcolormesh(
+    axes_object.pcolormesh(
         edge_longitudes_deg_e, edge_latitudes_deg_n, edge_target_matrix,
         cmap=colour_map_object, norm=colour_norm_object,
         vmin=min_colour_value, vmax=max_colour_value, shading='flat',
-        edgecolors='None', axes=axes_object, zorder=-1e11,
-        alpha=ACTUAL_MASK_OPACITY
+        edgecolors='None', zorder=-1e11, alpha=ACTUAL_MASK_OPACITY
     )
 
     colour_map_object, colour_norm_object = _get_deterministic_colour_scheme(
@@ -176,12 +175,11 @@ def plot_deterministic(
         min_colour_value = colour_norm_object.vmin
         max_colour_value = colour_norm_object.vmax
 
-    pyplot.pcolormesh(
+    axes_object.pcolormesh(
         edge_longitudes_deg_e, edge_latitudes_deg_n, edge_prediction_matrix,
         cmap=colour_map_object, norm=colour_norm_object,
         vmin=min_colour_value, vmax=max_colour_value, shading='flat',
-        edgecolors='None', axes=axes_object, zorder=-1e11,
-        alpha=PREDICTED_MASK_OPACITY
+        edgecolors='None', zorder=-1e11, alpha=PREDICTED_MASK_OPACITY
     )
 
 
@@ -257,11 +255,11 @@ def plot_probabilistic(
         min_colour_value = colour_norm_object.vmin
         max_colour_value = colour_norm_object.vmax
 
-    pyplot.pcolormesh(
+    axes_object.pcolormesh(
         edge_longitudes_deg_e, edge_latitudes_deg_n, edge_probability_matrix,
         cmap=colour_map_object, norm=colour_norm_object,
         vmin=min_colour_value, vmax=max_colour_value, shading='flat',
-        edgecolors='None', axes=axes_object, zorder=-1e11
+        edgecolors='None', zorder=-1e11
     )
 
     row_indices, column_indices = numpy.where(target_matrix == 1)
