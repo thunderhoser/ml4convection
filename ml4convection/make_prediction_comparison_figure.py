@@ -33,6 +33,15 @@ MASK_OUTLINE_COLOUR = numpy.full(3, 152. / 255)
 NUM_PANEL_COLUMNS = 2
 FIGURE_RESOLUTION_DPI = 300
 
+FONT_SIZE = 24
+pyplot.rc('font', size=FONT_SIZE)
+pyplot.rc('axes', titlesize=FONT_SIZE)
+pyplot.rc('axes', labelsize=FONT_SIZE)
+pyplot.rc('xtick', labelsize=FONT_SIZE)
+pyplot.rc('ytick', labelsize=FONT_SIZE)
+pyplot.rc('legend', fontsize=FONT_SIZE)
+pyplot.rc('figure', titlesize=FONT_SIZE)
+
 PREDICTION_DIRS_ARG_NAME = 'input_prediction_dir_names'
 MODEL_DESCRIPTIONS_ARG_NAME = 'model_description_strings'
 VALID_TIME_ARG_NAME = 'valid_time_string'
@@ -147,10 +156,9 @@ def _plot_reflectivity(
         axes_object=axes_object
     )
 
-    pyplot.contour(
+    axes_object.contour(
         longitudes_deg_e, latitudes_deg_n, mask_matrix, numpy.array([0.999]),
-        colors=(MASK_OUTLINE_COLOUR,), linewidths=2, linestyles='solid',
-        axes=axes_object
+        colors=(MASK_OUTLINE_COLOUR,), linewidths=2, linestyles='solid'
     )
 
     radar_plotting.plot_latlng_grid(
@@ -177,13 +185,14 @@ def _plot_reflectivity(
         axes_object_or_matrix=axes_object, data_matrix=reflectivity_matrix_dbz,
         colour_map_object=colour_map_object,
         colour_norm_object=colour_norm_object,
-        orientation_string='vertical', extend_min=False, extend_max=True
+        orientation_string='vertical', extend_min=False, extend_max=True,
+        font_size=FONT_SIZE
     )
 
     plotting_utils.plot_grid_lines(
         plot_latitudes_deg_n=latitudes_deg_n,
         plot_longitudes_deg_e=longitudes_deg_e, axes_object=axes_object,
-        parallel_spacing_deg=2., meridian_spacing_deg=2.
+        parallel_spacing_deg=2., meridian_spacing_deg=2., font_size=FONT_SIZE
     )
 
     axes_object.set_title('(b) Composite reflectivity, in dBZ')
@@ -264,10 +273,9 @@ def _plot_predictions_one_model(
         axes_object=axes_object
     )
 
-    pyplot.contour(
+    axes_object.contour(
         longitudes_deg_e, latitudes_deg_n, mask_matrix, numpy.array([0.999]),
-        colors=(MASK_OUTLINE_COLOUR,), linewidths=2, linestyles='solid',
-        axes=axes_object
+        colors=(MASK_OUTLINE_COLOUR,), linewidths=2, linestyles='solid'
     )
 
     prediction_plotting.plot_probabilistic(
@@ -283,7 +291,7 @@ def _plot_predictions_one_model(
     plotting_utils.plot_grid_lines(
         plot_latitudes_deg_n=latitudes_deg_n,
         plot_longitudes_deg_e=longitudes_deg_e, axes_object=axes_object,
-        parallel_spacing_deg=2., meridian_spacing_deg=2.
+        parallel_spacing_deg=2., meridian_spacing_deg=2., font_size=FONT_SIZE
     )
 
     axes_object.set_title(title_string)
@@ -352,9 +360,6 @@ def _run(top_prediction_dir_names, model_descriptions_abbrev, valid_time_string,
             i, j = numpy.unravel_index(k, axes_object_matrix.shape)
 
         axes_used_matrix[i, j] = True
-        print('\n\n\n\n')
-        print('{0:d}, {1:d}'.format(i, j))
-        print('\n\n\n\n')
 
         title_string = '({0:s}) {1:s}'.format(
             letter_label, model_descriptions_verbose[k]
@@ -374,11 +379,12 @@ def _run(top_prediction_dir_names, model_descriptions_abbrev, valid_time_string,
     )
 
     gg_plotting_utils.plot_colour_bar(
-        axes_object_or_matrix=axes_object_matrix[-1, 0],
+        axes_object_or_matrix=axes_object_matrix[-1, :],
         data_matrix=numpy.array([0, 1], dtype=float),
         colour_map_object=colour_map_object,
         colour_norm_object=colour_norm_object,
-        orientation_string='horizontal', extend_min=False, extend_max=False
+        orientation_string='horizontal', extend_min=False, extend_max=False,
+        font_size=FONT_SIZE
     )
 
     if top_radar_dir_name is not None:

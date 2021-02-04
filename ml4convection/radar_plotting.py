@@ -5,7 +5,6 @@ import sys
 import numpy
 import matplotlib
 matplotlib.use('agg')
-import matplotlib.pyplot as pyplot
 import matplotlib.colors
 
 THIS_DIRECTORY_NAME = os.path.dirname(os.path.realpath(
