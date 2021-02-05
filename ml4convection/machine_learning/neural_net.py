@@ -859,9 +859,6 @@ def create_data_partial_grids(option_dict, return_coords=False):
             num_examples_to_read=int(1e6), return_coords=return_coords
         )
 
-    if omit_north_radar:
-        return data_dicts[1:]
-
     return data_dicts
 
 

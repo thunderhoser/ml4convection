@@ -64,26 +64,35 @@ def _run(top_evaluation_dir_name, first_date_string, last_date_string, gridded,
     """
 
     if use_partial_grids:
-        basic_score_file_names = evaluation.find_many_basic_score_files(
-            top_directory_name=top_evaluation_dir_name,
-            first_date_string=first_date_string,
-            last_date_string=last_date_string,
-            gridded=gridded, radar_number=0, raise_error_if_all_missing=True
-        )
+        date_strings = []
+        basic_score_file_names = []
 
-        date_strings = [
-            evaluation.basic_file_name_to_date(f)
-            for f in basic_score_file_names
-        ]
+        for k in range(NUM_RADARS):
+            if len(date_strings) == 0:
+                basic_score_file_names += (
+                    evaluation.find_many_basic_score_files(
+                        top_directory_name=top_evaluation_dir_name,
+                        first_date_string=first_date_string,
+                        last_date_string=last_date_string,
+                        gridded=gridded, radar_number=k,
+                        raise_error_if_any_missing=False,
+                        raise_error_if_all_missing=k > 0
+                    )
+                )
 
-        for k in range(1, NUM_RADARS):
-            basic_score_file_names += [
-                evaluation.find_basic_score_file(
-                    top_directory_name=top_evaluation_dir_name,
-                    valid_date_string=d, gridded=gridded, radar_number=k,
-                    raise_error_if_missing=True
-                ) for d in date_strings
-            ]
+                if len(basic_score_file_names) > 0:
+                    date_strings = [
+                        evaluation.basic_file_name_to_date(f)
+                        for f in basic_score_file_names
+                    ]
+            else:
+                basic_score_file_names += [
+                    evaluation.find_basic_score_file(
+                        top_directory_name=top_evaluation_dir_name,
+                        valid_date_string=d, gridded=gridded, radar_number=k,
+                        raise_error_if_missing=True
+                    ) for d in date_strings
+                ]
     else:
         basic_score_file_names = evaluation.find_many_basic_score_files(
             top_directory_name=top_evaluation_dir_name,
