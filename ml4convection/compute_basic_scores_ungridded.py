@@ -213,14 +213,18 @@ def _compute_scores_partial_grids(
     date_strings = []
 
     for k in range(NUM_RADARS):
-        if k == 0:
+        if len(date_strings) == 0:
             prediction_file_names = prediction_io.find_many_files(
                 top_directory_name=top_prediction_dir_name,
                 first_date_string=first_date_string,
                 last_date_string=last_date_string,
                 radar_number=k, prefer_zipped=True, allow_other_format=True,
-                raise_error_if_any_missing=False
+                raise_error_if_any_missing=False,
+                raise_error_if_all_missing=k > 0
             )
+
+            if len(prediction_file_names) == 0:
+                continue
 
             date_strings = [
                 prediction_io.file_name_to_date(f)

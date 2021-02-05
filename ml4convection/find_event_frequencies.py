@@ -88,26 +88,43 @@ def _run(top_target_dir_name, use_partial_grids, first_date_string,
     :param output_file_name: Same.
     """
 
-    target_file_names = example_io.find_many_target_files(
-        top_directory_name=top_target_dir_name,
-        first_date_string=first_date_string,
-        last_date_string=last_date_string,
-        radar_number=0 if use_partial_grids else None,
-        prefer_zipped=False, allow_other_format=True,
-        raise_error_if_any_missing=False
-    )
-
-    date_strings = [example_io.file_name_to_date(f) for f in target_file_names]
-
     if use_partial_grids:
-        for k in range(1, NUM_RADARS):
-            target_file_names += [
-                example_io.find_target_file(
-                    top_directory_name=top_target_dir_name, date_string=d,
-                    radar_number=k, prefer_zipped=False,
-                    allow_other_format=True, raise_error_if_missing=True
-                ) for d in date_strings
-            ]
+        date_strings = []
+        target_file_names = []
+
+        for k in range(NUM_RADARS):
+            if len(date_strings) == 0:
+                target_file_names += example_io.find_many_target_files(
+                    top_directory_name=top_target_dir_name,
+                    first_date_string=first_date_string,
+                    last_date_string=last_date_string, radar_number=k,
+                    prefer_zipped=False, allow_other_format=True,
+                    raise_error_if_any_missing=False,
+                    raise_error_if_all_missing=k > 0
+                )
+
+                if len(target_file_names) > 0:
+                    date_strings = [
+                        example_io.file_name_to_date(f)
+                        for f in target_file_names
+                    ]
+            else:
+                target_file_names += [
+                    example_io.find_target_file(
+                        top_directory_name=top_target_dir_name, date_string=d,
+                        radar_number=k, prefer_zipped=False,
+                        allow_other_format=True, raise_error_if_missing=True
+                    ) for d in date_strings
+                ]
+    else:
+        target_file_names = example_io.find_many_target_files(
+            top_directory_name=top_target_dir_name,
+            first_date_string=first_date_string,
+            last_date_string=last_date_string, radar_number=None,
+            prefer_zipped=False, allow_other_format=True,
+            raise_error_if_any_missing=False,
+            raise_error_if_all_missing=True
+        )
 
     first_target_dict = example_io.read_target_file(target_file_names[0])
     mask_matrix = first_target_dict[example_io.MASK_MATRIX_KEY]

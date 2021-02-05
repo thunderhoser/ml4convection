@@ -188,6 +188,9 @@ def _apply_to_partial_grids_one_day(
     num_radars = len(data_dicts)
 
     for k in range(num_radars):
+        if len(list(data_dicts[k].keys())) == 0:
+            continue
+
         forecast_probability_matrix = neural_net.apply_model_full_grid(
             model_object=model_object,
             predictor_matrix=data_dicts[k][neural_net.PREDICTOR_MATRIX_KEY],

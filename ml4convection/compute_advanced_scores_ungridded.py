@@ -114,17 +114,23 @@ def _compute_scores_partial_grids(
     ))
     climo_dict = climatology_io.read_file(climo_file_name)
 
-    date_strings = None
+    date_strings = []
     basic_score_file_names = []
 
     for k in range(NUM_RADARS):
-        if k == 0:
+        if len(date_strings) == 0:
             basic_score_file_names += evaluation.find_many_basic_score_files(
                 top_directory_name=top_basic_score_dir_name,
                 first_date_string=first_date_string,
                 last_date_string=last_date_string,
-                gridded=False, radar_number=k, raise_error_if_any_missing=False
+                gridded=False, radar_number=k,
+                raise_error_if_any_missing=False,
+                raise_error_if_all_missing=k > 0
             )
+
+            if len(basic_score_file_names) == 0:
+                continue
+
             date_strings = [
                 evaluation.basic_file_name_to_date(f)
                 for f in basic_score_file_names
