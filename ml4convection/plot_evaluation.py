@@ -120,6 +120,9 @@ def _run(advanced_score_file_name, best_prob_threshold, output_dir_name):
         success_ratio_by_threshold=a[evaluation.SUCCESS_RATIO_KEY].values
     )
 
+    print(a[evaluation.CSI_KEY].values)
+    print(a[evaluation.FREQUENCY_BIAS_KEY].values)
+
     if best_prob_threshold is None:
         best_threshold_index = numpy.nanargmin(
             numpy.absolute(a[evaluation.FREQUENCY_BIAS_KEY].values - 1.)
