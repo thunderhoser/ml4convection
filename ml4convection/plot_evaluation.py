@@ -61,7 +61,7 @@ INPUT_ARG_PARSER.add_argument(
     help=ADVANCED_SCORE_FILE_HELP_STRING
 )
 INPUT_ARG_PARSER.add_argument(
-    '--' + BEST_THRESHOLD_ARG_NAME, type=float, required=False, default=1,
+    '--' + BEST_THRESHOLD_ARG_NAME, type=float, required=False, default=-1,
     help=BEST_THRESHOLD_HELP_STRING
 )
 INPUT_ARG_PARSER.add_argument(
@@ -119,9 +119,6 @@ def _run(advanced_score_file_name, best_prob_threshold, output_dir_name):
         pod_by_threshold=a[evaluation.POD_KEY].values,
         success_ratio_by_threshold=a[evaluation.SUCCESS_RATIO_KEY].values
     )
-
-    print(a[evaluation.CSI_KEY].values)
-    print(a[evaluation.FREQUENCY_BIAS_KEY].values)
 
     if best_prob_threshold is None:
         best_threshold_index = numpy.nanargmin(
