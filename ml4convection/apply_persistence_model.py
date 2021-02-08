@@ -90,7 +90,7 @@ def _write_metafile(target_file_names, lead_time_seconds,
     """
 
     first_target_dict = example_io.read_target_file(target_file_names[0])
-    mask_matrix = first_target_dict[example_io.MASK_MATRIX_KEY]
+    mask_matrix = first_target_dict[example_io.FULL_MASK_MATRIX_KEY]
 
     metafile_name = neural_net.find_metafile(
         model_file_name=dummy_model_file_name, raise_error_if_missing=False

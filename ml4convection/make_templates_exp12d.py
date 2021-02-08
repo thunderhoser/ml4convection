@@ -11,7 +11,7 @@ THIS_DIRECTORY_NAME = os.path.dirname(os.path.realpath(
 sys.path.append(os.path.normpath(os.path.join(THIS_DIRECTORY_NAME, '..')))
 
 import file_system_utils
-import example_io
+import radar_io
 import chiu_architecture
 import neural_net
 import custom_losses
@@ -22,9 +22,14 @@ HOME_DIR_NAME = '/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist'
 OUTPUT_DIR_NAME = '{0:s}/ml4convection_models/experiment12d/templates'.format(
     HOME_DIR_NAME
 )
-TOP_TARGET_DIR_NAME = (
-    '{0:s}/ml4convection_project/targets/new_echo_classification/no_tracking/'
-    'omit_north_radar/partial_grids'
+
+FULL_MASK_FILE_NAME = (
+    '{0:s}/ml4convection_project/radar_data/radar_mask_100km_omit-north.nc'
+).format(HOME_DIR_NAME)
+
+PARTIAL_MASK_FILE_NAME = (
+    '{0:s}/ml4convection_project/radar_data/'
+    'radar_mask_100km_omit-north_partial.nc'
 ).format(HOME_DIR_NAME)
 
 FSS_HALF_WINDOW_SIZE_PX = 4
@@ -51,23 +56,21 @@ def _run():
     This is effectively the main method.
     """
 
-    target_file_name = example_io.find_target_file(
-        top_directory_name=TOP_TARGET_DIR_NAME, date_string='20160101',
-        radar_number=0, prefer_zipped=True, allow_other_format=True,
-        raise_error_if_missing=False
-    )
-
-    print('Reading mask from: "{0:s}"...'.format(target_file_name))
-    mask_matrix = example_io.read_target_file(target_file_name)[
-        example_io.MASK_MATRIX_KEY
+    print('Reading full mask from: "{0:s}"...'.format(FULL_MASK_FILE_NAME))
+    full_mask_matrix = radar_io.read_mask_file(FULL_MASK_FILE_NAME)[
+        radar_io.MASK_MATRIX_KEY
     ]
-    full_mask_matrix = example_io.read_target_file(target_file_name)[
-        example_io.FULL_MASK_MATRIX_KEY
+
+    print('Reading partial mask from: "{0:s}"...'.format(
+        PARTIAL_MASK_FILE_NAME
+    ))
+    partial_mask_matrix = radar_io.read_mask_file(PARTIAL_MASK_FILE_NAME)[
+        radar_io.MASK_MATRIX_KEY
     ]
 
     loss_function = custom_losses.fractions_skill_score(
-        half_window_size_px=FSS_HALF_WINDOW_SIZE_PX, mask_matrix=mask_matrix,
-        use_as_loss_function=True
+        half_window_size_px=FSS_HALF_WINDOW_SIZE_PX,
+        mask_matrix=partial_mask_matrix, use_as_loss_function=True
     )
 
     file_system_utils.mkdir_recursive_if_necessary(
@@ -90,7 +93,7 @@ def _run():
 
             this_model_object = chiu_architecture.create_model(
                 option_dict=this_option_dict, loss_function=loss_function,
-                mask_matrix=mask_matrix
+                mask_matrix=partial_mask_matrix
             )
 
             this_model_file_name = (
@@ -123,7 +126,8 @@ def _run():
                 do_early_stopping=True, plateau_lr_multiplier=0.6,
                 class_weights=None,
                 fss_half_window_size_px=FSS_HALF_WINDOW_SIZE_PX,
-                mask_matrix=mask_matrix, full_mask_matrix=full_mask_matrix
+                mask_matrix=partial_mask_matrix,
+                full_mask_matrix=full_mask_matrix
             )
 
 
