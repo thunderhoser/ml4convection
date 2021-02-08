@@ -37,9 +37,9 @@ set prob_threshold=${PROB_THRESHOLDS[$SLURM_ARRAY_TASK_ID]}
 set smoothing_radius_string=`printf "%1d" $smoothing_radius_px`
 set prob_threshold_string=`printf "%.2f" $prob_threshold`
 
-set evaluation_dir_name="${MODEL_DIR_NAME}/validation/smooth${smoothing_radius_string}/evaluation"
-set advanced_score_file_name="${evaluation_dir_name}/matching_distance_px=4.000000/advanced_scores_gridded=1.p"
-set output_dir_name="${evaluation_dir_name}/matching_distance_px=4.000000/advanced_scores_gridded=1"
+set evaluation_dir_name="${MODEL_DIR_NAME}/validation/smooth${smoothing_radius_string}/evaluation/matching_distance_px=4.000000"
+set advanced_score_file_name="${evaluation_dir_name}/advanced_scores_gridded=1.p"
+set output_dir_name="${evaluation_dir_name}/advanced_scores_gridded=1"
 
 python3 -u "${CODE_DIR_NAME}/plot_gridded_evaluation.py" \
 --input_advanced_score_file_name="${advanced_score_file_name}" \

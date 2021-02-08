@@ -33,7 +33,7 @@ set SMOOTHING_RADII_PX=(0 1 2 3 4 5)
 set smoothing_radius_px=${SMOOTHING_RADII_PX[$SLURM_ARRAY_TASK_ID]}
 set smoothing_radius_string=`printf "%1d" $smoothing_radius_px`
 
-set evaluation_dir_name="${MODEL_DIR_NAME}/validation/smooth${smoothing_radius_string}/evaluation"
+set evaluation_dir_name="${MODEL_DIR_NAME}/validation/smooth${smoothing_radius_string}/evaluation/matching_distance_px=4.000000"
 
 set MONTHS=(1 2 3 4 5 6 7 8 9 10 11 12)
 set i=1
