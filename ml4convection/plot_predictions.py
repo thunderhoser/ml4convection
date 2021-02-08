@@ -153,12 +153,6 @@ def _plot_predictions_one_example(
     latitudes_deg_n = prediction_dict[prediction_io.LATITUDES_KEY]
     longitudes_deg_e = prediction_dict[prediction_io.LONGITUDES_KEY]
 
-    print('\n\n\n')
-    print(latitudes_deg_n)
-    print('\n')
-    print(longitudes_deg_e)
-    print('\n\n\n')
-
     figure_object, axes_object = pyplot.subplots(
         1, 1, figsize=(FIGURE_WIDTH_INCHES, FIGURE_HEIGHT_INCHES)
     )
@@ -168,6 +162,9 @@ def _plot_predictions_one_example(
         border_longitudes_deg_e=border_longitudes_deg_e,
         axes_object=axes_object
     )
+
+    numpy.set_printoptions(sys.maxsize)
+    print(mask_matrix.astype(int))
 
     pyplot.contour(
         longitudes_deg_e, latitudes_deg_n, mask_matrix, numpy.array([0.999]),
