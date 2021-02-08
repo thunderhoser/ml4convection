@@ -163,11 +163,11 @@ def _plot_predictions_one_example(
         axes_object=axes_object
     )
 
-    numpy.set_printoptions(sys.maxsize)
+    numpy.set_printoptions(threshold=sys.maxsize)
     print(mask_matrix.astype(int))
 
     pyplot.contour(
-        longitudes_deg_e, latitudes_deg_n, mask_matrix, numpy.array([0.999]),
+        longitudes_deg_e, latitudes_deg_n, mask_matrix.astype(float), numpy.array([0.999]),
         colors=(MASK_OUTLINE_COLOUR,), linewidths=2, linestyles='solid',
         axes=axes_object
     )
