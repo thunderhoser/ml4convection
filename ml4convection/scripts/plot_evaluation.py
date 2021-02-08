@@ -53,7 +53,7 @@ INPUT_ARG_PARSER.add_argument(
     help=ADVANCED_SCORE_FILE_HELP_STRING
 )
 INPUT_ARG_PARSER.add_argument(
-    '--' + BEST_THRESHOLD_ARG_NAME, type=float, required=False, default=1,
+    '--' + BEST_THRESHOLD_ARG_NAME, type=float, required=False, default=-1,
     help=BEST_THRESHOLD_HELP_STRING
 )
 INPUT_ARG_PARSER.add_argument(
