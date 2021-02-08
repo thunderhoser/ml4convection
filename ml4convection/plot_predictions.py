@@ -163,6 +163,10 @@ def _plot_predictions_one_example(
         axes_object=axes_object
     )
 
+    print('\n\n\n\n\n')
+    print(mask_matrix.shape)
+    print('\n\n\n\n\n')
+
     pyplot.contour(
         longitudes_deg_e, latitudes_deg_n, mask_matrix, numpy.array([0.999]),
         colors=(MASK_OUTLINE_COLOUR,), linewidths=2, linestyles='solid',
