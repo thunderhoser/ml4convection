@@ -49,8 +49,7 @@ python3 -u "${CODE_DIR_NAME}/plot_predictions.py" \
 --input_prediction_dir_name="${prediction_dir_name}" \
 --first_date_string="${date_string}" \
 --last_date_string="${date_string}" \
---use_partial_grids=0 \
---smoothing_radius_px=2 \
+--use_partial_grids=1 \
 --daily_times_seconds 0 7200 14400 21600 28800 36000 43200 50400 57600 64800 72000 79200 \
 --plot_deterministic=0 \
 --output_dir_name="${prediction_dir_name}/prediction_plots"
