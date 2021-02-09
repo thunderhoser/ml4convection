@@ -26,6 +26,7 @@ FIRST_VALIDN_DATE_ARG_NAME = 'first_validn_date_string'
 LAST_VALIDN_DATE_ARG_NAME = 'last_validn_date_string'
 NORMALIZE_ARG_NAME = 'normalize'
 UNIFORMIZE_ARG_NAME = 'uniformize'
+ADD_COORDS_ARG_NAME = 'add_coords'
 BATCH_SIZE_ARG_NAME = 'num_examples_per_batch'
 MAX_DAILY_EXAMPLES_ARG_NAME = 'max_examples_per_day_in_batch'
 USE_PARTIAL_GRIDS_ARG_NAME = 'use_partial_grids'
@@ -90,6 +91,9 @@ UNIFORMIZE_HELP_STRING = (
     'Boolean flag.  If True, will convert satellite values to uniform '
     'distribution before normal distribution.  If False, will go directly to '
     'normal distribution.'
+)
+ADD_COORDS_HELP_STRING = (
+    'Boolean flag.  If 1, will use coordinates (lat/long) as predictors.'
 )
 BATCH_SIZE_HELP_STRING = (
     'Number of examples in each training and validation (monitoring) batch.'
@@ -188,6 +192,10 @@ def add_input_args(parser_object):
     parser_object.add_argument(
         '--' + UNIFORMIZE_ARG_NAME, type=int, required=False, default=1,
         help=UNIFORMIZE_HELP_STRING
+    )
+    parser_object.add_argument(
+        '--' + ADD_COORDS_ARG_NAME, type=int, required=False, default=0,
+        help=ADD_COORDS_HELP_STRING
     )
     parser_object.add_argument(
         '--' + BATCH_SIZE_ARG_NAME, type=int, required=False, default=256,

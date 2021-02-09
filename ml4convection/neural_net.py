@@ -18,6 +18,7 @@ sys.path.append(os.path.normpath(os.path.join(THIS_DIRECTORY_NAME, '..')))
 import file_system_utils
 import error_checking
 import satellite_io
+import twb_satellite_io
 import example_io
 import general_utils
 import radar_utils
@@ -29,6 +30,9 @@ TOLERANCE = 1e-6
 DAYS_TO_SECONDS = 86400
 DATE_FORMAT = '%Y%m%d'
 NUM_RADARS = len(radar_utils.RADAR_LATITUDES_DEG_N)
+
+MIN_NORMALIZED_COORD = -3.
+MAX_NORMALIZED_COORD = 3.
 
 PLATEAU_PATIENCE_EPOCHS = 10
 DEFAULT_LEARNING_RATE_MULTIPLIER = 0.5
@@ -47,6 +51,7 @@ FIRST_VALID_DATE_KEY = 'first_valid_date_string'
 LAST_VALID_DATE_KEY = 'last_valid_date_string'
 NORMALIZE_FLAG_KEY = 'normalize'
 UNIFORMIZE_FLAG_KEY = 'uniformize'
+ADD_COORDS_KEY = 'add_coords'
 PREDICTOR_DIRECTORY_KEY = 'top_predictor_dir_name'
 TARGET_DIRECTORY_KEY = 'top_target_dir_name'
 
@@ -57,7 +62,8 @@ DEFAULT_GENERATOR_OPTION_DICT = {
     LAG_TIMES_KEY: numpy.array([0], dtype=int),
     OMIT_NORTH_RADAR_KEY: False,
     NORMALIZE_FLAG_KEY: True,
-    UNIFORMIZE_FLAG_KEY: True
+    UNIFORMIZE_FLAG_KEY: True,
+    ADD_COORDS_KEY: False
 }
 
 VALID_DATE_KEY = 'valid_date_string'
@@ -211,9 +217,91 @@ def _reshape_predictor_matrix(predictor_matrix, num_lag_times,
     return numpy.reshape(predictor_matrix, these_dim)
 
 
+def _add_coords_to_predictors(predictor_matrix, predictor_dict, normalize):
+    """Adds coordinates to predictors.
+
+    :param predictor_matrix: See doc for `generator_full_grid`.
+    :param predictor_dict: Dictionary returned by
+        `example_io.read_predictor_file`.
+    :param normalize: Boolean flag.  If True, will normalize coords to z-scores.
+    :return: predictor_matrix: Same as input but with more channels.
+    """
+
+    num_examples = predictor_matrix.shape[0]
+    num_grid_rows = predictor_matrix.shape[1]
+    num_grid_columns = predictor_matrix.shape[2]
+    has_time_dim = len(predictor_matrix.shape) == 5
+
+    y_coords = predictor_dict[example_io.LATITUDES_KEY]
+
+    if normalize:
+        min_latitude_deg_n = numpy.min(twb_satellite_io.GRID_LATITUDES_DEG_N)
+        max_latitude_deg_n = numpy.max(twb_satellite_io.GRID_LATITUDES_DEG_N)
+
+        y_coords = (
+            (y_coords - min_latitude_deg_n) /
+            (max_latitude_deg_n - min_latitude_deg_n)
+        )
+        y_coords = MIN_NORMALIZED_COORD + y_coords * (
+            MAX_NORMALIZED_COORD - MIN_NORMALIZED_COORD
+        )
+
+    y_coord_matrix = numpy.expand_dims(y_coords, axis=-1)
+    y_coord_matrix = numpy.repeat(
+        y_coord_matrix, repeats=num_grid_columns, axis=-1
+    )
+
+    y_coord_matrix = numpy.expand_dims(y_coord_matrix, axis=0)
+    y_coord_matrix = numpy.repeat(y_coord_matrix, repeats=num_examples, axis=0)
+
+    if has_time_dim:
+        num_times = predictor_matrix.shape[-2]
+
+        y_coord_matrix = numpy.expand_dims(y_coord_matrix, axis=-1)
+        y_coord_matrix = numpy.repeat(
+            y_coord_matrix, repeats=num_times, axis=-1
+        )
+
+    y_coord_matrix = numpy.expand_dims(y_coord_matrix, axis=-1)
+
+    x_coords = predictor_dict[example_io.LONGITUDES_KEY]
+
+    if normalize:
+        min_longitude_deg_e = numpy.min(twb_satellite_io.GRID_LONGITUDES_DEG_E)
+        max_longitude_deg_e = numpy.max(twb_satellite_io.GRID_LONGITUDES_DEG_E)
+
+        x_coords = (
+            (x_coords - min_longitude_deg_e) /
+            (max_longitude_deg_e - min_longitude_deg_e)
+        )
+        x_coords = MIN_NORMALIZED_COORD + x_coords * (
+            MAX_NORMALIZED_COORD - MIN_NORMALIZED_COORD
+        )
+
+    x_coord_matrix = numpy.expand_dims(x_coords, axis=0)
+    x_coord_matrix = numpy.repeat(x_coord_matrix, repeats=num_grid_rows, axis=0)
+
+    x_coord_matrix = numpy.expand_dims(x_coord_matrix, axis=0)
+    x_coord_matrix = numpy.repeat(x_coord_matrix, repeats=num_examples, axis=0)
+
+    if has_time_dim:
+        num_times = predictor_matrix.shape[-2]
+
+        x_coord_matrix = numpy.expand_dims(x_coord_matrix, axis=-1)
+        x_coord_matrix = numpy.repeat(
+            x_coord_matrix, repeats=num_times, axis=-1
+        )
+
+    x_coord_matrix = numpy.expand_dims(x_coord_matrix, axis=-1)
+
+    return numpy.concatenate(
+        (predictor_matrix, x_coord_matrix, y_coord_matrix), axis=-1
+    )
+
+
 def _read_inputs_one_day(
         valid_date_string, predictor_file_names, band_numbers,
-        normalize, uniformize, target_file_names, lead_time_seconds,
+        normalize, uniformize, add_coords, target_file_names, lead_time_seconds,
         lag_times_seconds, include_time_dimension, num_examples_to_read,
         return_coords):
     """Reads inputs (predictor and target files) for one day.
@@ -228,6 +316,7 @@ def _read_inputs_one_day(
     :param band_numbers: See doc for `generator_full_grid`.
     :param normalize: Same.
     :param uniformize: Same.
+    :param add_coords: Same.
     :param target_file_names: 1-D list of paths to target files (readable by
         `example_io.read_target_file`).
     :param lead_time_seconds: See doc for `generator_full_grid`.
@@ -370,6 +459,13 @@ def _read_inputs_one_day(
         predictor_matrix=predictor_matrix, num_lag_times=num_lag_times,
         add_time_dimension=include_time_dimension
     )
+
+    if add_coords:
+        predictor_matrix = _add_coords_to_predictors(
+            predictor_matrix=predictor_matrix, predictor_dict=predictor_dict,
+            normalize=normalize
+        )
+
     target_matrix = target_dict[example_io.TARGET_MATRIX_KEY]
 
     print('Number of target values in batch = {0:d} ... mean = {1:.3g}'.format(
@@ -701,6 +797,7 @@ def create_data_full_grid(option_dict, return_coords=False):
         create examples with targets valid on this day.
     option_dict['normalize']: See doc for `generator_full_grid`.
     option_dict['uniformize']: Same.
+    option_dict['add_coords']: Same.
 
     :param return_coords: See doc for `_read_inputs_one_day`.
     :return: data_dict: Same.
@@ -718,6 +815,7 @@ def create_data_full_grid(option_dict, return_coords=False):
     valid_date_string = option_dict[VALID_DATE_KEY]
     normalize = option_dict[NORMALIZE_FLAG_KEY]
     uniformize = option_dict[UNIFORMIZE_FLAG_KEY]
+    add_coords = option_dict[ADD_COORDS_KEY]
 
     if lead_time_seconds > 0 or numpy.any(lag_times_seconds > 0):
         first_init_date_string = general_utils.get_previous_date(
@@ -757,7 +855,8 @@ def create_data_full_grid(option_dict, return_coords=False):
     return _read_inputs_one_day(
         valid_date_string=valid_date_string,
         predictor_file_names=predictor_file_names,
-        band_numbers=band_numbers, normalize=normalize, uniformize=uniformize,
+        band_numbers=band_numbers, normalize=normalize,
+        uniformize=uniformize, add_coords=add_coords,
         target_file_names=target_file_names,
         lead_time_seconds=lead_time_seconds,
         lag_times_seconds=lag_times_seconds,
@@ -787,6 +886,7 @@ def create_data_partial_grids(option_dict, return_coords=False):
         create examples with targets valid on this day.
     option_dict['normalize']: See doc for `generator_partial_grids`.
     option_dict['uniformize']: Same.
+    option_dict['add_coords']: Same.
 
     :param return_coords: See doc for `_read_inputs_one_day`.
     :return: data_dicts: length-R list of dictionaries, each in format returned
@@ -806,6 +906,7 @@ def create_data_partial_grids(option_dict, return_coords=False):
     valid_date_string = option_dict[VALID_DATE_KEY]
     normalize = option_dict[NORMALIZE_FLAG_KEY]
     uniformize = option_dict[UNIFORMIZE_FLAG_KEY]
+    add_coords = option_dict[ADD_COORDS_KEY]
 
     if lead_time_seconds > 0 or numpy.any(lag_times_seconds > 0):
         first_init_date_string = general_utils.get_previous_date(
@@ -858,7 +959,7 @@ def create_data_partial_grids(option_dict, return_coords=False):
             valid_date_string=valid_date_string,
             predictor_file_names=these_predictor_file_names,
             band_numbers=band_numbers, normalize=normalize,
-            uniformize=uniformize,
+            uniformize=uniformize, add_coords=add_coords,
             target_file_names=these_target_file_names,
             lead_time_seconds=lead_time_seconds,
             lag_times_seconds=lag_times_seconds,
@@ -907,6 +1008,8 @@ def generator_full_grid(option_dict):
     option_dict['uniformize']: [used only if `normalize == True`]
         Boolean flag.  If True, will use uniformized and normalized predictors.
         If False, will use only normalized predictors.
+    option_dict['add_coords']: Boolean flag.  If True (False), will use
+        coordinates (latitude and longitude) as predictors.
 
     :return: predictor_matrix: numpy array (E x M x N x LB or E x M x N x L x B)
         of predictor values, based on satellite data.
@@ -931,6 +1034,7 @@ def generator_full_grid(option_dict):
     last_valid_date_string = option_dict[LAST_VALID_DATE_KEY]
     normalize = option_dict[NORMALIZE_FLAG_KEY]
     uniformize = option_dict[UNIFORMIZE_FLAG_KEY]
+    add_coords = option_dict[ADD_COORDS_KEY]
 
     if lead_time_seconds > 0 or numpy.any(lag_times_seconds > 0):
         first_init_date_string = general_utils.get_previous_date(
@@ -988,8 +1092,8 @@ def generator_full_grid(option_dict):
             this_data_dict = _read_inputs_one_day(
                 valid_date_string=valid_date_strings[date_index],
                 predictor_file_names=predictor_file_names,
-                band_numbers=band_numbers,
-                normalize=normalize, uniformize=uniformize,
+                band_numbers=band_numbers, normalize=normalize,
+                uniformize=uniformize, add_coords=add_coords,
                 target_file_names=target_file_names,
                 lead_time_seconds=lead_time_seconds,
                 lag_times_seconds=lag_times_seconds,
@@ -1051,6 +1155,7 @@ def generator_partial_grids(option_dict):
     last_valid_date_string = option_dict[LAST_VALID_DATE_KEY]
     normalize = option_dict[NORMALIZE_FLAG_KEY]
     uniformize = option_dict[UNIFORMIZE_FLAG_KEY]
+    add_coords = option_dict[ADD_COORDS_KEY]
 
     if lead_time_seconds > 0 or numpy.any(lag_times_seconds > 0):
         first_init_date_string = general_utils.get_previous_date(
@@ -1172,8 +1277,8 @@ def generator_partial_grids(option_dict):
                 valid_date_string=valid_date_strings[current_date_index],
                 predictor_file_names=
                 predictor_file_name_matrix[:, current_radar_index],
-                band_numbers=band_numbers,
-                normalize=normalize, uniformize=uniformize,
+                band_numbers=band_numbers, normalize=normalize,
+                uniformize=uniformize, add_coords=add_coords,
                 target_file_names=
                 target_file_name_matrix[:, current_radar_index],
                 lead_time_seconds=lead_time_seconds,
