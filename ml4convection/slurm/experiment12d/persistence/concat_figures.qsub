@@ -39,7 +39,7 @@ set smoothing_radius_string=`printf "%1d" $smoothing_radius_px`
 
 set prediction_figure_dir_name="${MODEL_DIR_NAME}/validation/smooth${smoothing_radius_string}/prediction_plots"
 
-set model_dir_name="${TOP_MODEL_DIR_NAME}/smoothing_radius_px=${smoothing_radius_string}"
+set model_dir_name="${MODEL_DIR_NAME}/smoothing_radius_px=${smoothing_radius_string}"
 set model_metafile_name="${MODEL_DIR_NAME}/model_metadata.dill"
 
 python3 -u "${CODE_DIR_NAME}/concat_figures.py" \
