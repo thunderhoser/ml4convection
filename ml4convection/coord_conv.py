@@ -85,6 +85,9 @@ def add_spatial_coords_2d_with_time(input_layer_object):
     num_grid_columns = input_dimensions[2]
     num_times = input_dimensions[3]
 
+    print(num_grid_columns)
+    print(num_times)
+
     one_matrix_for_y = K.ones(
         K.stack([num_examples, num_grid_columns]), dtype='int32'
     )
@@ -100,7 +103,7 @@ def add_spatial_coords_2d_with_time(input_layer_object):
     y_coord_matrix = K.permute_dimensions(y_coord_matrix, [0, 2, 1, 3])
 
     y_coord_matrix = K.expand_dims(y_coord_matrix, axis=-2)
-    y_coord_matrix = K.repeat_elements(y_coord_matrix, rep=num_times, axis=-2)
+    y_coord_matrix = K.repeat_elements(y_coord_matrix, rep=K.constant(num_times), axis=-2)
 
     y_coord_matrix = K.cast(y_coord_matrix, K.floatx())
     y_coord_matrix = y_coord_matrix / K.cast(num_grid_rows - 1, K.floatx())
@@ -122,7 +125,7 @@ def add_spatial_coords_2d_with_time(input_layer_object):
     x_coord_matrix = K.permute_dimensions(x_coord_matrix, [0, 2, 1, 3])
 
     x_coord_matrix = K.expand_dims(x_coord_matrix, axis=-2)
-    x_coord_matrix = K.repeat_elements(x_coord_matrix, rep=num_times, axis=-2)
+    x_coord_matrix = K.repeat_elements(x_coord_matrix, rep=K.constant(num_times), axis=-2)
 
     x_coord_matrix = K.cast(x_coord_matrix, K.floatx())
     x_coord_matrix = x_coord_matrix / K.cast(num_grid_columns - 1, K.floatx())
