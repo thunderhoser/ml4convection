@@ -29,6 +29,12 @@ def add_spatial_coords_2d(input_layer_object):
     """
 
     input_dimensions = K.shape(input_layer_object)
+    print(input_dimensions)
+    print(input_dimensions[0])
+    print(input_dimensions[1])
+    print(input_dimensions[2])
+    print(input_dimensions[3])
+
     input_dimensions = numpy.array(
         [input_dimensions[i] for i in range(4)], dtype=int
     )
