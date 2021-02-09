@@ -267,7 +267,7 @@ def create_model(option_dict, loss_function, mask_matrix):
                 else:
                     this_input_layer_object = last_conv_layer_matrix[k, i]
 
-                this_input_layer_object = coord_conv.add_spatial_coords_2d_new(this_input_layer_object)
+                this_input_layer_object = coord_conv.add_spatial_coords_2d(this_input_layer_object)
 
                 this_name = 'time{0:d}_level{1:d}_conv{2:d}'.format(k, i, j)
 

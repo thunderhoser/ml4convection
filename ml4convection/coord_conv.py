@@ -80,9 +80,7 @@ def add_spatial_coords_2d(input_layer_object):
         for each spatial coordinate.
     """
 
-    input_dimensions = numpy.array(
-        input_layer_object.output.get_shape().as_list()[1:], dtype=int
-    )
+    input_dimensions = input_layer_object.shape[1:]
 
     error_checking.assert_is_geq(len(input_dimensions), 3)
     error_checking.assert_is_leq(len(input_dimensions), 4)
@@ -135,7 +133,7 @@ def add_spatial_coords_2d(input_layer_object):
     x_coord_tensor = K.expand_dims(x_coord_tensor, axis=-1)
 
     return keras.layers.concatenate(
-        [input_tensor, y_coord_tensor, x_coord_tensor], axis=-1
+        [input_layer_object, y_coord_tensor, x_coord_tensor], axis=-1
     )
 
 
