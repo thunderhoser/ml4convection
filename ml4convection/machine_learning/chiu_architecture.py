@@ -9,6 +9,7 @@ from keras import backend as K
 from gewittergefahr.gg_utils import error_checking
 from gewittergefahr.deep_learning import architecture_utils
 from ml4convection.machine_learning import neural_net
+from ml4convection.machine_learning import coord_conv
 
 INPUT_DIMENSIONS_KEY = 'input_dimensions'
 NUM_FC_CONV_LAYERS_KEY = 'num_conv_layers_in_fc_module'
@@ -257,6 +258,8 @@ def create_model(option_dict, loss_function, mask_matrix):
                         this_input_layer_object = pooling_layer_matrix[k, i - 1]
                 else:
                     this_input_layer_object = last_conv_layer_matrix[k, i]
+
+                this_input_layer_object = coord_conv.add_spatial_coords_2d_new(this_input_layer_object)
 
                 this_name = 'time{0:d}_level{1:d}_conv{2:d}'.format(k, i, j)
 
