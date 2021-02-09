@@ -41,16 +41,9 @@ set l2_weight_string=`printf "%.10f" $l2_weight`
 
 set model_dir_name="${TOP_MODEL_DIR_NAME}/batch-size=${batch_size_string}_l2-weight=${l2_weight_string}_lag-times-sec=${LAG_TIME_STRINGS_DASHED[$SLURM_ARRAY_TASK_ID]}"
 
-set MATCHING_DISTANCES_PX=("1.000000" "2.000000" "3.000000" "4.000000")
-set j=1
+set output_dir_name="${model_dir_name}/validation/partial_grids/evaluation/matching_distance_px=4.000000/advanced_scores_gridded=0"
+set advanced_score_file_name="${output_dir_name}.p"
 
-while ($j <= ${#MATCHING_DISTANCES_PX})
-    set output_dir_name="${model_dir_name}/validation/partial_grids/evaluation/matching_distance_px=${MATCHING_DISTANCES_PX[$j]}/advanced_scores_gridded=0"
-    set advanced_score_file_name="${output_dir_name}.p"
-
-    python3 -u "${CODE_DIR_NAME}/plot_evaluation.py" \
-    --input_advanced_score_file_name="${advanced_score_file_name}" \
-    --output_dir_name="${output_dir_name}"
-
-    @ j = $j + 1
-end
+python3 -u "${CODE_DIR_NAME}/plot_evaluation.py" \
+--input_advanced_score_file_name="${advanced_score_file_name}" \
+--output_dir_name="${output_dir_name}

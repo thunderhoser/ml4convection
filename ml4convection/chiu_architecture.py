@@ -17,6 +17,7 @@ sys.path.append(os.path.normpath(os.path.join(THIS_DIRECTORY_NAME, '..')))
 import error_checking
 import architecture_utils
 import neural_net
+import coord_conv
 
 INPUT_DIMENSIONS_KEY = 'input_dimensions'
 NUM_FC_CONV_LAYERS_KEY = 'num_conv_layers_in_fc_module'
@@ -266,6 +267,8 @@ def create_model(option_dict, loss_function, mask_matrix):
                 else:
                     this_input_layer_object = last_conv_layer_matrix[k, i]
 
+                this_input_layer_object = coord_conv.add_spatial_coords_2d_new(this_input_layer_object)
+
                 this_name = 'time{0:d}_level{1:d}_conv{2:d}'.format(k, i, j)
 
                 last_conv_layer_matrix[k, i] = (
@@ -431,8 +434,8 @@ def create_model(option_dict, loss_function, mask_matrix):
         )(fc_module_layer_object)
 
     this_name = 'upsampling_level{0:d}_conv'.format(num_levels - 1)
-
     i = num_levels - 1
+
     upconv_layer_by_level[i] = architecture_utils.get_2d_conv_layer(
         num_kernel_rows=2, num_kernel_columns=2,
         num_rows_per_stride=1, num_columns_per_stride=1,

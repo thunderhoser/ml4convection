@@ -46,19 +46,12 @@ set l2_weight_string=`printf "%.10f" $l2_weight`
 set model_dir_name="${TOP_MODEL_DIR_NAME}/batch-size=${batch_size_string}_l2-weight=${l2_weight_string}_lag-times-sec=${LAG_TIME_STRINGS_DASHED[$SLURM_ARRAY_TASK_ID]}"
 set top_evaluation_dir_name="${model_dir_name}/validation/partial_grids/evaluation"
 
-set MATCHING_DISTANCES_PX=("1.000000" "2.000000" "3.000000" "4.000000")
-set j=1
+set evaluation_dir_name="${top_evaluation_dir_name}/matching_distance_px=4.000000"
 
-while ($j <= ${#MATCHING_DISTANCES_PX})
-    set evaluation_dir_name="${top_evaluation_dir_name}/matching_distance_px=${MATCHING_DISTANCES_PX[$j]}"
-
-    python3 -u "${CODE_DIR_NAME}/compute_advanced_scores_ungridded.py" \
-    --input_basic_score_dir_name="${evaluation_dir_name}" \
-    --first_date_string="${FIRST_VALIDN_DATE_STRING}" \
-    --last_date_string="${LAST_VALIDN_DATE_STRING}" \
-    --use_partial_grids=1 \
-    --input_climo_file_name="${TOP_TARGET_DIR_NAME}/climo_dilation-distance-px=${MATCHING_DISTANCES_PX[$j]}.p" \
-    --output_dir_name="${evaluation_dir_name}"
-
-    @ j = $j + 1
-end
+python3 -u "${CODE_DIR_NAME}/compute_advanced_scores_ungridded.py" \
+--input_basic_score_dir_name="${evaluation_dir_name}" \
+--first_date_string="${FIRST_VALIDN_DATE_STRING}" \
+--last_date_string="${LAST_VALIDN_DATE_STRING}" \
+--use_partial_grids=1 \
+--input_climo_file_name="${TOP_TARGET_DIR_NAME}/climo_dilation-distance-px=4.000000.p" \
+--output_dir_name="${evaluation_dir_name}"
