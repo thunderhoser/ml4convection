@@ -347,7 +347,7 @@ def _run(advanced_score_file_name, sequential_colour_map_name,
         is_frequency_bias=False, is_bss=False,
         output_file_name=
         '{0:s}/event_frequency.jpg'.format(output_dir_name),
-        title_string='Label-based climatology (event frequency)'
+        title_string='Label-based climatology'
     )
 
     _plot_one_score(
@@ -360,7 +360,7 @@ def _run(advanced_score_file_name, sequential_colour_map_name,
         is_frequency_bias=False, is_bss=False,
         output_file_name=
         '{0:s}/mean_forecast_prob.jpg'.format(output_dir_name),
-        title_string='U-net-based climatology (mean probability)'
+        title_string='Model-based climatology'
     )
 
     if probability_threshold is None:
