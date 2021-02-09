@@ -40,7 +40,8 @@ DEFAULT_OPTION_DICT = {
     chiu_architecture.ENCODER_DROPOUT_RATES_KEY: numpy.full(6, 0.),
     chiu_architecture.DECODER_DROPOUT_RATES_KEY: numpy.full(5, 0.),
     chiu_architecture.SKIP_DROPOUT_RATES_KEY: numpy.full(5, 0.),
-    chiu_architecture.L2_WEIGHT_KEY: 1e-7
+    chiu_architecture.L2_WEIGHT_KEY: 1e-7,
+    chiu_architecture.USE_COORD_CONV_KEY: True
 }
 
 
