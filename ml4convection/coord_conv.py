@@ -80,15 +80,15 @@ def add_spatial_coords_2d(input_layer_object):
         for each spatial coordinate.
     """
 
-    input_dimensions = input_layer_object.shape[1:]
+    input_dimensions = input_layer_object.shape
 
-    error_checking.assert_is_geq(len(input_dimensions), 3)
-    error_checking.assert_is_leq(len(input_dimensions), 4)
+    error_checking.assert_is_geq(len(input_dimensions), 4)
+    error_checking.assert_is_leq(len(input_dimensions), 5)
 
-    has_time_dim = len(input_dimensions) == 4
-
-    num_grid_rows = input_dimensions[0]
-    num_grid_columns = input_dimensions[1]
+    num_examples = input_dimensions[0]
+    num_grid_rows = input_dimensions[1]
+    num_grid_columns = input_dimensions[2]
+    has_time_dim = len(input_dimensions) == 5
 
     y_coords = K.arange(0, num_grid_rows, dtype=float)
     y_coords = y_coords - K.mean(y_coords)
@@ -97,6 +97,11 @@ def add_spatial_coords_2d(input_layer_object):
     y_coord_tensor = K.expand_dims(y_coords, axis=-1)
     y_coord_tensor = K.repeat_elements(
         y_coord_tensor, rep=num_grid_columns, axis=-1
+    )
+
+    y_coord_tensor = K.expand_dims(y_coord_tensor, axis=0)
+    y_coord_tensor = K.repeat_elements(
+        y_coord_tensor, rep=num_examples, axis=0
     )
 
     if has_time_dim:
@@ -108,7 +113,6 @@ def add_spatial_coords_2d(input_layer_object):
         )
 
     # Add batch and channel dimensions.
-    y_coord_tensor = K.expand_dims(y_coord_tensor, axis=0)
     y_coord_tensor = K.expand_dims(y_coord_tensor, axis=-1)
 
     x_coords = K.arange(0, num_grid_columns, dtype=float)
@@ -120,6 +124,11 @@ def add_spatial_coords_2d(input_layer_object):
         x_coord_tensor, rep=num_grid_rows, axis=0
     )
 
+    x_coord_tensor = K.expand_dims(x_coord_tensor, axis=0)
+    x_coord_tensor = K.repeat_elements(
+        x_coord_tensor, rep=num_examples, axis=0
+    )
+
     if has_time_dim:
         num_times = input_dimensions[-2]
 
@@ -129,7 +138,6 @@ def add_spatial_coords_2d(input_layer_object):
         )
 
     # Add batch and channel dimensions.
-    x_coord_tensor = K.expand_dims(x_coord_tensor, axis=0)
     x_coord_tensor = K.expand_dims(x_coord_tensor, axis=-1)
 
     return keras.layers.concatenate(
