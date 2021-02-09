@@ -3,7 +3,16 @@
 https://arxiv.org/abs/1807.03247
 """
 
+import os
+import sys
 from keras import backend as K
+
+THIS_DIRECTORY_NAME = os.path.dirname(os.path.realpath(
+    os.path.join(os.getcwd(), os.path.expanduser(__file__))
+))
+sys.path.append(os.path.normpath(os.path.join(THIS_DIRECTORY_NAME, '..')))
+
+import error_checking
 
 
 def add_spatial_coords_2d(input_layer_object):
@@ -66,13 +75,17 @@ def add_spatial_coords_2d(input_layer_object):
     )
 
 
-def add_spatial_coords_2d_with_time(input_layer_object):
+def add_spatial_coords_2d_with_time(input_layer_object, num_times):
     """Adds spatial coords to layer with two spatial dim and time dim.
 
     :param input_layer_object: Input layer (instance of `keras.layers.Layer`).
+    :param num_times: Number of times.
     :return: output_layer_object: Same but with two extra output channels, one
         for each spatial coordinate.
     """
+
+    error_checking.assert_is_integer(num_times)
+    error_checking.assert_is_geq(num_times, 1)
 
     input_dimensions = K.shape(input_layer_object)
     input_dimensions = [input_dimensions[i] for i in range(5)]
@@ -83,7 +96,6 @@ def add_spatial_coords_2d_with_time(input_layer_object):
     num_examples = input_dimensions[0]
     num_grid_rows = input_dimensions[1]
     num_grid_columns = input_dimensions[2]
-    num_times = input_dimensions[3]
 
     print(num_grid_columns)
     print(num_times)
@@ -103,7 +115,7 @@ def add_spatial_coords_2d_with_time(input_layer_object):
     y_coord_matrix = K.permute_dimensions(y_coord_matrix, [0, 2, 1, 3])
 
     y_coord_matrix = K.expand_dims(y_coord_matrix, axis=-2)
-    y_coord_matrix = K.repeat_elements(y_coord_matrix, rep=K.constant(num_times), axis=-2)
+    y_coord_matrix = K.repeat_elements(y_coord_matrix, rep=num_times, axis=-2)
 
     y_coord_matrix = K.cast(y_coord_matrix, K.floatx())
     y_coord_matrix = y_coord_matrix / K.cast(num_grid_rows - 1, K.floatx())
@@ -125,7 +137,7 @@ def add_spatial_coords_2d_with_time(input_layer_object):
     x_coord_matrix = K.permute_dimensions(x_coord_matrix, [0, 2, 1, 3])
 
     x_coord_matrix = K.expand_dims(x_coord_matrix, axis=-2)
-    x_coord_matrix = K.repeat_elements(x_coord_matrix, rep=K.constant(num_times), axis=-2)
+    x_coord_matrix = K.repeat_elements(x_coord_matrix, rep=num_times, axis=-2)
 
     x_coord_matrix = K.cast(x_coord_matrix, K.floatx())
     x_coord_matrix = x_coord_matrix / K.cast(num_grid_columns - 1, K.floatx())
