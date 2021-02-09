@@ -360,7 +360,8 @@ def create_model(option_dict, loss_function, mask_matrix):
                 if use_coord_conv:
                     fc_module_layer_object = (
                         coord_conv.add_spatial_coords_2d_with_time(
-                            fc_module_layer_object
+                            input_layer_object=fc_module_layer_object,
+                            num_times=num_input_times
                         )
                     )
 
