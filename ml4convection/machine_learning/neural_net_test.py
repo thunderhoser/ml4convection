@@ -64,6 +64,99 @@ for i in range(10):
 
     NEW_PREDICTOR_MATRIX_3LAGS_WITH_TIME[i, ...] = THIS_MATRIX
 
+# The following constants are used to test _add_coords_to_predictors.
+PREDICTOR_DICT = {
+    example_io.LATITUDES_KEY: numpy.array([19, 21, 23, 25, 27], dtype=float),
+    example_io.LONGITUDES_KEY: numpy.array(
+        [117.5, 118.5, 119.5, 120.5, 121.5, 122.5, 123.5], dtype=float
+    )
+}
+
+# LATITUDES_DEG_N = numpy.array([
+#     [19, 19, 19, 19, 19, 19, 19],
+#     [21, 21, 21, 21, 21, 21, 21],
+#     [23, 23, 23, 23, 23, 23, 23],
+#     [25, 25, 25, 25, 25, 25, 25],
+#     [27, 27, 27, 27, 27, 27, 27]
+# ], dtype=float)
+#
+# LONGITUDES_DEG_E = numpy.array([
+#     [117.5, 118.5, 119.5, 120.5, 121.5, 122.5, 123.5],
+#     [117.5, 118.5, 119.5, 120.5, 121.5, 122.5, 123.5],
+#     [117.5, 118.5, 119.5, 120.5, 121.5, 122.5, 123.5],
+#     [117.5, 118.5, 119.5, 120.5, 121.5, 122.5, 123.5],
+#     [117.5, 118.5, 119.5, 120.5, 121.5, 122.5, 123.5]
+# ], dtype=float)
+
+NUM_EXAMPLES = 32
+NUM_GRID_ROWS = 5
+NUM_GRID_COLUMNS = 7
+NUM_INPUT_CHANNELS_SANS_TIME = 14
+
+THESE_DIM = (
+    NUM_EXAMPLES, NUM_GRID_ROWS, NUM_GRID_COLUMNS, NUM_INPUT_CHANNELS_SANS_TIME
+)
+INPUT_MATRIX_SANS_TIME = numpy.random.uniform(low=5., high=6., size=THESE_DIM)
+
+Y_COORD_MATRIX_SANS_TIME = numpy.array([
+    [1, 1, 1, 1, 1, 1, 1],
+    [3, 3, 3, 3, 3, 3, 3],
+    [5, 5, 5, 5, 5, 5, 5],
+    [7, 7, 7, 7, 7, 7, 7],
+    [9, 9, 9, 9, 9, 9, 9]
+], dtype=float)
+
+Y_COORD_MATRIX_SANS_TIME = -3 + Y_COORD_MATRIX_SANS_TIME * (6. / 11)
+
+X_COORD_MATRIX_SANS_TIME = numpy.array([
+    [2.5, 3.5, 4.5, 5.5, 6.5, 7.5, 8.5],
+    [2.5, 3.5, 4.5, 5.5, 6.5, 7.5, 8.5],
+    [2.5, 3.5, 4.5, 5.5, 6.5, 7.5, 8.5],
+    [2.5, 3.5, 4.5, 5.5, 6.5, 7.5, 8.5],
+    [2.5, 3.5, 4.5, 5.5, 6.5, 7.5, 8.5]
+])
+
+X_COORD_MATRIX_SANS_TIME = -3 + X_COORD_MATRIX_SANS_TIME * (6. / 11.5)
+
+Y_COORD_MATRIX_SANS_TIME = numpy.expand_dims(Y_COORD_MATRIX_SANS_TIME, axis=0)
+Y_COORD_MATRIX_SANS_TIME = numpy.repeat(
+    Y_COORD_MATRIX_SANS_TIME, axis=0, repeats=NUM_EXAMPLES
+)
+Y_COORD_MATRIX_SANS_TIME = numpy.expand_dims(Y_COORD_MATRIX_SANS_TIME, axis=-1)
+
+X_COORD_MATRIX_SANS_TIME = numpy.expand_dims(X_COORD_MATRIX_SANS_TIME, axis=0)
+X_COORD_MATRIX_SANS_TIME = numpy.repeat(
+    X_COORD_MATRIX_SANS_TIME, axis=0, repeats=NUM_EXAMPLES
+)
+X_COORD_MATRIX_SANS_TIME = numpy.expand_dims(X_COORD_MATRIX_SANS_TIME, axis=-1)
+
+OUTPUT_MATRIX_SANS_TIME = numpy.concatenate((
+    INPUT_MATRIX_SANS_TIME, X_COORD_MATRIX_SANS_TIME, Y_COORD_MATRIX_SANS_TIME
+), axis=-1)
+
+NUM_TIMES = 2
+NUM_INPUT_CHANNELS_WITH_TIME = 7
+
+THESE_DIM = (
+    NUM_EXAMPLES, NUM_GRID_ROWS, NUM_GRID_COLUMNS, NUM_TIMES,
+    NUM_INPUT_CHANNELS_WITH_TIME
+)
+INPUT_MATRIX_WITH_TIME = numpy.random.uniform(low=5., high=6., size=THESE_DIM)
+
+Y_COORD_MATRIX_WITH_TIME = numpy.expand_dims(Y_COORD_MATRIX_SANS_TIME, axis=-2)
+Y_COORD_MATRIX_WITH_TIME = numpy.repeat(
+    Y_COORD_MATRIX_WITH_TIME, axis=-2, repeats=NUM_TIMES
+)
+
+X_COORD_MATRIX_WITH_TIME = numpy.expand_dims(X_COORD_MATRIX_SANS_TIME, axis=-2)
+X_COORD_MATRIX_WITH_TIME = numpy.repeat(
+    X_COORD_MATRIX_WITH_TIME, axis=-2, repeats=NUM_TIMES
+)
+
+OUTPUT_MATRIX_WITH_TIME = numpy.concatenate((
+    INPUT_MATRIX_WITH_TIME, X_COORD_MATRIX_WITH_TIME, Y_COORD_MATRIX_WITH_TIME
+), axis=-1)
+
 # The following constants are used to test _find_days_with_both_inputs.
 TOP_PREDICTOR_DIR_NAME = 'foo'
 TOP_TARGET_DIR_NAME = 'bar'
@@ -255,6 +348,36 @@ class NeuralNetTests(unittest.TestCase):
         self.assertTrue(numpy.allclose(
             this_predictor_matrix, NEW_PREDICTOR_MATRIX_3LAGS_WITH_TIME,
             atol=TOLERANCE
+        ))
+
+    def test_add_coords_sans_time(self):
+        """Ensures correct output from _add_coords_to_predictors.
+
+        In this case, data contain no time dimension.
+        """
+
+        output_matrix = neural_net._add_coords_to_predictors(
+            predictor_matrix=INPUT_MATRIX_SANS_TIME,
+            predictor_dict=PREDICTOR_DICT, normalize=True
+        )
+
+        self.assertTrue(numpy.allclose(
+            OUTPUT_MATRIX_SANS_TIME, output_matrix, atol=TOLERANCE
+        ))
+
+    def test_add_coords_with_time(self):
+        """Ensures correct output from _add_coords_to_predictors.
+
+        In this case, data contain the time dimension.
+        """
+
+        output_matrix = neural_net._add_coords_to_predictors(
+            predictor_matrix=INPUT_MATRIX_WITH_TIME,
+            predictor_dict=PREDICTOR_DICT, normalize=True
+        )
+
+        self.assertTrue(numpy.allclose(
+            OUTPUT_MATRIX_WITH_TIME, output_matrix, atol=TOLERANCE
         ))
 
     def test_find_days_zero_lead(self):

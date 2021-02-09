@@ -18,7 +18,7 @@ def _run(training_predictor_dir_name, training_target_dir_name,
          lead_time_seconds, lag_times_seconds, include_time_dimension,
          first_training_date_string, last_training_date_string,
          first_validn_date_string, last_validn_date_string,
-         normalize, uniformize,
+         normalize, uniformize, add_coords,
          num_examples_per_batch, max_examples_per_day_in_batch,
          use_partial_grids, omit_north_radar, num_epochs,
          num_training_batches_per_epoch, num_validn_batches_per_epoch,
@@ -43,6 +43,7 @@ def _run(training_predictor_dir_name, training_target_dir_name,
     :param first_validn_date_string: Same.
     :param last_validn_date_string: Same.
     :param normalize: Same.
+    :param add_coords: Same.
     :param uniformize: Same.
     :param num_examples_per_batch: Same.
     :param max_examples_per_day_in_batch: Same.
@@ -67,7 +68,8 @@ def _run(training_predictor_dir_name, training_target_dir_name,
         neural_net.FIRST_VALID_DATE_KEY: first_training_date_string,
         neural_net.LAST_VALID_DATE_KEY: last_training_date_string,
         neural_net.NORMALIZE_FLAG_KEY: normalize,
-        neural_net.UNIFORMIZE_FLAG_KEY: uniformize
+        neural_net.UNIFORMIZE_FLAG_KEY: uniformize,
+        neural_net.ADD_COORDS_KEY: add_coords
     }
 
     validation_option_dict = {
@@ -161,6 +163,9 @@ if __name__ == '__main__':
         )),
         uniformize=bool(getattr(
             INPUT_ARG_OBJECT, training_args.UNIFORMIZE_ARG_NAME
+        )),
+        add_coords=bool(getattr(
+            INPUT_ARG_OBJECT, training_args.ADD_COORDS_ARG_NAME
         )),
         num_examples_per_batch=getattr(
             INPUT_ARG_OBJECT, training_args.BATCH_SIZE_ARG_NAME

@@ -9,7 +9,6 @@ from keras import backend as K
 from gewittergefahr.gg_utils import error_checking
 from gewittergefahr.deep_learning import architecture_utils
 from ml4convection.machine_learning import neural_net
-from ml4convection.machine_learning import coord_conv
 
 INPUT_DIMENSIONS_KEY = 'input_dimensions'
 NUM_FC_CONV_LAYERS_KEY = 'num_conv_layers_in_fc_module'
@@ -28,7 +27,6 @@ OUTPUT_ACTIV_FUNCTION_ALPHA_KEY = 'output_activ_function_alpha'
 L1_WEIGHT_KEY = 'l1_weight'
 L2_WEIGHT_KEY = 'l2_weight'
 USE_BATCH_NORM_KEY = 'use_batch_normalization'
-USE_COORD_CONV_KEY = 'use_coord_conv'
 
 DEFAULT_ARCHITECTURE_OPTION_DICT = {
     NUM_FC_CONV_LAYERS_KEY: 1,
@@ -46,8 +44,7 @@ DEFAULT_ARCHITECTURE_OPTION_DICT = {
     OUTPUT_ACTIV_FUNCTION_ALPHA_KEY: 0.,
     L1_WEIGHT_KEY: 0.,
     L2_WEIGHT_KEY: 0.001,
-    USE_BATCH_NORM_KEY: True,
-    USE_COORD_CONV_KEY: False
+    USE_BATCH_NORM_KEY: True
 }
 
 
@@ -87,8 +84,6 @@ def _check_args(option_dict):
     option_dict['l2_weight']: Weight for L_2 regularization.
     option_dict['use_batch_normalization']: Boolean flag.  If True, will use
         batch normalization after each inner (non-output) conv layer.
-    option_dict['use_coord_conv']: Boolean flag.  If True, will use coord-conv
-        in each convolutional layer.
 
     :return: option_dict: Same as input, except defaults may have been added.
     """
@@ -169,7 +164,6 @@ def _check_args(option_dict):
     error_checking.assert_is_geq(option_dict[L1_WEIGHT_KEY], 0.)
     error_checking.assert_is_geq(option_dict[L2_WEIGHT_KEY], 0.)
     error_checking.assert_is_boolean(option_dict[USE_BATCH_NORM_KEY])
-    error_checking.assert_is_boolean(option_dict[USE_COORD_CONV_KEY])
 
     return option_dict
 
@@ -232,7 +226,6 @@ def create_model(option_dict, loss_function, mask_matrix):
     l1_weight = option_dict[L1_WEIGHT_KEY]
     l2_weight = option_dict[L2_WEIGHT_KEY]
     use_batch_normalization = option_dict[USE_BATCH_NORM_KEY]
-    use_coord_conv = option_dict[USE_COORD_CONV_KEY]
 
     input_layer_object = keras.layers.Input(
         shape=tuple(input_dimensions.tolist())
@@ -264,12 +257,6 @@ def create_model(option_dict, loss_function, mask_matrix):
                         this_input_layer_object = pooling_layer_matrix[k, i - 1]
                 else:
                     this_input_layer_object = last_conv_layer_matrix[k, i]
-
-                if use_coord_conv:
-                    print(this_input_layer_object.get_shape())
-                    this_input_layer_object = coord_conv.add_spatial_coords_2d(
-                        this_input_layer_object
-                    )
 
                 this_name = 'time{0:d}_level{1:d}_conv{2:d}'.format(k, i, j)
 
@@ -354,11 +341,6 @@ def create_model(option_dict, loss_function, mask_matrix):
         )(fc_module_layer_object)
 
     for j in range(num_conv_layers_in_fc_module):
-        if use_coord_conv:
-            fc_module_layer_object = coord_conv.add_spatial_coords_2d(
-                fc_module_layer_object
-            )
-
         this_name = 'fc_module_conv{0:d}'.format(j)
 
         if use_3d_conv_in_fc_module:
@@ -440,9 +422,6 @@ def create_model(option_dict, loss_function, mask_matrix):
             size=(2, 2), name=this_name
         )(fc_module_layer_object)
 
-    if use_coord_conv:
-        this_layer_object = coord_conv.add_spatial_coords_2d(this_layer_object)
-
     this_name = 'upsampling_level{0:d}_conv'.format(num_levels - 1)
     i = num_levels - 1
 
@@ -507,11 +486,6 @@ def create_model(option_dict, loss_function, mask_matrix):
             else:
                 this_input_layer_object = skip_layer_by_level[i]
 
-            if use_coord_conv:
-                this_input_layer_object = coord_conv.add_spatial_coords_2d(
-                    this_input_layer_object
-                )
-
             this_name = 'skip_level{0:d}_conv{1:d}'.format(i, j)
 
             skip_layer_by_level[i] = architecture_utils.get_2d_conv_layer(
@@ -550,11 +524,6 @@ def create_model(option_dict, loss_function, mask_matrix):
                 )
 
         if i == 0:
-            if use_coord_conv:
-                skip_layer_by_level[i] = coord_conv.add_spatial_coords_2d(
-                    skip_layer_by_level[i]
-                )
-
             skip_layer_by_level[i] = architecture_utils.get_2d_conv_layer(
                 num_kernel_rows=3, num_kernel_columns=3,
                 num_rows_per_stride=1, num_columns_per_stride=1, num_filters=2,
@@ -589,11 +558,6 @@ def create_model(option_dict, loss_function, mask_matrix):
             this_layer_object = keras.layers.UpSampling2D(
                 size=(2, 2), name=this_name
             )(skip_layer_by_level[i])
-
-        if use_coord_conv:
-            this_layer_object = coord_conv.add_spatial_coords_2d(
-                this_layer_object
-            )
 
         this_name = 'upsampling_level{0:d}_conv'.format(i - 1)
 
@@ -645,11 +609,6 @@ def create_model(option_dict, loss_function, mask_matrix):
             axis=-1, name=this_name
         )(
             [last_conv_layer_matrix[-1, i - 1], upconv_layer_by_level[i - 1]]
-        )
-
-    if use_coord_conv:
-        skip_layer_by_level[0] = coord_conv.add_spatial_coords_2d(
-            skip_layer_by_level[0]
         )
 
     skip_layer_by_level[0] = architecture_utils.get_2d_conv_layer(

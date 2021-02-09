@@ -263,7 +263,9 @@ def _run(model_file_name, top_predictor_dir_name, top_target_dir_name,
         neural_net.NORMALIZE_FLAG_KEY:
             training_option_dict[neural_net.NORMALIZE_FLAG_KEY],
         neural_net.UNIFORMIZE_FLAG_KEY:
-            training_option_dict[neural_net.UNIFORMIZE_FLAG_KEY]
+            training_option_dict[neural_net.UNIFORMIZE_FLAG_KEY],
+        neural_net.ADD_COORDS_KEY:
+            training_option_dict[neural_net.ADD_COORDS_KEY]
     }
 
     valid_date_strings = time_conversion.get_spc_dates_in_range(
