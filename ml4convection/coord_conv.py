@@ -5,6 +5,7 @@ https://arxiv.org/abs/1807.03247
 
 import os
 import sys
+import numpy
 from keras import backend as K
 
 THIS_DIRECTORY_NAME = os.path.dirname(os.path.realpath(
@@ -28,6 +29,10 @@ def add_spatial_coords_2d(input_layer_object):
     """
 
     input_dimensions = K.shape(input_layer_object)
+    input_dimensions = numpy.array(
+        [input_dimensions[i] for i in range(4)], dtype=int
+    )
+
     error_checking.assert_is_geq(len(input_dimensions), 4)
     error_checking.assert_is_leq(len(input_dimensions), 4)
 
