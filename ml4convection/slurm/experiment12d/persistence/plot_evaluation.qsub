@@ -3,9 +3,8 @@
 #SBATCH --job-name="plot_evaluation"
 #SBATCH --partition="fge"
 #SBATCH --account="rda-ghpcs"
-#SBATCH --qos="batch"
 #SBATCH --ntasks=1
-#SBATCH --cpus-per-task=1
+#SBATCH --nodes=1
 #SBATCH --mem=8G
 #SBATCH --time=01:00:00
 #SBATCH --array=1-6
