@@ -5,13 +5,8 @@
 #SBATCH --account="rda-ghpcs"
 #SBATCH --qos="batch"
 #SBATCH --ntasks=1
-#SBATCH --nodes=1
 #SBATCH --cpus-per-task=1
 #SBATCH --mem=8G
-##SBATCH --nodes=1
-##SBATCH --ntasks=1
-##SBATCH --cpus-per-task=1
-##SBATCH --ntasks-per-node=1
 #SBATCH --time=01:00:00
 #SBATCH --array=1-6
 #SBATCH --exclude=h28n12
