@@ -10,7 +10,9 @@ import tensorflow
 import tensorflow.keras as tf_keras
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
+from ml4convection.io import radar_io
 from ml4convection.io import satellite_io
+from ml4convection.io import twb_radar_io
 from ml4convection.io import twb_satellite_io
 from ml4convection.io import example_io
 from ml4convection.utils import general_utils
@@ -1601,6 +1603,26 @@ def read_metafile(dill_file_name):
 
     if FULL_MASK_MATRIX_KEY not in metadata_dict:
         metadata_dict[FULL_MASK_MATRIX_KEY] = metadata_dict[MASK_MATRIX_KEY]
+
+    num_grid_points = (
+            len(twb_satellite_io.GRID_LATITUDES_DEG_N) *
+            len(twb_satellite_io.GRID_LONGITUDES_DEG_E)
+    )
+
+    if num_grid_points != metadata_dict[FULL_MASK_MATRIX_KEY].size:
+        full_mask_dict = {
+            radar_io.MASK_MATRIX_KEY: metadata_dict[FULL_MASK_MATRIX_KEY],
+            radar_io.LATITUDES_KEY: twb_radar_io.GRID_LATITUDES_DEG_N,
+            radar_io.LONGITUDES_KEY: twb_radar_io.GRID_LONGITUDES_DEG_E
+        }
+
+        full_mask_dict = radar_io.expand_to_satellite_grid(
+            any_radar_dict=full_mask_dict
+        )
+
+        metadata_dict[FULL_MASK_MATRIX_KEY] = (
+            full_mask_dict[radar_io.MASK_MATRIX_KEY]
+        )
 
     training_option_dict = metadata_dict[TRAINING_OPTIONS_KEY]
     validation_option_dict = metadata_dict[VALIDATION_OPTIONS_KEY]

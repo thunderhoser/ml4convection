@@ -8,6 +8,7 @@ import keras
 from gewittergefahr.gg_utils import error_checking
 from gewittergefahr.deep_learning import architecture_utils
 from ml4convection.machine_learning import neural_net
+from ml4convection.machine_learning import coord_conv
 
 INPUT_DIMENSIONS_KEY = 'input_dimensions'
 NUM_LEVELS_KEY = 'num_levels'
@@ -25,6 +26,7 @@ OUTPUT_ACTIV_FUNCTION_ALPHA_KEY = 'output_activ_function_alpha'
 L1_WEIGHT_KEY = 'l1_weight'
 L2_WEIGHT_KEY = 'l2_weight'
 USE_BATCH_NORM_KEY = 'use_batch_normalization'
+USE_COORD_CONV_KEY = 'use_coord_conv'
 
 DEFAULT_ARCHITECTURE_OPTION_DICT = {
     NUM_LEVELS_KEY: 7,
@@ -42,7 +44,8 @@ DEFAULT_ARCHITECTURE_OPTION_DICT = {
     OUTPUT_ACTIV_FUNCTION_ALPHA_KEY: 0.,
     L1_WEIGHT_KEY: 0.,
     L2_WEIGHT_KEY: 0.001,
-    USE_BATCH_NORM_KEY: True
+    USE_BATCH_NORM_KEY: True,
+    USE_COORD_CONV_KEY: False
 }
 
 
@@ -76,6 +79,7 @@ def _check_architecture_args(option_dict):
     option_dict['l1_weight']: Same.
     option_dict['l2_weight']: Same.
     option_dict['use_batch_normalization']: Same.
+    option_dict['use_coord_conv']: Same.
 
     :return: option_dict: Same as input, except defaults may have been added.
     """
@@ -149,6 +153,7 @@ def _check_architecture_args(option_dict):
     error_checking.assert_is_geq(option_dict[L1_WEIGHT_KEY], 0.)
     error_checking.assert_is_geq(option_dict[L2_WEIGHT_KEY], 0.)
     error_checking.assert_is_boolean(option_dict[USE_BATCH_NORM_KEY])
+    error_checking.assert_is_boolean(option_dict[USE_COORD_CONV_KEY])
 
     return option_dict
 
@@ -189,6 +194,7 @@ def create_model(option_dict, loss_function, mask_matrix):
     l1_weight = option_dict[L1_WEIGHT_KEY]
     l2_weight = option_dict[L2_WEIGHT_KEY]
     use_batch_normalization = option_dict[USE_BATCH_NORM_KEY]
+    use_coord_conv = option_dict[USE_COORD_CONV_KEY]
 
     input_layer_object = keras.layers.Input(
         shape=tuple(input_dimensions.tolist())
@@ -211,6 +217,11 @@ def create_model(option_dict, loss_function, mask_matrix):
                     this_input_layer_object = pooling_layer_by_level[i - 1]
             else:
                 this_input_layer_object = last_conv_layer_matrix[i, 0]
+
+            if use_coord_conv:
+                this_input_layer_object = coord_conv.add_spatial_coords_2d(
+                    this_input_layer_object
+                )
 
             this_name = 'block{0:d}-{1:d}_conv{2:d}'.format(i, 0, k)
 
@@ -275,6 +286,11 @@ def create_model(option_dict, loss_function, mask_matrix):
                 size=(2, 2), name=this_name
             )(last_conv_layer_matrix[i_new + 1, j - 1])
 
+            if use_coord_conv:
+                this_layer_object = coord_conv.add_spatial_coords_2d(
+                    this_layer_object
+                )
+
             this_name = 'block{0:d}-{1:d}_upconv'.format(i_new, j)
 
             this_layer_object = architecture_utils.get_2d_conv_layer(
@@ -328,6 +344,13 @@ def create_model(option_dict, loss_function, mask_matrix):
             )(last_conv_layer_matrix[i_new, :(j + 1)].tolist())
 
             for k in range(num_conv_layers_by_level[i_new]):
+                if use_coord_conv:
+                    last_conv_layer_matrix[i_new, j] = (
+                        coord_conv.add_spatial_coords_2d(
+                            last_conv_layer_matrix[i_new, j]
+                        )
+                    )
+
                 this_name = 'block{0:d}-{1:d}_skipconv{2:d}'.format(i_new, j, k)
 
                 last_conv_layer_matrix[i_new, j] = (
@@ -379,6 +402,11 @@ def create_model(option_dict, loss_function, mask_matrix):
                     )
 
     if include_penultimate_conv:
+        if use_coord_conv:
+            last_conv_layer_matrix[0, -1] = coord_conv.add_spatial_coords_2d(
+                last_conv_layer_matrix[0, -1]
+            )
+
         last_conv_layer_matrix[0, -1] = architecture_utils.get_2d_conv_layer(
             num_kernel_rows=3, num_kernel_columns=3,
             num_rows_per_stride=1, num_columns_per_stride=1, num_filters=2,
@@ -407,6 +435,11 @@ def create_model(option_dict, loss_function, mask_matrix):
                     layer_name='penultimate_conv_bn'
                 )(last_conv_layer_matrix[0, -1])
             )
+
+    if use_coord_conv:
+        last_conv_layer_matrix[0, -1] = coord_conv.add_spatial_coords_2d(
+            last_conv_layer_matrix[0, -1]
+        )
 
     output_layer_object = architecture_utils.get_2d_conv_layer(
         num_kernel_rows=1, num_kernel_columns=1,
