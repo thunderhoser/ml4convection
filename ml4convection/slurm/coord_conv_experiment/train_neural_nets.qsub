@@ -60,6 +60,7 @@ python3 -u "${CODE_DIR_NAME}/train_neural_net.py" \
 --omit_north_radar=1 \
 --normalize=1 \
 --uniformize=1 \
+--add_coords=${include_latlong_flag} \
 --num_examples_per_batch=${batch_size} \
 --max_examples_per_day_in_batch=`expr $batch_size / 8` \
 --use_partial_grids=1 \
