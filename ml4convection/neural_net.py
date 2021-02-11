@@ -17,7 +17,9 @@ sys.path.append(os.path.normpath(os.path.join(THIS_DIRECTORY_NAME, '..')))
 
 import file_system_utils
 import error_checking
+import radar_io
 import satellite_io
+import twb_radar_io
 import twb_satellite_io
 import example_io
 import general_utils
@@ -1608,6 +1610,26 @@ def read_metafile(dill_file_name):
 
     if FULL_MASK_MATRIX_KEY not in metadata_dict:
         metadata_dict[FULL_MASK_MATRIX_KEY] = metadata_dict[MASK_MATRIX_KEY]
+
+    num_grid_points = (
+        len(twb_satellite_io.GRID_LATITUDES_DEG_N) *
+        len(twb_satellite_io.GRID_LONGITUDES_DEG_E)
+    )
+
+    if num_grid_points != metadata_dict[FULL_MASK_MATRIX_KEY].size:
+        full_mask_dict = {
+            radar_io.MASK_MATRIX_KEY: metadata_dict[FULL_MASK_MATRIX_KEY],
+            radar_io.LATITUDES_KEY: twb_radar_io.GRID_LATITUDES_DEG_N,
+            radar_io.LONGITUDES_KEY: twb_radar_io.GRID_LONGITUDES_DEG_E
+        }
+
+        full_mask_dict = radar_io.expand_to_satellite_grid(
+            any_radar_dict=full_mask_dict
+        )
+
+        metadata_dict[FULL_MASK_MATRIX_KEY] = (
+            full_mask_dict[radar_io.MASK_MATRIX_KEY]
+        )
 
     training_option_dict = metadata_dict[TRAINING_OPTIONS_KEY]
     validation_option_dict = metadata_dict[VALIDATION_OPTIONS_KEY]

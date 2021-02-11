@@ -288,8 +288,6 @@ def _plot_predictions_one_day(
     else:
         mask_matrix = model_metadata_dict[neural_net.FULL_MASK_MATRIX_KEY]
 
-    print(mask_matrix.shape)
-
     target_matrix = prediction_dict[prediction_io.TARGET_MATRIX_KEY]
     num_times = target_matrix.shape[0]
 
