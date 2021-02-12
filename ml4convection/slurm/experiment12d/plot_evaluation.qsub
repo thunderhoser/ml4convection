@@ -46,4 +46,4 @@ set advanced_score_file_name="${output_dir_name}.p"
 
 python3 -u "${CODE_DIR_NAME}/plot_evaluation.py" \
 --input_advanced_score_file_name="${advanced_score_file_name}" \
---output_dir_name="${output_dir_name}
+--output_dir_name="${output_dir_name}"
