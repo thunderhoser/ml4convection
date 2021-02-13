@@ -28,7 +28,7 @@ set TOP_OUTPUT_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convectio
 
 set TRAINING_PREDICTOR_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_project/predictors/quality_controlled/partial_grids"
 set VALIDN_PREDICTOR_DIR_NAME="${TRAINING_PREDICTOR_DIR_NAME}"
-set TRAINING_TARGET_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_project/targets/new_echo_classification/no_tracking/partial_grids"
+set TRAINING_TARGET_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_project/targets/new_echo_classification/no_tracking/omit_north_radar/partial_grids"
 set VALIDN_TARGET_DIR_NAME="${TRAINING_TARGET_DIR_NAME}"
 
 set BATCH_SIZES=(36 36 36 36 36 36 36 36 36 48 48 48 48 48 48 48 48 48 60 60 60 60 60 60 60 60 60 72 72 72 72 72 72 72 72 72 36 36 36 36 36 36 36 36 36 48 48 48 48 48 48 48 48 48 60 60 60 60 60 60 60 60 60 72 72 72 72 72 72 72 72 72 36 36 36 36 36 36 36 36 36 48 48 48 48 48 48 48 48 48 60 60 60 60 60 60 60 60 60 72 72 72 72 72 72 72 72 72 36 36 36 36 36 36 36 36 36 48 48 48 48 48 48 48 48 48 60 60 60 60 60 60 60 60 60 72 72 72 72 72 72 72 72 72 36 36 36 36 36 36 36 36 36 48 48 48 48 48 48 48 48 48 60 60 60 60 60 60 60 60 60 72 72 72 72 72 72 72 72 72)
@@ -59,6 +59,7 @@ python3 -u "${CODE_DIR_NAME}/train_neural_net.py" \
 --lead_time_seconds=3600 \
 --lag_times_seconds ${LAG_TIME_STRINGS_SPACED[$SLURM_ARRAY_TASK_ID]} \
 --include_time_dimension=1 \
+--omit_north_radar=1 \
 --normalize=1 \
 --uniformize=1 \
 --num_examples_per_batch=${batch_size} \
