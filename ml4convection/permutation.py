@@ -341,6 +341,9 @@ def make_fss_cost_function(
                 option_dict=data_option_dict, return_coords=False
             )
 
+            if data_dict_by_radar is None:
+                continue
+
             for this_data_dict in data_dict_by_radar:
                 if len(list(this_data_dict.keys())) == 0:
                     continue
