@@ -549,12 +549,17 @@ def make_fss_cost_function(
             print(numpy.any(numpy.isnan(reference_sse_matrix), axis=0))
             print('\n\n')
             print(new_permuted_index_matrix)
+            print('\n\n')
 
         cost_matrix = _bootstrap_fss_cost(
             actual_sse_matrix=actual_sse_matrix,
             reference_sse_matrix=reference_sse_matrix,
             num_bootstrap_reps=num_bootstrap_reps
         )
+
+        if is_start_of_test:
+            print(numpy.any(numpy.isnan(cost_matrix), axis=1))
+            print('\n\n')
 
         return cost_matrix, new_permuted_index_matrix
 
