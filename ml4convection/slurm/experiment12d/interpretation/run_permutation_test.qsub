@@ -27,8 +27,8 @@ conda activate base
 
 set CODE_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_standalone/ml4convection"
 set TOP_MODEL_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_models/experiment12d"
-set TOP_PREDICTOR_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_project/predictors/quality_controlled/full_grids"
-set TOP_TARGET_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_project/targets/new_echo_classification/no_tracking/omit_north_radar/full_grids"
+set TOP_PREDICTOR_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_project/predictors/quality_controlled/partial_grids"
+set TOP_TARGET_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_project/targets/new_echo_classification/no_tracking/omit_north_radar/partial_grids"
 
 set BATCH_SIZES=(60 60 60 60)
 set L2_WEIGHTS=(0.0000010000 0.0000031623 0.0000003162 0.0000003162)
