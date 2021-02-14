@@ -620,7 +620,7 @@ def run_forward_test(
         permuted_index_matrix=None, num_bootstrap_reps=num_bootstrap_reps
     )
 
-    orig_cost_estimates = orig_cost_estimates[:, 0]
+    orig_cost_estimates = orig_cost_estimates[0, :]
     permuted_index_matrix = numpy.full(
         permuted_index_matrix.shape, -1, dtype=int
     )
@@ -713,7 +713,7 @@ def run_backwards_test(
         is_forward_test=False, is_start_of_test=True,
         permuted_index_matrix=None, num_bootstrap_reps=num_bootstrap_reps
     )
-    orig_cost_estimates = orig_cost_estimates[:, 0]
+    orig_cost_estimates = orig_cost_estimates[0, :]
 
     print('Original cost (before *de*permutation) = {0:.4f}'.format(
         numpy.mean(orig_cost_estimates)
