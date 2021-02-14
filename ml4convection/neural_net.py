@@ -924,6 +924,10 @@ def create_data_partial_grids(option_dict, return_coords=False):
         if omit_north_radar and k == 0:
             continue
 
+        print(top_predictor_dir_name)
+        print(first_init_date_string)
+        print(valid_date_string)
+
         these_predictor_file_names = example_io.find_many_predictor_files(
             top_directory_name=top_predictor_dir_name,
             first_date_string=first_init_date_string,
