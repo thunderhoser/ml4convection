@@ -125,6 +125,9 @@ def _get_fss_components_one_batch(
             num_examples_per_batch=NUM_EXAMPLES_PER_BATCH, verbose=True
         )
 
+        print(target_matrix.shape)
+        print(prediction_matrix.shape)
+
         for i in range(num_examples):
             spatial_actual_sse_matrix, spatial_reference_sse_matrix = (
                 evaluation._get_fss_components_one_time(

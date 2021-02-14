@@ -924,10 +924,6 @@ def create_data_partial_grids(option_dict, return_coords=False):
         if omit_north_radar and k == 0:
             continue
 
-        print(top_predictor_dir_name)
-        print(first_init_date_string)
-        print(valid_date_string)
-
         these_predictor_file_names = example_io.find_many_predictor_files(
             top_directory_name=top_predictor_dir_name,
             first_date_string=first_init_date_string,
@@ -936,8 +932,6 @@ def create_data_partial_grids(option_dict, return_coords=False):
             raise_error_if_all_missing=False,
             raise_error_if_any_missing=False
         )
-
-        print(these_predictor_file_names)
 
         these_target_file_names = example_io.find_many_target_files(
             top_directory_name=top_target_dir_name,
@@ -948,16 +942,12 @@ def create_data_partial_grids(option_dict, return_coords=False):
             raise_error_if_any_missing=False
         )
 
-        print(these_target_file_names)
-
         these_valid_date_strings = _find_days_with_both_inputs(
             predictor_file_names=these_predictor_file_names,
             target_file_names=these_target_file_names,
             lead_time_seconds=lead_time_seconds,
             lag_times_seconds=lag_times_seconds
         )
-
-        print(these_valid_date_strings)
 
         if valid_date_strings is None:
             valid_date_strings = copy.deepcopy(these_valid_date_strings)
