@@ -2,6 +2,8 @@
 
 import copy
 import numpy
+import netCDF4
+from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
 from ml4convection.machine_learning import neural_net
 from ml4convection.utils import evaluation
@@ -24,6 +26,10 @@ BACKWARDS_FLAG_KEY = 'is_backwards_test'
 PERMUTED_INDICES_KEY = 'permuted_index_matrix'
 PERMUTED_COSTS_KEY = 'permuted_cost_matrix'
 DEPERMUTED_COSTS_KEY = 'depermuted_cost_matrix'
+
+PREDICTOR_DIM_KEY = 'predictor'
+BOOTSTRAP_REPLICATE_DIM_KEY = 'bootstrap_replicate'
+PREDICTOR_CHAR_DIM_KEY = 'predictor_name_char'
 
 
 def _permute_values(predictor_matrix, channel_index,
@@ -255,9 +261,7 @@ def _bootstrap_fss_cost(actual_sse_matrix, reference_sse_matrix,
         0, num_examples - 1, num=num_examples, dtype=int
     )
 
-    forever_permuted_channel_flags = numpy.any(
-        numpy.isnan(actual_sse_matrix), axis=0
-    )
+    skip_channel_flags = numpy.any(numpy.isnan(actual_sse_matrix), axis=0)
 
     for i in range(num_bootstrap_reps):
         if num_bootstrap_reps == 1:
@@ -268,7 +272,7 @@ def _bootstrap_fss_cost(actual_sse_matrix, reference_sse_matrix,
             )
 
         for j in range(num_channels):
-            if forever_permuted_channel_flags[j]:
+            if skip_channel_flags[j]:
                 continue
 
             this_actual_sse = numpy.sum(
@@ -308,12 +312,7 @@ def _run_forward_test_one_step(
         permutation in this step.
     """
 
-    if permuted_index_matrix is None:
-        num_channels = len(data_option_dict[neural_net.BAND_NUMBERS_KEY])
-        permuted_forever_flags = numpy.full(num_channels, 0, dtype=bool)
-    else:
-        permuted_forever_flags = numpy.any(permuted_index_matrix >= 0, axis=0)
-
+    permuted_forever_flags = numpy.any(permuted_index_matrix >= 0, axis=0)
     if numpy.all(permuted_forever_flags):
         return None
 
@@ -332,11 +331,6 @@ def _run_forward_test_one_step(
     print('Best cost = {0:.4f} ... best channel = {1:d}'.format(
         best_cost, best_channel_index + 1
     ))
-
-    if permuted_index_matrix is None:
-        permuted_index_matrix = numpy.full(
-            new_permuted_index_matrix.shape, -1, dtype=int
-        )
 
     permuted_index_matrix[:, best_channel_index] = (
         new_permuted_index_matrix[:, best_channel_index]
@@ -747,3 +741,118 @@ def run_backwards_test(
         STEP1_COSTS_KEY: step1_cost_matrix,
         BACKWARDS_FLAG_KEY: True
     }
+
+
+def write_file(result_dict, netcdf_file_name):
+    """Writes results of permutation test to NetCDF file.
+
+    :param result_dict: Dictionary created by `run_forward_test` or
+        `run_backwards_test`.
+    :param netcdf_file_name: Path to output file.
+    """
+
+    # Write to NetCDF file.
+    file_system_utils.mkdir_recursive_if_necessary(file_name=netcdf_file_name)
+    dataset_object = netCDF4.Dataset(
+        netcdf_file_name, 'w', format='NETCDF3_64BIT_OFFSET'
+    )
+
+    dataset_object.setncattr(
+        BACKWARDS_FLAG_KEY, int(result_dict[BACKWARDS_FLAG_KEY])
+    )
+
+    num_predictors = result_dict[BEST_COSTS_KEY].shape[0]
+    num_bootstrap_reps = result_dict[BEST_COSTS_KEY].shape[1]
+
+    dataset_object.createDimension(PREDICTOR_DIM_KEY, num_predictors)
+    dataset_object.createDimension(
+        BOOTSTRAP_REPLICATE_DIM_KEY, num_bootstrap_reps
+    )
+
+    best_predictor_names = result_dict[BEST_PREDICTORS_KEY]
+    step1_predictor_names = result_dict[STEP1_PREDICTORS_KEY]
+    num_predictor_chars = numpy.max(numpy.array([
+        len(n) for n in best_predictor_names + step1_predictor_names
+    ]))
+
+    dataset_object.createDimension(PREDICTOR_CHAR_DIM_KEY, num_predictor_chars)
+
+    this_string_format = 'S{0:d}'.format(num_predictor_chars)
+    best_predictor_names_char_array = netCDF4.stringtochar(numpy.array(
+        best_predictor_names, dtype=this_string_format
+    ))
+
+    dataset_object.createVariable(
+        BEST_PREDICTORS_KEY, datatype='S1',
+        dimensions=(PREDICTOR_DIM_KEY, PREDICTOR_CHAR_DIM_KEY)
+    )
+    dataset_object.variables[BEST_PREDICTORS_KEY][:] = numpy.array(
+        best_predictor_names_char_array
+    )
+
+    dataset_object.createVariable(
+        BEST_COSTS_KEY, datatype=numpy.float32,
+        dimensions=(PREDICTOR_DIM_KEY, BOOTSTRAP_REPLICATE_DIM_KEY)
+    )
+    dataset_object.variables[BEST_COSTS_KEY][:] = result_dict[BEST_COSTS_KEY]
+
+    this_string_format = 'S{0:d}'.format(num_predictor_chars)
+    step1_predictor_names_char_array = netCDF4.stringtochar(numpy.array(
+        step1_predictor_names, dtype=this_string_format
+    ))
+
+    dataset_object.createVariable(
+        STEP1_PREDICTORS_KEY, datatype='S1',
+        dimensions=(PREDICTOR_DIM_KEY, PREDICTOR_CHAR_DIM_KEY)
+    )
+    dataset_object.variables[STEP1_PREDICTORS_KEY][:] = numpy.array(
+        step1_predictor_names_char_array
+    )
+
+    dataset_object.createVariable(
+        STEP1_COSTS_KEY, datatype=numpy.float32,
+        dimensions=(PREDICTOR_DIM_KEY, BOOTSTRAP_REPLICATE_DIM_KEY)
+    )
+    dataset_object.variables[STEP1_COSTS_KEY][:] = result_dict[STEP1_COSTS_KEY]
+
+    dataset_object.createVariable(
+        ORIGINAL_COST_KEY, datatype=numpy.float32,
+        dimensions=BOOTSTRAP_REPLICATE_DIM_KEY
+    )
+    dataset_object.variables[ORIGINAL_COST_KEY][:] = (
+        result_dict[ORIGINAL_COST_KEY]
+    )
+
+    dataset_object.close()
+
+
+def read_file(netcdf_file_name):
+    """Reads results of permutation test from NetCDF file.
+
+    :param netcdf_file_name: Path to input file.
+    :return: result_dict: See doc for `run_forward_test` or
+        `run_backwards_test`.
+    """
+
+    dataset_object = netCDF4.Dataset(netcdf_file_name)
+
+    result_dict = {
+        ORIGINAL_COST_KEY: dataset_object.variables[ORIGINAL_COST_KEY][:],
+        BEST_PREDICTORS_KEY: [
+            str(n) for n in netCDF4.chartostring(
+                dataset_object.variables[BEST_PREDICTORS_KEY][:]
+            )
+        ],
+        BEST_COSTS_KEY: dataset_object.variables[BEST_COSTS_KEY][:],
+        STEP1_PREDICTORS_KEY: [
+            str(n) for n in netCDF4.chartostring(
+                dataset_object.variables[STEP1_PREDICTORS_KEY][:]
+            )
+        ],
+        STEP1_COSTS_KEY: dataset_object.variables[STEP1_COSTS_KEY][:],
+        BACKWARDS_FLAG_KEY: bool(getattr(dataset_object, BACKWARDS_FLAG_KEY))
+    }
+
+    dataset_object.close()
+
+    return result_dict

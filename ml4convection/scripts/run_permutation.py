@@ -4,6 +4,8 @@ import argparse
 from ml4convection.machine_learning import permutation
 from ml4convection.machine_learning import neural_net
 
+SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
+
 MODEL_FILE_ARG_NAME = 'input_model_file_name'
 PREDICTOR_DIR_ARG_NAME = 'input_predictor_dir_name'
 TARGET_DIR_ARG_NAME = 'input_target_dir_name'
@@ -141,12 +143,27 @@ def _run(model_file_name, top_predictor_dir_name, top_target_dir_name,
         neural_net.ADD_COORDS_KEY: False
     }
 
-    result_dict = permutation.run_forward_test(
-        model_object=model_object, data_option_dict=data_option_dict,
-        valid_date_strings=valid_date_strings, cost_function=cost_function,
-        num_bootstrap_reps=num_bootstrap_reps
+    print(SEPARATOR_STRING)
+
+    if run_backwards_test:
+        result_dict = permutation.run_backwards_test(
+            model_object=model_object, data_option_dict=data_option_dict,
+            valid_date_strings=valid_date_strings, cost_function=cost_function,
+            num_bootstrap_reps=num_bootstrap_reps
+        )
+    else:
+        result_dict = permutation.run_forward_test(
+            model_object=model_object, data_option_dict=data_option_dict,
+            valid_date_strings=valid_date_strings, cost_function=cost_function,
+            num_bootstrap_reps=num_bootstrap_reps
+        )
+
+    print(SEPARATOR_STRING)
+
+    print('Writing results to: "{0:s}"...'.format(output_file_name))
+    permutation.write_file(
+        result_dict=result_dict, netcdf_file_name=output_file_name
     )
-    print(result_dict)
 
 
 if __name__ == '__main__':
