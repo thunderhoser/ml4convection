@@ -124,9 +124,10 @@ def _get_fss_components_one_batch(
     )
 
     if test_type_enum == NO_TEST_ENUM:
+        print('Applying model to data...\n')
         prediction_matrix = neural_net.apply_model_full_grid(
             model_object=model_object, predictor_matrix=predictor_matrix,
-            num_examples_per_batch=NUM_EXAMPLES_PER_BATCH, verbose=True
+            num_examples_per_batch=NUM_EXAMPLES_PER_BATCH, verbose=False
         )
 
         for i in range(num_examples):
@@ -153,6 +154,15 @@ def _get_fss_components_one_batch(
         skip_channel_flags = numpy.any(permuted_index_matrix >= 0, axis=0)
     else:
         raise ValueError('Fuck')
+
+    for j in range(num_channels):
+        if not skip_channel_flags[j]:
+            continue
+
+        predictor_matrix = _permute_values(
+            predictor_matrix=predictor_matrix, channel_index=j,
+            permuted_example_indices=permuted_index_matrix[:, j]
+        )[0]
 
     # if is_forward_step:
     #     skip_channel_flags = numpy.any(permuted_index_matrix >= 0, axis=0)
@@ -451,11 +461,11 @@ def _run_forward_test_one_step(
     )
 
     mean_costs = numpy.mean(permuted_cost_matrix, axis=1)
-    best_cost = numpy.max(mean_costs)
-    best_channel_index = numpy.argmax(mean_costs)
+    best_cost = numpy.nanmax(mean_costs)
+    best_channel_index = numpy.nanargmax(mean_costs)
 
     print('Best cost = {0:.4f} ... best channel = {1:d}'.format(
-        best_cost, best_channel_index
+        best_cost, best_channel_index + 1
     ))
 
     if permuted_index_matrix is None:
@@ -550,8 +560,8 @@ def run_forward_test(
         permuted_index_matrix = this_result_dict[PERMUTED_INDICES_KEY]
         permuted_cost_matrix = this_result_dict[PERMUTED_COSTS_KEY]
 
-        this_best_index = numpy.argmax(
-            numpy.mean(permuted_cost_matrix, axis=1)
+        this_best_index = numpy.nanargmax(
+            numpy.nanmean(permuted_cost_matrix, axis=1)
         )
         best_predictor_names[k] = predictor_names[this_best_index]
         best_cost_matrix[k, :] = permuted_cost_matrix[this_best_index, :]
