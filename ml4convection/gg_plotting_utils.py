@@ -32,6 +32,25 @@ pyplot.rc('legend', fontsize=FONT_SIZE)
 pyplot.rc('figure', titlesize=FONT_SIZE)
 
 
+def colour_from_numpy_to_tuple(input_colour):
+    """Converts colour from numpy array to tuple (if necessary).
+
+    :param input_colour: Colour (possibly length-3 or length-4 numpy array).
+    :return: output_colour: Colour (possibly length-3 or length-4 tuple).
+    """
+
+    if not isinstance(input_colour, numpy.ndarray):
+        return input_colour
+
+    error_checking.assert_is_numpy_array(input_colour, num_dimensions=1)
+
+    num_entries = len(input_colour)
+    error_checking.assert_is_geq(num_entries, 3)
+    error_checking.assert_is_leq(num_entries, 4)
+
+    return tuple(input_colour.tolist())
+
+
 def plot_colour_bar(
         axes_object_or_matrix, data_matrix, colour_map_object,
         colour_norm_object, orientation_string=DEFAULT_CBAR_ORIENTATION_STRING,
