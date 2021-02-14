@@ -16,6 +16,7 @@ import evaluation
 import general_utils
 
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
+MINOR_SEPARATOR_STRING = '\n\n' + '-' * 50 + '\n\n'
 
 DEFAULT_NUM_BOOTSTRAP_REPS = 1000
 NUM_EXAMPLES_PER_BATCH = 32
@@ -34,6 +35,9 @@ BEST_COSTS_KEY = 'best_cost_matrix'
 STEP1_PREDICTORS_KEY = 'step1_predictor_names'
 STEP1_COSTS_KEY = 'step1_cost_matrix'
 BACKWARDS_FLAG_KEY = 'is_backwards_test'
+
+PERMUTED_INDICES_KEY = 'permuted_index_matrix'
+PERMUTED_COSTS_KEY = 'permuted_cost_matrix'
 
 
 def _check_test_type(test_type_enum):
@@ -125,9 +129,6 @@ def _get_fss_components_one_batch(
             num_examples_per_batch=NUM_EXAMPLES_PER_BATCH, verbose=True
         )
 
-        print(target_matrix.shape)
-        print(prediction_matrix.shape)
-
         for i in range(num_examples):
             spatial_actual_sse_matrix, spatial_reference_sse_matrix = (
                 evaluation._get_fss_components_one_time(
@@ -162,6 +163,7 @@ def _get_fss_components_one_batch(
         if skip_channel_flags[j]:
             continue
 
+        print('Permuting channel {0:d} of {1:d}...'.format(j + 1, num_channels))
         this_predictor_matrix, new_permuted_index_matrix[:, j] = (
             _permute_values(
                 predictor_matrix=predictor_matrix + 0.,
@@ -169,11 +171,11 @@ def _get_fss_components_one_batch(
             )
         )
 
+        print('Applying model to permuted data...\n')
         this_prediction_matrix = neural_net.apply_model_full_grid(
             model_object=model_object, predictor_matrix=this_predictor_matrix,
-            num_examples_per_batch=NUM_EXAMPLES_PER_BATCH, verbose=True
+            num_examples_per_batch=NUM_EXAMPLES_PER_BATCH, verbose=False
         )
-        print(SEPARATOR_STRING)
 
         for i in range(num_examples):
             # TODO(thunderhoser): Make this method public.
@@ -343,6 +345,7 @@ def make_fss_cost_function(
             data_dict_by_radar = neural_net.create_data_partial_grids(
                 option_dict=data_option_dict, return_coords=False
             )
+            print(MINOR_SEPARATOR_STRING)
 
             if data_dict_by_radar is None:
                 continue
@@ -451,25 +454,22 @@ def _run_forward_test_one_step(
     best_cost = numpy.max(mean_costs)
     best_channel_index = numpy.argmax(mean_costs)
 
-    best_band_number = (
-        data_option_dict[neural_net.BAND_NUMBERS_KEY][best_channel_index]
-    )
-    print('Best cost = {0:.4f} ... best band number = {1:d}'.format(
-        best_cost, best_band_number
+    print('Best cost = {0:.4f} ... best channel = {1:d}'.format(
+        best_cost, best_channel_index
     ))
-
-    permuted_index_matrix[:, best_channel_index] = (
-        new_permuted_index_matrix[:, best_channel_index]
-    )
 
     if permuted_index_matrix is None:
         permuted_index_matrix = numpy.full(
             new_permuted_index_matrix.shape, -1, dtype=int
         )
 
+    permuted_index_matrix[:, best_channel_index] = (
+        new_permuted_index_matrix[:, best_channel_index]
+    )
+
     return {
-        'permuted_index_matrix': permuted_index_matrix,
-        'permuted_cost_matrix': permuted_cost_matrix
+        PERMUTED_INDICES_KEY: permuted_index_matrix,
+        PERMUTED_COSTS_KEY: permuted_cost_matrix
     }
 
 
@@ -530,6 +530,7 @@ def run_forward_test(
     print('Original cost = {0:.4f}'.format(
         numpy.mean(orig_cost_estimates)
     ))
+    print(SEPARATOR_STRING)
 
     step1_predictor_names = None
     step1_cost_matrix = None
@@ -546,8 +547,8 @@ def run_forward_test(
             num_bootstrap_reps=num_bootstrap_reps
         )
 
-        permuted_index_matrix = this_result_dict['permuted_index_matrix']
-        permuted_cost_matrix = this_result_dict['permuted_cost_matrix']
+        permuted_index_matrix = this_result_dict[PERMUTED_INDICES_KEY]
+        permuted_cost_matrix = this_result_dict[PERMUTED_COSTS_KEY]
 
         this_best_index = numpy.argmax(
             numpy.mean(permuted_cost_matrix, axis=1)
@@ -558,6 +559,7 @@ def run_forward_test(
         print('Best predictor at step {0:d} = {1:s} (cost = {2:.4f})'.format(
             k + 1, best_predictor_names[k], numpy.mean(best_cost_matrix[k, :])
         ))
+        print(SEPARATOR_STRING)
 
         if k > 0:
             continue
