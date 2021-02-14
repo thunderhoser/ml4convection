@@ -22,13 +22,6 @@ DEFAULT_NUM_BOOTSTRAP_REPS = 1000
 NUM_EXAMPLES_PER_BATCH = 32
 MAX_EXAMPLES_PER_DAY = 144 * 4
 
-NO_TEST_ENUM = 0
-FORWARD_TEST_ENUM = 1
-BACKWARDS_TEST_ENUM = 2
-TEST_TYPE_ENUMS = numpy.array(
-    [NO_TEST_ENUM, FORWARD_TEST_ENUM, BACKWARDS_TEST_ENUM], dtype=int
-)
-
 ORIGINAL_COST_KEY = 'orig_cost_estimates'
 BEST_PREDICTORS_KEY = 'best_predictor_names'
 BEST_COSTS_KEY = 'best_cost_matrix'
@@ -38,24 +31,7 @@ BACKWARDS_FLAG_KEY = 'is_backwards_test'
 
 PERMUTED_INDICES_KEY = 'permuted_index_matrix'
 PERMUTED_COSTS_KEY = 'permuted_cost_matrix'
-
-
-def _check_test_type(test_type_enum):
-    """Ensures that test type is valid.
-
-    :param test_type_enum: Integer.
-    :raises: ValueError: if `test_type_enum not in TEST_TYPE_ENUMS`.
-    """
-
-    error_checking.assert_is_integer(test_type_enum)
-    if test_type_enum in TEST_TYPE_ENUMS:
-        return
-
-    error_string = (
-        'Test type ({0:d}) is not in list of valid types (below):\n{1:s}'
-    ).format(test_type_enum, str(TEST_TYPE_ENUMS))
-
-    raise ValueError(error_string)
+DEPERMUTED_COSTS_KEY = 'depermuted_cost_matrix'
 
 
 def _permute_values(predictor_matrix, channel_index,
@@ -88,9 +64,31 @@ def _permute_values(predictor_matrix, channel_index,
     return predictor_matrix, permuted_example_indices
 
 
+def _depermute_values(predictor_matrix, channel_index,
+                      permuted_example_indices):
+    """Depermutes (cleans up) values of one channel over examples.
+
+    :param predictor_matrix: See doc for `_permute_values`.
+    :param channel_index: Same.
+    :param permuted_example_indices: Same.
+    :return: predictor_matrix: Same.
+    """
+
+    sort_indices = numpy.empty_like(permuted_example_indices)
+    sort_indices[permuted_example_indices] = numpy.arange(
+        len(permuted_example_indices)
+    )
+
+    predictor_matrix[..., channel_index] = (
+        predictor_matrix[..., channel_index][sort_indices, ...]
+    )
+
+    return predictor_matrix
+
+
 def _get_fss_components_one_batch(
-        data_dict, permuted_index_matrix, test_type_enum, model_object,
-        matching_distance_px, square_filter, eroded_mask_matrix):
+        data_dict, permuted_index_matrix, is_forward_test, is_start_of_test,
+        model_object, matching_distance_px, square_filter, eroded_mask_matrix):
     """Returns FSS (fractions skill score) components for one batch of data.
 
     E = number of examples
@@ -99,7 +97,10 @@ def _get_fss_components_one_batch(
     :param data_dict: Dictionary returned by
         `neural_net.create_data_partial_grids`.
     :param permuted_index_matrix: See doc for `run_forward_test_one_step`.
-    :param test_type_enum: Test type (must be accepted by `_check_test_type`).
+    :param is_forward_test: Boolean flag.  If True (False), running forward
+        (backwards) test.
+    :param is_start_of_test: Boolean flag.  If True, this is the start of the
+        test (step 0).
     :param model_object: See doc for `run_forward_test_one_step`.
     :param matching_distance_px: Same.
     :param square_filter: Same.
@@ -123,8 +124,24 @@ def _get_fss_components_one_batch(
         (num_examples, num_channels), -1, dtype=int
     )
 
-    if test_type_enum == NO_TEST_ENUM:
-        print('Applying model to data...\n')
+    if is_start_of_test:
+        if not is_forward_test:
+            print(
+                'Permuting all predictors in preparation for backwards test...'
+            )
+
+            for j in range(num_channels):
+                predictor_matrix, new_permuted_index_matrix[:, j] = (
+                    _permute_values(
+                        predictor_matrix=predictor_matrix, channel_index=j,
+                        permuted_example_indices=None
+                    )
+                )
+
+        print('Applying model to fully {0:s} data...\n'.format(
+            'clean' if is_forward_test else 'dirty'
+        ))
+
         prediction_matrix = neural_net.apply_model_full_grid(
             model_object=model_object, predictor_matrix=predictor_matrix,
             num_examples_per_batch=NUM_EXAMPLES_PER_BATCH, verbose=False
@@ -150,13 +167,15 @@ def _get_fss_components_one_batch(
             actual_sse_matrix, reference_sse_matrix, new_permuted_index_matrix
         )
 
-    if test_type_enum == FORWARD_TEST_ENUM:
+    permuted_channel_flags = numpy.any(permuted_index_matrix >= 0, axis=0)
+
+    if is_forward_test:
         skip_channel_flags = numpy.any(permuted_index_matrix >= 0, axis=0)
     else:
-        raise ValueError('Fuck')
+        skip_channel_flags = numpy.any(permuted_index_matrix < 0, axis=0)
 
     for j in range(num_channels):
-        if not skip_channel_flags[j]:
+        if not permuted_channel_flags[j]:
             continue
 
         predictor_matrix = _permute_values(
@@ -164,32 +183,43 @@ def _get_fss_components_one_batch(
             permuted_example_indices=permuted_index_matrix[:, j]
         )[0]
 
-    # if is_forward_step:
-    #     skip_channel_flags = numpy.any(permuted_index_matrix >= 0, axis=0)
-    # else:
-    #     skip_channel_flags = numpy.any(permuted_index_matrix < 0, axis=0)
-
     for j in range(num_channels):
         if skip_channel_flags[j]:
             continue
 
-        print('Permuting channel {0:d} of {1:d}...'.format(j + 1, num_channels))
-        this_predictor_matrix, new_permuted_index_matrix[:, j] = (
-            _permute_values(
-                predictor_matrix=predictor_matrix + 0.,
-                channel_index=j, permuted_example_indices=None
-            )
-        )
+        if is_forward_test:
+            print('Permuting channel {0:d} of {1:d}...'.format(
+                j + 1, num_channels
+            ))
 
-        print('Applying model to permuted data...\n')
+            this_predictor_matrix, new_permuted_index_matrix[:, j] = (
+                _permute_values(
+                    predictor_matrix=predictor_matrix + 0.,
+                    channel_index=j, permuted_example_indices=None
+                )
+            )
+
+            print('Applying model to permuted data...\n')
+        else:
+            print('Cleaning channel {0:d} of {1:d}...'.format(
+                j + 1, num_channels
+            ))
+
+            this_predictor_matrix = _depermute_values(
+                predictor_matrix=predictor_matrix + 0., channel_index=j,
+                permuted_example_indices=permuted_index_matrix[:, j]
+            )
+
+            print('Applying model to cleaned data...\n')
+
         this_prediction_matrix = neural_net.apply_model_full_grid(
             model_object=model_object, predictor_matrix=this_predictor_matrix,
             num_examples_per_batch=NUM_EXAMPLES_PER_BATCH, verbose=False
         )
 
         for i in range(num_examples):
-            # TODO(thunderhoser): Make this method public.
 
+            # TODO(thunderhoser): Make this method public.
             spatial_actual_sse_matrix, spatial_reference_sse_matrix = (
                 evaluation._get_fss_components_one_time(
                     actual_target_matrix=target_matrix[i, ...],
@@ -261,6 +291,120 @@ def _bootstrap_fss_cost(actual_sse_matrix, reference_sse_matrix,
     return cost_matrix
 
 
+def _run_forward_test_one_step(
+        model_object, data_option_dict, valid_date_strings, cost_function,
+        permuted_index_matrix, num_bootstrap_reps):
+    """Runs one step of the forward permutation test.
+
+    E = number of examples
+    C = number of channels
+    B = number of replicates for bootstrapping
+
+    :param model_object: See doc for `run_forward_test`.
+    :param data_option_dict: Same.
+    :param valid_date_strings: Same.
+    :param cost_function: Same.
+    :param permuted_index_matrix: E-by-C numpy array of integers.  If the
+        [k]th channel is currently permuted, permuted_index_matrix[:, k]
+        contains indices used for permutation.  Otherwise,
+        permuted_index_matrix[:, k] contains all negative numbers.
+    :param num_bootstrap_reps: Number of replicates for bootstrapping.
+    :return: result_dict: Dictionary with the following keys.
+    result_dict['permuted_index_matrix']: Same as input but with
+        different values in the matrices.
+    result_dict['permuted_cost_matrix']: C-by-B numpy array of costs after
+        permutation in this step.
+    """
+
+    if permuted_index_matrix is None:
+        num_channels = len(data_option_dict[neural_net.BAND_NUMBERS_KEY])
+        permuted_forever_flags = numpy.full(num_channels, 0, dtype=bool)
+    else:
+        permuted_forever_flags = numpy.any(permuted_index_matrix >= 0, axis=0)
+
+    if numpy.all(permuted_forever_flags):
+        return None
+
+    permuted_cost_matrix, new_permuted_index_matrix = cost_function(
+        model_object=model_object, data_option_dict=data_option_dict,
+        valid_date_strings=valid_date_strings,
+        is_forward_test=True, is_start_of_test=False,
+        permuted_index_matrix=permuted_index_matrix,
+        num_bootstrap_reps=num_bootstrap_reps
+    )
+
+    mean_costs = numpy.mean(permuted_cost_matrix, axis=1)
+    best_cost = numpy.nanmax(mean_costs)
+    best_channel_index = numpy.nanargmax(mean_costs)
+
+    print('Best cost = {0:.4f} ... best channel = {1:d}'.format(
+        best_cost, best_channel_index + 1
+    ))
+
+    if permuted_index_matrix is None:
+        permuted_index_matrix = numpy.full(
+            new_permuted_index_matrix.shape, -1, dtype=int
+        )
+
+    permuted_index_matrix[:, best_channel_index] = (
+        new_permuted_index_matrix[:, best_channel_index]
+    )
+
+    return {
+        PERMUTED_INDICES_KEY: permuted_index_matrix,
+        PERMUTED_COSTS_KEY: permuted_cost_matrix
+    }
+
+
+def _run_backwards_test_one_step(
+        model_object, data_option_dict, valid_date_strings, cost_function,
+        permuted_index_matrix, num_bootstrap_reps):
+    """Runs one step of the backwards permutation test.
+
+    C = number of channels
+    B = number of replicates for bootstrapping
+
+    :param model_object: See doc for `_run_forward_test_one_step`.
+    :param data_option_dict: Same.
+    :param valid_date_strings: Same.
+    :param cost_function: Same.
+    :param permuted_index_matrix: Same.
+    :param num_bootstrap_reps: Same.
+    :return: result_dict: Dictionary with the following keys.
+    result_dict['permuted_index_matrix']: Same as input but with
+        different values in the matrices.
+    result_dict['depermuted_cost_matrix']: C-by-B numpy array of costs after
+        depermutation in this step.
+    """
+
+    depermuted_forever_flags = numpy.any(permuted_index_matrix < 0, axis=0)
+    if numpy.all(depermuted_forever_flags):
+        return None
+
+    depermuted_cost_matrix = cost_function(
+        model_object=model_object, data_option_dict=data_option_dict,
+        valid_date_strings=valid_date_strings,
+        is_forward_test=False, is_start_of_test=False,
+        permuted_index_matrix=permuted_index_matrix,
+        num_bootstrap_reps=num_bootstrap_reps
+    )[0]
+
+    mean_costs = numpy.mean(depermuted_cost_matrix, axis=1)
+    best_cost = numpy.nanmin(mean_costs)
+    best_channel_index = numpy.nanargmin(mean_costs)
+
+    print('Best cost = {0:.4f} ... best channel = {1:d}'.format(
+        best_cost, best_channel_index + 1
+    ))
+
+    permuted_index_matrix[:, best_channel_index] = -1
+
+    return {
+        PERMUTED_INDICES_KEY: permuted_index_matrix,
+        DEPERMUTED_COSTS_KEY: depermuted_cost_matrix
+    }
+
+
 def make_fss_cost_function(
         matching_distance_px, square_filter, model_metadata_dict):
     """Creates FSS (fractions skill score) cost function.
@@ -282,8 +426,8 @@ def make_fss_cost_function(
     )
 
     def cost_function(
-            model_object, data_option_dict, valid_date_strings,
-            test_type_enum, permuted_index_matrix, num_bootstrap_reps):
+            model_object, data_option_dict, valid_date_strings, is_forward_test,
+            is_start_of_test, permuted_index_matrix, num_bootstrap_reps):
         """FSS cost function.
 
         E = number of examples
@@ -297,8 +441,10 @@ def make_fss_cost_function(
             `neural_net.create_data_partial_grids`.
         :param valid_date_strings: length-D list of valid dates (format
             "yyyymmdd").
-        :param test_type_enum: Test type (must be accepted by
-            `_check_test_type`).
+        :param is_forward_test: Boolean flag.  If True (False), running forward
+            (backwards) test.
+        :param is_start_of_test: Boolean flag.  If True, this is the start of
+            the test (step 0).
         :param permuted_index_matrix: E-by-C numpy array of integers.  If the
             [k]th channel is currently permuted, permuted_index_matrix[:, k]
             contains indices used for permutation.  Otherwise,
@@ -316,7 +462,8 @@ def make_fss_cost_function(
         error_checking.assert_is_numpy_array(
             numpy.array(valid_date_strings), num_dimensions=1
         )
-        _check_test_type(test_type_enum)
+        error_checking.assert_is_boolean(is_forward_test)
+        error_checking.assert_is_boolean(is_start_of_test)
 
         num_channels = len(data_option_dict[neural_net.BAND_NUMBERS_KEY])
 
@@ -388,7 +535,8 @@ def make_fss_cost_function(
                 ) = _get_fss_components_one_batch(
                     data_dict=this_data_dict,
                     permuted_index_matrix=this_permuted_index_matrix,
-                    test_type_enum=test_type_enum,
+                    is_forward_test=is_forward_test,
+                    is_start_of_test=is_start_of_test,
                     model_object=model_object,
                     matching_distance_px=matching_distance_px,
                     square_filter=square_filter,
@@ -401,11 +549,6 @@ def make_fss_cost_function(
             new_permuted_index_matrix[:num_examples_read, :]
         )
 
-        if test_type_enum == NO_TEST_ENUM:
-            actual_sse_matrix = actual_sse_matrix[:, [0]]
-            reference_sse_matrix = reference_sse_matrix[:, [0]]
-            new_permuted_index_matrix = new_permuted_index_matrix[:, [0]]
-
         cost_matrix = _bootstrap_fss_cost(
             actual_sse_matrix=actual_sse_matrix,
             reference_sse_matrix=reference_sse_matrix,
@@ -415,72 +558,6 @@ def make_fss_cost_function(
         return cost_matrix, new_permuted_index_matrix
 
     return cost_function
-
-
-def _run_forward_test_one_step(
-        model_object, data_option_dict, valid_date_strings, cost_function,
-        permuted_index_matrix, num_bootstrap_reps):
-    """Runs one step of the forward permutation test.
-
-    E = number of examples
-    C = number of channels
-    B = number of replicates for bootstrapping
-
-    :param model_object: See doc for `run_forward_test`.
-    :param data_option_dict: Same.
-    :param valid_date_strings: Same.
-    :param cost_function: Same.
-    :param permuted_index_matrix: E-by-C numpy array of integers.  If the
-        [k]th channel is currently permuted, permuted_index_matrix[:, k]
-        contains indices used for permutation.  Otherwise,
-        permuted_index_matrix[:, k] contains all negative numbers.
-    :param num_bootstrap_reps: Number of replicates for bootstrapping.
-    :return: result_dict: Dictionary with the following keys.
-    result_dict['permuted_index_matrix']: Same as input but with
-        different values in the matrices.
-    result_dict['permuted_cost_matrix']: C-by-B numpy array of costs after
-        permutation in this step.
-    """
-
-    if permuted_index_matrix is None:
-        num_channels = len(data_option_dict[neural_net.BAND_NUMBERS_KEY])
-        permuted_forever_flags = numpy.full(num_channels, 0, dtype=bool)
-    else:
-        permuted_forever_flags = numpy.any(permuted_index_matrix >= 0, axis=0)
-
-    if numpy.all(permuted_forever_flags):
-        return None
-
-    # Housekeeping.
-    permuted_cost_matrix, new_permuted_index_matrix = cost_function(
-        model_object=model_object, data_option_dict=data_option_dict,
-        valid_date_strings=valid_date_strings,
-        test_type_enum=FORWARD_TEST_ENUM,
-        permuted_index_matrix=permuted_index_matrix,
-        num_bootstrap_reps=num_bootstrap_reps
-    )
-
-    mean_costs = numpy.mean(permuted_cost_matrix, axis=1)
-    best_cost = numpy.nanmax(mean_costs)
-    best_channel_index = numpy.nanargmax(mean_costs)
-
-    print('Best cost = {0:.4f} ... best channel = {1:d}'.format(
-        best_cost, best_channel_index + 1
-    ))
-
-    if permuted_index_matrix is None:
-        permuted_index_matrix = numpy.full(
-            new_permuted_index_matrix.shape, -1, dtype=int
-        )
-
-    permuted_index_matrix[:, best_channel_index] = (
-        new_permuted_index_matrix[:, best_channel_index]
-    )
-
-    return {
-        PERMUTED_INDICES_KEY: permuted_index_matrix,
-        PERMUTED_COSTS_KEY: permuted_cost_matrix
-    }
 
 
 def run_forward_test(
@@ -530,14 +607,19 @@ def run_forward_test(
     num_channels = len(band_numbers)
 
     # Find original cost (before permutation).
-    orig_cost_estimates = cost_function(
+    orig_cost_estimates, permuted_index_matrix = cost_function(
         model_object=model_object, data_option_dict=data_option_dict,
         valid_date_strings=valid_date_strings,
-        test_type_enum=NO_TEST_ENUM, permuted_index_matrix=None,
-        num_bootstrap_reps=num_bootstrap_reps
-    )[0][:, 0]
+        is_forward_test=True, is_start_of_test=True,
+        permuted_index_matrix=None, num_bootstrap_reps=num_bootstrap_reps
+    )
 
-    print('Original cost = {0:.4f}'.format(
+    orig_cost_estimates = orig_cost_estimates[:, 0]
+    permuted_index_matrix = numpy.full(
+        permuted_index_matrix.shape, -1, dtype=int
+    )
+
+    print('Original cost (before permutation) = {0:.4f}'.format(
         numpy.mean(orig_cost_estimates)
     ))
     print(SEPARATOR_STRING)
@@ -546,8 +628,6 @@ def run_forward_test(
     step1_cost_matrix = None
     best_predictor_names = [''] * num_channels
     best_cost_matrix = numpy.full((num_channels, num_bootstrap_reps), numpy.nan)
-
-    permuted_index_matrix = None
 
     for k in range(num_channels):
         this_result_dict = _run_forward_test_one_step(
@@ -584,4 +664,94 @@ def run_forward_test(
         STEP1_PREDICTORS_KEY: step1_predictor_names,
         STEP1_COSTS_KEY: step1_cost_matrix,
         BACKWARDS_FLAG_KEY: False
+    }
+
+
+def run_backwards_test(
+        model_object, data_option_dict, valid_date_strings, cost_function,
+        num_bootstrap_reps=DEFAULT_NUM_BOOTSTRAP_REPS):
+    """Runs backwards versions (single- and multi-pass) of permutation test.
+
+    C = number of channels
+    B = number of replicates for bootstrapping
+
+    :param model_object: See doc for `run_forward_test`.
+    :param data_option_dict: Same.
+    :param valid_date_strings: Same.
+    :param cost_function: Same.
+    :param num_bootstrap_reps: Same.
+
+    :return: result_dict: Dictionary with the following keys.
+    result_dict['orig_cost_estimates']: length-B numpy array with estimates of
+        original cost (before *de*permutation).
+    result_dict['best_band_number']: length-C list with best band number at each
+        step.
+    result_dict['best_cost_matrix']: C-by-B numpy array of costs after
+        *de*permutation at each step.
+    result_dict['step1_band_numbers']: length-C list with predictors in order
+        that they were *de*permuted in step 1.
+    result_dict['step1_cost_matrix']: C-by-B numpy array of costs after
+        *de*permutation in step 1.
+    result_dict['is_backwards_test']: Boolean flag (always True for this
+        method).
+    """
+
+    band_numbers = data_option_dict[neural_net.BAND_NUMBERS_KEY]
+    predictor_names = ['Band {0:d}'.format(b) for b in band_numbers]
+    num_channels = len(band_numbers)
+
+    # Find original cost (before *de*permutation).
+    orig_cost_estimates, permuted_index_matrix = cost_function(
+        model_object=model_object, data_option_dict=data_option_dict,
+        valid_date_strings=valid_date_strings,
+        is_forward_test=False, is_start_of_test=True,
+        permuted_index_matrix=None, num_bootstrap_reps=num_bootstrap_reps
+    )
+    orig_cost_estimates = orig_cost_estimates[:, 0]
+
+    print('Original cost (before *de*permutation) = {0:.4f}'.format(
+        numpy.mean(orig_cost_estimates)
+    ))
+    print(SEPARATOR_STRING)
+
+    step1_predictor_names = None
+    step1_cost_matrix = None
+    best_predictor_names = [''] * num_channels
+    best_cost_matrix = numpy.full((num_channels, num_bootstrap_reps), numpy.nan)
+
+    for k in range(num_channels):
+        this_result_dict = _run_backwards_test_one_step(
+            model_object=model_object, data_option_dict=data_option_dict,
+            valid_date_strings=valid_date_strings, cost_function=cost_function,
+            permuted_index_matrix=permuted_index_matrix,
+            num_bootstrap_reps=num_bootstrap_reps
+        )
+
+        permuted_index_matrix = this_result_dict[PERMUTED_INDICES_KEY]
+        depermuted_cost_matrix = this_result_dict[DEPERMUTED_COSTS_KEY]
+
+        this_best_index = numpy.nanargmin(
+            numpy.nanmean(depermuted_cost_matrix, axis=1)
+        )
+        best_predictor_names[k] = predictor_names[this_best_index]
+        best_cost_matrix[k, :] = depermuted_cost_matrix[this_best_index, :]
+
+        print('Best predictor at step {0:d} = {1:s} (cost = {2:.4f})'.format(
+            k + 1, best_predictor_names[k], numpy.mean(best_cost_matrix[k, :])
+        ))
+        print(SEPARATOR_STRING)
+
+        if k > 0:
+            continue
+
+        step1_predictor_names = copy.deepcopy(predictor_names)
+        step1_cost_matrix = depermuted_cost_matrix + 0.
+
+    return {
+        ORIGINAL_COST_KEY: orig_cost_estimates,
+        BEST_PREDICTORS_KEY: best_predictor_names,
+        BEST_COSTS_KEY: best_cost_matrix,
+        STEP1_PREDICTORS_KEY: step1_predictor_names,
+        STEP1_COSTS_KEY: step1_cost_matrix,
+        BACKWARDS_FLAG_KEY: True
     }

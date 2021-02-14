@@ -1,6 +1,6 @@
 #!/bin/tcsh
 
-#SBATCH --job-name="run_permutation_test"
+#SBATCH --job-name="run_forward_perm_test"
 #SBATCH --partition="fge"
 #SBATCH --account="rda-ghpcs"
 #SBATCH --qos="batch"
@@ -13,13 +13,13 @@
 ##SBATCH --cpus-per-task=1
 ##SBATCH --ntasks-per-node=1
 #SBATCH --time=30:00:00
-#SBATCH --array=1-4
+#SBATCH --array=1
 #SBATCH --exclude=h28n12
 ##SBATCH --exclude=h31n03,h28n12
 ##SBATCH --exclude=h29n01,h26n05,h28n06,h29n07,h30n03,h30n15
 #SBATCH --mail-type=BEGIN,END,FAIL
 #SBATCH --mail-user=ryan.lagerquist@noaa.gov
-#SBATCH --output=run_permutation_test_%A_%a.out
+#SBATCH --output=run_forward_perm_test_%A_%a.out
 
 module load cuda/10.1
 source /scratch2/BMC/gsd-hpcs/Jebb.Q.Stewart/conda3.7/etc/profile.d/conda.csh

@@ -1,6 +1,6 @@
 #!/bin/tcsh
 
-#SBATCH --job-name="run_permutation_test"
+#SBATCH --job-name="run_backwards_perm_test"
 #SBATCH --partition="fge"
 #SBATCH --account="rda-ghpcs"
 #SBATCH --qos="batch"
@@ -13,13 +13,13 @@
 ##SBATCH --cpus-per-task=1
 ##SBATCH --ntasks-per-node=1
 #SBATCH --time=30:00:00
-#SBATCH --array=1
+#SBATCH --array=1-4
 #SBATCH --exclude=h28n12
 ##SBATCH --exclude=h31n03,h28n12
 ##SBATCH --exclude=h29n01,h26n05,h28n06,h29n07,h30n03,h30n15
 #SBATCH --mail-type=BEGIN,END,FAIL
 #SBATCH --mail-user=ryan.lagerquist@noaa.gov
-#SBATCH --output=run_permutation_test_%A_%a.out
+#SBATCH --output=run_backwards_perm_test_%A_%a.out
 
 module load cuda/10.1
 source /scratch2/BMC/gsd-hpcs/Jebb.Q.Stewart/conda3.7/etc/profile.d/conda.csh
@@ -43,7 +43,7 @@ set l2_weight_string=`printf "%.10f" $l2_weight`
 
 set model_dir_name="${TOP_MODEL_DIR_NAME}/batch-size=${batch_size_string}_l2-weight=${l2_weight_string}_lag-times-sec=${lag_time_string_dashed}"
 set model_file_name="${model_dir_name}/model.h5"
-set output_file_name="${model_dir_name}/permutation_test_forward.p"
+set output_file_name="${model_dir_name}/permutation_test_backwards.p"
 
 python3 -u "${CODE_DIR_NAME}/run_permutation.py" \
 --input_model_file_name="${model_file_name}" \
@@ -53,5 +53,5 @@ python3 -u "${CODE_DIR_NAME}/run_permutation.py" \
 --num_bootstrap_reps=1000 \
 --matching_distance_px=4 \
 --square_fss_filter=1 \
---run_backwards_test=0 \
+--run_backwards_test=1 \
 --output_file_name="${output_file_name}"
