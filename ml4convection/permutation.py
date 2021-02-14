@@ -108,7 +108,7 @@ def _get_fss_components_one_batch(
     """
 
     predictor_matrix = data_dict[neural_net.PREDICTOR_MATRIX_KEY] + 0.
-    target_matrix = data_dict[neural_net.TARGET_MATRIX_KEY] + 0
+    target_matrix = data_dict[neural_net.TARGET_MATRIX_KEY][..., 0] + 0
 
     num_examples = predictor_matrix.shape[0]
     num_channels = predictor_matrix.shape[-1]
