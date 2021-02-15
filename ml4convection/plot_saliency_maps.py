@@ -4,7 +4,6 @@ import os
 import sys
 import argparse
 import numpy
-from PIL import Image
 import matplotlib
 matplotlib.use('agg')
 from matplotlib import pyplot
@@ -19,6 +18,7 @@ import time_conversion
 import file_system_utils
 import error_checking
 import imagemagick_utils
+import gg_plotting_utils
 import border_io
 import saliency
 import neural_net
@@ -229,7 +229,12 @@ def _plot_predictors_one_example(
                 axes_object=axes_object_matrix[j, k]
             )
 
-            satellite_plotting.plot_2d_grid_latlng(
+            if j == num_lag_times - 1 and k == 0:
+                cbar_orientation_string = 'horizontal'
+            else:
+                cbar_orientation_string = None
+
+            colour_bar_object = satellite_plotting.plot_2d_grid_latlng(
                 brightness_temp_matrix_kelvins=
                 brightness_temp_matrix_kelvins[..., j, k],
                 axes_object=axes_object_matrix[j, k],
@@ -237,14 +242,18 @@ def _plot_predictors_one_example(
                 min_longitude_deg_e=longitudes_deg_e[0],
                 latitude_spacing_deg=numpy.diff(latitudes_deg_n[:2])[0],
                 longitude_spacing_deg=numpy.diff(longitudes_deg_e[:2])[0],
-                cbar_orientation_string=None
+                cbar_orientation_string=cbar_orientation_string,
+                font_size=FONT_SIZE
             )
+
+            if cbar_orientation_string is not None:
+                colour_bar_object.set_label('Brightness temp (Kelvins)')
 
             plotting_utils.plot_grid_lines(
                 plot_latitudes_deg_n=latitudes_deg_n,
                 plot_longitudes_deg_e=longitudes_deg_e,
                 axes_object=axes_object_matrix[j, k],
-                parallel_spacing_deg=0.5, meridian_spacing_deg=0.5,
+                parallel_spacing_deg=0.5, meridian_spacing_deg=1.,
                 font_size=FONT_SIZE
             )
 
@@ -313,6 +322,20 @@ def _plot_saliency_one_example(
                 line_width=line_width
             )
 
+            if not (j == 0 and k == num_channels - 1):
+                continue
+
+            colour_bar_object = gg_plotting_utils.plot_linear_colour_bar(
+                axes_object_or_matrix=axes_object_matrix[j, k],
+                data_matrix=saliency_matrix[..., j, k],
+                colour_map_object=colour_map_object,
+                min_value=0., max_value=max_colour_value,
+                orientation_string='vertical',
+                extend_min=False, extend_max=True, font_size=FONT_SIZE
+            )
+
+            colour_bar_object.set_label('Absolute saliency')
+
 
 def _concat_panels_one_example(figure_object_matrix, valid_time_unix_sec,
                                output_dir_name):
@@ -378,69 +401,6 @@ def _concat_panels_one_example(figure_object_matrix, valid_time_unix_sec,
         os.remove(this_file_name)
 
     return concat_figure_file_name
-
-
-def _add_predictor_colour_bar(figure_file_name, valid_time_unix_sec,
-                              output_dir_name):
-    """Adds colour bar for predictors.
-
-    :param figure_file_name: Path to saved image file.  Colour bar will be added
-        to this image.
-    :param valid_time_unix_sec: Valid time.
-    :param output_dir_name: Name of output directory.
-    """
-
-    this_image_matrix = Image.open(figure_file_name)
-    figure_width_px, figure_height_px = this_image_matrix.size
-    figure_width_inches = float(figure_width_px) / FIGURE_RESOLUTION_DPI
-    figure_height_inches = float(figure_height_px) / FIGURE_RESOLUTION_DPI
-
-    extra_figure_object, extra_axes_object = pyplot.subplots(
-        1, 1, figsize=(figure_width_inches, figure_height_inches)
-    )
-    extra_axes_object.axis('off')
-
-    dummy_values = numpy.array([200, 250], dtype=float)
-    colour_map_object, colour_norm_object = (
-        satellite_plotting._get_colour_scheme()
-    )
-
-    colour_bar_object = satellite_plotting._add_colour_bar(
-        brightness_temp_matrix_kelvins=dummy_values,
-        axes_object=extra_axes_object,
-        colour_map_object=colour_map_object,
-        colour_norm_object=colour_norm_object,
-        orientation_string='horizontal', font_size=FONT_SIZE
-    )
-    colour_bar_object.set_label('Brightness temperature (Kelvins)')
-
-    valid_time_string = time_conversion.unix_sec_to_string(
-        valid_time_unix_sec, TIME_FORMAT_FOR_FILES
-    )
-    extra_file_name = '{0:s}/predictor_colour_bar_{1:s}.jpg'.format(
-        output_dir_name, valid_time_string
-    )
-
-    print('Saving colour bar to: "{0:s}"...'.format(extra_file_name))
-    extra_figure_object.savefig(
-        extra_file_name, dpi=FIGURE_RESOLUTION_DPI,
-        pad_inches=0, bbox_inches='tight'
-    )
-    pyplot.close(extra_figure_object)
-
-    print('Concatenating colour bar to: "{0:s}"...'.format(figure_file_name))
-
-    imagemagick_utils.concatenate_images(
-        input_file_names=[figure_file_name, extra_file_name],
-        output_file_name=figure_file_name,
-        num_panel_rows=2, num_panel_columns=1,
-        extra_args_string='-gravity Center'
-    )
-
-    os.remove(extra_file_name)
-    imagemagick_utils.trim_whitespace(
-        input_file_name=figure_file_name, output_file_name=figure_file_name
-    )
 
 
 def _run(saliency_file_name, top_predictor_dir_name, top_target_dir_name,
@@ -555,12 +515,6 @@ def _run(saliency_file_name, top_predictor_dir_name, top_target_dir_name,
 
         concat_figure_file_name = _concat_panels_one_example(
             figure_object_matrix=figure_object_matrix,
-            valid_time_unix_sec=valid_time_unix_sec,
-            output_dir_name=output_dir_name
-        )
-
-        _add_predictor_colour_bar(
-            figure_file_name=concat_figure_file_name,
             valid_time_unix_sec=valid_time_unix_sec,
             output_dir_name=output_dir_name
         )
