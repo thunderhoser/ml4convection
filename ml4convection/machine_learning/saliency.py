@@ -122,7 +122,7 @@ def find_file(
     _ = time_conversion.string_to_unix_sec(valid_date_string, DATE_FORMAT)
     error_checking.assert_is_boolean(raise_error_if_missing)
 
-    saliency_file_name = '{0:s}/{1:s}/targets_{2:s}_radar{3:d}.nc'.format(
+    saliency_file_name = '{0:s}/{1:s}/saliency_{2:s}_radar{3:d}.nc'.format(
         top_directory_name, valid_date_string[:4], valid_date_string,
         radar_number
     )
@@ -134,6 +134,43 @@ def find_file(
         saliency_file_name
     )
     raise ValueError(error_string)
+
+
+def file_name_to_date(saliency_file_name):
+    """Parses date from name of saliency file.
+
+    :param saliency_file_name: File name created by `find_file`.
+    :return: valid_date_string: Valid date (format "yyyymmdd").
+    """
+
+    error_checking.assert_is_string(saliency_file_name)
+
+    pathless_file_name = os.path.split(saliency_file_name)[-1]
+    valid_date_string = pathless_file_name.split('_')[1]
+    _ = time_conversion.string_to_unix_sec(valid_date_string, DATE_FORMAT)
+
+    return valid_date_string
+
+
+def file_name_to_radar_num(saliency_file_name):
+    """Parses radar number from name of saliency file.
+
+    :param saliency_file_name: File name created by `find_file`.
+    :return: radar_number: Radar number (non-negative integer).
+    """
+
+    error_checking.assert_is_string(saliency_file_name)
+
+    pathless_file_name = os.path.split(saliency_file_name)[-1]
+    extensionless_file_name = os.path.splitext(pathless_file_name)[0]
+    radar_word = extensionless_file_name.split('_')[-1]
+
+    assert radar_word.startswith('radar')
+
+    radar_number = int(radar_word.replace('radar', ''))
+    error_checking.assert_is_geq(radar_number, 0)
+
+    return radar_number
 
 
 def write_file(

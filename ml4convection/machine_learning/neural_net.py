@@ -860,7 +860,8 @@ def create_data_full_grid(option_dict, return_coords=False):
     )
 
 
-def create_data_partial_grids(option_dict, return_coords=False):
+def create_data_partial_grids(option_dict, return_coords=False,
+                              radar_number=None):
     """Creates input data on partial, radar-centered grids.
 
     This method is the same as `generator_partial_grids`, except that
@@ -884,6 +885,8 @@ def create_data_partial_grids(option_dict, return_coords=False):
     option_dict['add_coords']: Same.
 
     :param return_coords: See doc for `_read_inputs_one_day`.
+    :param radar_number: Will return data only for this radar (non-negative
+        integer).  If None, will return data for all radars.
     :return: data_dicts: length-R list of dictionaries, each in format returned
         by `_read_inputs_one_day`.
     """
@@ -891,13 +894,19 @@ def create_data_partial_grids(option_dict, return_coords=False):
     option_dict = _check_generator_args(option_dict)
     error_checking.assert_is_boolean(return_coords)
 
+    if radar_number is not None:
+        error_checking.assert_is_integer(radar_number)
+        error_checking.assert_is_geq(radar_number, 0)
+
     top_predictor_dir_name = option_dict[PREDICTOR_DIRECTORY_KEY]
     top_target_dir_name = option_dict[TARGET_DIRECTORY_KEY]
     band_numbers = option_dict[BAND_NUMBERS_KEY]
     lead_time_seconds = option_dict[LEAD_TIME_KEY]
     lag_times_seconds = option_dict[LAG_TIMES_KEY]
     include_time_dimension = option_dict[INCLUDE_TIME_DIM_KEY]
-    omit_north_radar = option_dict[OMIT_NORTH_RADAR_KEY]
+    omit_north_radar = (
+        option_dict[OMIT_NORTH_RADAR_KEY] and radar_number is None
+    )
     valid_date_string = option_dict[VALID_DATE_KEY]
     normalize = option_dict[NORMALIZE_FLAG_KEY]
     uniformize = option_dict[UNIFORMIZE_FLAG_KEY]
@@ -915,6 +924,9 @@ def create_data_partial_grids(option_dict, return_coords=False):
 
     for k in range(NUM_RADARS):
         if omit_north_radar and k == 0:
+            continue
+
+        if radar_number is not None and radar_number != k:
             continue
 
         these_predictor_file_names = example_io.find_many_predictor_files(
@@ -1605,8 +1617,8 @@ def read_metafile(dill_file_name):
         metadata_dict[FULL_MASK_MATRIX_KEY] = metadata_dict[MASK_MATRIX_KEY]
 
     num_grid_points = (
-            len(twb_satellite_io.GRID_LATITUDES_DEG_N) *
-            len(twb_satellite_io.GRID_LONGITUDES_DEG_E)
+        len(twb_satellite_io.GRID_LATITUDES_DEG_N) *
+        len(twb_satellite_io.GRID_LONGITUDES_DEG_E)
     )
 
     if num_grid_points != metadata_dict[FULL_MASK_MATRIX_KEY].size:
