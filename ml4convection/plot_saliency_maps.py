@@ -353,6 +353,8 @@ def _run(saliency_file_name, top_predictor_dir_name, top_target_dir_name,
         option_dict=predictor_option_dict, return_coords=True
     )[radar_number]
 
+    print(list(predictor_dict.kets()))
+
     num_examples = saliency_dict[saliency.SALIENCY_MATRIX_KEY].shape[0]
 
     for i in range(num_examples):
