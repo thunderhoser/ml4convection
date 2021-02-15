@@ -54,5 +54,4 @@ python3 -u "${CODE_DIR_NAME}/make_saliency_maps.py" \
 --is_layer_output=1 \
 --neuron_indices 102 102 0 \
 --ideal_activation=1 \
---run_backwards_test=0 \
 --output_dir_name="${output_dir_name}"
