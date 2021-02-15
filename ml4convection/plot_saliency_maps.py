@@ -13,6 +13,7 @@ THIS_DIRECTORY_NAME = os.path.dirname(os.path.realpath(
 ))
 sys.path.append(os.path.normpath(os.path.join(THIS_DIRECTORY_NAME, '..')))
 
+import gg_general_utils
 import time_conversion
 import file_system_utils
 import error_checking
@@ -24,7 +25,7 @@ import saliency_plotting
 import satellite_plotting
 import plotting_utils
 
-# TODO(thunderhoser): Allow smoothing of saliency maps.
+# TODO(thunderhoser): Make smoothing radius an input arg.
 
 DATE_FORMAT = neural_net.DATE_FORMAT
 TIME_FORMAT_FOR_FILES = '%Y-%m-%d-%H%M'
@@ -104,6 +105,40 @@ INPUT_ARG_PARSER.add_argument(
     '--' + OUTPUT_DIR_ARG_NAME, type=str, required=True,
     help=OUTPUT_DIR_HELP_STRING
 )
+
+
+def _smooth_maps(saliency_dict, smoothing_radius_grid_cells):
+    """Smooths saliency maps via Gaussian filter.
+
+    :param saliency_dict: Dictionary returned by `saliency.read_file`.
+    :param smoothing_radius_grid_cells: e-folding radius (number of grid cells).
+    :return: saliency_dict: Same as input but with smoothed maps.
+    """
+
+    print((
+        'Smoothing saliency maps with Gaussian filter (e-folding radius of '
+        '{0:.1f} grid cells)...'
+    ).format(
+        smoothing_radius_grid_cells
+    ))
+
+    saliency_matrix = saliency_dict[saliency.SALIENCY_MATRIX_KEY]
+    num_examples = saliency_matrix.shape[0]
+    num_lag_times = saliency_matrix.shape[-2]
+    num_channels = saliency_matrix.shape[-1]
+
+    for i in range(num_examples):
+        for j in range(num_lag_times):
+            for k in range(num_channels):
+                saliency_matrix[i, ..., j, k] = (
+                    gg_general_utils.apply_gaussian_filter(
+                        input_matrix=saliency_matrix[i, ..., j, k],
+                        e_folding_radius_grid_cells=smoothing_radius_grid_cells
+                    )
+                )
+
+    saliency_dict[saliency.SALIENCY_MATRIX_KEY] = saliency_matrix
+    return saliency_dict
 
 
 def _plot_predictors_one_example(
@@ -272,6 +307,9 @@ def _run(saliency_file_name, top_predictor_dir_name, top_target_dir_name,
 
     print('Reading data from: "{0:s}"...'.format(saliency_file_name))
     saliency_dict = saliency.read_file(saliency_file_name)
+    saliency_dict = _smooth_maps(
+        saliency_dict=saliency_dict, smoothing_radius_grid_cells=2.
+    )
 
     model_metafile_name = neural_net.find_metafile(
         model_file_name=saliency_dict[saliency.MODEL_FILE_KEY],
@@ -289,7 +327,7 @@ def _run(saliency_file_name, top_predictor_dir_name, top_target_dir_name,
     valid_date_string = time_conversion.unix_sec_to_string(
         saliency_dict[saliency.VALID_TIMES_KEY][0], DATE_FORMAT
     )
-    radar_number = 2
+    radar_number = 0
 
     predictor_option_dict = {
         neural_net.PREDICTOR_DIRECTORY_KEY: top_predictor_dir_name,
@@ -326,21 +364,21 @@ def _run(saliency_file_name, top_predictor_dir_name, top_target_dir_name,
             predictor_option_dict=predictor_option_dict
         )
 
-        # if max_colour_value is None:
-        #     these_abs_values = numpy.absolute(
-        #         saliency_dict[saliency.SALIENCY_MATRIX_KEY][i, ...]
-        #     )
-        #     this_max_colour_value = numpy.percentile(these_abs_values, 99.)
-        # else:
-        #     this_max_colour_value = max_colour_value + 0.
-        #
-        # _plot_saliency_one_example(
-        #     saliency_dict=saliency_dict, example_index=i,
-        #     axes_object_matrix=axes_object_matrix,
-        #     colour_map_object=colour_map_object,
-        #     max_colour_value=this_max_colour_value,
-        #     half_num_contours=half_num_contours, line_width=line_width
-        # )
+        if max_colour_value is None:
+            these_abs_values = numpy.absolute(
+                saliency_dict[saliency.SALIENCY_MATRIX_KEY][i, ...]
+            )
+            this_max_colour_value = numpy.percentile(these_abs_values, 99.)
+        else:
+            this_max_colour_value = max_colour_value + 0.
+
+        _plot_saliency_one_example(
+            saliency_dict=saliency_dict, example_index=i,
+            axes_object_matrix=axes_object_matrix,
+            colour_map_object=colour_map_object,
+            max_colour_value=this_max_colour_value,
+            half_num_contours=half_num_contours, line_width=line_width
+        )
 
         valid_time_string = time_conversion.unix_sec_to_string(
             saliency_dict[saliency.VALID_TIMES_KEY][i], TIME_FORMAT_FOR_FILES
