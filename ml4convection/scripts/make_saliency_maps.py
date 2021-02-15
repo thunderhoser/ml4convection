@@ -2,8 +2,11 @@
 
 import argparse
 import numpy
+import tensorflow
 from ml4convection.machine_learning import saliency
 from ml4convection.machine_learning import neural_net
+
+tensorflow.compat.v1.disable_eager_execution()
 
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 MINOR_SEPARATOR_STRING = '\n\n' + '-' * 50 + '\n\n'
