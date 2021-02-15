@@ -87,7 +87,9 @@ def plot_grid_lines(
     ]
 
     meridians_deg_e = numpy.unique(
-        number_rounding.round_to_nearest(plot_longitudes_deg_e, 2.)
+        number_rounding.round_to_nearest(
+            plot_longitudes_deg_e, meridian_spacing_deg
+        )
     )
     meridians_deg_e = meridians_deg_e[
         meridians_deg_e >= numpy.min(plot_longitudes_deg_e)
