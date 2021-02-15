@@ -327,7 +327,7 @@ def _run(saliency_file_name, top_predictor_dir_name, top_target_dir_name,
     valid_date_string = time_conversion.unix_sec_to_string(
         saliency_dict[saliency.VALID_TIMES_KEY][0], DATE_FORMAT
     )
-    radar_number = 0
+    radar_number = 2
 
     predictor_option_dict = {
         neural_net.PREDICTOR_DIRECTORY_KEY: top_predictor_dir_name,
@@ -352,8 +352,6 @@ def _run(saliency_file_name, top_predictor_dir_name, top_target_dir_name,
     predictor_dict = neural_net.create_data_partial_grids(
         option_dict=predictor_option_dict, return_coords=True
     )[radar_number]
-
-    print(list(predictor_dict.keys()))
 
     num_examples = saliency_dict[saliency.SALIENCY_MATRIX_KEY].shape[0]
 
