@@ -38,6 +38,15 @@ FIGURE_RESOLUTION_DPI = 300
 PANEL_SIZE_PX = int(1e6)
 CONCAT_FIGURE_SIZE_PX = int(1e7)
 
+FONT_SIZE = 50
+pyplot.rc('font', size=FONT_SIZE)
+pyplot.rc('axes', titlesize=FONT_SIZE)
+pyplot.rc('axes', labelsize=FONT_SIZE)
+pyplot.rc('xtick', labelsize=FONT_SIZE)
+pyplot.rc('ytick', labelsize=FONT_SIZE)
+pyplot.rc('legend', fontsize=FONT_SIZE)
+pyplot.rc('figure', titlesize=FONT_SIZE)
+
 SALIENCY_FILE_ARG_NAME = 'input_saliency_file_name'
 PREDICTOR_DIR_ARG_NAME = 'input_predictor_dir_name'
 TARGET_DIR_ARG_NAME = 'input_target_dir_name'
@@ -234,7 +243,7 @@ def _plot_predictors_one_example(
                 plot_latitudes_deg_n=latitudes_deg_n,
                 plot_longitudes_deg_e=longitudes_deg_e,
                 axes_object=axes_object_matrix[j, k],
-                parallel_spacing_deg=0.5, meridian_spacing_deg=0.5
+                parallel_spacing_deg=0.5, meridian_spacing_deg=0.25
             )
 
             if j == 0:
@@ -352,7 +361,10 @@ def _concat_panels_one_example(figure_object_matrix, valid_time_unix_sec,
         output_file_name=concat_figure_file_name,
         num_panel_rows=num_lag_times, num_panel_columns=num_channels
     )
-
+    imagemagick_utils.trim_whitespace(
+        input_file_name=concat_figure_file_name,
+        output_file_name=concat_figure_file_name
+    )
     imagemagick_utils.resize_image(
         input_file_name=concat_figure_file_name,
         output_file_name=concat_figure_file_name,
@@ -414,15 +426,10 @@ def _run(saliency_file_name, top_predictor_dir_name, top_target_dir_name,
     model_metadata_dict = neural_net.read_metafile(model_metafile_name)
     training_option_dict = model_metadata_dict[neural_net.TRAINING_OPTIONS_KEY]
 
-    # TODO(thunderhoser): Need option to return only one radar.
-    # TODO(thunderhoser): Need option to return only predictors, no targets.
-    # TODO(thunderhoser): Need way to get these two vars from saliency-file name
+    valid_date_string = saliency.file_name_to_date(saliency_file_name)
+    radar_number = saliency.file_name_to_radar_num(saliency_file_name)
 
-    valid_date_string = time_conversion.unix_sec_to_string(
-        saliency_dict[saliency.VALID_TIMES_KEY][0], DATE_FORMAT
-    )
-    radar_number = 2
-
+    # TODO(thunderhoser): Plotting will fail if add_coords == True.
     predictor_option_dict = {
         neural_net.PREDICTOR_DIRECTORY_KEY: top_predictor_dir_name,
         neural_net.TARGET_DIRECTORY_KEY: top_target_dir_name,
@@ -443,8 +450,10 @@ def _run(saliency_file_name, top_predictor_dir_name, top_target_dir_name,
             training_option_dict[neural_net.ADD_COORDS_KEY]
     }
 
+    # TODO(thunderhoser): Add option to return only predictors, no targets.
     predictor_dict = neural_net.create_data_partial_grids(
-        option_dict=predictor_option_dict, return_coords=True
+        option_dict=predictor_option_dict, return_coords=True,
+        radar_number=radar_number
     )[radar_number]
 
     num_examples = saliency_dict[saliency.SALIENCY_MATRIX_KEY].shape[0]
