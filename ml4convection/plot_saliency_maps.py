@@ -17,7 +17,7 @@ import gg_general_utils
 import time_conversion
 import file_system_utils
 import error_checking
-import gg_plotting_utils
+import imagemagick_utils
 import border_io
 import saliency
 import neural_net
@@ -25,17 +25,23 @@ import saliency_plotting
 import satellite_plotting
 import plotting_utils
 
-# TODO(thunderhoser): Make smoothing radius an input arg.
+SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 
 DATE_FORMAT = neural_net.DATE_FORMAT
 TIME_FORMAT_FOR_FILES = '%Y-%m-%d-%H%M'
 SECONDS_TO_MINUTES = 1. / 60
 
+FIGURE_WIDTH_INCHES = 15.
+FIGURE_HEIGHT_INCHES = 15.
 FIGURE_RESOLUTION_DPI = 300
+
+PANEL_SIZE_PX = int(1e6)
+CONCAT_FIGURE_SIZE_PX = int(1e7)
 
 SALIENCY_FILE_ARG_NAME = 'input_saliency_file_name'
 PREDICTOR_DIR_ARG_NAME = 'input_predictor_dir_name'
 TARGET_DIR_ARG_NAME = 'input_target_dir_name'
+SMOOTHING_RADIUS_ARG_NAME = 'smoothing_radius_px'
 COLOUR_MAP_ARG_NAME = 'colour_map_name'
 MAX_COLOUR_VALUE_ARG_NAME = 'max_colour_value'
 HALF_NUM_CONTOURS_ARG_NAME = 'half_num_contours'
@@ -55,6 +61,10 @@ TARGET_DIR_HELP_STRING = (
     'Name of top-level directory with targets to use.  Files therein will be '
     'found by `example_io.find_target_file` and read by '
     '`example_io.read_target_file`.'
+)
+SMOOTHING_RADIUS_HELP_STRING = (
+    'e-folding radius for Gaussian smoother (num pixels).  If you do not want '
+    'to smooth saliency maps, leave this alone.'
 )
 COLOUR_MAP_HELP_STRING = (
     'Colour scheme for saliency.  Must be accepted by '
@@ -86,6 +96,10 @@ INPUT_ARG_PARSER.add_argument(
     help=TARGET_DIR_HELP_STRING
 )
 INPUT_ARG_PARSER.add_argument(
+    '--' + SMOOTHING_RADIUS_ARG_NAME, type=float, required=False,
+    default=2., help=SMOOTHING_RADIUS_HELP_STRING
+)
+INPUT_ARG_PARSER.add_argument(
     '--' + COLOUR_MAP_ARG_NAME, type=str, required=False, default='binary',
     help=COLOUR_MAP_HELP_STRING
 )
@@ -107,11 +121,11 @@ INPUT_ARG_PARSER.add_argument(
 )
 
 
-def _smooth_maps(saliency_dict, smoothing_radius_grid_cells):
+def _smooth_maps(saliency_dict, smoothing_radius_px):
     """Smooths saliency maps via Gaussian filter.
 
     :param saliency_dict: Dictionary returned by `saliency.read_file`.
-    :param smoothing_radius_grid_cells: e-folding radius (number of grid cells).
+    :param smoothing_radius_px: e-folding radius (num pixels).
     :return: saliency_dict: Same as input but with smoothed maps.
     """
 
@@ -119,7 +133,7 @@ def _smooth_maps(saliency_dict, smoothing_radius_grid_cells):
         'Smoothing saliency maps with Gaussian filter (e-folding radius of '
         '{0:.1f} grid cells)...'
     ).format(
-        smoothing_radius_grid_cells
+        smoothing_radius_px
     ))
 
     saliency_matrix = saliency_dict[saliency.SALIENCY_MATRIX_KEY]
@@ -133,7 +147,7 @@ def _smooth_maps(saliency_dict, smoothing_radius_grid_cells):
                 saliency_matrix[i, ..., j, k] = (
                     gg_general_utils.apply_gaussian_filter(
                         input_matrix=saliency_matrix[i, ..., j, k],
-                        e_folding_radius_grid_cells=smoothing_radius_grid_cells
+                        e_folding_radius_grid_cells=smoothing_radius_px
                     )
                 )
 
@@ -147,6 +161,8 @@ def _plot_predictors_one_example(
     """Plots predictors (brightness temperatures) for one example.
 
     P = number of points in border set
+    T = number of lag times
+    C = number of channels
 
     :param predictor_dict: One dictionary returned by
         `neural_net.create_data_partial_grids`.
@@ -155,9 +171,9 @@ def _plot_predictors_one_example(
     :param border_longitudes_deg_e: length-P numpy array of longitudes (deg E).
     :param predictor_option_dict: See input doc for
         `neural_net.create_data_partial_grids`.
-    :return: figure_object: Figure handle (instance of
+    :return: figure_object: T-by-C numpy array of figure handles (instances of
         `matplotlib.figure.Figure`).
-    :return: axes_object_matrix: 2-D numpy array of axes handles (instances
+    :return: axes_object_matrix: T-by-C numpy array of axes handles (instances
         of `matplotlib.axes._subplots.AxesSubplot`).
     """
 
@@ -182,63 +198,69 @@ def _plot_predictors_one_example(
 
     num_lag_times = brightness_temp_matrix_kelvins.shape[-2]
     num_channels = brightness_temp_matrix_kelvins.shape[-1]
-
-    figure_object, axes_object_matrix = gg_plotting_utils.create_paneled_figure(
-        num_rows=num_lag_times, num_columns=num_channels,
-        horizontal_spacing=0., vertical_spacing=0., shared_x_axis=False,
-        shared_y_axis=False, keep_aspect_ratio=True
+    figure_object_matrix = numpy.full(
+        (num_lag_times, num_channels), '', dtype=object
+    )
+    axes_object_matrix = numpy.full(
+        (num_lag_times, num_channels), '', dtype=object
     )
 
-    for i in range(num_lag_times):
-        for j in range(num_channels):
+    for j in range(num_lag_times):
+        for k in range(num_channels):
+            figure_object_matrix[j, k], axes_object_matrix[j, k] = (
+                pyplot.subplots(
+                    1, 1, figsize=(FIGURE_WIDTH_INCHES, FIGURE_HEIGHT_INCHES)
+                )
+            )
+
             plotting_utils.plot_borders(
                 border_latitudes_deg_n=border_latitudes_deg_n,
                 border_longitudes_deg_e=border_longitudes_deg_e,
-                axes_object=axes_object_matrix[i, j]
+                axes_object=axes_object_matrix[j, k]
             )
 
-    satellite_plotting.plot_4d_grid_latlng(
-        brightness_temp_matrix_kelvins=brightness_temp_matrix_kelvins,
-        axes_object_matrix=axes_object_matrix,
-        min_latitude_deg_n=latitudes_deg_n[0],
-        min_longitude_deg_e=longitudes_deg_e[0],
-        latitude_spacing_deg=numpy.diff(latitudes_deg_n[:2])[0],
-        longitude_spacing_deg=numpy.diff(longitudes_deg_e[:2])[0]
-    )
+            satellite_plotting.plot_2d_grid_latlng(
+                brightness_temp_matrix_kelvins=
+                brightness_temp_matrix_kelvins[..., j, k],
+                axes_object=axes_object_matrix[j, k],
+                min_latitude_deg_n=latitudes_deg_n[0],
+                min_longitude_deg_e=longitudes_deg_e[0],
+                latitude_spacing_deg=numpy.diff(latitudes_deg_n[:2])[0],
+                longitude_spacing_deg=numpy.diff(longitudes_deg_e[:2])[0],
+                cbar_orientation_string=None
+            )
 
-    for i in range(num_lag_times):
-        for j in range(num_channels):
             plotting_utils.plot_grid_lines(
                 plot_latitudes_deg_n=latitudes_deg_n,
                 plot_longitudes_deg_e=longitudes_deg_e,
-                axes_object=axes_object_matrix[i, j],
-                parallel_spacing_deg=1., meridian_spacing_deg=1.
+                axes_object=axes_object_matrix[j, k],
+                parallel_spacing_deg=0.5, meridian_spacing_deg=0.5
             )
 
-            if i == 0:
-                axes_object_matrix[i, j].set_title(
-                    'Band {0:d}'.format(band_numbers[j])
+            if j == 0:
+                axes_object_matrix[j, k].set_title(
+                    'Band {0:d}'.format(band_numbers[k])
                 )
 
-            if j == 0:
-                axes_object_matrix[i, j].set_ylabel('{0:d}-minute lag'.format(
-                    lag_times_minutes[i]
+            if k == 0:
+                axes_object_matrix[j, k].set_ylabel('{0:d}-minute lag'.format(
+                    lag_times_minutes[j]
                 ))
             else:
-                y_tick_values = axes_object_matrix[i, j].get_yticks()
-                axes_object_matrix[i, j].set_yticks(y_tick_values)
-                axes_object_matrix[i, j].set_yticklabels([
+                y_tick_values = axes_object_matrix[j, k].get_yticks()
+                axes_object_matrix[j, k].set_yticks(y_tick_values)
+                axes_object_matrix[j, k].set_yticklabels([
                     '' for _ in y_tick_values
                 ])
 
-            if i != num_lag_times - 1:
-                x_tick_values = axes_object_matrix[i, j].get_xticks()
-                axes_object_matrix[i, j].set_xticks(x_tick_values)
-                axes_object_matrix[i, j].set_xticklabels([
+            if j != num_lag_times - 1:
+                x_tick_values = axes_object_matrix[j, k].get_xticks()
+                axes_object_matrix[j, k].set_xticks(x_tick_values)
+                axes_object_matrix[j, k].set_xticklabels([
                     '' for _ in x_tick_values
                 ])
 
-    return figure_object, axes_object_matrix
+    return figure_object_matrix, axes_object_matrix
 
 
 def _plot_saliency_one_example(
@@ -258,25 +280,92 @@ def _plot_saliency_one_example(
 
     latitudes_deg_n = saliency_dict[saliency.LATITUDES_KEY]
     longitudes_deg_e = saliency_dict[saliency.LONGITUDES_KEY]
-
-    saliency_plotting.plot_4d_grid_latlng(
-        saliency_matrix=
-        saliency_dict[saliency.SALIENCY_MATRIX_KEY][example_index, ...],
-        axes_object_matrix=axes_object_matrix,
-        min_latitude_deg_n=latitudes_deg_n[0],
-        min_longitude_deg_e=longitudes_deg_e[0],
-        latitude_spacing_deg=numpy.diff(latitudes_deg_n[:2])[0],
-        longitude_spacing_deg=numpy.diff(longitudes_deg_e[:2])[0],
-        colour_map_object=colour_map_object,
-        max_absolute_contour_level=max_colour_value,
-        contour_interval=max_colour_value / half_num_contours,
-        line_width=line_width
+    saliency_matrix = (
+        saliency_dict[saliency.SALIENCY_MATRIX_KEY][example_index, ...]
     )
+
+    num_lag_times = saliency_matrix.shape[-2]
+    num_channels = saliency_matrix.shape[-1]
+
+    for j in range(num_lag_times):
+        for k in range(num_channels):
+            saliency_plotting.plot_2d_grid_latlng(
+                saliency_matrix=saliency_matrix[..., j, k],
+                axes_object=axes_object_matrix[j, k],
+                min_latitude_deg_n=latitudes_deg_n[0],
+                min_longitude_deg_e=longitudes_deg_e[0],
+                latitude_spacing_deg=numpy.diff(latitudes_deg_n[:2])[0],
+                longitude_spacing_deg=numpy.diff(longitudes_deg_e[:2])[0],
+                colour_map_object=colour_map_object,
+                max_absolute_contour_level=max_colour_value,
+                contour_interval=max_colour_value / half_num_contours,
+                line_width=line_width
+            )
+
+
+def _concat_panels_one_example(figure_object_matrix, valid_time_unix_sec,
+                               output_dir_name):
+    """Concatenates panels for one example.
+
+    :param figure_object_matrix: See doc for `_plot_predictors_one_example`.
+    :param valid_time_unix_sec: Valid time.
+    :param output_dir_name: Name of output directory.
+    """
+
+    valid_time_string = time_conversion.unix_sec_to_string(
+        valid_time_unix_sec, TIME_FORMAT_FOR_FILES
+    )
+
+    num_lag_times = figure_object_matrix.shape[0]
+    num_channels = figure_object_matrix.shape[1]
+    panel_file_names = []
+
+    for j in range(num_lag_times):
+        for k in range(num_channels):
+            this_file_name = (
+                '{0:s}/saliency_{1:s}_lag{2:d}_channel{3:d}.jpg'
+            ).format(
+                output_dir_name, valid_time_string, j, k
+            )
+
+            panel_file_names.append(this_file_name)
+
+            print('Saving figure to file: "{0:s}"...'.format(this_file_name))
+            figure_object_matrix[j, k].savefig(
+                this_file_name, dpi=FIGURE_RESOLUTION_DPI,
+                pad_inches=0, bbox_inches='tight'
+            )
+            pyplot.close(figure_object_matrix[j, k])
+
+            imagemagick_utils.resize_image(
+                input_file_name=this_file_name, output_file_name=this_file_name,
+                output_size_pixels=PANEL_SIZE_PX
+            )
+
+    concat_figure_file_name = '{0:s}/saliency_{1:s}.jpg'.format(
+        output_dir_name, valid_time_string
+    )
+
+    print('Concatenating panels to: "{0:s}"...'.format(concat_figure_file_name))
+    imagemagick_utils.concatenate_images(
+        input_file_names=panel_file_names,
+        output_file_name=concat_figure_file_name,
+        num_panel_rows=num_lag_times, num_panel_columns=num_channels
+    )
+
+    imagemagick_utils.resize_image(
+        input_file_name=concat_figure_file_name,
+        output_file_name=concat_figure_file_name,
+        output_size_pixels=CONCAT_FIGURE_SIZE_PX
+    )
+
+    for this_file_name in panel_file_names:
+        os.remove(this_file_name)
 
 
 def _run(saliency_file_name, top_predictor_dir_name, top_target_dir_name,
-         colour_map_name, max_colour_value, half_num_contours, line_width,
-         output_dir_name):
+         smoothing_radius_px, colour_map_name, max_colour_value,
+         half_num_contours, line_width, output_dir_name):
     """Plots saliency maps.
 
     This is effectively the main method.
@@ -284,6 +373,7 @@ def _run(saliency_file_name, top_predictor_dir_name, top_target_dir_name,
     :param saliency_file_name: See documentation at top of file.
     :param top_predictor_dir_name: Same.
     :param top_target_dir_name: Same.
+    :param smoothing_radius_px: Same.
     :param colour_map_name: Same.
     :param max_colour_value: Same.
     :param half_num_contours: Same.
@@ -294,22 +384,26 @@ def _run(saliency_file_name, top_predictor_dir_name, top_target_dir_name,
     # TODO(thunderhoser): Deal with lag times and channels being lumped on same
     # axis.
 
+    if smoothing_radius_px <= 0:
+        smoothing_radius_px = None
     if max_colour_value <= 0:
         max_colour_value = None
 
     error_checking.assert_is_geq(half_num_contours, 5)
-    colour_map_object = pyplot.get_cmap(colour_map_name)
-
     file_system_utils.mkdir_recursive_if_necessary(
         directory_name=output_dir_name
     )
+
+    colour_map_object = pyplot.get_cmap(colour_map_name)
     border_latitudes_deg_n, border_longitudes_deg_e = border_io.read_file()
 
     print('Reading data from: "{0:s}"...'.format(saliency_file_name))
     saliency_dict = saliency.read_file(saliency_file_name)
-    saliency_dict = _smooth_maps(
-        saliency_dict=saliency_dict, smoothing_radius_grid_cells=2.
-    )
+
+    if smoothing_radius_px is not None:
+        saliency_dict = _smooth_maps(
+            saliency_dict=saliency_dict, smoothing_radius_px=smoothing_radius_px
+        )
 
     model_metafile_name = neural_net.find_metafile(
         model_file_name=saliency_dict[saliency.MODEL_FILE_KEY],
@@ -356,9 +450,11 @@ def _run(saliency_file_name, top_predictor_dir_name, top_target_dir_name,
     num_examples = saliency_dict[saliency.SALIENCY_MATRIX_KEY].shape[0]
 
     for i in range(num_examples):
-        figure_object, axes_object_matrix = _plot_predictors_one_example(
+        valid_time_unix_sec = saliency_dict[saliency.VALID_TIMES_KEY][i]
+
+        figure_object_matrix, axes_object_matrix = _plot_predictors_one_example(
             predictor_dict=predictor_dict,
-            valid_time_unix_sec=saliency_dict[saliency.VALID_TIMES_KEY][i],
+            valid_time_unix_sec=valid_time_unix_sec,
             border_latitudes_deg_n=border_latitudes_deg_n,
             border_longitudes_deg_e=border_longitudes_deg_e,
             predictor_option_dict=predictor_option_dict
@@ -380,19 +476,16 @@ def _run(saliency_file_name, top_predictor_dir_name, top_target_dir_name,
             half_num_contours=half_num_contours, line_width=line_width
         )
 
-        valid_time_string = time_conversion.unix_sec_to_string(
-            saliency_dict[saliency.VALID_TIMES_KEY][i], TIME_FORMAT_FOR_FILES
-        )
-        figure_file_name = '{0:s}/saliency_{1:s}.jpg'.format(
-            output_dir_name, valid_time_string
+        _concat_panels_one_example(
+            figure_object_matrix=figure_object_matrix,
+            valid_time_unix_sec=valid_time_unix_sec,
+            output_dir_name=output_dir_name
         )
 
-        print('Saving figure to file: "{0:s}"...'.format(figure_file_name))
-        figure_object.savefig(
-            figure_file_name, dpi=FIGURE_RESOLUTION_DPI,
-            pad_inches=0, bbox_inches='tight'
-        )
-        pyplot.close(figure_object)
+        if i == num_examples - 1:
+            continue
+
+        print(SEPARATOR_STRING)
 
 
 if __name__ == '__main__':
@@ -404,6 +497,9 @@ if __name__ == '__main__':
             INPUT_ARG_OBJECT, PREDICTOR_DIR_ARG_NAME
         ),
         top_target_dir_name=getattr(INPUT_ARG_OBJECT, TARGET_DIR_ARG_NAME),
+        smoothing_radius_px=getattr(
+            INPUT_ARG_OBJECT, SMOOTHING_RADIUS_ARG_NAME
+        ),
         colour_map_name=getattr(INPUT_ARG_OBJECT, COLOUR_MAP_ARG_NAME),
         max_colour_value=getattr(INPUT_ARG_OBJECT, MAX_COLOUR_VALUE_ARG_NAME),
         half_num_contours=getattr(INPUT_ARG_OBJECT, HALF_NUM_CONTOURS_ARG_NAME),
