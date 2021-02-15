@@ -326,21 +326,21 @@ def _run(saliency_file_name, top_predictor_dir_name, top_target_dir_name,
             predictor_option_dict=predictor_option_dict
         )
 
-        if max_colour_value is None:
-            these_abs_values = numpy.absolute(
-                saliency_dict[saliency.SALIENCY_MATRIX_KEY][i, ...]
-            )
-            this_max_colour_value = numpy.percentile(these_abs_values, 99.)
-        else:
-            this_max_colour_value = max_colour_value + 0.
-
-        _plot_saliency_one_example(
-            saliency_dict=saliency_dict, example_index=i,
-            axes_object_matrix=axes_object_matrix,
-            colour_map_object=colour_map_object,
-            max_colour_value=this_max_colour_value,
-            half_num_contours=half_num_contours, line_width=line_width
-        )
+        # if max_colour_value is None:
+        #     these_abs_values = numpy.absolute(
+        #         saliency_dict[saliency.SALIENCY_MATRIX_KEY][i, ...]
+        #     )
+        #     this_max_colour_value = numpy.percentile(these_abs_values, 99.)
+        # else:
+        #     this_max_colour_value = max_colour_value + 0.
+        #
+        # _plot_saliency_one_example(
+        #     saliency_dict=saliency_dict, example_index=i,
+        #     axes_object_matrix=axes_object_matrix,
+        #     colour_map_object=colour_map_object,
+        #     max_colour_value=this_max_colour_value,
+        #     half_num_contours=half_num_contours, line_width=line_width
+        # )
 
         valid_time_string = time_conversion.unix_sec_to_string(
             saliency_dict[saliency.VALID_TIMES_KEY][i], TIME_FORMAT_FOR_FILES
