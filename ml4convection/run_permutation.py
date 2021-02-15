@@ -148,7 +148,8 @@ def _run(model_file_name, top_predictor_dir_name, top_target_dir_name,
             training_option_dict[neural_net.NORMALIZE_FLAG_KEY],
         neural_net.UNIFORMIZE_FLAG_KEY:
             training_option_dict[neural_net.UNIFORMIZE_FLAG_KEY],
-        neural_net.ADD_COORDS_KEY: False
+        neural_net.ADD_COORDS_KEY:
+            training_option_dict[neural_net.ADD_COORDS_KEY]
     }
 
     print(SEPARATOR_STRING)

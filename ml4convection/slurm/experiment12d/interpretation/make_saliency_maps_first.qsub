@@ -1,0 +1,58 @@
+#!/bin/tcsh
+
+#SBATCH --job-name="make_saliency_maps"
+#SBATCH --partition="fge"
+#SBATCH --account="rda-ghpcs"
+#SBATCH --qos="batch"
+#SBATCH --ntasks=1
+#SBATCH --nodes=1
+#SBATCH --cpus-per-task=1
+#SBATCH --mem=160G
+##SBATCH --nodes=1
+##SBATCH --ntasks=1
+##SBATCH --cpus-per-task=1
+##SBATCH --ntasks-per-node=1
+#SBATCH --time=30:00:00
+#SBATCH --array=1
+#SBATCH --exclude=h28n12
+##SBATCH --exclude=h31n03,h28n12
+##SBATCH --exclude=h29n01,h26n05,h28n06,h29n07,h30n03,h30n15
+#SBATCH --mail-type=BEGIN,END,FAIL
+#SBATCH --mail-user=ryan.lagerquist@noaa.gov
+#SBATCH --output=make_saliency_maps_%A_%a.out
+
+module load cuda/10.1
+source /scratch2/BMC/gsd-hpcs/Jebb.Q.Stewart/conda3.7/etc/profile.d/conda.csh
+conda activate base
+
+set CODE_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_standalone/ml4convection"
+set TOP_MODEL_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_models/experiment12d"
+set TOP_PREDICTOR_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_project/predictors/quality_controlled/partial_grids"
+set TOP_TARGET_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_project/targets/new_echo_classification/no_tracking/omit_north_radar/partial_grids"
+
+set BATCH_SIZES=(60 60 60 60)
+set L2_WEIGHTS=(0.0000010000 0.0000031623 0.0000003162 0.0000003162)
+set LAG_TIME_STRINGS_DASHED=("0-1200" "0-1200-2400" "0-1200-2400-3600-4800" "0-1200")
+
+set batch_size=${BATCH_SIZES[$SLURM_ARRAY_TASK_ID]}
+set l2_weight=${L2_WEIGHTS[$SLURM_ARRAY_TASK_ID]}
+set lag_time_string_dashed=${LAG_TIME_STRINGS_DASHED[$SLURM_ARRAY_TASK_ID]}
+
+set batch_size_string=`printf "%02d" $batch_size`
+set l2_weight_string=`printf "%.10f" $l2_weight`
+
+set model_dir_name="${TOP_MODEL_DIR_NAME}/batch-size=${batch_size_string}_l2-weight=${l2_weight_string}_lag-times-sec=${lag_time_string_dashed}"
+set model_file_name="${model_dir_name}/model.h5"
+set output_dir_name="${model_dir_name}/saliency"
+
+python3 -u "${CODE_DIR_NAME}/make_saliency_maps.py" \
+--input_model_file_name="${model_file_name}" \
+--input_predictor_dir_name="${TOP_PREDICTOR_DIR_NAME}" \
+--input_target_dir_name="${TOP_TARGET_DIR_NAME}" \
+--valid_date_strings "20170101" "20170509" "20170914" \
+--layer_name="last_conv_activation" \
+--is_layer_output=1 \
+--neuron_indices 102 102 0 \
+--ideal_activation=1 \
+--run_backwards_test=0 \
+--output_dir_name="${output_dir_name}"
