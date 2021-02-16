@@ -170,55 +170,6 @@ def _check_inference_args(predictor_matrix, num_examples_per_batch, verbose):
     return num_examples_per_batch
 
 
-def _reshape_predictor_matrix(predictor_matrix, num_lag_times,
-                              add_time_dimension):
-    """Reshapes predictor matrix to account for lag times.
-
-    E = number of examples
-    M = number of rows in grid
-    N = number of columns in grid
-    B = number of spectral bands
-    L = number of lag times
-
-    :param predictor_matrix: numpy array (EL x M x N x B) of predictors.
-    :param num_lag_times: Number of lag times.
-    :param add_time_dimension: Boolean flag.  If True, will add time dimension,
-        so output will be E x M x N x L x B.  If True, will just reorder data,
-        so output will be E x M x N x BL.
-    :return: predictor_matrix: numpy array of predictors.
-    :raises: ValueError: if length of first axis of predictor matrix is not an
-        integer multiple of L.
-    """
-
-    # Check for errors.
-    first_axis_length = predictor_matrix.shape[0]
-    num_examples = float(first_axis_length) / num_lag_times
-    this_diff = numpy.absolute(numpy.round(num_examples) - num_examples)
-
-    if this_diff > TOLERANCE:
-        error_string = (
-            'Length of first axis of predictor matrix ({0:d}) must be an '
-            'integer multiple of the number of lag times ({1:d}).'
-        ).format(first_axis_length, num_lag_times)
-
-        raise ValueError(error_string)
-
-    # Do actual stuff.
-    predictor_matrix_by_lag = [
-        predictor_matrix[j::num_lag_times, ...] for j in range(num_lag_times)
-    ]
-
-    if add_time_dimension:
-        return numpy.stack(predictor_matrix_by_lag, axis=-2)
-
-    num_bands = predictor_matrix.shape[-1]
-    predictor_matrix = numpy.stack(predictor_matrix_by_lag, axis=-1)
-
-    num_channels = num_bands * num_lag_times
-    these_dim = predictor_matrix.shape[:-2] + (num_channels,)
-    return numpy.reshape(predictor_matrix, these_dim)
-
-
 def _add_coords_to_predictors(predictor_matrix, predictor_dict, normalize):
     """Adds coordinates to predictors.
 
@@ -457,7 +408,7 @@ def _read_inputs_one_day(
             predictor_dict[example_io.PREDICTOR_MATRIX_UNNORM_KEY]
         )
 
-    predictor_matrix = _reshape_predictor_matrix(
+    predictor_matrix = predictor_matrix_to_keras(
         predictor_matrix=predictor_matrix, num_lag_times=num_lag_times,
         add_time_dimension=include_time_dimension
     )
@@ -641,6 +592,124 @@ def _get_input_px_for_partial_grid(partial_grid_dict):
     partial_grid_dict[LAST_INPUT_COLUMN_KEY] = last_input_column
 
     return partial_grid_dict
+
+
+def predictor_matrix_to_keras(predictor_matrix, num_lag_times,
+                              add_time_dimension):
+    """Reshapes predictor matrix into format required by Keras.
+
+    E = number of examples
+    M = number of rows in grid
+    N = number of columns in grid
+    B = number of spectral bands
+    L = number of lag times
+
+    :param predictor_matrix: numpy array (EL x M x N x B) of predictors.
+    :param num_lag_times: Number of lag times.
+    :param add_time_dimension: Boolean flag.  If True, will add time dimension,
+        so output will be E x M x N x L x B.  If True, will just reorder data,
+        so output will be E x M x N x BL.
+    :return: predictor_matrix: numpy array of predictors.
+    :raises: ValueError: if length of first axis of predictor matrix is not an
+        integer multiple of L.
+    """
+
+    error_checking.assert_is_numpy_array_without_nan(predictor_matrix)
+    error_checking.assert_is_numpy_array(predictor_matrix, num_dimensions=4)
+    error_checking.assert_is_integer(num_lag_times)
+    error_checking.assert_is_greater(num_lag_times, 0)
+    error_checking.assert_is_boolean(add_time_dimension)
+
+    # Check for errors.
+    first_axis_length = predictor_matrix.shape[0]
+    num_examples = float(first_axis_length) / num_lag_times
+    this_diff = numpy.absolute(numpy.round(num_examples) - num_examples)
+
+    if this_diff > TOLERANCE:
+        error_string = (
+            'Length of first axis of predictor matrix ({0:d}) must be an '
+            'integer multiple of the number of lag times ({1:d}).'
+        ).format(first_axis_length, num_lag_times)
+
+        raise ValueError(error_string)
+
+    # Do actual stuff.
+    predictor_matrix_by_lag = [
+        predictor_matrix[j::num_lag_times, ...] for j in range(num_lag_times)
+    ]
+
+    if add_time_dimension:
+        return numpy.stack(predictor_matrix_by_lag, axis=-2)
+
+    num_bands = predictor_matrix.shape[-1]
+    predictor_matrix = numpy.stack(predictor_matrix_by_lag, axis=-1)
+
+    num_channels = num_bands * num_lag_times
+    these_dim = predictor_matrix.shape[:-2] + (num_channels,)
+    return numpy.reshape(predictor_matrix, these_dim)
+
+
+def predictor_matrix_from_keras(predictor_matrix, num_lag_times):
+    """Inverse of `predictor_matrix_to_keras`.
+
+    :param predictor_matrix: See output doc for `predictor_matrix_to_keras`.
+    :param num_lag_times: Same.
+    :return: predictor_matrix: Same.
+    """
+
+    error_checking.assert_is_numpy_array_without_nan(predictor_matrix)
+    num_dimensions = len(predictor_matrix.shape)
+    error_checking.assert_is_geq(num_dimensions, 4)
+    error_checking.assert_is_leq(num_dimensions, 5)
+    error_checking.assert_is_integer(num_lag_times)
+    error_checking.assert_is_greater(num_lag_times, 0)
+
+    if num_dimensions == 5:
+        num_examples = predictor_matrix.shape[0]
+        predictor_matrix_by_example = [
+            predictor_matrix[i, ...] for i in range(num_examples)
+        ]
+
+        predictor_matrix_by_example = [
+            numpy.swapaxes(a, 0, 2) for a in predictor_matrix_by_example
+        ]
+        predictor_matrix_by_example = [
+            numpy.swapaxes(a, 1, 2) for a in predictor_matrix_by_example
+        ]
+
+        return numpy.concatenate(predictor_matrix_by_example, axis=0)
+
+    last_axis_length = predictor_matrix.shape[-1]
+    num_bands = float(last_axis_length) / num_lag_times
+    this_diff = numpy.absolute(numpy.round(num_bands) - num_bands)
+
+    if this_diff > TOLERANCE:
+        error_string = (
+            'Length of last axis of predictor matrix ({0:d}) must be an '
+            'integer multiple of the number of lag times ({1:d}).'
+        ).format(last_axis_length, num_lag_times)
+
+        raise ValueError(error_string)
+
+    num_bands = int(numpy.round(num_bands))
+    these_dim = predictor_matrix.shape[:-1] + (num_bands, num_lag_times)
+    predictor_matrix = numpy.reshape(predictor_matrix, these_dim)
+
+    num_examples = predictor_matrix.shape[0]
+    predictor_matrix_by_example = [
+        predictor_matrix[i, ...] for i in range(num_examples)
+    ]
+    predictor_matrix_by_example = [
+        numpy.swapaxes(a, 3, 2) for a in predictor_matrix_by_example
+    ]
+    predictor_matrix_by_example = [
+        numpy.swapaxes(a, 2, 1) for a in predictor_matrix_by_example
+    ]
+    predictor_matrix_by_example = [
+        numpy.swapaxes(a, 1, 0) for a in predictor_matrix_by_example
+    ]
+
+    return numpy.concatenate(predictor_matrix_by_example, axis=0)
 
 
 def get_metrics(mask_matrix):

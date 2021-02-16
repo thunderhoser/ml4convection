@@ -53,7 +53,8 @@ PREDICTOR_DIR_ARG_NAME = 'input_predictor_dir_name'
 TARGET_DIR_ARG_NAME = 'input_target_dir_name'
 SMOOTHING_RADIUS_ARG_NAME = 'smoothing_radius_px'
 COLOUR_MAP_ARG_NAME = 'colour_map_name'
-MAX_COLOUR_VALUE_ARG_NAME = 'max_colour_value'
+MIN_CONTOUR_VALUE_ARG_NAME = 'min_abs_contour_value'
+MAX_CONTOUR_VALUE_ARG_NAME = 'max_abs_contour_value'
 HALF_NUM_CONTOURS_ARG_NAME = 'half_num_contours'
 LINE_WIDTH_ARG_NAME = 'line_width'
 OUTPUT_DIR_ARG_NAME = 'output_dir_name'
@@ -80,7 +81,8 @@ COLOUR_MAP_HELP_STRING = (
     'Colour scheme for saliency.  Must be accepted by '
     '`matplotlib.pyplot.get_cmap`.'
 )
-MAX_COLOUR_VALUE_HELP_STRING = (
+MIN_CONTOUR_VALUE_HELP_STRING = 'Minimum absolute saliency value for contours.'
+MAX_CONTOUR_VALUE_HELP_STRING = (
     'Max absolute saliency value for contours.  Leave this alone if you want '
     'max value to be determined automatically.'
 )
@@ -110,12 +112,16 @@ INPUT_ARG_PARSER.add_argument(
     default=2., help=SMOOTHING_RADIUS_HELP_STRING
 )
 INPUT_ARG_PARSER.add_argument(
-    '--' + COLOUR_MAP_ARG_NAME, type=str, required=False, default='binary',
+    '--' + COLOUR_MAP_ARG_NAME, type=str, required=False, default='BuGn',
     help=COLOUR_MAP_HELP_STRING
 )
 INPUT_ARG_PARSER.add_argument(
-    '--' + MAX_COLOUR_VALUE_ARG_NAME, type=float, required=False, default=-1,
-    help=MAX_COLOUR_VALUE_HELP_STRING
+    '--' + MIN_CONTOUR_VALUE_ARG_NAME, type=float, required=False,
+    default=0.001, help=MIN_CONTOUR_VALUE_HELP_STRING
+)
+INPUT_ARG_PARSER.add_argument(
+    '--' + MAX_CONTOUR_VALUE_ARG_NAME, type=float, required=False, default=-1,
+    help=MAX_CONTOUR_VALUE_HELP_STRING
 )
 INPUT_ARG_PARSER.add_argument(
     '--' + HALF_NUM_CONTOURS_ARG_NAME, type=int, required=False, default=10,
@@ -187,8 +193,6 @@ def _plot_predictors_one_example(
         of `matplotlib.axes._subplots.AxesSubplot`).
     """
 
-    # TODO(thunderhoser): Deal with case of only one lag time.
-
     example_index = numpy.where(
         predictor_dict[neural_net.VALID_TIMES_KEY] == valid_time_unix_sec
     )[0][0]
@@ -205,6 +209,16 @@ def _plot_predictors_one_example(
     brightness_temp_matrix_kelvins = (
         predictor_dict[neural_net.PREDICTOR_MATRIX_KEY][example_index, ...]
     )
+
+    if len(brightness_temp_matrix_kelvins.shape) == 4:
+        brightness_temp_matrix_kelvins = neural_net.predictor_matrix_from_keras(
+            predictor_matrix=brightness_temp_matrix_kelvins,
+            num_lag_times=len(lag_times_seconds)
+        )
+        brightness_temp_matrix_kelvins = neural_net.predictor_matrix_to_keras(
+            predictor_matrix=brightness_temp_matrix_kelvins,
+            num_lag_times=len(lag_times_seconds), add_time_dimension=True
+        )
 
     num_lag_times = brightness_temp_matrix_kelvins.shape[-2]
     num_channels = brightness_temp_matrix_kelvins.shape[-1]
@@ -285,7 +299,8 @@ def _plot_predictors_one_example(
 
 def _plot_saliency_one_example(
         saliency_dict, example_index, axes_object_matrix, colour_map_object,
-        max_colour_value, half_num_contours, line_width):
+        min_abs_contour_value, max_abs_contour_value, half_num_contours,
+        line_width):
     """Plots saliency for one example.
 
     :param saliency_dict: Dictionary returned by `saliency.read_file`.
@@ -293,7 +308,8 @@ def _plot_saliency_one_example(
         i = `example_index`.
     :param axes_object_matrix: See doc for `_plot_predictors_one_example`.
     :param colour_map_object: See documentation at top of file.
-    :param max_colour_value: Same.
+    :param min_abs_contour_value: Same.
+    :param max_abs_contour_value: Same.
     :param half_num_contours: Same.
     :param line_width: Same.
     """
@@ -317,9 +333,9 @@ def _plot_saliency_one_example(
                 latitude_spacing_deg=numpy.diff(latitudes_deg_n[:2])[0],
                 longitude_spacing_deg=numpy.diff(longitudes_deg_e[:2])[0],
                 colour_map_object=colour_map_object,
-                max_absolute_contour_level=max_colour_value,
-                contour_interval=max_colour_value / half_num_contours,
-                line_width=line_width
+                min_abs_contour_value=min_abs_contour_value,
+                max_abs_contour_value=max_abs_contour_value,
+                half_num_contours=half_num_contours, line_width=line_width
             )
 
             if not (j == 0 and k == num_channels - 1):
@@ -329,10 +345,16 @@ def _plot_saliency_one_example(
                 axes_object_or_matrix=axes_object_matrix[j, k],
                 data_matrix=saliency_matrix[..., j, k],
                 colour_map_object=colour_map_object,
-                min_value=0., max_value=max_colour_value,
+                min_value=min_abs_contour_value,
+                max_value=max_abs_contour_value,
                 orientation_string='vertical',
                 extend_min=False, extend_max=True, font_size=FONT_SIZE
             )
+
+            tick_values = colour_bar_object.get_ticks()
+            tick_strings = ['{0:.2g}'.format(v) for v in tick_values]
+            colour_bar_object.set_ticks(tick_values)
+            colour_bar_object.set_ticklabels(tick_strings)
 
             colour_bar_object.set_label('Absolute saliency')
 
@@ -404,8 +426,8 @@ def _concat_panels_one_example(figure_object_matrix, valid_time_unix_sec,
 
 
 def _run(saliency_file_name, top_predictor_dir_name, top_target_dir_name,
-         smoothing_radius_px, colour_map_name, max_colour_value,
-         half_num_contours, line_width, output_dir_name):
+         smoothing_radius_px, colour_map_name, min_abs_contour_value,
+         max_abs_contour_value, half_num_contours, line_width, output_dir_name):
     """Plots saliency maps.
 
     This is effectively the main method.
@@ -415,19 +437,17 @@ def _run(saliency_file_name, top_predictor_dir_name, top_target_dir_name,
     :param top_target_dir_name: Same.
     :param smoothing_radius_px: Same.
     :param colour_map_name: Same.
-    :param max_colour_value: Same.
+    :param min_abs_contour_value: Same.
+    :param max_abs_contour_value: Same.
     :param half_num_contours: Same.
     :param line_width: Same.
     :param output_dir_name: Same.
     """
 
-    # TODO(thunderhoser): Deal with lag times and channels being lumped on same
-    # axis.
-
     if smoothing_radius_px <= 0:
         smoothing_radius_px = None
-    if max_colour_value <= 0:
-        max_colour_value = None
+    if max_abs_contour_value <= 0:
+        max_abs_contour_value = None
 
     error_checking.assert_is_geq(half_num_contours, 5)
     file_system_utils.mkdir_recursive_if_necessary(
@@ -497,23 +517,24 @@ def _run(saliency_file_name, top_predictor_dir_name, top_target_dir_name,
             predictor_option_dict=predictor_option_dict
         )
 
-        if max_colour_value is None:
+        if max_abs_contour_value is None:
             these_abs_values = numpy.absolute(
                 saliency_dict[saliency.SALIENCY_MATRIX_KEY][i, ...]
             )
-            this_max_colour_value = numpy.percentile(these_abs_values, 99.)
+            this_max_value = numpy.percentile(these_abs_values, 99.)
         else:
-            this_max_colour_value = max_colour_value + 0.
+            this_max_value = max_abs_contour_value + 0.
 
         _plot_saliency_one_example(
             saliency_dict=saliency_dict, example_index=i,
             axes_object_matrix=axes_object_matrix,
             colour_map_object=colour_map_object,
-            max_colour_value=this_max_colour_value,
+            min_abs_contour_value=min_abs_contour_value,
+            max_abs_contour_value=this_max_value,
             half_num_contours=half_num_contours, line_width=line_width
         )
 
-        concat_figure_file_name = _concat_panels_one_example(
+        _concat_panels_one_example(
             figure_object_matrix=figure_object_matrix,
             valid_time_unix_sec=valid_time_unix_sec,
             output_dir_name=output_dir_name
@@ -538,7 +559,12 @@ if __name__ == '__main__':
             INPUT_ARG_OBJECT, SMOOTHING_RADIUS_ARG_NAME
         ),
         colour_map_name=getattr(INPUT_ARG_OBJECT, COLOUR_MAP_ARG_NAME),
-        max_colour_value=getattr(INPUT_ARG_OBJECT, MAX_COLOUR_VALUE_ARG_NAME),
+        min_abs_contour_value=getattr(
+            INPUT_ARG_OBJECT, MIN_CONTOUR_VALUE_ARG_NAME
+        ),
+        max_abs_contour_value=getattr(
+            INPUT_ARG_OBJECT, MAX_CONTOUR_VALUE_ARG_NAME
+        ),
         half_num_contours=getattr(INPUT_ARG_OBJECT, HALF_NUM_CONTOURS_ARG_NAME),
         line_width=getattr(INPUT_ARG_OBJECT, LINE_WIDTH_ARG_NAME),
         output_dir_name=getattr(INPUT_ARG_OBJECT, OUTPUT_DIR_ARG_NAME)
