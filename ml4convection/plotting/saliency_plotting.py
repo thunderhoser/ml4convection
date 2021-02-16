@@ -12,7 +12,7 @@ DEFAULT_CONTOUR_WIDTH = 2.
 def plot_2d_grid_latlng(
         saliency_matrix, axes_object, min_latitude_deg_n,
         min_longitude_deg_e, latitude_spacing_deg, longitude_spacing_deg,
-        max_absolute_contour_level, contour_interval,
+        min_abs_contour_value, max_abs_contour_value, half_num_contours,
         colour_map_object=DEFAULT_COLOUR_MAP_OBJECT,
         line_width=DEFAULT_CONTOUR_WIDTH):
     """Plots saliency on 2-D grid with lat-long coordinates.
@@ -29,25 +29,25 @@ def plot_2d_grid_latlng(
         grid points.
     :param latitude_spacing_deg: Spacing (deg N) between adjacent grid rows.
     :param longitude_spacing_deg: Spacing (deg E) between adjacent grid columns.
-    :param max_absolute_contour_level: Max absolute saliency to plot.
-    :param contour_interval: Saliency difference between adjacent contour
-        levels.
+    :param min_abs_contour_value: Minimum absolute saliency to plot.
+    :param max_abs_contour_value: Max absolute saliency to plot.
+    :param half_num_contours: Number of contours on either side of zero.
     :param colour_map_object: Colour scheme (instance of
         `matplotlib.pyplot.cm`).
     :param line_width: Width of contour lines.
     """
 
-    error_checking.assert_is_geq(max_absolute_contour_level, 0.)
-    max_absolute_contour_level = max([max_absolute_contour_level, 0.001])
+    if min_abs_contour_value < 0.001 or max_abs_contour_value < 0.01:
+        min_abs_contour_value = 0.001
+        max_abs_contour_value = 0.01
 
-    error_checking.assert_is_geq(contour_interval, 0.)
-    contour_interval = max([contour_interval, 0.0001])
-
+    error_checking.assert_is_greater(
+        max_abs_contour_value, min_abs_contour_value
+    )
+    error_checking.assert_is_integer(half_num_contours)
+    error_checking.assert_is_geq(half_num_contours, 5)
     error_checking.assert_is_numpy_array_without_nan(saliency_matrix)
     error_checking.assert_is_numpy_array(saliency_matrix, num_dimensions=2)
-    error_checking.assert_is_less_than(
-        contour_interval, max_absolute_contour_level
-    )
 
     latitudes_deg_n, longitudes_deg_e = grids.get_latlng_grid_points(
         min_latitude_deg=min_latitude_deg_n,
@@ -65,60 +65,54 @@ def plot_2d_grid_latlng(
         )
     )
 
-    half_num_contours = int(numpy.round(
-        1 + max_absolute_contour_level / contour_interval
-    ))
-
     # Plot positive values.
-    these_contour_levels = numpy.linspace(
-        0., max_absolute_contour_level, num=half_num_contours
+    contour_levels = numpy.linspace(
+        min_abs_contour_value, max_abs_contour_value, num=half_num_contours
     )
 
     axes_object.contour(
         longitude_matrix_deg_e, latitude_matrix_deg_n, saliency_matrix,
-        these_contour_levels, cmap=colour_map_object,
-        vmin=numpy.min(these_contour_levels),
-        vmax=numpy.max(these_contour_levels), linewidths=line_width,
-        linestyles='solid', zorder=1e6
+        contour_levels, cmap=colour_map_object,
+        vmin=numpy.min(contour_levels), vmax=numpy.max(contour_levels),
+        linewidths=line_width, linestyles='solid', zorder=1e6
     )
 
     # Plot negative values.
-    these_contour_levels = these_contour_levels[1:]
-
     axes_object.contour(
         longitude_matrix_deg_e, latitude_matrix_deg_n, -1 * saliency_matrix,
-        these_contour_levels, cmap=colour_map_object,
-        vmin=numpy.min(these_contour_levels),
-        vmax=numpy.max(these_contour_levels), linewidths=line_width,
-        linestyles='dashed', zorder=1e6
+        contour_levels, cmap=colour_map_object,
+        vmin=numpy.min(contour_levels), vmax=numpy.max(contour_levels),
+        linewidths=line_width, linestyles='dashed', zorder=1e6
     )
 
 
 def plot_2d_grid_xy(
-        saliency_matrix, axes_object, max_absolute_contour_level,
-        contour_interval, colour_map_object=DEFAULT_COLOUR_MAP_OBJECT,
+        saliency_matrix, axes_object, min_abs_contour_value,
+        max_abs_contour_value, half_num_contours,
+        colour_map_object=DEFAULT_COLOUR_MAP_OBJECT,
         line_width=DEFAULT_CONTOUR_WIDTH):
     """Plots saliency on 2-D grid with x-y coordinates (no basemap).
 
     :param saliency_matrix: See doc for `plot_2d_grid_latlng`.
     :param axes_object: Same.
-    :param max_absolute_contour_level: Same.
-    :param contour_interval: Same.
+    :param min_abs_contour_value: Same.
+    :param max_abs_contour_value: Same.
+    :param half_num_contours: Same.
     :param colour_map_object: Same.
     :param line_width: Same.
     """
 
-    error_checking.assert_is_geq(max_absolute_contour_level, 0.)
-    max_absolute_contour_level = max([max_absolute_contour_level, 0.001])
+    if min_abs_contour_value < 0.001 or max_abs_contour_value < 0.01:
+        min_abs_contour_value = 0.001
+        max_abs_contour_value = 0.01
 
-    error_checking.assert_is_geq(contour_interval, 0.)
-    contour_interval = max([contour_interval, 0.0001])
-
+    error_checking.assert_is_greater(
+        max_abs_contour_value, min_abs_contour_value
+    )
+    error_checking.assert_is_integer(half_num_contours)
+    error_checking.assert_is_geq(half_num_contours, 5)
     error_checking.assert_is_numpy_array_without_nan(saliency_matrix)
     error_checking.assert_is_numpy_array(saliency_matrix, num_dimensions=2)
-    error_checking.assert_is_less_than(
-        contour_interval, max_absolute_contour_level
-    )
 
     num_grid_rows = saliency_matrix.shape[0]
     num_grid_columns = saliency_matrix.shape[1]
@@ -133,39 +127,33 @@ def plot_2d_grid_xy(
 
     x_coord_matrix, y_coord_matrix = numpy.meshgrid(x_coords, y_coords)
 
-    half_num_contours = int(numpy.round(
-        1 + max_absolute_contour_level / contour_interval
-    ))
-
     # Plot positive values.
-    these_contour_levels = numpy.linspace(
-        0., max_absolute_contour_level, num=half_num_contours
+    contour_levels = numpy.linspace(
+        min_abs_contour_value, max_abs_contour_value, num=half_num_contours
     )
 
     axes_object.contour(
         x_coord_matrix, y_coord_matrix, saliency_matrix,
-        these_contour_levels, cmap=colour_map_object,
-        vmin=numpy.min(these_contour_levels),
-        vmax=numpy.max(these_contour_levels), linewidths=line_width,
-        linestyles='solid', zorder=1e6, transform=axes_object.transAxes
+        contour_levels, cmap=colour_map_object,
+        vmin=numpy.min(contour_levels), vmax=numpy.max(contour_levels),
+        linewidths=line_width, linestyles='solid', zorder=1e6,
+        transform=axes_object.transAxes
     )
 
     # Plot negative values.
-    these_contour_levels = these_contour_levels[1:]
-
     axes_object.contour(
         x_coord_matrix, y_coord_matrix, -1 * saliency_matrix,
-        these_contour_levels, cmap=colour_map_object,
-        vmin=numpy.min(these_contour_levels),
-        vmax=numpy.max(these_contour_levels), linewidths=line_width,
-        linestyles='dashed', zorder=1e6, transform=axes_object.transAxes
+        contour_levels, cmap=colour_map_object,
+        vmin=numpy.min(contour_levels), vmax=numpy.max(contour_levels),
+        linewidths=line_width, linestyles='dashed', zorder=1e6,
+        transform=axes_object.transAxes
     )
 
 
 def plot_3d_grid_latlng(
         saliency_matrix, axes_object_matrix, min_latitude_deg_n,
         min_longitude_deg_e, latitude_spacing_deg, longitude_spacing_deg,
-        max_absolute_contour_level, contour_interval,
+        min_abs_contour_value, max_abs_contour_value, half_num_contours,
         colour_map_object=DEFAULT_COLOUR_MAP_OBJECT,
         line_width=DEFAULT_CONTOUR_WIDTH):
     """Plots saliency on 3-D grid with lat-long coordinates.
@@ -181,8 +169,9 @@ def plot_3d_grid_latlng(
     :param min_longitude_deg_e: Same.
     :param latitude_spacing_deg: Same.
     :param longitude_spacing_deg: Same.
-    :param max_absolute_contour_level: Same.
-    :param contour_interval: Same.
+    :param min_abs_contour_value: Same.
+    :param max_abs_contour_value: Same.
+    :param half_num_contours: Same.
     :param colour_map_object: Same.
     :param line_width: Same.
     """
@@ -203,22 +192,25 @@ def plot_3d_grid_latlng(
             min_longitude_deg_e=min_longitude_deg_e,
             latitude_spacing_deg=latitude_spacing_deg,
             longitude_spacing_deg=longitude_spacing_deg,
-            max_absolute_contour_level=max_absolute_contour_level,
-            contour_interval=contour_interval,
+            min_abs_contour_value=min_abs_contour_value,
+            max_abs_contour_value=max_abs_contour_value,
+            half_num_contours=half_num_contours,
             colour_map_object=colour_map_object, line_width=line_width
         )
 
 
 def plot_3d_grid_xy(
-        saliency_matrix, axes_object_matrix, max_absolute_contour_level,
-        contour_interval, colour_map_object=DEFAULT_COLOUR_MAP_OBJECT,
+        saliency_matrix, axes_object_matrix, min_abs_contour_value,
+        max_abs_contour_value, half_num_contours,
+        colour_map_object=DEFAULT_COLOUR_MAP_OBJECT,
         line_width=DEFAULT_CONTOUR_WIDTH):
     """Plots saliency on 3-D grid with x-y coordinates (no basemap).
 
     :param saliency_matrix: See doc for `plot_3d_grid_latlng`.
     :param axes_object_matrix: Same.
-    :param max_absolute_contour_level: Same.
-    :param contour_interval: Same.
+    :param min_abs_contour_value: Same.
+    :param max_abs_contour_value: Same.
+    :param half_num_contours: Same.
     :param colour_map_object: Same.
     :param line_width: Same.
     """
@@ -235,8 +227,9 @@ def plot_3d_grid_xy(
         plot_2d_grid_xy(
             saliency_matrix=saliency_matrix[..., k],
             axes_object=axes_object_matrix[i, j],
-            max_absolute_contour_level=max_absolute_contour_level,
-            contour_interval=contour_interval,
+            min_abs_contour_value=min_abs_contour_value,
+            max_abs_contour_value=max_abs_contour_value,
+            half_num_contours=half_num_contours,
             colour_map_object=colour_map_object, line_width=line_width
         )
 
@@ -244,7 +237,7 @@ def plot_3d_grid_xy(
 def plot_4d_grid_latlng(
         saliency_matrix, axes_object_matrix, min_latitude_deg_n,
         min_longitude_deg_e, latitude_spacing_deg, longitude_spacing_deg,
-        max_absolute_contour_level, contour_interval,
+        min_abs_contour_value, max_abs_contour_value, half_num_contours,
         colour_map_object=DEFAULT_COLOUR_MAP_OBJECT,
         line_width=DEFAULT_CONTOUR_WIDTH):
     """Plots saliency on 4-D grid with lat-long coordinates.
@@ -261,8 +254,9 @@ def plot_4d_grid_latlng(
     :param min_longitude_deg_e: Same.
     :param latitude_spacing_deg: Same.
     :param longitude_spacing_deg: Same.
-    :param max_absolute_contour_level: Same.
-    :param contour_interval: Same.
+    :param min_abs_contour_value: Same.
+    :param max_abs_contour_value: Same.
+    :param half_num_contours: Same.
     :param colour_map_object: Same.
     :param line_width: Same.
     """
@@ -287,22 +281,25 @@ def plot_4d_grid_latlng(
                 min_longitude_deg_e=min_longitude_deg_e,
                 latitude_spacing_deg=latitude_spacing_deg,
                 longitude_spacing_deg=longitude_spacing_deg,
-                max_absolute_contour_level=max_absolute_contour_level,
-                contour_interval=contour_interval,
+                min_abs_contour_value=min_abs_contour_value,
+                max_abs_contour_value=max_abs_contour_value,
+                half_num_contours=half_num_contours,
                 colour_map_object=colour_map_object, line_width=line_width
             )
 
 
 def plot_4d_grid_xy(
-        saliency_matrix, axes_object_matrix, max_absolute_contour_level,
-        contour_interval, colour_map_object=DEFAULT_COLOUR_MAP_OBJECT,
+        saliency_matrix, axes_object_matrix, min_abs_contour_value,
+        max_abs_contour_value, half_num_contours,
+        colour_map_object=DEFAULT_COLOUR_MAP_OBJECT,
         line_width=DEFAULT_CONTOUR_WIDTH):
     """Plots saliency on 4-D grid with x-y coordinates (no basemap).
 
     :param saliency_matrix: See doc for `plot_3d_grid_latlng`.
     :param axes_object_matrix: Same.
-    :param max_absolute_contour_level: Same.
-    :param contour_interval: Same.
+    :param min_abs_contour_value: Same.
+    :param max_abs_contour_value: Same.
+    :param half_num_contours: Same.
     :param colour_map_object: Same.
     :param line_width: Same.
     """
@@ -323,7 +320,8 @@ def plot_4d_grid_xy(
             plot_2d_grid_xy(
                 saliency_matrix=saliency_matrix[..., j, k],
                 axes_object=axes_object_matrix[j, k],
-                max_absolute_contour_level=max_absolute_contour_level,
-                contour_interval=contour_interval,
+                min_abs_contour_value=min_abs_contour_value,
+                max_abs_contour_value=max_abs_contour_value,
+                half_num_contours=half_num_contours,
                 colour_map_object=colour_map_object, line_width=line_width
             )
