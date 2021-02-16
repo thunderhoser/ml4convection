@@ -210,16 +210,6 @@ def _plot_predictors_one_example(
         predictor_dict[neural_net.PREDICTOR_MATRIX_KEY][example_index, ...]
     )
 
-    if len(brightness_temp_matrix_kelvins.shape) == 4:
-        brightness_temp_matrix_kelvins = neural_net.predictor_matrix_from_keras(
-            predictor_matrix=brightness_temp_matrix_kelvins,
-            num_lag_times=len(lag_times_seconds)
-        )
-        brightness_temp_matrix_kelvins = neural_net.predictor_matrix_to_keras(
-            predictor_matrix=brightness_temp_matrix_kelvins,
-            num_lag_times=len(lag_times_seconds), add_time_dimension=True
-        )
-
     num_lag_times = brightness_temp_matrix_kelvins.shape[-2]
     num_channels = brightness_temp_matrix_kelvins.shape[-1]
     figure_object_matrix = numpy.full(
@@ -503,6 +493,26 @@ def _run(saliency_file_name, top_predictor_dir_name, top_target_dir_name,
         option_dict=predictor_option_dict, return_coords=True,
         radar_number=radar_number
     )[radar_number]
+
+    brightness_temp_matrix_kelvins = (
+        predictor_dict[neural_net.PREDICTOR_MATRIX_KEY]
+    )
+
+    if len(brightness_temp_matrix_kelvins.shape) == 4:
+        num_lag_times = len(predictor_option_dict[neural_net.LAG_TIMES_KEY])
+
+        brightness_temp_matrix_kelvins = neural_net.predictor_matrix_from_keras(
+            predictor_matrix=brightness_temp_matrix_kelvins,
+            num_lag_times=num_lag_times
+        )
+        brightness_temp_matrix_kelvins = neural_net.predictor_matrix_to_keras(
+            predictor_matrix=brightness_temp_matrix_kelvins,
+            num_lag_times=num_lag_times, add_time_dimension=True
+        )
+
+    predictor_dict[neural_net.PREDICTOR_MATRIX_KEY] = (
+        brightness_temp_matrix_kelvins
+    )
 
     num_examples = saliency_dict[saliency.SALIENCY_MATRIX_KEY].shape[0]
 
