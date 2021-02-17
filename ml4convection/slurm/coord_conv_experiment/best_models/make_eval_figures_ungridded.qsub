@@ -38,7 +38,7 @@ set include_latlong_flag=${INCLUDE_LATLONG_FLAGS[$SLURM_ARRAY_TASK_ID]}
 set model_dir_name="${TOP_MODEL_DIR_NAME}/coord-conv=${coord_conv_flag}_include-lat-long=${include_latlong_flag}"
 set temporal_eval_dir_name="${model_dir_name}/validation/full_grids/evaluation/matching_distance_px=4.000000"
 set non_temporal_eval_dir_name="${model_dir_name}/validation/full_grids/evaluation/matching_distance_px=4.000000/advanced_scores_gridded=0"
-set output_dir_name="${TOP_OUTPUT_DIR_NAME}/batch-size=${batch_size_string}_l2-weight=${l2_weight_string}_lag-times-sec=${lag_time_string_dashed}"
+set output_dir_name="${TOP_OUTPUT_DIR_NAME}/coord-conv=${coord_conv_flag}_include-lat-long=${include_latlong_flag}"
 
 python3 -u "${CODE_DIR_NAME}/make_eval_figure_ungridded.py" \
 --input_temporal_eval_dir_name="${temporal_eval_dir_name}" \
