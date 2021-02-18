@@ -1,12 +1,9 @@
-"""Creates saliency maps."""
+"""Makes class-activation maps."""
 
 import argparse
 import numpy
-import tensorflow
-from ml4convection.machine_learning import saliency
+from ml4convection.machine_learning import gradcam
 from ml4convection.machine_learning import neural_net
-
-tensorflow.compat.v1.disable_eager_execution()
 
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 MINOR_SEPARATOR_STRING = '\n\n' + '-' * 50 + '\n\n'
@@ -15,15 +12,15 @@ MODEL_FILE_ARG_NAME = 'input_model_file_name'
 PREDICTOR_DIR_ARG_NAME = 'input_predictor_dir_name'
 TARGET_DIR_ARG_NAME = 'input_target_dir_name'
 VALID_DATES_ARG_NAME = 'valid_date_strings'
-LAYER_ARG_NAME = 'layer_name'
-IS_LAYER_OUTPUT_ARG_NAME = 'is_layer_output'
-NEURON_INDICES_ARG_NAME = 'neuron_indices'
-IDEAL_ACTIVATION_ARG_NAME = 'ideal_activation'
+ACTIVATION_LAYER_ARG_NAME = 'activation_layer_name'
+OUTPUT_LAYER_ARG_NAME = 'output_layer_name'
+OUTPUT_ROW_ARG_NAME = 'output_row'
+OUTPUT_COLUMN_ARG_NAME = 'output_column'
 OUTPUT_DIR_ARG_NAME = 'output_dir_name'
 
 MODEL_FILE_HELP_STRING = (
-    'Path to file with trained model for which to make saliency maps.  Will be'
-    ' read by `neural_net.read_model`.'
+    'Path to file with trained model for which to make class-activation maps.  '
+    'Will be read by `neural_net.read_model`.'
 )
 PREDICTOR_DIR_HELP_STRING = (
     'Name of top-level directory with predictors to use.  Files therein will be'
@@ -36,25 +33,23 @@ TARGET_DIR_HELP_STRING = (
     '`example_io.read_target_file`.'
 )
 VALID_DATES_HELP_STRING = 'List of valid dates for targets (format "yyyymmdd").'
-
-IS_LAYER_OUTPUT_HELP_STRING = (
-    'Boolean flag.  If 1, `{0:s}` is an output layer.'
-).format(LAYER_ARG_NAME)
-
-LAYER_HELP_STRING = 'Name of layer with relevant neuron.'
-NEURON_INDICES_HELP_STRING = (
-    '1-D list with indices of relevant neuron.  Must have length D - 1, where '
-    'D = number of dimensions in layer output.  The first dimension is the '
-    'batch dimension, which always has length `None` in Keras.'
+ACTIVATION_LAYER_HELP_STRING = 'Name of activation layer.'
+OUTPUT_LAYER_HELP_STRING = (
+    'Name of output layer.  This layer should output either probabilities '
+    '(activation outputs) or pseudo-probabilities (activation inputs).'
 )
-IDEAL_ACTIVATION_HELP_STRING = (
-    'Ideal neuron activation, used to define loss function.  The loss function '
-    'will be (neuron_activation - ideal_activation)**2.'
+OUTPUT_ROW_HELP_STRING = (
+    'Class activation will be computed with respect to output at this grid row '
+    '(non-negative integer).'
+)
+OUTPUT_COLUMN_HELP_STRING = (
+    'Class activation will be computed with respect to output at this grid '
+    'column (non-negative integer).'
 )
 OUTPUT_DIR_HELP_STRING = (
     'Name of output directory.  Results will be written here by '
-    '`saliency.write_file`, to exact locations determined by '
-    '`saliency.find_file`.'
+    '`gradcam.write_file`, to exact locations determined by '
+    '`gradcam.find_file`.'
 )
 
 INPUT_ARG_PARSER = argparse.ArgumentParser()
@@ -75,19 +70,20 @@ INPUT_ARG_PARSER.add_argument(
     help=VALID_DATES_HELP_STRING
 )
 INPUT_ARG_PARSER.add_argument(
-    '--' + LAYER_ARG_NAME, type=str, required=True, help=LAYER_HELP_STRING
+    '--' + ACTIVATION_LAYER_ARG_NAME, type=str, required=True,
+    help=ACTIVATION_LAYER_HELP_STRING
 )
 INPUT_ARG_PARSER.add_argument(
-    '--' + IS_LAYER_OUTPUT_ARG_NAME, type=int, required=True,
-    help=IS_LAYER_OUTPUT_HELP_STRING
+    '--' + OUTPUT_LAYER_ARG_NAME, type=str, required=True,
+    help=OUTPUT_LAYER_HELP_STRING
 )
 INPUT_ARG_PARSER.add_argument(
-    '--' + NEURON_INDICES_ARG_NAME, type=int, nargs='+', required=True,
-    help=NEURON_INDICES_HELP_STRING
+    '--' + OUTPUT_ROW_ARG_NAME, type=int, required=True,
+    help=OUTPUT_ROW_HELP_STRING
 )
 INPUT_ARG_PARSER.add_argument(
-    '--' + IDEAL_ACTIVATION_ARG_NAME, type=float, required=True,
-    help=IDEAL_ACTIVATION_HELP_STRING
+    '--' + OUTPUT_COLUMN_ARG_NAME, type=int, required=True,
+    help=OUTPUT_COLUMN_HELP_STRING
 )
 INPUT_ARG_PARSER.add_argument(
     '--' + OUTPUT_DIR_ARG_NAME, type=str, required=True,
@@ -95,21 +91,21 @@ INPUT_ARG_PARSER.add_argument(
 )
 
 
-def _get_saliency_one_day(
+def _make_cams_one_day(
         model_object, data_option_dict, valid_date_string, model_file_name,
-        layer_name, is_layer_output, neuron_indices, ideal_activation,
+        activation_layer_name, output_layer_name, output_row, output_column,
         output_dir_name):
-    """Creates saliency maps for one day.
+    """Computes class-activation maps for one day.
 
     :param model_object: Trained model (instance of `keras.models.Model` or
         `keras.models.Sequential`).
     :param data_option_dict: See doc for `neural_net.create_data_partial_grids`.
     :param valid_date_string: Valid date (format "yyyymmdd").
     :param model_file_name: See documentation at top of file.
-    :param layer_name: Same.
-    :param is_layer_output: Same.
-    :param neuron_indices: Same.
-    :param ideal_activation: Same.
+    :param activation_layer_name: Same.
+    :param output_layer_name: Same.
+    :param output_row: Same.
+    :param output_column: Same.
     :param output_dir_name: Same.
     """
 
@@ -117,55 +113,77 @@ def _get_saliency_one_day(
     data_dict_by_radar = neural_net.create_data_partial_grids(
         option_dict=data_option_dict, return_coords=True
     )
-    print(MINOR_SEPARATOR_STRING)
 
     if data_dict_by_radar is None:
+        print(MINOR_SEPARATOR_STRING)
         return
 
     num_radars = len(data_dict_by_radar)
+    output_neuron_indices = numpy.array([output_row, output_column], dtype=int)
 
     for k in range(num_radars):
         if len(list(data_dict_by_radar[k].keys())) == 0:
             continue
 
+        print(MINOR_SEPARATOR_STRING)
+
         print((
-            'Computing saliency maps for radar {0:d} of {1:d}, neuron {2:s} of '
-            'layer "{3:s}"...'
+            'Computing class-activation maps for radar {0:d} of {1:d}, '
+            'activation layer "{2:s}", output neuron {3:s} in layer "{4:s}"...'
         ).format(
-            k + 1, num_radars, str(neuron_indices), layer_name
+            k + 1, num_radars, activation_layer_name,
+            str(output_neuron_indices), output_layer_name
         ))
 
-        saliency_matrix = saliency.get_saliency_one_neuron(
-            model_object=model_object,
-            predictor_matrix=
-            data_dict_by_radar[k][neural_net.PREDICTOR_MATRIX_KEY],
-            layer_name=layer_name, neuron_indices=neuron_indices,
-            ideal_activation=ideal_activation
+        predictor_matrix = (
+            data_dict_by_radar[k][neural_net.PREDICTOR_MATRIX_KEY]
+        )
+        num_examples = predictor_matrix.shape[0]
+        class_activation_matrix = numpy.full(
+            predictor_matrix.shape[:3], numpy.nan
         )
 
-        output_file_name = saliency.find_file(
+        for i in range(num_examples):
+            if numpy.mod(i, 10) == 0:
+                print('Have computed CAM for {0:d} of {1:d} examples...'.format(
+                    i, num_examples
+                ))
+
+            class_activation_matrix[i, ...] = gradcam.run_gradcam(
+                model_object=model_object,
+                predictor_matrix=predictor_matrix[i, ...],
+                activation_layer_name=activation_layer_name,
+                output_layer_name=output_layer_name,
+                output_row=output_row, output_column=output_column
+            )
+
+        print('Have computed CAM for all {0:d} examples!'.format(num_examples))
+
+        output_file_name = gradcam.find_file(
             top_directory_name=output_dir_name,
             valid_date_string=valid_date_string, radar_number=k,
             raise_error_if_missing=False
         )
 
         print('Writing saliency maps to: "{0:s}"...'.format(output_file_name))
-        saliency.write_file(
-            netcdf_file_name=output_file_name, saliency_matrix=saliency_matrix,
+        gradcam.write_file(
+            netcdf_file_name=output_file_name,
+            class_activation_matrix=class_activation_matrix,
             valid_times_unix_sec=
             data_dict_by_radar[k][neural_net.VALID_TIMES_KEY],
             latitudes_deg_n=data_dict_by_radar[k][neural_net.LATITUDES_KEY],
             longitudes_deg_e=data_dict_by_radar[k][neural_net.LONGITUDES_KEY],
-            model_file_name=model_file_name, is_layer_output=is_layer_output,
-            layer_name=layer_name, neuron_indices=neuron_indices,
-            ideal_activation=ideal_activation
+            model_file_name=model_file_name,
+            activation_layer_name=activation_layer_name,
+            output_layer_name=output_layer_name,
+            output_row=output_row, output_column=output_column
         )
 
 
 def _run(model_file_name, top_predictor_dir_name, top_target_dir_name,
-         valid_date_strings, layer_name, is_layer_output, neuron_indices,
-         ideal_activation, output_dir_name):
-    """Runs permutation-based importance test.
+         valid_date_strings, activation_layer_name, output_layer_name,
+         output_row, output_column, output_dir_name):
+    """Makes class-activation maps.
 
     This is effectively the main method.
 
@@ -173,10 +191,10 @@ def _run(model_file_name, top_predictor_dir_name, top_target_dir_name,
     :param top_predictor_dir_name: Same.
     :param top_target_dir_name: Same.
     :param valid_date_strings: Same.
-    :param layer_name: Same.
-    :param is_layer_output: Same.
-    :param neuron_indices: Same.
-    :param ideal_activation: Same.
+    :param activation_layer_name: Same.
+    :param output_layer_name: Same.
+    :param output_row: Same.
+    :param output_column: Same.
     :param output_dir_name: Same.
     """
 
@@ -214,12 +232,12 @@ def _run(model_file_name, top_predictor_dir_name, top_target_dir_name,
     for this_date_string in valid_date_strings:
         print(SEPARATOR_STRING)
 
-        _get_saliency_one_day(
+        _make_cams_one_day(
             model_object=model_object, data_option_dict=data_option_dict,
             valid_date_string=this_date_string, model_file_name=model_file_name,
-            layer_name=layer_name, is_layer_output=is_layer_output,
-            neuron_indices=neuron_indices, ideal_activation=ideal_activation,
-            output_dir_name=output_dir_name
+            activation_layer_name=activation_layer_name,
+            output_layer_name=output_layer_name, output_row=output_row,
+            output_column=output_column, output_dir_name=output_dir_name
         )
 
 
@@ -233,13 +251,11 @@ if __name__ == '__main__':
         ),
         top_target_dir_name=getattr(INPUT_ARG_OBJECT, TARGET_DIR_ARG_NAME),
         valid_date_strings=getattr(INPUT_ARG_OBJECT, VALID_DATES_ARG_NAME),
-        layer_name=getattr(INPUT_ARG_OBJECT, LAYER_ARG_NAME),
-        is_layer_output=bool(
-            getattr(INPUT_ARG_OBJECT, IS_LAYER_OUTPUT_ARG_NAME)
+        activation_layer_name=getattr(
+            INPUT_ARG_OBJECT, ACTIVATION_LAYER_ARG_NAME
         ),
-        neuron_indices=numpy.array(
-            getattr(INPUT_ARG_OBJECT, NEURON_INDICES_ARG_NAME), dtype=int
-        ),
-        ideal_activation=getattr(INPUT_ARG_OBJECT, IDEAL_ACTIVATION_ARG_NAME),
+        output_layer_name=getattr(INPUT_ARG_OBJECT, OUTPUT_LAYER_ARG_NAME),
+        output_row=getattr(INPUT_ARG_OBJECT, OUTPUT_ROW_ARG_NAME),
+        output_column=getattr(INPUT_ARG_OBJECT, OUTPUT_COLUMN_ARG_NAME),
         output_dir_name=getattr(INPUT_ARG_OBJECT, OUTPUT_DIR_ARG_NAME)
     )
