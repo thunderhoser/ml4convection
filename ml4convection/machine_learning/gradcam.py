@@ -4,10 +4,12 @@ import os
 import numpy
 import netCDF4
 from keras import backend as K
+from scipy.interpolate import (
+    UnivariateSpline, RectBivariateSpline, RegularGridInterpolator
+)
 from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
-from gewittergefahr.deep_learning import gradcam as gradcam_utils
 from ml4convection.utils import radar_utils
 
 DATE_FORMAT = '%Y%m%d'
@@ -38,6 +40,78 @@ def _normalize_tensor(input_tensor):
 
     rms_tensor = K.sqrt(K.mean(K.square(input_tensor)))
     return input_tensor / (rms_tensor + K.epsilon())
+
+
+def _upsample_cam(class_activation_matrix, new_dimensions):
+    """Upsamples class-activation matrix (CAM).
+
+    CAM may be 1-D, 2-D, or 3-D.
+
+    :param class_activation_matrix: numpy array containing 1-D, 2-D, or 3-D
+        class-activation nao.
+    :param new_dimensions: numpy array of new dimensions.  If matrix is
+        {1D, 2D, 3D}, this must be a length-{1, 2, 3} array, respectively.
+    :return: class_activation_matrix: Upsampled version of input.
+    """
+
+    num_rows_new = new_dimensions[0]
+    row_indices_new = numpy.linspace(
+        1, num_rows_new, num=num_rows_new, dtype=float
+    )
+    row_indices_orig = numpy.linspace(
+        1, num_rows_new, num=class_activation_matrix.shape[0], dtype=float
+    )
+
+    if len(new_dimensions) == 1:
+        # interp_object = UnivariateSpline(
+        #     x=row_indices_orig, y=numpy.ravel(class_activation_matrix),
+        #     k=1, s=0
+        # )
+
+        interp_object = UnivariateSpline(
+            x=row_indices_orig, y=numpy.ravel(class_activation_matrix),
+            k=3, s=0
+        )
+
+        return interp_object(row_indices_new)
+
+    num_columns_new = new_dimensions[1]
+    column_indices_new = numpy.linspace(
+        1, num_columns_new, num=num_columns_new, dtype=float
+    )
+    column_indices_orig = numpy.linspace(
+        1, num_columns_new, num=class_activation_matrix.shape[1], dtype=float
+    )
+
+    if len(new_dimensions) == 2:
+        interp_object = RectBivariateSpline(
+            x=row_indices_orig, y=column_indices_orig,
+            z=class_activation_matrix, kx=3, ky=3, s=0
+        )
+
+        return interp_object(x=row_indices_new, y=column_indices_new, grid=True)
+
+    num_heights_new = new_dimensions[2]
+    height_indices_new = numpy.linspace(
+        1, num_heights_new, num=num_heights_new, dtype=float
+    )
+    height_indices_orig = numpy.linspace(
+        1, num_heights_new, num=class_activation_matrix.shape[2], dtype=float
+    )
+
+    interp_object = RegularGridInterpolator(
+        points=(row_indices_orig, column_indices_orig, height_indices_orig),
+        values=class_activation_matrix, method='linear'
+    )
+
+    column_index_matrix, row_index_matrix, height_index_matrix = (
+        numpy.meshgrid(column_indices_new, row_indices_new, height_indices_new)
+    )
+    query_point_matrix = numpy.stack(
+        (row_index_matrix, column_index_matrix, height_index_matrix), axis=-1
+    )
+
+    return interp_object(query_point_matrix)
 
 
 def check_metadata(
@@ -132,7 +206,7 @@ def run_gradcam(
             mean_weight_by_filter[k] * layer_activation_matrix[:, k]
         )
 
-    class_activation_matrix = gradcam_utils._upsample_cam(
+    class_activation_matrix = _upsample_cam(
         class_activation_matrix=class_activation_matrix,
         new_dimensions=numpy.array(predictor_matrix.shape[1:], dtype=int)
     )

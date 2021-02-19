@@ -362,9 +362,7 @@ def _concat_panels_one_example(figure_object_matrix, valid_time_unix_sec,
 
     for j in range(num_lag_times):
         for k in range(num_channels):
-            this_file_name = (
-                '{0:s}/saliency_{1:s}_lag{2:d}_channel{3:d}.jpg'
-            ).format(
+            this_file_name = '{0:s}/{1:s}_lag{2:d}_channel{3:d}.jpg'.format(
                 output_dir_name, valid_time_string, j, k
             )
 
@@ -382,7 +380,7 @@ def _concat_panels_one_example(figure_object_matrix, valid_time_unix_sec,
                 output_size_pixels=PANEL_SIZE_PX
             )
 
-    concat_figure_file_name = '{0:s}/saliency_{1:s}.jpg'.format(
+    concat_figure_file_name = '{0:s}/{1:s}.jpg'.format(
         output_dir_name, valid_time_string
     )
 
