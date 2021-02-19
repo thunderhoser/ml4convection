@@ -213,10 +213,6 @@ def run_gradcam(
     num_filters = len(mean_weight_by_filter)
 
     for k in range(num_filters):
-        print(class_activation_matrix.shape)
-        print(mean_weight_by_filter.shape)
-        print(layer_activation_matrix.shape)
-
         class_activation_matrix += (
             mean_weight_by_filter[k] * layer_activation_matrix[..., k]
         )
