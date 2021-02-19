@@ -43,8 +43,8 @@ set l2_weight_string=`printf "%.10f" $l2_weight`
 
 set model_dir_name="${TOP_MODEL_DIR_NAME}/batch-size=${batch_size_string}_l2-weight=${l2_weight_string}_lag-times-sec=${lag_time_string_dashed}"
 set model_file_name="${model_dir_name}/model.h5"
-set saliency_file_name="${model_dir_name}/saliency/2017/targets_20170914_radar2.nc"
-set output_dir_name="${model_dir_name}/saliency/2017/targets_20170914_radar2"
+set saliency_file_name="${model_dir_name}/saliency/2017/saliency_20170914_radar2.nc"
+set output_dir_name="${model_dir_name}/saliency/2017/saliency_20170914_radar2"
 
 python3 -u "${CODE_DIR_NAME}/plot_saliency_maps.py" \
 --input_saliency_file_name="${saliency_file_name}" \

@@ -1,6 +1,6 @@
 #!/bin/tcsh
 
-#SBATCH --job-name="plot_saliency_maps"
+#SBATCH --job-name="plot_class_activation_maps"
 #SBATCH --partition="fge"
 #SBATCH --account="rda-ghpcs"
 #SBATCH --qos="batch"
@@ -13,13 +13,13 @@
 ##SBATCH --cpus-per-task=1
 ##SBATCH --ntasks-per-node=1
 #SBATCH --time=30:00:00
-#SBATCH --array=1
+#SBATCH --array=1-4
 #SBATCH --exclude=h28n12
 ##SBATCH --exclude=h31n03,h28n12
 ##SBATCH --exclude=h29n01,h26n05,h28n06,h29n07,h30n03,h30n15
 #SBATCH --mail-type=BEGIN,END,FAIL
 #SBATCH --mail-user=ryan.lagerquist@noaa.gov
-#SBATCH --output=plot_saliency_maps_%A_%a.out
+#SBATCH --output=plot_class_activation_maps_%A_%a.out
 
 module load cuda/10.1
 source /scratch2/BMC/gsd-hpcs/Jebb.Q.Stewart/conda3.7/etc/profile.d/conda.csh
@@ -43,11 +43,13 @@ set l2_weight_string=`printf "%.10f" $l2_weight`
 
 set model_dir_name="${TOP_MODEL_DIR_NAME}/batch-size=${batch_size_string}_l2-weight=${l2_weight_string}_lag-times-sec=${lag_time_string_dashed}"
 set model_file_name="${model_dir_name}/model.h5"
-set saliency_file_name="${model_dir_name}/saliency/2017/saliency_20170914_radar2.nc"
-set output_dir_name="${model_dir_name}/saliency/2017/saliency_20170914_radar2"
+# set gradcam_file_name="${model_dir_name}/class_activation/2017/gradcam_20170914_radar2.nc"
+# set output_dir_name="${model_dir_name}/class_activation/2017/gradcam_20170914_radar2"
+set gradcam_file_name="${model_dir_name}/class_activation/2017/gradcam_20170101_radar1.nc"
+set output_dir_name="${model_dir_name}/class_activation/2017/gradcam_20170101_radar1"
 
-python3 -u "${CODE_DIR_NAME}/plot_saliency_maps.py" \
---input_saliency_file_name="${saliency_file_name}" \
+python3 -u "${CODE_DIR_NAME}/plot_class_activation_maps.py" \
+--input_gradcam_file_name="${gradcam_file_name}" \
 --input_predictor_dir_name="${TOP_PREDICTOR_DIR_NAME}" \
 --input_target_dir_name="${TOP_TARGET_DIR_NAME}" \
 --output_dir_name="${output_dir_name}"
