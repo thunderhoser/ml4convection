@@ -223,7 +223,7 @@ def run_gradcam(
 
     class_activation_matrix = _upsample_cam(
         class_activation_matrix=class_activation_matrix,
-        new_dimensions=numpy.array(predictor_matrix.shape[1:], dtype=int)
+        new_dimensions=numpy.array(predictor_matrix.shape[1:3], dtype=int)
     )
 
     return numpy.maximum(class_activation_matrix, 0.)
