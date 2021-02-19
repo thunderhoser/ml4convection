@@ -176,7 +176,9 @@ def _make_cams_one_day(
             raise_error_if_missing=False
         )
 
-        print('Writing saliency maps to: "{0:s}"...'.format(output_file_name))
+        print('Writing class-activation maps to: "{0:s}"...'.format(
+            output_file_name
+        ))
         gradcam.write_file(
             netcdf_file_name=output_file_name,
             class_activation_matrix=class_activation_matrix,
