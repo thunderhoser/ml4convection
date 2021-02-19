@@ -45,13 +45,14 @@ set model_dir_name="${TOP_MODEL_DIR_NAME}/batch-size=${batch_size_string}_l2-wei
 set model_file_name="${model_dir_name}/model.h5"
 set output_dir_name="${model_dir_name}/class_activation"
 
+# --output_layer_name="last_conv" \
+
 python3 -u "${CODE_DIR_NAME}/make_class_activation_maps.py" \
 --input_model_file_name="${model_file_name}" \
 --input_predictor_dir_name="${TOP_PREDICTOR_DIR_NAME}" \
 --input_target_dir_name="${TOP_TARGET_DIR_NAME}" \
 --valid_date_strings "20170101" "20170509" "20170914" \
 --activation_layer_name="skip_level3_conv1_bn" \
-# --output_layer_name="last_conv" \
 --output_layer_name="last_conv_activation" \
 --output_row=102 \
 --output_column=102 \
