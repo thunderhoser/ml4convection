@@ -158,7 +158,11 @@ def run_gradcam(
 
     # Check input args.
     error_checking.assert_is_numpy_array_without_nan(predictor_matrix)
-    error_checking.assert_is_numpy_array(predictor_matrix, num_dimensions=2)
+
+    num_dimensions = len(predictor_matrix.shape)
+    error_checking.assert_is_geq(num_dimensions, 3)
+    error_checking.assert_is_leq(num_dimensions, 4)
+
     predictor_matrix = numpy.expand_dims(predictor_matrix, axis=0)
 
     check_metadata(
@@ -203,12 +207,12 @@ def run_gradcam(
 
     for k in range(num_filters):
         class_activation_matrix += (
-            mean_weight_by_filter[k] * layer_activation_matrix[:, k]
+            mean_weight_by_filter[k] * layer_activation_matrix[..., k]
         )
 
     class_activation_matrix = _upsample_cam(
         class_activation_matrix=class_activation_matrix,
-        new_dimensions=numpy.array(predictor_matrix.shape[1:], dtype=int)
+        new_dimensions=numpy.array(predictor_matrix.shape[1:3], dtype=int)
     )
 
     return numpy.maximum(class_activation_matrix, 0.)
