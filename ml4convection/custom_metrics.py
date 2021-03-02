@@ -4,8 +4,8 @@ import os
 import sys
 import copy
 import numpy
-import tensorflow
 from tensorflow.keras import backend as K
+from scipy.ndimage.morphology import binary_erosion
 
 THIS_DIRECTORY_NAME = os.path.dirname(os.path.realpath(
     os.path.join(os.getcwd(), os.path.expanduser(__file__))
@@ -13,9 +13,29 @@ THIS_DIRECTORY_NAME = os.path.dirname(os.path.realpath(
 sys.path.append(os.path.normpath(os.path.join(THIS_DIRECTORY_NAME, '..')))
 
 import error_checking
-import general_utils
 
-TOLERANCE = 1e-6
+
+def _erode_mask(mask_matrix, half_window_size_px):
+    """Erodes binary mask.
+
+    :param mask_matrix: See doc for `pod`.
+    :param half_window_size_px: Same.
+    :return: eroded_mask_matrix: Eroded version of input.
+    """
+
+    window_size_px = 2 * half_window_size_px + 1
+    structure_matrix = numpy.full(
+        (window_size_px, window_size_px), 1, dtype=bool
+    )
+
+    eroded_mask_matrix = binary_erosion(
+        mask_matrix.astype(int), structure=structure_matrix, iterations=1,
+        border_value=1
+    )
+
+    return numpy.expand_dims(
+        eroded_mask_matrix.astype(float), axis=(0, -1)
+    )
 
 
 def _check_input_args(half_window_size_px, mask_matrix, function_name,
@@ -38,16 +58,9 @@ def _check_input_args(half_window_size_px, mask_matrix, function_name,
     if function_name is not None:
         error_checking.assert_is_string(function_name)
 
-    if test_mode:
-        eroded_mask_matrix = copy.deepcopy(mask_matrix)
-    else:
-        eroded_mask_matrix = general_utils.erode_binary_matrix(
-            binary_matrix=copy.deepcopy(mask_matrix),
-            buffer_distance_px=half_window_size_px
-        )
-
-    return numpy.expand_dims(
-        eroded_mask_matrix.astype(float), axis=(0, -1)
+    return _erode_mask(
+        mask_matrix=copy.deepcopy(mask_matrix),
+        half_window_size_px=half_window_size_px
     )
 
 
@@ -224,16 +237,20 @@ def frequency_bias(half_window_size_px, mask_matrix, function_name=None,
     return frequency_bias_function
 
 
-def csi(half_window_size_px, mask_matrix, function_name=None, test_mode=False):
+def csi(half_window_size_px, mask_matrix, use_as_loss_function=False,
+        function_name=None, test_mode=False):
     """Creates function to compute critical success index.
 
     :param half_window_size_px: See doc for `_apply_max_filter`.
     :param mask_matrix: See doc for `pod`.
+    :param use_as_loss_function: Boolean flag.  If True (False), will use CSI as
+        loss function (metric).
     :param function_name: Function name (string).
     :param test_mode: Leave this alone.
     :return: csi_function: Function (defined below).
     """
 
+    error_checking.assert_is_boolean(use_as_loss_function)
     if function_name is not None:
         error_checking.assert_is_string(function_name)
 
@@ -261,7 +278,12 @@ def csi(half_window_size_px, mask_matrix, function_name=None, test_mode=False):
             target_tensor=target_tensor, prediction_tensor=prediction_tensor
         )
 
-        return (pod_value ** -1 + success_ratio_value ** -1 - 1) ** -1
+        csi_value = (pod_value ** -1 + success_ratio_value ** -1 - 1) ** -1
+
+        if use_as_loss_function:
+            return 1. - csi_value
+
+        return csi_value
 
     if function_name is not None:
         csi_function.__name__ = function_name
@@ -269,70 +291,20 @@ def csi(half_window_size_px, mask_matrix, function_name=None, test_mode=False):
     return csi_function
 
 
-def dice_coeff(half_window_size_px, mask_matrix, function_name=None,
-               test_mode=False):
-    """Creates function to compute Dice coefficient.
-
-    :param half_window_size_px: See doc for `_apply_max_filter`.
-    :param mask_matrix: See doc for `pod`.
-    :param function_name: Function name (string).
-    :param test_mode: Leave this alone.
-    :return: dice_function: Function (defined below).
-    """
-
-    eroded_mask_matrix = _check_input_args(
-        half_window_size_px=half_window_size_px, mask_matrix=mask_matrix,
-        function_name=function_name, test_mode=test_mode
-    )
-    # eroded_mask_tensor = K.variable(eroded_mask_matrix)
-
-    def dice_function(target_tensor, prediction_tensor):
-        """Computes Dice coefficient.
-
-        :param target_tensor: Tensor of target (actual) values.
-        :param prediction_tensor: Tensor of predicted values.
-        :return: dice_coeff: Dice coefficient.
-        """
-
-        filtered_target_tensor = _apply_max_filter(
-            input_tensor=target_tensor,
-            half_window_size_px=half_window_size_px
-        )
-        filtered_prediction_tensor = _apply_max_filter(
-            input_tensor=prediction_tensor,
-            half_window_size_px=half_window_size_px
-        )
-
-        filtered_target_tensor = eroded_mask_matrix * filtered_target_tensor
-        filtered_prediction_tensor = (
-            eroded_mask_matrix * filtered_prediction_tensor
-        )
-
-        # TODO(thunderhoser): Do I need to specify axes here?
-        intersection_tensor = K.sum(
-            filtered_target_tensor * filtered_prediction_tensor, axis=(1, 2, 3)
-        )
-        num_pixels_tensor = K.sum(
-            K.ones_like(filtered_target_tensor), axis=(1, 2, 3)
-        )
-
-        return K.mean(2 * intersection_tensor / num_pixels_tensor)
-
-    if function_name is not None:
-        dice_function.__name__ = function_name
-
-    return dice_function
-
-
-def iou(half_window_size_px, mask_matrix, function_name=None, test_mode=False):
+def iou(half_window_size_px, mask_matrix, use_as_loss_function=False,
+        function_name=None, test_mode=False):
     """Creates function to compute intersection over union.
 
     :param half_window_size_px: See doc for `_apply_max_filter`.
     :param mask_matrix: See doc for `pod`.
+    :param use_as_loss_function: Boolean flag.  If True (False), will use CSI as
+        loss function (metric).
     :param function_name: Function name (string).
     :param test_mode: Leave this alone.
     :return: iou_function: Function (defined below).
     """
+
+    error_checking.assert_is_boolean(use_as_loss_function)
 
     eroded_mask_matrix = _check_input_args(
         half_window_size_px=half_window_size_px, mask_matrix=mask_matrix,
@@ -352,29 +324,30 @@ def iou(half_window_size_px, mask_matrix, function_name=None, test_mode=False):
             input_tensor=target_tensor,
             half_window_size_px=half_window_size_px
         )
-        filtered_prediction_tensor = _apply_max_filter(
-            input_tensor=prediction_tensor,
-            half_window_size_px=half_window_size_px
-        )
 
-        filtered_target_tensor = eroded_mask_matrix * filtered_target_tensor
-        filtered_prediction_tensor = (
-            eroded_mask_matrix * filtered_prediction_tensor
-        )
+        masked_target_tensor = eroded_mask_matrix * filtered_target_tensor
+        masked_prediction_tensor = eroded_mask_matrix * prediction_tensor
 
-        # TODO(thunderhoser): Do I need to specify axes here?
+        masked_target_tensor = masked_target_tensor[..., 0]
+        masked_prediction_tensor = masked_prediction_tensor[..., 0]
+
         intersection_tensor = K.sum(
-            filtered_target_tensor * filtered_prediction_tensor, axis=(1, 2, 3)
+            masked_target_tensor * masked_prediction_tensor, axis=(1, 2)
         )
         union_tensor = (
-            K.sum(filtered_target_tensor, axis=(1, 2, 3)) +
-            K.sum(filtered_prediction_tensor, axis=(1, 2, 3)) -
+            K.sum(masked_target_tensor, axis=(1, 2)) +
+            K.sum(masked_prediction_tensor, axis=(1, 2)) -
             intersection_tensor
         )
 
-        return K.mean(
+        iou_value = K.mean(
             intersection_tensor / (union_tensor + K.epsilon())
         )
+
+        if use_as_loss_function:
+            return 1. - iou_value
+
+        return iou_value
 
     if function_name is not None:
         iou_function.__name__ = function_name
@@ -382,18 +355,85 @@ def iou(half_window_size_px, mask_matrix, function_name=None, test_mode=False):
     return iou_function
 
 
-def tversky_coeff(
-        half_window_size_px, mask_matrix, false_positive_weight,
-        false_negative_weight, function_name=None, test_mode=False):
-    """Creates function to compute Tversky coefficient (weighted CSI).
+def dice_coeff(half_window_size_px, mask_matrix, use_as_loss_function=False,
+               function_name=None, test_mode=False):
+    """Creates function to compute Dice coefficient.
 
     :param half_window_size_px: See doc for `_apply_max_filter`.
     :param mask_matrix: See doc for `pod`.
-    :param false_positive_weight: Weight for false positives.
-    :param false_negative_weight: Weight for false negatives.
+    :param use_as_loss_function: Boolean flag.  If True (False), will use CSI as
+        loss function (metric).
     :param function_name: Function name (string).
     :param test_mode: Leave this alone.
-    :return: tversky_function: Function (defined below).
+    :return: dice_function: Function (defined below).
+    """
+
+    error_checking.assert_is_boolean(use_as_loss_function)
+
+    eroded_mask_matrix = _check_input_args(
+        half_window_size_px=half_window_size_px, mask_matrix=mask_matrix,
+        function_name=function_name, test_mode=test_mode
+    )
+    # eroded_mask_tensor = K.variable(eroded_mask_matrix)
+
+    def dice_function(target_tensor, prediction_tensor):
+        """Computes Dice coefficient.
+
+        :param target_tensor: Tensor of target (actual) values.
+        :param prediction_tensor: Tensor of predicted values.
+        :return: dice_coeff: Dice coefficient.
+        """
+
+        filtered_target_tensor = _apply_max_filter(
+            input_tensor=target_tensor,
+            half_window_size_px=half_window_size_px
+        )
+
+        masked_target_tensor = eroded_mask_matrix * filtered_target_tensor
+        masked_prediction_tensor = eroded_mask_matrix * prediction_tensor
+        positive_intersection_tensor = K.sum(
+            masked_target_tensor[..., 0] * masked_prediction_tensor[..., 0],
+            axis=(1, 2)
+        )
+
+        masked_target_tensor = (
+            eroded_mask_matrix * (1. - filtered_target_tensor)
+        )
+        masked_prediction_tensor = eroded_mask_matrix * (1. - prediction_tensor)
+        negative_intersection_tensor = K.sum(
+            masked_target_tensor[..., 0] * masked_prediction_tensor[..., 0],
+            axis=(1, 2)
+        )
+
+        num_pixels_tensor = K.sum(
+            K.variable(eroded_mask_matrix), axis=(1, 2)
+        )
+
+        dice_value = K.mean(
+            (positive_intersection_tensor + negative_intersection_tensor) /
+            num_pixels_tensor
+        )
+
+        if use_as_loss_function:
+            return 1. - dice_value
+
+        return dice_value
+
+    if function_name is not None:
+        dice_function.__name__ = function_name
+
+    return dice_function
+
+
+def brier_score(half_window_size_px, mask_matrix, function_name=None,
+                test_mode=False):
+    """Creates function to compute Brier score.
+
+    :param half_window_size_px: See doc for `_apply_max_filter`.
+    :param mask_matrix: See doc for `pod`.
+    :param function_name: Function name (string).
+    :param test_mode: Leave this alone.
+    :return: brier_function: Function (defined below).
     """
 
     eroded_mask_matrix = _check_input_args(
@@ -402,129 +442,33 @@ def tversky_coeff(
     )
     # eroded_mask_tensor = K.variable(eroded_mask_matrix)
 
-    error_checking.assert_is_greater(false_positive_weight, 0.)
-    error_checking.assert_is_greater(false_negative_weight, 0.)
-
-    def tversky_function(target_tensor, prediction_tensor):
-        """Computes Tversky coefficient.
+    def brier_function(target_tensor, prediction_tensor):
+        """Computes Brier score.
 
         :param target_tensor: Tensor of target (actual) values.
         :param prediction_tensor: Tensor of predicted values.
-        :return: tversky_coeff: Tversky coefficient.
+        :return: brier_score: Brier score.
         """
 
         filtered_target_tensor = _apply_max_filter(
             input_tensor=target_tensor,
             half_window_size_px=half_window_size_px
         )
-        filtered_prediction_tensor = _apply_max_filter(
-            input_tensor=prediction_tensor,
-            half_window_size_px=half_window_size_px
+
+        masked_target_tensor = eroded_mask_matrix * filtered_target_tensor
+        masked_prediction_tensor = eroded_mask_matrix * prediction_tensor
+
+        squared_error_tensor = K.sum(
+            (masked_target_tensor - masked_prediction_tensor) ** 2,
+            axis=(1, 2, 3)
+        )
+        num_pixels_tensor = K.sum(
+            K.variable(eroded_mask_matrix), axis=(1, 2)
         )
 
-        filtered_target_tensor = eroded_mask_matrix * filtered_target_tensor
-        filtered_prediction_tensor = (
-            eroded_mask_matrix * filtered_prediction_tensor
-        )
-
-        num_true_positives = false_positive_weight * K.sum(
-            filtered_prediction_tensor * filtered_target_tensor
-        )
-        num_false_positives = false_positive_weight * K.sum(
-            filtered_prediction_tensor * (1. - filtered_target_tensor)
-        )
-        num_false_negatives = false_negative_weight * K.sum(
-            filtered_target_tensor * (1. - filtered_prediction_tensor)
-        )
-
-        denominator = (
-            num_false_positives + num_false_negatives + num_true_positives +
-            K.epsilon()
-        )
-
-        return num_true_positives / denominator
+        return K.mean(squared_error_tensor / num_pixels_tensor)
 
     if function_name is not None:
-        tversky_function.__name__ = function_name
+        brier_function.__name__ = function_name
 
-    return tversky_function
-
-
-def focal_loss(
-        half_window_size_px, mask_matrix, training_event_freq, focusing_factor,
-        function_name=None, test_mode=False):
-    """Creates function to compute focal loss.
-
-    Paper reference: https://arxiv.org/pdf/1708.02002.pdf
-    Code reference: https://github.com/umbertogriffo/focal-loss-keras/blob/
-                    master/src/loss_function/losses.py
-
-    :param half_window_size_px: See doc for `_apply_max_filter`.
-    :param mask_matrix: See doc for `pod`.
-    :param training_event_freq: Event frequency (positive-class frequency) in
-        training data.
-    :param focusing_factor: Focusing factor (gamma in referenced paper).
-    :param function_name: Function name (string).
-    :param test_mode: Leave this alone.
-    :return: loss: Function (defined below).
-    """
-
-    # TODO(thunderhoser): Need unit test to check exact values.
-
-    eroded_mask_matrix = _check_input_args(
-        half_window_size_px=half_window_size_px, mask_matrix=mask_matrix,
-        function_name=function_name, test_mode=test_mode
-    )
-    # eroded_mask_tensor = K.variable(eroded_mask_matrix)
-
-    error_checking.assert_is_greater(training_event_freq, 0.)
-    error_checking.assert_is_less_than(training_event_freq, 1.)
-    error_checking.assert_is_geq(focusing_factor, 1.)
-
-    def loss(target_tensor, prediction_tensor):
-        """Computes loss.
-
-        :param target_tensor: Tensor of target (actual) values.
-        :param prediction_tensor: Tensor of predicted values.
-        :return: loss: Focal loss.
-        """
-
-        filtered_target_tensor = _apply_max_filter(
-            input_tensor=target_tensor,
-            half_window_size_px=half_window_size_px
-        )
-        filtered_prediction_tensor = _apply_max_filter(
-            input_tensor=prediction_tensor,
-            half_window_size_px=half_window_size_px
-        )
-
-        filtered_target_tensor = eroded_mask_matrix * filtered_target_tensor
-        filtered_prediction_tensor = (
-            eroded_mask_matrix * filtered_prediction_tensor
-        )
-
-        error_tensor = tensorflow.where(
-            K.equal(filtered_target_tensor, 1),
-            1. - filtered_prediction_tensor, filtered_prediction_tensor
-        )
-        error_tensor = K.clip(
-            error_tensor, min_value=K.epsilon(), max_value=1. - K.epsilon()
-        )
-
-        weight_tensor_for_class_imbalance = tensorflow.where(
-            K.equal(filtered_target_tensor, 1),
-            1. - training_event_freq, training_event_freq
-        )
-
-        cross_entropy_tensor = -K.log(1. - error_tensor)
-        weight_tensor = (
-            weight_tensor_for_class_imbalance * error_tensor ** focusing_factor
-        )
-
-        # TODO(thunderhoser): Do I need to specify axes here?
-        return K.mean(K.sum(weight_tensor * cross_entropy_tensor, axis=0))
-
-    if function_name is not None:
-        loss.__name__ = function_name
-
-    return loss
+    return brier_function
