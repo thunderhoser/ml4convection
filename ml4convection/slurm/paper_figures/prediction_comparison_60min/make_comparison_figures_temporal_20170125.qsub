@@ -1,0 +1,44 @@
+#!/bin/tcsh
+
+#SBATCH --job-name="make_comparison_figures_temporal_20170125"
+#SBATCH --partition="fge"
+#SBATCH --account="rda-ghpcs"
+#SBATCH --qos="batch"
+#SBATCH --ntasks=1
+#SBATCH --nodes=1
+#SBATCH --cpus-per-task=1
+#SBATCH --mem=24G
+##SBATCH --nodes=1
+##SBATCH --ntasks=1
+##SBATCH --cpus-per-task=1
+##SBATCH --ntasks-per-node=1
+#SBATCH --time=01:00:00
+#SBATCH --array=1-144
+#SBATCH --exclude=h28n12
+##SBATCH --exclude=h31n03,h28n12
+##SBATCH --exclude=h29n01,h26n05,h28n06,h29n07,h30n03,h30n15
+#SBATCH --mail-type=BEGIN,END,FAIL
+#SBATCH --mail-user=ryan.lagerquist@noaa.gov
+#SBATCH --output=make_comparison_figures_temporal_20170125_%A_%a.out
+
+module load cuda/10.1
+source /scratch2/BMC/gsd-hpcs/Jebb.Q.Stewart/conda3.7/etc/profile.d/conda.csh
+conda activate base
+
+set CODE_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_standalone/ml4convection"
+set TOP_RADAR_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_project/radar_data"
+set OUTPUT_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_project/journal_paper/prediction_comparison_figures/60min_temporal/20170125"
+
+set TOP_PREDICTION_DIR_NAMES="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_models/experiment13c/batch-size=60_l2-weight=0.0000010000_lag-times-sec=0-600-1200-1800-2400-3000-3600/validation/full_grids /scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_models/experiment13c/batch-size=60_l2-weight=0.0000003162_lag-times-sec=0-600-1200-1800-2400-3000-3600/validation/full_grids /scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_models/experiment13c/batch-size=60_l2-weight=0.0000031623_lag-times-sec=0-1200-2400-3600-4800-6000-7200/validation/full_grids /scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_models/experiment13c/batch-size=60_l2-weight=0.0000003162_lag-times-sec=0-600-1200/validation/full_grids"
+set MODEL_DESCRIPTION_STRINGS="Batch_=_60;_L2_weight_=_10^-6;_Lags_=_0,_10,_20,_30,_40,_50,_60_min Batch_=_60;_L2_weight_=_10^-6.5;_Lags_=_0,_10,_20,_30,_40,_50,_60_min Batch_=_60;_L2_weight_=_10^-5.5;_Lags_=_0,_20,_40,_60,_80,_100,_120_min Batch_=_60;_L2_weight_=_10^-6.5;_Lags_=_0,_10,_20_min"
+
+set VALID_TIME_STRINGS=("2017-01-25-0000" "2017-01-25-0010" "2017-01-25-0020" "2017-01-25-0030" "2017-01-25-0040" "2017-01-25-0050" "2017-01-25-0100" "2017-01-25-0110" "2017-01-25-0120" "2017-01-25-0130" "2017-01-25-0140" "2017-01-25-0150" "2017-01-25-0200" "2017-01-25-0210" "2017-01-25-0220" "2017-01-25-0230" "2017-01-25-0240" "2017-01-25-0250" "2017-01-25-0300" "2017-01-25-0310" "2017-01-25-0320" "2017-01-25-0330" "2017-01-25-0340" "2017-01-25-0350" "2017-01-25-0400" "2017-01-25-0410" "2017-01-25-0420" "2017-01-25-0430" "2017-01-25-0440" "2017-01-25-0450" "2017-01-25-0500" "2017-01-25-0510" "2017-01-25-0520" "2017-01-25-0530" "2017-01-25-0540" "2017-01-25-0550" "2017-01-25-0600" "2017-01-25-0610" "2017-01-25-0620" "2017-01-25-0630" "2017-01-25-0640" "2017-01-25-0650" "2017-01-25-0700" "2017-01-25-0710" "2017-01-25-0720" "2017-01-25-0730" "2017-01-25-0740" "2017-01-25-0750" "2017-01-25-0800" "2017-01-25-0810" "2017-01-25-0820" "2017-01-25-0830" "2017-01-25-0840" "2017-01-25-0850" "2017-01-25-0900" "2017-01-25-0910" "2017-01-25-0920" "2017-01-25-0930" "2017-01-25-0940" "2017-01-25-0950" "2017-01-25-1000" "2017-01-25-1010" "2017-01-25-1020" "2017-01-25-1030" "2017-01-25-1040" "2017-01-25-1050" "2017-01-25-1100" "2017-01-25-1110" "2017-01-25-1120" "2017-01-25-1130" "2017-01-25-1140" "2017-01-25-1150" "2017-01-25-1200" "2017-01-25-1210" "2017-01-25-1220" "2017-01-25-1230" "2017-01-25-1240" "2017-01-25-1250" "2017-01-25-1300" "2017-01-25-1310" "2017-01-25-1320" "2017-01-25-1330" "2017-01-25-1340" "2017-01-25-1350" "2017-01-25-1400" "2017-01-25-1410" "2017-01-25-1420" "2017-01-25-1430" "2017-01-25-1440" "2017-01-25-1450" "2017-01-25-1500" "2017-01-25-1510" "2017-01-25-1520" "2017-01-25-1530" "2017-01-25-1540" "2017-01-25-1550" "2017-01-25-1600" "2017-01-25-1610" "2017-01-25-1620" "2017-01-25-1630" "2017-01-25-1640" "2017-01-25-1650" "2017-01-25-1700" "2017-01-25-1710" "2017-01-25-1720" "2017-01-25-1730" "2017-01-25-1740" "2017-01-25-1750" "2017-01-25-1800" "2017-01-25-1810" "2017-01-25-1820" "2017-01-25-1830" "2017-01-25-1840" "2017-01-25-1850" "2017-01-25-1900" "2017-01-25-1910" "2017-01-25-1920" "2017-01-25-1930" "2017-01-25-1940" "2017-01-25-1950" "2017-01-25-2000" "2017-01-25-2010" "2017-01-25-2020" "2017-01-25-2030" "2017-01-25-2040" "2017-01-25-2050" "2017-01-25-2100" "2017-01-25-2110" "2017-01-25-2120" "2017-01-25-2130" "2017-01-25-2140" "2017-01-25-2150" "2017-01-25-2200" "2017-01-25-2210" "2017-01-25-2220" "2017-01-25-2230" "2017-01-25-2240" "2017-01-25-2250" "2017-01-25-2300" "2017-01-25-2310" "2017-01-25-2320" "2017-01-25-2330" "2017-01-25-2340" "2017-01-25-2350")
+set valid_time_string=${VALID_TIME_STRINGS[$SLURM_ARRAY_TASK_ID]}
+
+python3 -u "${CODE_DIR_NAME}/make_prediction_comparison_figure.py" \
+--input_prediction_dir_names ${TOP_PREDICTION_DIR_NAMES} \
+--model_description_strings ${MODEL_DESCRIPTION_STRINGS} \
+--valid_time_string="${valid_time_string}" \
+--input_radar_dir_name="${TOP_RADAR_DIR_NAME}" \
+--smoothing_radius_px=2 \
+--output_dir_name="${OUTPUT_DIR_NAME}"

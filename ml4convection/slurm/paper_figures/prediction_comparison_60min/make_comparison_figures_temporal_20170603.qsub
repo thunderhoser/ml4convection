@@ -1,0 +1,44 @@
+#!/bin/tcsh
+
+#SBATCH --job-name="make_comparison_figures_temporal_20170603"
+#SBATCH --partition="fge"
+#SBATCH --account="rda-ghpcs"
+#SBATCH --qos="batch"
+#SBATCH --ntasks=1
+#SBATCH --nodes=1
+#SBATCH --cpus-per-task=1
+#SBATCH --mem=24G
+##SBATCH --nodes=1
+##SBATCH --ntasks=1
+##SBATCH --cpus-per-task=1
+##SBATCH --ntasks-per-node=1
+#SBATCH --time=01:00:00
+#SBATCH --array=1-144
+#SBATCH --exclude=h28n12
+##SBATCH --exclude=h31n03,h28n12
+##SBATCH --exclude=h29n01,h26n05,h28n06,h29n07,h30n03,h30n15
+#SBATCH --mail-type=BEGIN,END,FAIL
+#SBATCH --mail-user=ryan.lagerquist@noaa.gov
+#SBATCH --output=make_comparison_figures_temporal_20170603_%A_%a.out
+
+module load cuda/10.1
+source /scratch2/BMC/gsd-hpcs/Jebb.Q.Stewart/conda3.7/etc/profile.d/conda.csh
+conda activate base
+
+set CODE_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_standalone/ml4convection"
+set TOP_RADAR_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_project/radar_data"
+set OUTPUT_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_project/journal_paper/prediction_comparison_figures/60min_temporal/20170603"
+
+set TOP_PREDICTION_DIR_NAMES="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_models/experiment13c/batch-size=60_l2-weight=0.0000010000_lag-times-sec=0-600-1200-1800-2400-3000-3600/validation/full_grids /scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_models/experiment13c/batch-size=60_l2-weight=0.0000003162_lag-times-sec=0-600-1200-1800-2400-3000-3600/validation/full_grids /scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_models/experiment13c/batch-size=60_l2-weight=0.0000031623_lag-times-sec=0-1200-2400-3600-4800-6000-7200/validation/full_grids /scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_models/experiment13c/batch-size=60_l2-weight=0.0000003162_lag-times-sec=0-600-1200/validation/full_grids"
+set MODEL_DESCRIPTION_STRINGS="Batch_=_60;_L2_weight_=_10^-6;_Lags_=_0,_10,_20,_30,_40,_50,_60_min Batch_=_60;_L2_weight_=_10^-6.5;_Lags_=_0,_10,_20,_30,_40,_50,_60_min Batch_=_60;_L2_weight_=_10^-5.5;_Lags_=_0,_20,_40,_60,_80,_100,_120_min Batch_=_60;_L2_weight_=_10^-6.5;_Lags_=_0,_10,_20_min"
+
+set VALID_TIME_STRINGS=("2017-06-03-0000" "2017-06-03-0010" "2017-06-03-0020" "2017-06-03-0030" "2017-06-03-0040" "2017-06-03-0050" "2017-06-03-0100" "2017-06-03-0110" "2017-06-03-0120" "2017-06-03-0130" "2017-06-03-0140" "2017-06-03-0150" "2017-06-03-0200" "2017-06-03-0210" "2017-06-03-0220" "2017-06-03-0230" "2017-06-03-0240" "2017-06-03-0250" "2017-06-03-0300" "2017-06-03-0310" "2017-06-03-0320" "2017-06-03-0330" "2017-06-03-0340" "2017-06-03-0350" "2017-06-03-0400" "2017-06-03-0410" "2017-06-03-0420" "2017-06-03-0430" "2017-06-03-0440" "2017-06-03-0450" "2017-06-03-0500" "2017-06-03-0510" "2017-06-03-0520" "2017-06-03-0530" "2017-06-03-0540" "2017-06-03-0550" "2017-06-03-0600" "2017-06-03-0610" "2017-06-03-0620" "2017-06-03-0630" "2017-06-03-0640" "2017-06-03-0650" "2017-06-03-0700" "2017-06-03-0710" "2017-06-03-0720" "2017-06-03-0730" "2017-06-03-0740" "2017-06-03-0750" "2017-06-03-0800" "2017-06-03-0810" "2017-06-03-0820" "2017-06-03-0830" "2017-06-03-0840" "2017-06-03-0850" "2017-06-03-0900" "2017-06-03-0910" "2017-06-03-0920" "2017-06-03-0930" "2017-06-03-0940" "2017-06-03-0950" "2017-06-03-1000" "2017-06-03-1010" "2017-06-03-1020" "2017-06-03-1030" "2017-06-03-1040" "2017-06-03-1050" "2017-06-03-1100" "2017-06-03-1110" "2017-06-03-1120" "2017-06-03-1130" "2017-06-03-1140" "2017-06-03-1150" "2017-06-03-1200" "2017-06-03-1210" "2017-06-03-1220" "2017-06-03-1230" "2017-06-03-1240" "2017-06-03-1250" "2017-06-03-1300" "2017-06-03-1310" "2017-06-03-1320" "2017-06-03-1330" "2017-06-03-1340" "2017-06-03-1350" "2017-06-03-1400" "2017-06-03-1410" "2017-06-03-1420" "2017-06-03-1430" "2017-06-03-1440" "2017-06-03-1450" "2017-06-03-1500" "2017-06-03-1510" "2017-06-03-1520" "2017-06-03-1530" "2017-06-03-1540" "2017-06-03-1550" "2017-06-03-1600" "2017-06-03-1610" "2017-06-03-1620" "2017-06-03-1630" "2017-06-03-1640" "2017-06-03-1650" "2017-06-03-1700" "2017-06-03-1710" "2017-06-03-1720" "2017-06-03-1730" "2017-06-03-1740" "2017-06-03-1750" "2017-06-03-1800" "2017-06-03-1810" "2017-06-03-1820" "2017-06-03-1830" "2017-06-03-1840" "2017-06-03-1850" "2017-06-03-1900" "2017-06-03-1910" "2017-06-03-1920" "2017-06-03-1930" "2017-06-03-1940" "2017-06-03-1950" "2017-06-03-2000" "2017-06-03-2010" "2017-06-03-2020" "2017-06-03-2030" "2017-06-03-2040" "2017-06-03-2050" "2017-06-03-2100" "2017-06-03-2110" "2017-06-03-2120" "2017-06-03-2130" "2017-06-03-2140" "2017-06-03-2150" "2017-06-03-2200" "2017-06-03-2210" "2017-06-03-2220" "2017-06-03-2230" "2017-06-03-2240" "2017-06-03-2250" "2017-06-03-2300" "2017-06-03-2310" "2017-06-03-2320" "2017-06-03-2330" "2017-06-03-2340" "2017-06-03-2350")
+set valid_time_string=${VALID_TIME_STRINGS[$SLURM_ARRAY_TASK_ID]}
+
+python3 -u "${CODE_DIR_NAME}/make_prediction_comparison_figure.py" \
+--input_prediction_dir_names ${TOP_PREDICTION_DIR_NAMES} \
+--model_description_strings ${MODEL_DESCRIPTION_STRINGS} \
+--valid_time_string="${valid_time_string}" \
+--input_radar_dir_name="${TOP_RADAR_DIR_NAME}" \
+--smoothing_radius_px=2 \
+--output_dir_name="${OUTPUT_DIR_NAME}"
