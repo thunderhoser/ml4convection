@@ -57,7 +57,7 @@ python3 -u "${CODE_DIR_NAME}/train_neural_net.py" \
 --output_model_dir_name="${output_dir_name}" \
 --lead_time_seconds=5400 \
 --lag_times_seconds ${LAG_TIME_STRINGS_SPACED[$SLURM_ARRAY_TASK_ID]} \
---include_time_dimension=1 \
+--include_time_dimension=0 \
 --omit_north_radar=1 \
 --normalize=1 \
 --uniformize=1 \
