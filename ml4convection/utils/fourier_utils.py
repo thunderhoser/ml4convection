@@ -6,7 +6,7 @@ from gewittergefahr.gg_utils import error_checking
 TOLERANCE = 1e-6
 
 
-def _get_spatial_resolutions(half_num_rows, half_num_columns,
+def _get_spatial_resolutions(num_grid_rows, num_grid_columns,
                              grid_spacing_metres):
     """Computes spatial resolution for each Fourier coefficient.
 
@@ -17,50 +17,65 @@ def _get_spatial_resolutions(half_num_rows, half_num_columns,
     coefficients returned by `numpy.fft.fft2`.  The x-coordinate increases with
     column index, and the y-coordinate increases with row index.
 
-    :param half_num_rows: Number of grid rows on either side of center.
-    :param half_num_columns: Number of grid columns on either side of center.
-    :param grid_spacing_metres: Grid spacing (resolution).
+    :param num_grid_rows: M in the above discussion.
+    :param num_grid_columns: N in the above discussion.
+    :param grid_spacing_metres: Grid spacing (for which I use "resolution" as a
+        synonym).
     :return: x_resolution_matrix_metres: M-by-N numpy array of resolutions in
         x-direction.
     :return: y_resolution_matrix_metres: Same but for y-direction.
     """
 
-    error_checking.assert_is_integer(half_num_rows)
-    error_checking.assert_is_geq(half_num_rows, 1)
-    error_checking.assert_is_integer(half_num_columns)
-    error_checking.assert_is_geq(half_num_columns, 1)
+    # Check input args.
+    error_checking.assert_is_integer(num_grid_rows)
+    error_checking.assert_is_geq(num_grid_rows, 3)
+    error_checking.assert_is_integer(num_grid_columns)
+    error_checking.assert_is_geq(num_grid_columns, 3)
     error_checking.assert_is_greater(grid_spacing_metres, 0.)
 
-    num_rows = 2 * half_num_rows + 1
-    num_columns = 2 * half_num_columns + 1
+    num_half_rows_float = float(num_grid_rows - 1) / 2
+    num_half_rows = int(numpy.round(num_half_rows_float))
+    assert numpy.isclose(num_half_rows, num_half_rows_float, atol=TOLERANCE)
 
+    num_half_columns_float = float(num_grid_columns - 1) / 2
+    num_half_columns = int(numpy.round(num_half_columns_float))
+    assert numpy.isclose(
+        num_half_columns, num_half_columns_float, atol=TOLERANCE
+    )
+
+    # Find resolutions in x-direction.
     unique_x_wavenumbers = numpy.linspace(
-        0, half_num_columns, num=half_num_columns + 1, dtype=int
+        0, num_half_columns, num=num_half_columns + 1, dtype=int
     )
     x_wavenumbers = numpy.concatenate((
         unique_x_wavenumbers, unique_x_wavenumbers[1:]
     ))
     x_wavenumber_matrix = numpy.expand_dims(x_wavenumbers, axis=0)
     x_wavenumber_matrix = numpy.repeat(
-        x_wavenumber_matrix, axis=0, repeats=num_rows
+        x_wavenumber_matrix, axis=0, repeats=num_grid_rows
     )
 
-    x_grid_length = grid_spacing_metres * (num_columns - 1)
-    x_resolution_matrix_metres = 0.5 * x_grid_length / x_wavenumber_matrix
+    x_grid_length_metres = grid_spacing_metres * (num_grid_columns - 1)
+    x_resolution_matrix_metres = (
+        0.5 * x_grid_length_metres / x_wavenumber_matrix
+    )
 
+    # Find resolutions in y-direction.
     unique_y_wavenumbers = numpy.linspace(
-        0, half_num_rows, num=half_num_rows + 1, dtype=int
+        0, num_half_rows, num=num_half_rows + 1, dtype=int
     )
     y_wavenumbers = numpy.concatenate((
         unique_y_wavenumbers, unique_y_wavenumbers[1:]
     ))
     y_wavenumber_matrix = numpy.expand_dims(y_wavenumbers, axis=1)
     y_wavenumber_matrix = numpy.repeat(
-        y_wavenumber_matrix, axis=1, repeats=num_columns
+        y_wavenumber_matrix, axis=1, repeats=num_grid_columns
     )
 
-    y_grid_length = grid_spacing_metres * (num_rows - 1)
-    y_resolution_matrix_metres = 0.5 * y_grid_length / y_wavenumber_matrix
+    y_grid_length_metres = grid_spacing_metres * (num_grid_rows - 1)
+    y_resolution_matrix_metres = (
+        0.5 * y_grid_length_metres / y_wavenumber_matrix
+    )
 
     return x_resolution_matrix_metres, y_resolution_matrix_metres
 
@@ -82,27 +97,25 @@ def apply_rectangular_filter(
         zeroed out.
     """
 
+    # Check input args.
     error_checking.assert_is_geq(min_resolution_metres, 0.)
     error_checking.assert_is_greater(
         max_resolution_metres, min_resolution_metres
     )
 
-    # error_checking.assert_is_numpy_array_without_nan(coefficient_matrix)
     error_checking.assert_is_numpy_array(coefficient_matrix, num_dimensions=2)
-
-    half_num_rows_float = float(coefficient_matrix.shape[0] - 1) / 2
-    half_num_rows = int(numpy.round(half_num_rows_float))
-    assert numpy.isclose(half_num_rows, half_num_rows_float, atol=TOLERANCE)
-
-    half_num_columns_float = float(coefficient_matrix.shape[1] - 1) / 2
-    half_num_columns = int(numpy.round(half_num_columns_float))
-    assert numpy.isclose(
-        half_num_columns, half_num_columns_float, atol=TOLERANCE
+    error_checking.assert_is_numpy_array_without_nan(
+        numpy.real(coefficient_matrix)
+    )
+    error_checking.assert_is_numpy_array_without_nan(
+        numpy.imag(coefficient_matrix)
     )
 
+    # Do actual stuff.
     x_resolution_matrix_metres, y_resolution_matrix_metres = (
         _get_spatial_resolutions(
-            half_num_rows=half_num_rows, half_num_columns=half_num_columns,
+            num_grid_rows=coefficient_matrix.shape[0],
+            num_grid_columns=coefficient_matrix.shape[1],
             grid_spacing_metres=grid_spacing_metres
         )
     )
@@ -127,10 +140,10 @@ def apply_butterworth_filter(
     :param grid_spacing_metres: See doc for `apply_rectangular_filter`.
     :param min_resolution_metres: Same.
     :param max_resolution_metres: Same.
-    :return: coefficient_matrix: Same as input but maybe with some coefficients
-        zeroed out.
+    :return: coefficient_matrix: Same as input but after filtering.
     """
 
+    # Check input args.
     error_checking.assert_is_geq(filter_order, 1.)
     error_checking.assert_is_geq(min_resolution_metres, 0.)
     error_checking.assert_is_greater(
@@ -138,21 +151,19 @@ def apply_butterworth_filter(
     )
 
     error_checking.assert_is_numpy_array(coefficient_matrix, num_dimensions=2)
-
-    # TODO(thunderhoser): Change dimension inputs to _get_spatial_resolutions.
-    half_num_rows_float = float(coefficient_matrix.shape[0] - 1) / 2
-    half_num_rows = int(numpy.round(half_num_rows_float))
-    assert numpy.isclose(half_num_rows, half_num_rows_float, atol=TOLERANCE)
-
-    half_num_columns_float = float(coefficient_matrix.shape[1] - 1) / 2
-    half_num_columns = int(numpy.round(half_num_columns_float))
-    assert numpy.isclose(
-        half_num_columns, half_num_columns_float, atol=TOLERANCE
+    error_checking.assert_is_numpy_array_without_nan(
+        numpy.real(coefficient_matrix)
+    )
+    error_checking.assert_is_numpy_array_without_nan(
+        numpy.imag(coefficient_matrix)
     )
 
+    # Determine horizontal, vertical, and total wavenumber for each Fourier
+    # coefficient.
     x_resolution_matrix_metres, y_resolution_matrix_metres = (
         _get_spatial_resolutions(
-            half_num_rows=half_num_rows, half_num_columns=half_num_columns,
+            num_grid_rows=coefficient_matrix.shape[0],
+            num_grid_columns=coefficient_matrix.shape[1],
             grid_spacing_metres=grid_spacing_metres
         )
     )
@@ -178,6 +189,66 @@ def apply_butterworth_filter(
         coefficient_matrix = coefficient_matrix * gain_matrix
 
     return coefficient_matrix
+
+
+def taper_spatial_data(spatial_data_matrix):
+    """Tapers spatial data by putting zeros along the edge.
+
+    M = number of rows in grid
+    N = number of columns in grid
+
+    :param spatial_data_matrix: M-by-N numpy array of real numbers.
+    :return: spatial_data_matrix: Same but after tapering.
+    """
+
+    error_checking.assert_is_numpy_array_without_nan(spatial_data_matrix)
+    error_checking.assert_is_numpy_array(spatial_data_matrix, num_dimensions=2)
+
+    num_rows = spatial_data_matrix.shape[0]
+    num_columns = spatial_data_matrix.shape[1]
+
+    padding_arg = (
+        (num_rows, num_rows),
+        (num_columns, num_columns)
+    )
+
+    spatial_data_matrix = numpy.pad(
+        spatial_data_matrix, pad_width=padding_arg, mode='constant',
+        constant_values=0.
+    )
+
+    return spatial_data_matrix
+
+
+def untaper_spatial_data(spatial_data_matrix):
+    """Removes zeros along the edge of spatial data.
+
+    This method is the inverse of `taper_spatial_data`.
+
+    :param spatial_data_matrix: See output doc for `taper_spatial_data`.
+    :return: spatial_data_matrix: See input doc for `taper_spatial_data`.
+    """
+
+    error_checking.assert_is_numpy_array_without_nan(spatial_data_matrix)
+    error_checking.assert_is_numpy_array(spatial_data_matrix, num_dimensions=2)
+
+    num_rows = spatial_data_matrix.shape[0]
+    num_columns = spatial_data_matrix.shape[1]
+
+    num_third_rows_float = float(num_rows) / 3
+    num_third_rows = int(numpy.round(num_third_rows_float))
+    assert numpy.isclose(num_third_rows, num_third_rows_float, atol=TOLERANCE)
+
+    num_third_columns_float = float(num_columns) / 3
+    num_third_columns = int(numpy.round(num_third_columns_float))
+    assert numpy.isclose(
+        num_third_columns, num_third_columns_float, atol=TOLERANCE
+    )
+
+    return spatial_data_matrix[
+        num_third_rows:-num_third_rows,
+        num_third_columns:-num_third_columns
+    ]
 
 
 def apply_blackman_window(spatial_data_matrix):

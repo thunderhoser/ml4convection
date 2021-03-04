@@ -397,9 +397,8 @@ def dice_coeff(half_window_size_px, mask_matrix, use_as_loss_function=False,
             axis=(1, 2)
         )
 
-        num_pixels_tensor = K.sum(
-            K.variable(eroded_mask_matrix), axis=(1, 2)
-        )
+        eroded_mask_tensor = eroded_mask_matrix * K.ones_like(prediction_tensor)
+        num_pixels_tensor = K.sum(eroded_mask_tensor, axis=(1, 2, 3))
 
         dice_value = K.mean(
             (positive_intersection_tensor + negative_intersection_tensor) /
@@ -454,9 +453,9 @@ def brier_score(half_window_size_px, mask_matrix, function_name=None,
             (masked_target_tensor - masked_prediction_tensor) ** 2,
             axis=(1, 2, 3)
         )
-        num_pixels_tensor = K.sum(
-            K.variable(eroded_mask_matrix), axis=(1, 2)
-        )
+
+        eroded_mask_tensor = eroded_mask_matrix * K.ones_like(prediction_tensor)
+        num_pixels_tensor = K.sum(eroded_mask_tensor, axis=(1, 2, 3))
 
         return K.mean(squared_error_tensor / num_pixels_tensor)
 
