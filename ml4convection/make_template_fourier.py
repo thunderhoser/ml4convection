@@ -19,7 +19,7 @@ import fourier_metrics
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 
 HOME_DIR_NAME = '/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist'
-OUTPUT_DIR_NAME = '{0:s}/ml4convection_models/fourier/templates'.format(
+OUTPUT_DIR_NAME = '{0:s}/ml4convection_models/fourier_fss/template'.format(
     HOME_DIR_NAME
 )
 
@@ -72,10 +72,10 @@ def _run():
         filter_order=2., grid_spacing_metres=1250.,
         min_resolution_metres=5000., max_resolution_metres=numpy.inf
     )
-    loss_function = fourier_metrics.mean_squared_error(
+    loss_function = fourier_metrics.pixelwise_fss(
         spatial_coeff_matrix=spatial_coeff_matrix,
         frequency_coeff_matrix=frequency_coeff_matrix,
-        mask_matrix=partial_mask_matrix,
+        mask_matrix=partial_mask_matrix, use_as_loss_function=True
     )
 
     file_system_utils.mkdir_recursive_if_necessary(
@@ -108,7 +108,7 @@ def _run():
         num_validation_batches_per_epoch=100,
         validation_option_dict=dummy_option_dict,
         do_early_stopping=True, plateau_lr_multiplier=0.6,
-        class_weights=None, fss_half_window_size_px=None,
+        loss_function_name='fourier_metrics.pixelwise_fss',
         fourier_spatial_coeff_matrix=spatial_coeff_matrix,
         fourier_freq_coeff_matrix=frequency_coeff_matrix,
         mask_matrix=partial_mask_matrix, full_mask_matrix=full_mask_matrix

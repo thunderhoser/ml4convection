@@ -112,9 +112,7 @@ def _run(training_predictor_dir_name, training_target_dir_name,
         mask_matrix=metadata_dict[neural_net.MASK_MATRIX_KEY],
         full_mask_matrix=metadata_dict[neural_net.FULL_MASK_MATRIX_KEY],
         do_early_stopping=True, plateau_lr_multiplier=plateau_lr_multiplier,
-        class_weights=metadata_dict[neural_net.CLASS_WEIGHTS_KEY],
-        fss_half_window_size_px=
-        metadata_dict[neural_net.FSS_HALF_WINDOW_SIZE_KEY],
+        loss_function_name=metadata_dict[neural_net.LOSS_FUNCTION_KEY],
         fourier_spatial_coeff_matrix=
         metadata_dict[neural_net.FOURIER_SPATIAL_COEFFS_KEY],
         fourier_freq_coeff_matrix=
