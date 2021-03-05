@@ -39,20 +39,8 @@ TARGET_MATRIX = numpy.stack(
     (TARGET_MATRIX_EXAMPLE1, TARGET_MATRIX_EXAMPLE2), axis=0
 )
 
-# MASK_MATRIX = numpy.array([
-#     [0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0],
-#     [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-#     [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-#     [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-#     [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-#     [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-#     [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-#     [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-#     [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-#     [0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0]
-# ], dtype=bool)
-
 MASK_MATRIX = numpy.array([
+    [0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0],
     [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
     [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
     [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
@@ -61,8 +49,7 @@ MASK_MATRIX = numpy.array([
     [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
     [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
     [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-    [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-    [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
+    [0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0]
 ], dtype=bool)
 
 PREDICTION_MATRIX_EXAMPLE1 = numpy.array([
@@ -95,8 +82,6 @@ PREDICTION_MATRIX = numpy.stack(
     (PREDICTION_MATRIX_EXAMPLE1, PREDICTION_MATRIX_EXAMPLE2), axis=0
 )
 
-print(numpy.mean((PREDICTION_MATRIX - TARGET_MATRIX) ** 2))
-
 TARGET_TENSOR = tensorflow.constant(TARGET_MATRIX, dtype=tensorflow.float32)
 TARGET_TENSOR = tensorflow.expand_dims(TARGET_TENSOR, -1)
 
@@ -104,6 +89,13 @@ PREDICTION_TENSOR = tensorflow.constant(
     PREDICTION_MATRIX, dtype=tensorflow.float32
 )
 PREDICTION_TENSOR = tensorflow.expand_dims(PREDICTION_TENSOR, -1)
+
+SPATIAL_COEFF_MATRIX = numpy.full((30, 36), 1.)
+FREQUENCY_COEFF_MATRIX = numpy.full((30, 36), 1.)
+
+SUM_OF_SQUARED_ERRORS = numpy.sum((PREDICTION_MATRIX - TARGET_MATRIX) ** 2)
+NUM_VALID_PIXELS = numpy.sum(MASK_MATRIX) * PREDICTION_MATRIX.shape[0]
+MEAN_SQUARED_ERROR = SUM_OF_SQUARED_ERRORS / NUM_VALID_PIXELS
 
 
 class FourierMetricsTests(unittest.TestCase):
@@ -113,12 +105,15 @@ class FourierMetricsTests(unittest.TestCase):
         """Ensures correct output from mean_squared_error()."""
 
         this_function = fourier_metrics.mean_squared_error(
-            spatial_coeff_matrix=numpy.full((30, 36), 1.),
-            frequency_coeff_matrix=numpy.full((30, 36), 1.),
+            spatial_coeff_matrix=SPATIAL_COEFF_MATRIX,
+            frequency_coeff_matrix=FREQUENCY_COEFF_MATRIX,
             mask_matrix=MASK_MATRIX
         )
         this_mse = K.eval(this_function(TARGET_TENSOR, PREDICTION_TENSOR))
-        print(this_mse)
+
+        self.assertTrue(numpy.isclose(
+            this_mse, MEAN_SQUARED_ERROR, atol=TOLERANCE
+        ))
 
 
 if __name__ == '__main__':
