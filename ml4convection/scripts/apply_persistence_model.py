@@ -104,9 +104,8 @@ def _write_metafile(target_file_names, lead_time_seconds,
         num_validation_batches_per_epoch=100,
         validation_option_dict=training_option_dict,
         do_early_stopping=True, plateau_lr_multiplier=0.6,
-        class_weights=None, fss_half_window_size_px=1.,
-        fourier_spatial_coeff_matrix=None,
-        fourier_freq_coeff_matrix=None,
+        loss_function_name='fss1',
+        fourier_spatial_coeff_matrix=None, fourier_freq_coeff_matrix=None,
         mask_matrix=mask_matrix, full_mask_matrix=mask_matrix
     )
 

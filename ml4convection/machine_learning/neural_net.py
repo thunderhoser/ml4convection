@@ -72,8 +72,7 @@ NUM_VALIDATION_BATCHES_KEY = 'num_validation_batches_per_epoch'
 VALIDATION_OPTIONS_KEY = 'validation_option_dict'
 EARLY_STOPPING_KEY = 'do_early_stopping'
 PLATEAU_LR_MUTIPLIER_KEY = 'plateau_lr_multiplier'
-CLASS_WEIGHTS_KEY = 'class_weights'
-FSS_HALF_WINDOW_SIZE_KEY = 'fss_half_window_size_px'
+LOSS_FUNCTION_KEY = 'loss_function_name'
 FOURIER_SPATIAL_COEFFS_KEY = 'fourier_spatial_coeff_matrix'
 FOURIER_FREQ_COEFFS_KEY = 'fourier_freq_coeff_matrix'
 MASK_MATRIX_KEY = 'mask_matrix'
@@ -82,9 +81,9 @@ FULL_MASK_MATRIX_KEY = 'full_mask_matrix'
 METADATA_KEYS = [
     USE_PARTIAL_GRIDS_KEY, NUM_EPOCHS_KEY, NUM_TRAINING_BATCHES_KEY,
     TRAINING_OPTIONS_KEY, NUM_VALIDATION_BATCHES_KEY, VALIDATION_OPTIONS_KEY,
-    EARLY_STOPPING_KEY, PLATEAU_LR_MUTIPLIER_KEY, CLASS_WEIGHTS_KEY,
-    FSS_HALF_WINDOW_SIZE_KEY, FOURIER_SPATIAL_COEFFS_KEY,
-    FOURIER_FREQ_COEFFS_KEY, MASK_MATRIX_KEY, FULL_MASK_MATRIX_KEY
+    EARLY_STOPPING_KEY, PLATEAU_LR_MUTIPLIER_KEY, LOSS_FUNCTION_KEY,
+    FOURIER_SPATIAL_COEFFS_KEY, FOURIER_FREQ_COEFFS_KEY,
+    MASK_MATRIX_KEY, FULL_MASK_MATRIX_KEY
 ]
 
 PREDICTOR_MATRIX_KEY = 'predictor_matrix'
@@ -443,7 +442,7 @@ def _write_metafile(
         num_training_batches_per_epoch,
         training_option_dict, num_validation_batches_per_epoch,
         validation_option_dict, do_early_stopping, plateau_lr_multiplier,
-        class_weights, fss_half_window_size_px, fourier_spatial_coeff_matrix,
+        loss_function_name, fourier_spatial_coeff_matrix,
         fourier_freq_coeff_matrix, mask_matrix, full_mask_matrix):
     """Writes metadata to Dill file.
 
@@ -459,8 +458,7 @@ def _write_metafile(
     :param validation_option_dict: Same.
     :param do_early_stopping: Same.
     :param plateau_lr_multiplier: Same.
-    :param class_weights: Same.
-    :param fss_half_window_size_px: Same.
+    :param loss_function_name: Same.
     :param fourier_spatial_coeff_matrix: Same.
     :param fourier_freq_coeff_matrix: Same.
     :param mask_matrix: Same.
@@ -476,8 +474,7 @@ def _write_metafile(
         VALIDATION_OPTIONS_KEY: validation_option_dict,
         EARLY_STOPPING_KEY: do_early_stopping,
         PLATEAU_LR_MUTIPLIER_KEY: plateau_lr_multiplier,
-        CLASS_WEIGHTS_KEY: class_weights,
-        FSS_HALF_WINDOW_SIZE_KEY: fss_half_window_size_px,
+        LOSS_FUNCTION_KEY: loss_function_name,
         FOURIER_SPATIAL_COEFFS_KEY: fourier_spatial_coeff_matrix,
         FOURIER_FREQ_COEFFS_KEY: fourier_freq_coeff_matrix,
         MASK_MATRIX_KEY: mask_matrix,
@@ -836,20 +833,6 @@ def get_metrics(mask_matrix):
     }
 
     return metric_function_list, metric_function_dict
-
-
-def check_class_weights(class_weights):
-    """Error-checks class weights.
-
-    :param class_weights: length-2 numpy with class weights for loss function.
-        Elements will be interpreted as
-        (negative_class_weight, positive_class_weight).
-    """
-
-    error_checking.assert_is_numpy_array(
-        class_weights, exact_dimensions=numpy.array([2], dtype=int)
-    )
-    error_checking.assert_is_greater_numpy_array(class_weights, 0.)
 
 
 def create_data_full_grid(option_dict, return_coords=False):
@@ -1403,8 +1386,8 @@ def train_model(
         num_validation_batches_per_epoch, validation_option_dict,
         mask_matrix, full_mask_matrix, do_early_stopping=True,
         plateau_lr_multiplier=DEFAULT_LEARNING_RATE_MULTIPLIER,
-        class_weights=None, fss_half_window_size_px=None,
-        fourier_spatial_coeff_matrix=None, fourier_freq_coeff_matrix=None):
+        loss_function_name=None, fourier_spatial_coeff_matrix=None,
+        fourier_freq_coeff_matrix=None):
     """Trains neural net on either full grid or partial grids.
 
     M = number of rows in full grid
@@ -1442,17 +1425,17 @@ def train_model(
     :param plateau_lr_multiplier: Multiplier for learning rate.  Learning
         rate will be multiplied by this factor upon plateau in validation
         performance.
-    :param class_weights: See doc for `check_class_weights`.  If weighted cross-
-        entropy is not the loss function, leave this alone.
-    :param fss_half_window_size_px: Number of pixels (grid cells) in half of
-        smoothing window for fractions skill score (FSS).  If FSS is not the
-        loss function, leave this alone.
+    :param loss_function_name: Name of loss function.  If the loss function is
+        fractions skill score, this should be "fssX", where X is the half-window
+        size in pixels.  If the loss function is Fourier-based, this should be
+        the method name, like "fourier_metrics.csi".  If you are not using a
+        custom loss function, leave this as None.
     :param fourier_spatial_coeff_matrix: numpy array (3M x 3N) of coefficients
-        for window function, to be applied in spatial domain.  If loss function
-        does not involve Fourier decomposition, leave this alone.
+        for window function, to be applied in spatial domain.  If you are not
+        using a Fourier-based loss function, leave this alone.
     :param fourier_freq_coeff_matrix: numpy array (3M x 3N) of coefficients for
-        filter function, to be applied in frequency domain.  If loss function
-        does not involve Fourier decomposition, leave this alone.
+        filter function, to be applied in frequency domain.  If you are not
+        using a Fourier-based loss function, leave this alone.
     """
 
     file_system_utils.mkdir_recursive_if_necessary(
@@ -1489,12 +1472,8 @@ def train_model(
         error_checking.assert_is_greater(plateau_lr_multiplier, 0.)
         error_checking.assert_is_less_than(plateau_lr_multiplier, 1.)
 
-    if class_weights is not None:
-        check_class_weights(class_weights)
-
-    if fss_half_window_size_px is not None:
-        error_checking.assert_is_integer(fss_half_window_size_px)
-        error_checking.assert_is_geq(fss_half_window_size_px, 0)
+    if loss_function_name is not None:
+        error_checking.assert_is_string(loss_function_name)
 
     if not (
             fourier_spatial_coeff_matrix is None
@@ -1568,8 +1547,7 @@ def train_model(
         validation_option_dict=validation_option_dict,
         do_early_stopping=do_early_stopping,
         plateau_lr_multiplier=plateau_lr_multiplier,
-        class_weights=class_weights,
-        fss_half_window_size_px=fss_half_window_size_px,
+        loss_function_name=loss_function_name,
         fourier_spatial_coeff_matrix=fourier_spatial_coeff_matrix,
         fourier_freq_coeff_matrix=fourier_freq_coeff_matrix,
         mask_matrix=mask_matrix, full_mask_matrix=full_mask_matrix
@@ -1614,29 +1592,28 @@ def read_model(hdf5_file_name, for_mirrored_training=False):
 
     metadata_dict = read_metafile(metafile_name)
     mask_matrix = metadata_dict[MASK_MATRIX_KEY]
-    class_weights = metadata_dict[CLASS_WEIGHTS_KEY]
-    fss_half_window_size_px = metadata_dict[FSS_HALF_WINDOW_SIZE_KEY]
+    loss_function_name = metadata_dict[LOSS_FUNCTION_KEY]
     fourier_spatial_coeff_matrix = metadata_dict[FOURIER_SPATIAL_COEFFS_KEY]
     fourier_freq_coeff_matrix = metadata_dict[FOURIER_FREQ_COEFFS_KEY]
 
     metric_list, custom_object_dict = get_metrics(mask_matrix)
 
     if fourier_spatial_coeff_matrix is not None:
+        eval_string = (
+            '{0:s}(spatial_coeff_matrix=fourier_spatial_coeff_matrix, '
+            'frequency_coeff_matrix=fourier_freq_coeff_matrix, '
+            'mask_matrix=mask_matrix, use_as_loss_function=True)'
+        ).format(loss_function_name)
 
-        # TODO(thunderhoser): Deal with losses other than MSE.
-        custom_object_dict['loss'] = fourier_metrics.mean_squared_error(
-            spatial_coeff_matrix=fourier_spatial_coeff_matrix,
-            frequency_coeff_matrix=fourier_freq_coeff_matrix,
-            mask_matrix=mask_matrix
-        )
-    elif fss_half_window_size_px is not None:
+        custom_object_dict['loss'] = eval(eval_string)
+
+    elif loss_function_name is not None:
+        assert loss_function_name.startswith('fss')
+        half_window_size_px = int(loss_function_name.replace('fss', ''))
+
         custom_object_dict['loss'] = custom_losses.fractions_skill_score(
-            half_window_size_px=fss_half_window_size_px,
+            half_window_size_px=half_window_size_px,
             mask_matrix=mask_matrix, use_as_loss_function=True
-        )
-    else:
-        custom_object_dict['loss'] = custom_losses.weighted_xentropy(
-            class_weights
         )
 
     model_object = tf_keras.models.load_model(
@@ -1704,8 +1681,7 @@ def read_metafile(dill_file_name):
     metadata_dict['validation_option_dict']: Same.
     metadata_dict['do_early_stopping']: Same.
     metadata_dict['plateau_lr_multiplier']: Same.
-    metadata_dict['class_weights']: Same.
-    metadata_dict['fss_half_window_size_px']: Same.
+    metadata_dict['loss_function_name']: Same.
     metadata_dict['fourier_spatial_coeff_matrix']: Same.
     metadata_dict['fourier_freq_coeff_matrix']: Same.
     metadata_dict['mask_matrix']: Same.
@@ -1720,21 +1696,15 @@ def read_metafile(dill_file_name):
     metadata_dict = dill.load(dill_file_handle)
     dill_file_handle.close()
 
-    if CLASS_WEIGHTS_KEY not in metadata_dict:
-        metadata_dict[CLASS_WEIGHTS_KEY] = None
-
-    if FSS_HALF_WINDOW_SIZE_KEY not in metadata_dict:
-        metadata_dict[FSS_HALF_WINDOW_SIZE_KEY] = None
+    if LOSS_FUNCTION_KEY not in metadata_dict:
+        fss_half_window_size_px = metadata_dict['fss_half_window_size_px']
+        metadata_dict[LOSS_FUNCTION_KEY] = 'fss{0:d}'.format(
+            fss_half_window_size_px
+        )
 
     if FOURIER_SPATIAL_COEFFS_KEY not in metadata_dict:
         metadata_dict[FOURIER_SPATIAL_COEFFS_KEY] = None
         metadata_dict[FOURIER_FREQ_COEFFS_KEY] = None
-
-    if USE_PARTIAL_GRIDS_KEY not in metadata_dict:
-        metadata_dict[USE_PARTIAL_GRIDS_KEY] = False
-
-    if FULL_MASK_MATRIX_KEY not in metadata_dict:
-        metadata_dict[FULL_MASK_MATRIX_KEY] = metadata_dict[MASK_MATRIX_KEY]
 
     num_grid_points = (
         len(twb_satellite_io.GRID_LATITUDES_DEG_N) *
@@ -1755,24 +1725,6 @@ def read_metafile(dill_file_name):
         metadata_dict[FULL_MASK_MATRIX_KEY] = (
             full_mask_dict[radar_io.MASK_MATRIX_KEY]
         )
-
-    training_option_dict = metadata_dict[TRAINING_OPTIONS_KEY]
-    validation_option_dict = metadata_dict[VALIDATION_OPTIONS_KEY]
-
-    if LAG_TIMES_KEY not in training_option_dict:
-        training_option_dict[LAG_TIMES_KEY] = numpy.array([0], dtype=int)
-        validation_option_dict[LAG_TIMES_KEY] = numpy.array([0], dtype=int)
-
-    if INCLUDE_TIME_DIM_KEY not in training_option_dict:
-        training_option_dict[INCLUDE_TIME_DIM_KEY] = False
-        validation_option_dict[INCLUDE_TIME_DIM_KEY] = False
-
-    if OMIT_NORTH_RADAR_KEY not in training_option_dict:
-        training_option_dict[OMIT_NORTH_RADAR_KEY] = False
-        validation_option_dict[OMIT_NORTH_RADAR_KEY] = False
-
-    metadata_dict[TRAINING_OPTIONS_KEY] = training_option_dict
-    metadata_dict[VALIDATION_OPTIONS_KEY] = validation_option_dict
 
     missing_keys = list(set(METADATA_KEYS) - set(metadata_dict.keys()))
     if len(missing_keys) == 0:

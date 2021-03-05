@@ -2,117 +2,124 @@
 
 import unittest
 import numpy
-import tensorflow
 from keras import backend as K
 from ml4convection.machine_learning import fourier_metrics
+from ml4convection.machine_learning import custom_metrics_test
 
-TOLERANCE = 1e-6
+TOLERANCE = 1e-3
 SMALL_NUMBER = K.eval(K.epsilon())
 
-TARGET_MATRIX_EXAMPLE1 = numpy.array([
-    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-    [0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0],
-    [0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0],
-    [0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0],
-    [0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0],
-    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-], dtype=int)
-
-TARGET_MATRIX_EXAMPLE2 = numpy.array([
-    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-    [0, 0, 0, 1, 1, 1, 1, 1, 1, 0, 0, 0],
-    [0, 0, 0, 1, 1, 1, 1, 1, 1, 0, 0, 0],
-    [0, 0, 0, 1, 1, 1, 1, 1, 1, 0, 0, 0],
-    [0, 0, 0, 1, 1, 1, 1, 1, 1, 0, 0, 0],
-    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-], dtype=int)
-
-TARGET_MATRIX = numpy.stack(
-    (TARGET_MATRIX_EXAMPLE1, TARGET_MATRIX_EXAMPLE2), axis=0
-)
-
-MASK_MATRIX = numpy.array([
-    [0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0],
-    [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-    [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-    [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-    [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-    [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-    [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-    [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-    [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-    [0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0]
-], dtype=bool)
-
-PREDICTION_MATRIX_EXAMPLE1 = numpy.array([
-    [0.1, 0.2, 0.3, 0.4, 0.0, 0.0, 0.0, 0.0, 0.4, 0.3, 0.2, 0.1],
-    [0.5, 0.6, 0.7, 0.8, 0.0, 0.0, 0.0, 0.0, 0.8, 0.7, 0.6, 0.5],
-    [0.2, 0.4, 0.6, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.6, 0.4, 0.2],
-    [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
-    [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
-    [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
-    [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
-    [0.2, 0.4, 0.6, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.6, 0.4, 0.2],
-    [0.5, 0.6, 0.7, 0.8, 0.0, 0.0, 0.0, 0.0, 0.8, 0.7, 0.6, 0.5],
-    [0.1, 0.2, 0.3, 0.4, 0.0, 0.0, 0.0, 0.0, 0.4, 0.3, 0.2, 0.1]
-])
-
-PREDICTION_MATRIX_EXAMPLE2 = numpy.array([
-    [0.1, 0.2, 0.3, 0.4, 0.0, 0.0, 0.0, 0.0, 0.4, 0.3, 0.2, 0.1],
-    [0.5, 0.6, 0.7, 0.8, 0.0, 0.0, 0.0, 0.0, 0.8, 0.7, 0.6, 0.5],
-    [0.2, 0.4, 0.6, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.6, 0.4, 0.2],
-    [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
-    [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
-    [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
-    [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
-    [0.2, 0.4, 0.6, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.6, 0.4, 0.2],
-    [0.5, 0.6, 0.7, 0.8, 0.0, 0.0, 0.0, 0.0, 0.8, 0.7, 0.6, 0.5],
-    [0.1, 0.2, 0.3, 0.4, 0.0, 0.0, 0.0, 0.0, 0.4, 0.3, 0.2, 0.1]
-])
-
-PREDICTION_MATRIX = numpy.stack(
-    (PREDICTION_MATRIX_EXAMPLE1, PREDICTION_MATRIX_EXAMPLE2), axis=0
-)
-
-TARGET_TENSOR = tensorflow.constant(TARGET_MATRIX, dtype=tensorflow.float32)
-TARGET_TENSOR = tensorflow.expand_dims(TARGET_TENSOR, -1)
-
-PREDICTION_TENSOR = tensorflow.constant(
-    PREDICTION_MATRIX, dtype=tensorflow.float32
-)
-PREDICTION_TENSOR = tensorflow.expand_dims(PREDICTION_TENSOR, -1)
+TARGET_MATRIX = custom_metrics_test.TARGET_MATRIX
+PREDICTION_MATRIX = custom_metrics_test.PREDICTION_MATRIX
+TARGET_TENSOR = custom_metrics_test.TARGET_TENSOR
+PREDICTION_TENSOR = custom_metrics_test.PREDICTION_TENSOR
+MASK_MATRIX = custom_metrics_test.MASK_MATRIX
 
 SPATIAL_COEFF_MATRIX = numpy.full((30, 36), 1.)
 FREQUENCY_COEFF_MATRIX = numpy.full((30, 36), 1.)
 
-SUM_OF_SQUARED_ERRORS = numpy.sum((PREDICTION_MATRIX - TARGET_MATRIX) ** 2)
-NUM_VALID_PIXELS = numpy.sum(MASK_MATRIX) * PREDICTION_MATRIX.shape[0]
-MEAN_SQUARED_ERROR = SUM_OF_SQUARED_ERRORS / NUM_VALID_PIXELS
+BRIER_SCORE = custom_metrics_test.BRIER_SCORE_NEIGH0
+CSI_VALUE = custom_metrics_test.CSI_NEIGH0
+FREQUENCY_BIAS = 41.6 / (40 + SMALL_NUMBER)
+IOU_VALUE = custom_metrics_test.IOU_NEIGH0
+DICE_COEFF = custom_metrics_test.DICE_COEFF_NEIGH0
+
+ACTUAL_MSE = numpy.mean(
+    numpy.expand_dims(MASK_MATRIX, axis=0) *
+    (TARGET_MATRIX - PREDICTION_MATRIX) ** 2
+)
+REFERENCE_MSE = numpy.mean(
+    numpy.expand_dims(MASK_MATRIX, axis=0) *
+    (TARGET_MATRIX ** 2 + PREDICTION_MATRIX ** 2)
+)
+PIXELWISE_FSS = 1. - ACTUAL_MSE / REFERENCE_MSE
 
 
 class FourierMetricsTests(unittest.TestCase):
     """Each method is a unit test for fourier_metrics.py."""
 
-    def test_mean_squared_error(self):
-        """Ensures correct output from mean_squared_error()."""
+    def test_brier_score(self):
+        """Ensures correct output from brier_score()."""
 
-        this_function = fourier_metrics.mean_squared_error(
+        this_function = fourier_metrics.brier_score(
             spatial_coeff_matrix=SPATIAL_COEFF_MATRIX,
             frequency_coeff_matrix=FREQUENCY_COEFF_MATRIX,
             mask_matrix=MASK_MATRIX
         )
-        this_mse = K.eval(this_function(TARGET_TENSOR, PREDICTION_TENSOR))
+        this_brier_score = K.eval(
+            this_function(TARGET_TENSOR, PREDICTION_TENSOR)
+        )
 
         self.assertTrue(numpy.isclose(
-            this_mse, MEAN_SQUARED_ERROR, atol=TOLERANCE
+            this_brier_score, BRIER_SCORE, atol=TOLERANCE
+        ))
+
+    def test_csi(self):
+        """Ensures correct output from csi()."""
+
+        this_function = fourier_metrics.csi(
+            spatial_coeff_matrix=SPATIAL_COEFF_MATRIX,
+            frequency_coeff_matrix=FREQUENCY_COEFF_MATRIX,
+            mask_matrix=MASK_MATRIX, use_as_loss_function=False
+        )
+        this_csi = K.eval(this_function(TARGET_TENSOR, PREDICTION_TENSOR))
+
+        self.assertTrue(numpy.isclose(this_csi, CSI_VALUE, atol=TOLERANCE))
+
+    def test_frequency_bias(self):
+        """Ensures correct output from frequency_bias()."""
+
+        this_function = fourier_metrics.frequency_bias(
+            spatial_coeff_matrix=SPATIAL_COEFF_MATRIX,
+            frequency_coeff_matrix=FREQUENCY_COEFF_MATRIX,
+            mask_matrix=MASK_MATRIX
+        )
+        this_bias = K.eval(this_function(TARGET_TENSOR, PREDICTION_TENSOR))
+
+        self.assertTrue(numpy.isclose(
+            this_bias, FREQUENCY_BIAS, atol=TOLERANCE
+        ))
+
+    def test_pixelwise_fss(self):
+        """Ensures correct output from pixelwise_fss()."""
+
+        this_function = fourier_metrics.pixelwise_fss(
+            spatial_coeff_matrix=SPATIAL_COEFF_MATRIX,
+            frequency_coeff_matrix=FREQUENCY_COEFF_MATRIX,
+            mask_matrix=MASK_MATRIX, use_as_loss_function=False
+        )
+        this_fss = K.eval(this_function(TARGET_TENSOR, PREDICTION_TENSOR))
+
+        self.assertTrue(numpy.isclose(
+            this_fss, PIXELWISE_FSS, atol=TOLERANCE
+        ))
+
+    def test_iou(self):
+        """Ensures correct output from iou()."""
+
+        this_function = fourier_metrics.iou(
+            spatial_coeff_matrix=SPATIAL_COEFF_MATRIX,
+            frequency_coeff_matrix=FREQUENCY_COEFF_MATRIX,
+            mask_matrix=MASK_MATRIX, use_as_loss_function=False
+        )
+        this_iou = K.eval(this_function(TARGET_TENSOR, PREDICTION_TENSOR))
+
+        self.assertTrue(numpy.isclose(this_iou, IOU_VALUE, atol=TOLERANCE))
+
+    def test_dice_coeff(self):
+        """Ensures correct output from dice_coeff()."""
+
+        this_function = fourier_metrics.dice_coeff(
+            spatial_coeff_matrix=SPATIAL_COEFF_MATRIX,
+            frequency_coeff_matrix=FREQUENCY_COEFF_MATRIX,
+            mask_matrix=MASK_MATRIX, use_as_loss_function=False
+        )
+        this_dice_coeff = K.eval(
+            this_function(TARGET_TENSOR, PREDICTION_TENSOR)
+        )
+
+        self.assertTrue(numpy.isclose(
+            this_dice_coeff, DICE_COEFF, atol=TOLERANCE
         ))
 
 
