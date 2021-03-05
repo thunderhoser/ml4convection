@@ -114,7 +114,11 @@ def _run(training_predictor_dir_name, training_target_dir_name,
         do_early_stopping=True, plateau_lr_multiplier=plateau_lr_multiplier,
         class_weights=metadata_dict[neural_net.CLASS_WEIGHTS_KEY],
         fss_half_window_size_px=
-        metadata_dict[neural_net.FSS_HALF_WINDOW_SIZE_KEY]
+        metadata_dict[neural_net.FSS_HALF_WINDOW_SIZE_KEY],
+        fourier_spatial_coeff_matrix=
+        metadata_dict[neural_net.FOURIER_SPATIAL_COEFFS_KEY],
+        fourier_freq_coeff_matrix=
+        metadata_dict[neural_net.FOURIER_FREQ_COEFFS_KEY]
     )
 
 
