@@ -171,7 +171,7 @@ def mean_squared_error(
         :return: mse_value: MSE.
         """
 
-        _filter_fields(
+        target_tensor, prediction_tensor = _filter_fields(
             target_tensor=target_tensor, prediction_tensor=prediction_tensor,
             spatial_coeff_matrix=spatial_coeff_matrix,
             frequency_coeff_matrix=frequency_coeff_matrix,
