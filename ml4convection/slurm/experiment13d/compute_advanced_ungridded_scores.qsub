@@ -39,6 +39,7 @@ set l2_weight=${L2_WEIGHTS[$SLURM_ARRAY_TASK_ID]}
 set l2_weight_string=`printf "%.10f" $l2_weight`
 set lag_time_string_dashed=${LAG_TIME_STRINGS_DASHED[$SLURM_ARRAY_TASK_ID]}
 
+set model_dir_name="${TOP_MODEL_DIR_NAME}/l2-weight=${l2_weight_string}_lag-times-sec=${LAG_TIME_STRINGS_DASHED[$SLURM_ARRAY_TASK_ID]}"
 set top_evaluation_dir_name="${model_dir_name}/validation/partial_grids/evaluation"
 
 set MATCHING_DISTANCES_PX=("4.000000")
