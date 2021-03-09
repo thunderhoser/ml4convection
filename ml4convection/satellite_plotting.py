@@ -89,7 +89,7 @@ def _add_colour_bar(
         colour_map_object=colour_map_object,
         colour_norm_object=colour_norm_object,
         orientation_string=orientation_string,
-        extend_min=True, extend_max=True, font_size=font_size
+        extend_min=True, extend_max=True, font_size=font_size, padding=0.06
     )
 
     num_tick_values = 1 + int(numpy.round(
