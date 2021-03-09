@@ -83,13 +83,15 @@ def _add_colour_bar(
     :return: colour_bar_object: See doc for `plot_2d_grid_latlng`.
     """
 
+    print('\n\n\n\n\n\n\nPADDING\n\n\n\n\n\n\n\n')
+
     colour_bar_object = gg_plotting_utils.plot_colour_bar(
         axes_object_or_matrix=axes_object,
         data_matrix=brightness_temp_matrix_kelvins,
         colour_map_object=colour_map_object,
         colour_norm_object=colour_norm_object,
         orientation_string=orientation_string,
-        extend_min=True, extend_max=True, font_size=font_size, padding=0.06
+        extend_min=True, extend_max=True, font_size=font_size, padding=0.1
     )
 
     num_tick_values = 1 + int(numpy.round(
