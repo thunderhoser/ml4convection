@@ -164,10 +164,10 @@ def _plot_scores_2d(
 def _print_ranking_one_score(score_matrix, score_name):
     """Prints ranking for one score.
 
-    W = number of L_2 weights
     L = number of lag-time combos
+    W = number of L_2 weights
 
-    :param score_matrix: W-by-L numpy array of scores.
+    :param score_matrix: L-by-W numpy array of scores.
     :param score_name: Name of score.
     """
 
@@ -188,7 +188,7 @@ def _print_ranking_one_score(score_matrix, score_name):
             'lag times in seconds = {4:s}'
         ).format(
             k + 1, score_name, score_matrix[i, j],
-            numpy.log10(L2_WEIGHTS[i]), LAG_TIME_STRINGS_SEC[j]
+            numpy.log10(L2_WEIGHTS[j]), LAG_TIME_STRINGS_SEC[i]
         ))
 
 
