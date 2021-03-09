@@ -123,7 +123,8 @@ INPUT_ARG_PARSER.add_argument(
 def _plot_predictions_one_example(
         prediction_dict, example_index, border_latitudes_deg_n,
         border_longitudes_deg_e, mask_matrix, plot_deterministic,
-        probability_threshold, max_prob_in_colour_bar, output_dir_name):
+        probability_threshold, max_prob_in_colour_bar, output_dir_name,
+        title_string=None, font_size=30):
     """Plots predictions (and targets) for one example (time step).
 
     M = number of rows in grid
@@ -140,6 +141,9 @@ def _plot_predictions_one_example(
     :param probability_threshold: Same.
     :param max_prob_in_colour_bar: Same.
     :param output_dir_name: Same.
+    :param title_string: Figure title.
+    :param font_size: Font size.
+    :return: output_file_name: Path to output file.
     """
 
     latitudes_deg_n = prediction_dict[prediction_io.LATITUDES_KEY]
@@ -186,9 +190,10 @@ def _plot_predictions_one_example(
             longitude_spacing_deg=numpy.diff(longitudes_deg_e[:2])[0]
         )
 
-        title_string = (
-            'Actual (pink) and predicted (grey) convection at {0:s}'
-        ).format(valid_time_string)
+        if title_string is None:
+            title_string = (
+                'Actual (pink) and predicted (grey) convection at {0:s}'
+            ).format(valid_time_string)
     else:
         prediction_plotting.plot_probabilistic(
             target_matrix=target_matrix, probability_matrix=probability_matrix,
@@ -200,9 +205,10 @@ def _plot_predictions_one_example(
             max_prob_in_colour_bar=max_prob_in_colour_bar
         )
 
-        title_string = 'Forecast convection probabilities at {0:s}'.format(
-            valid_time_string
-        )
+        if title_string is None:
+            title_string = 'Forecast convection probabilities at {0:s}'.format(
+                valid_time_string
+            )
 
         colour_map_object, colour_norm_object = (
             prediction_plotting.get_prob_colour_scheme(max_prob_in_colour_bar)
@@ -212,16 +218,19 @@ def _plot_predictions_one_example(
             axes_object_or_matrix=axes_object, data_matrix=probability_matrix,
             colour_map_object=colour_map_object,
             colour_norm_object=colour_norm_object,
-            orientation_string='vertical', extend_min=False, extend_max=False
+            orientation_string='vertical', extend_min=False, extend_max=False,
+            font_size=font_size
         )
 
     plotting_utils.plot_grid_lines(
         plot_latitudes_deg_n=latitudes_deg_n,
         plot_longitudes_deg_e=longitudes_deg_e, axes_object=axes_object,
-        parallel_spacing_deg=2., meridian_spacing_deg=2.
+        parallel_spacing_deg=1. if len(latitudes_deg_n) > 300 else 0.5,
+        meridian_spacing_deg=1. if len(latitudes_deg_n) > 300 else 0.5,
+        font_size=font_size
     )
 
-    axes_object.set_title(title_string)
+    axes_object.set_title(title_string, fontsize=font_size)
 
     output_file_name = '{0:s}/predictions_{1:s}.jpg'.format(
         output_dir_name, valid_time_string
@@ -233,6 +242,8 @@ def _plot_predictions_one_example(
         pad_inches=0, bbox_inches='tight'
     )
     pyplot.close(figure_object)
+
+    return output_file_name
 
 
 def _plot_predictions_one_day(

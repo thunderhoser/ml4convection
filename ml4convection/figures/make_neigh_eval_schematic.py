@@ -5,6 +5,7 @@ import numpy
 import matplotlib
 matplotlib.use('agg')
 import matplotlib.colors
+import matplotlib.patches
 from matplotlib import pyplot
 from gewittergefahr.gg_utils import grids
 from gewittergefahr.gg_utils import file_system_utils
@@ -57,8 +58,13 @@ PANEL_SIZE_PX = int(2.5e6)
 CONCAT_FIGURE_SIZE_PX = int(1e7)
 
 OUTPUT_DIR_ARG_NAME = 'output_dir_name'
+SQUARE_NEIGH_ARG_NAME = 'use_square_neigh'
+
 OUTPUT_DIR_HELP_STRING = (
     'Name of output directory.  Figures will be saved here.'
+)
+SQUARE_NEIGH_HELP_STRING = (
+    'Boolean flag.  If 1 (0), will use square (circular) neighbourhood.'
 )
 
 INPUT_ARG_PARSER = argparse.ArgumentParser()
@@ -66,16 +72,23 @@ INPUT_ARG_PARSER.add_argument(
     '--' + OUTPUT_DIR_ARG_NAME, type=str, required=True,
     help=OUTPUT_DIR_HELP_STRING
 )
+INPUT_ARG_PARSER.add_argument(
+    '--' + SQUARE_NEIGH_ARG_NAME, type=int, required=False, default=0,
+    help=SQUARE_NEIGH_HELP_STRING
+)
 
 
-def _plot_one_panel(mask_matrix, actual_to_forecast, letter_label,
-                    title_string, output_file_name):
+def _plot_one_panel(
+        mask_matrix, use_square_neigh, actual_to_forecast, letter_label,
+        title_string, output_file_name):
     """Plots one panel.
 
     M = number of rows in grid
     N = number of columns in grid
 
     :param mask_matrix: M-by-N numpy array of integers.
+    :param use_square_neigh: Boolean flag.  If True (False), will use square
+        (circular) neighbourhood.
     :param actual_to_forecast: Boolean flag.  If True (False), matching actual
         to forecast (forecast to actual).
     :param letter_label: Letter label for panel.
@@ -121,29 +134,52 @@ def _plot_one_panel(mask_matrix, actual_to_forecast, letter_label,
     y_actual, x_actual = numpy.where(mask_matrix == ACTUAL_ENUM)
 
     if actual_to_forecast:
-        circle_object = pyplot.Circle(
-            xy=(x_actual, y_actual), radius=MATCHING_DISTANCE_PX, lw=2,
-            ec=CIRCLE_EDGE_COLOUR, fc=LARGE_CIRCLE_FACE_COLOUR
-        )
+        if use_square_neigh:
+            center_coords = (
+                x_actual - MATCHING_DISTANCE_PX, y_actual - MATCHING_DISTANCE_PX
+            )
+
+            shape_object = matplotlib.patches.Rectangle(
+                xy=center_coords, width=2 * MATCHING_DISTANCE_PX,
+                height=2 * MATCHING_DISTANCE_PX,
+                lw=2, ec=CIRCLE_EDGE_COLOUR, fc=LARGE_CIRCLE_FACE_COLOUR
+            )
+        else:
+            shape_object = pyplot.Circle(
+                xy=(x_actual, y_actual), radius=MATCHING_DISTANCE_PX, lw=2,
+                ec=CIRCLE_EDGE_COLOUR, fc=LARGE_CIRCLE_FACE_COLOUR
+            )
     else:
-        circle_object = pyplot.Circle(
-            xy=(x_forecast, y_forecast), radius=MATCHING_DISTANCE_PX, lw=2,
-            ec=CIRCLE_EDGE_COLOUR, fc=LARGE_CIRCLE_FACE_COLOUR
-        )
+        if use_square_neigh:
+            center_coords = (
+                x_forecast - MATCHING_DISTANCE_PX,
+                y_forecast - MATCHING_DISTANCE_PX
+            )
 
-    axes_object.add_patch(circle_object)
+            shape_object = matplotlib.patches.Rectangle(
+                xy=center_coords, width=2 * MATCHING_DISTANCE_PX,
+                height=2 * MATCHING_DISTANCE_PX,
+                lw=2, ec=CIRCLE_EDGE_COLOUR, fc=LARGE_CIRCLE_FACE_COLOUR
+            )
+        else:
+            shape_object = pyplot.Circle(
+                xy=(x_forecast, y_forecast), radius=MATCHING_DISTANCE_PX, lw=2,
+                ec=CIRCLE_EDGE_COLOUR, fc=LARGE_CIRCLE_FACE_COLOUR
+            )
 
-    circle_object = pyplot.Circle(
+    axes_object.add_patch(shape_object)
+
+    shape_object = pyplot.Circle(
         xy=(x_forecast, y_forecast), radius=0.1, lw=0, ec=CIRCLE_EDGE_COLOUR,
         fc=SMALL_CIRCLE_FACE_COLOUR
     )
-    axes_object.add_patch(circle_object)
+    axes_object.add_patch(shape_object)
 
-    circle_object = pyplot.Circle(
+    shape_object = pyplot.Circle(
         xy=(x_actual, y_actual), radius=0.1, lw=0, ec=CIRCLE_EDGE_COLOUR,
         fc=SMALL_CIRCLE_FACE_COLOUR
     )
-    axes_object.add_patch(circle_object)
+    axes_object.add_patch(shape_object)
 
     axes_object.set_xticks(edge_longitudes_deg_e)
     axes_object.set_yticks(edge_latitudes_deg_n)
@@ -175,12 +211,13 @@ def _plot_one_panel(mask_matrix, actual_to_forecast, letter_label,
     )
 
 
-def _run(output_dir_name):
+def _run(output_dir_name, use_square_neigh):
     """Makes figure to illustrate neighbourhood evaluation.
 
     This is effectively the main method.
 
     :param output_dir_name: See documentation at top of file.
+    :param use_square_neigh: Same.
     """
 
     file_system_utils.mkdir_recursive_if_necessary(
@@ -188,12 +225,12 @@ def _run(output_dir_name):
     )
 
     panel_file_names = [
-        '{0:s}/actual_oriented_true_positive.jpg'.format(output_dir_name)
+        '{0:s}/observation_oriented_true_positive.jpg'.format(output_dir_name)
     ]
     _plot_one_panel(
-        mask_matrix=GOOD_MASK_MATRIX,
+        mask_matrix=GOOD_MASK_MATRIX, use_square_neigh=use_square_neigh,
         actual_to_forecast=True, letter_label='a',
-        title_string='Actual-oriented true positive',
+        title_string='Observation-oriented true positive',
         output_file_name=panel_file_names[-1]
     )
 
@@ -201,19 +238,19 @@ def _run(output_dir_name):
         '{0:s}/false_negative.jpg'.format(output_dir_name)
     )
     _plot_one_panel(
-        mask_matrix=BAD_MASK_MATRIX,
+        mask_matrix=BAD_MASK_MATRIX, use_square_neigh=use_square_neigh,
         actual_to_forecast=True, letter_label='b',
         title_string='False negative',
         output_file_name=panel_file_names[-1]
     )
 
     panel_file_names.append(
-        '{0:s}/forecast_oriented_true_positive.jpg'.format(output_dir_name)
+        '{0:s}/prediction_oriented_true_positive.jpg'.format(output_dir_name)
     )
     _plot_one_panel(
-        mask_matrix=GOOD_MASK_MATRIX,
+        mask_matrix=GOOD_MASK_MATRIX, use_square_neigh=use_square_neigh,
         actual_to_forecast=False, letter_label='c',
-        title_string='Forecast-oriented true positive',
+        title_string='Prediction-oriented true positive',
         output_file_name=panel_file_names[-1]
     )
 
@@ -221,7 +258,7 @@ def _run(output_dir_name):
         '{0:s}/false_positive.jpg'.format(output_dir_name)
     )
     _plot_one_panel(
-        mask_matrix=BAD_MASK_MATRIX,
+        mask_matrix=BAD_MASK_MATRIX, use_square_neigh=use_square_neigh,
         actual_to_forecast=False, letter_label='d',
         title_string='False positive',
         output_file_name=panel_file_names[-1]
@@ -252,5 +289,6 @@ if __name__ == '__main__':
     INPUT_ARG_OBJECT = INPUT_ARG_PARSER.parse_args()
 
     _run(
-        output_dir_name=getattr(INPUT_ARG_OBJECT, OUTPUT_DIR_ARG_NAME)
+        output_dir_name=getattr(INPUT_ARG_OBJECT, OUTPUT_DIR_ARG_NAME),
+        use_square_neigh=bool(getattr(INPUT_ARG_OBJECT, SQUARE_NEIGH_ARG_NAME))
     )
