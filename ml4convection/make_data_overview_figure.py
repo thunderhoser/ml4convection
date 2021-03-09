@@ -279,14 +279,12 @@ def _plot_radar_one_time(
         )
 
     if echo_classifn_dict is None:
-        print('\n\n\n\n\n\n\nPADDING\n\n\n\n\n\n\n\n')
-
         gg_plotting_utils.plot_colour_bar(
             axes_object_or_matrix=axes_object, data_matrix=matrix_to_plot,
             colour_map_object=colour_map_object,
             colour_norm_object=colour_norm_object,
             orientation_string='horizontal', extend_min=False, extend_max=True,
-            font_size=FONT_SIZE, padding=0.1
+            font_size=FONT_SIZE, padding=0.15
         )
 
     plotting_utils.plot_grid_lines(
