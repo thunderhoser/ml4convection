@@ -164,10 +164,10 @@ def _plot_scores_2d(
 def _print_ranking_one_score(score_matrix, score_name):
     """Prints ranking for one score.
 
-    L = number of lag-time combos
     W = number of L_2 weights
+    L = number of lag-time combos
 
-    :param score_matrix: L-by-W numpy array of scores.
+    :param score_matrix: W-by-L numpy array of scores.
     :param score_name: Name of score.
     """
 
@@ -188,7 +188,7 @@ def _print_ranking_one_score(score_matrix, score_name):
             'lag times in seconds = {4:s}'
         ).format(
             k + 1, score_name, score_matrix[i, j],
-            numpy.log10(L2_WEIGHTS[j]), LAG_TIME_STRINGS_SEC[i]
+            numpy.log10(L2_WEIGHTS[i]), LAG_TIME_STRINGS_SEC[j]
         ))
 
 
@@ -206,9 +206,9 @@ def _run(experiment_dir_name, matching_distance_px, output_dir_name):
         directory_name=output_dir_name
     )
 
-    num_lag_time_sets = len(LAG_TIME_STRINGS_SEC)
     num_l2_weights = len(L2_WEIGHTS)
-    dimensions = (num_lag_time_sets, num_l2_weights)
+    num_lag_time_sets = len(LAG_TIME_STRINGS_SEC)
+    dimensions = (num_l2_weights, num_lag_time_sets)
 
     aupd_matrix = numpy.full(dimensions, numpy.nan)
     max_csi_matrix = numpy.full(dimensions, numpy.nan)
@@ -224,15 +224,15 @@ def _run(experiment_dir_name, matching_distance_px, output_dir_name):
     x_axis_label = 'Lag times (minutes)'
     y_axis_label = r'L$_{2}$ weight'
 
-    for j in range(num_lag_time_sets):
-        for k in range(num_l2_weights):
+    for i in range(num_l2_weights):
+        for j in range(num_lag_time_sets):
             this_score_file_name = (
                 '{0:s}/l2-weight={1:.10f}_lag-times-sec={2:s}/'
                 'validation/partial_grids/evaluation/'
                 'matching_distance_px={3:.6f}/'
                 'advanced_scores_gridded=0.p'
             ).format(
-                experiment_dir_name, L2_WEIGHTS[k],
+                experiment_dir_name, L2_WEIGHTS[i],
                 LAG_TIME_STRINGS_SEC[j], matching_distance_px
             )
 
@@ -241,14 +241,14 @@ def _run(experiment_dir_name, matching_distance_px, output_dir_name):
             ))
             t = evaluation.read_advanced_score_file(this_score_file_name)
 
-            aupd_matrix[j, k] = gg_model_eval.get_area_under_perf_diagram(
+            aupd_matrix[i, j] = gg_model_eval.get_area_under_perf_diagram(
                 pod_by_threshold=t[evaluation.POD_KEY].values,
                 success_ratio_by_threshold=
                 t[evaluation.SUCCESS_RATIO_KEY].values
             )
-            max_csi_matrix[j, k] = numpy.nanmax(t[evaluation.CSI_KEY].values)
-            fss_matrix[j, k] = t[evaluation.FSS_KEY].values[0]
-            bss_matrix[j, k] = t[evaluation.BRIER_SKILL_SCORE_KEY].values[0]
+            max_csi_matrix[i, j] = numpy.nanmax(t[evaluation.CSI_KEY].values)
+            fss_matrix[i, j] = t[evaluation.FSS_KEY].values[0]
+            bss_matrix[i, j] = t[evaluation.BRIER_SKILL_SCORE_KEY].values[0]
 
     print(SEPARATOR_STRING)
 
