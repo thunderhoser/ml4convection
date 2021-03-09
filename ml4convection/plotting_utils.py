@@ -113,7 +113,8 @@ def plot_grid_lines(
 
     axes_object.set_xticks(meridians_deg_e)
     axes_object.set_xticklabels(
-        meridian_label_strings, fontdict={'fontsize': font_size}
+        meridian_label_strings, fontdict={'fontsize': font_size},
+        rotation=90. if font_size > 30 else 0.
     )
 
     axes_object.grid(
