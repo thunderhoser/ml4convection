@@ -35,6 +35,15 @@ FIGURE_HEIGHT_INCHES = 15
 FIGURE_RESOLUTION_DPI = 300
 CONCAT_FIGURE_SIZE_PX = int(1e7)
 
+FONT_SIZE = 50
+pyplot.rc('font', size=FONT_SIZE)
+pyplot.rc('axes', titlesize=FONT_SIZE)
+pyplot.rc('axes', labelsize=FONT_SIZE)
+pyplot.rc('xtick', labelsize=FONT_SIZE)
+pyplot.rc('ytick', labelsize=FONT_SIZE)
+pyplot.rc('legend', fontsize=FONT_SIZE)
+pyplot.rc('figure', titlesize=FONT_SIZE)
+
 SATELLITE_DIR_ARG_NAME = 'input_satellite_dir_name'
 REFLECTIVITY_DIR_ARG_NAME = 'input_reflectivity_dir_name'
 ECHO_CLASSIFN_DIR_ARG_NAME = 'input_echo_classifn_dir_name'
@@ -138,7 +147,7 @@ def _plot_one_satellite_image(
     band_number = satellite_dict[satellite_io.BAND_NUMBERS_KEY][band_index]
 
     if title_string is None:
-        title_string = 'Band-{0:d} brightness temperature (Kelvins)'.format(
+        title_string = 'Band-{0:d} brightness temp (K)'.format(
             band_number
         )
 
@@ -148,23 +157,23 @@ def _plot_one_satellite_image(
         ]
     )
 
-    satellite_plotting.plot_2d_grid(
+    satellite_plotting.plot_2d_grid_latlng(
         brightness_temp_matrix_kelvins=brightness_temp_matrix_kelvins,
         axes_object=axes_object,
         min_latitude_deg_n=numpy.min(latitudes_deg_n),
         min_longitude_deg_e=numpy.min(longitudes_deg_e),
         latitude_spacing_deg=numpy.diff(latitudes_deg_n[:2])[0],
         longitude_spacing_deg=numpy.diff(longitudes_deg_e[:2])[0],
-        cbar_orientation_string=cbar_orientation_string
+        cbar_orientation_string=cbar_orientation_string, font_size=FONT_SIZE
     )
 
     plotting_utils.plot_grid_lines(
         plot_latitudes_deg_n=latitudes_deg_n,
         plot_longitudes_deg_e=longitudes_deg_e, axes_object=axes_object,
-        parallel_spacing_deg=2., meridian_spacing_deg=2.
+        parallel_spacing_deg=2., meridian_spacing_deg=2., font_size=FONT_SIZE
     )
 
-    axes_object.set_title(title_string)
+    axes_object.set_title(title_string, fontsize=FONT_SIZE)
     gg_plotting_utils.label_axes(
         axes_object=axes_object, label_string='({0:s})'.format(letter_label)
     )
@@ -232,7 +241,7 @@ def _plot_radar_one_time(
     matrix_to_plot = numpy.nanmax(reflectivity_matrix_dbz, axis=-1)
     title_string = (
         'Reflectivity (dBZ)' if echo_classifn_dict is None
-        else 'Reflectivity (dBZ) and echo classification'
+        else 'Reflectivity (dBZ) and convection'
     )
 
     radar_plotting.plot_latlng_grid(
@@ -249,7 +258,7 @@ def _plot_radar_one_time(
             longitudes_deg_e, latitudes_deg_n,
             mask_dict[radar_io.MASK_MATRIX_KEY].astype(int),
             numpy.array([0.999]),
-            colors=(MASK_OUTLINE_COLOUR,), linewidths=2, linestyles='solid',
+            colors=(MASK_OUTLINE_COLOUR,), linewidths=4, linestyles='solid',
             axes=axes_object
         )
 
@@ -274,16 +283,17 @@ def _plot_radar_one_time(
             axes_object_or_matrix=axes_object, data_matrix=matrix_to_plot,
             colour_map_object=colour_map_object,
             colour_norm_object=colour_norm_object,
-            orientation_string='horizontal', extend_min=False, extend_max=True
+            orientation_string='horizontal', extend_min=False, extend_max=True,
+            font_size=FONT_SIZE
         )
 
     plotting_utils.plot_grid_lines(
         plot_latitudes_deg_n=latitudes_deg_n,
         plot_longitudes_deg_e=longitudes_deg_e, axes_object=axes_object,
-        parallel_spacing_deg=2., meridian_spacing_deg=2.
+        parallel_spacing_deg=2., meridian_spacing_deg=2., font_size=FONT_SIZE
     )
 
-    axes_object.set_title(title_string)
+    axes_object.set_title(title_string, fontsize=FONT_SIZE)
     gg_plotting_utils.label_axes(
         axes_object=axes_object, label_string='({0:s})'.format(letter_label)
     )
