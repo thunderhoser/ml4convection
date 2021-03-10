@@ -23,12 +23,13 @@ TIME_FORMAT = '%Y-%m-%d-%H%M'
 DATE_FORMAT = prediction_io.DATE_FORMAT
 
 GRID_SPACING_DEG = 0.0125
-WEIGHT_COLOUR_MAP_OBJECT = pyplot.get_cmap('seismic')
+WEIGHT_COLOUR_MAP_OBJECT = pyplot.get_cmap('Reds')
 
 CONVERT_EXE_NAME = '/usr/bin/convert'
 TITLE_FONT_SIZE = 200
 TITLE_FONT_NAME = 'DejaVu-Sans-Bold'
 
+MAX_COLOUR_PERCENTILE = 95.
 FIGURE_WIDTH_INCHES = 15
 FIGURE_HEIGHT_INCHES = 15
 FIGURE_RESOLUTION_DPI = 300
@@ -145,7 +146,7 @@ def _plot_fourier_weights(
     :param output_file_name: Path to output file.  Figure will be saved here.
     """
 
-    real_weight_matrix = numpy.real(weight_matrix)
+    absolute_weight_matrix = numpy.absolute(weight_matrix)
 
     figure_object, axes_object = pyplot.subplots(
         1, 1, figsize=(FIGURE_WIDTH_INCHES, FIGURE_HEIGHT_INCHES)
@@ -159,13 +160,31 @@ def _plot_fourier_weights(
         )
     )
 
+    num_half_rows = int(numpy.round(
+        (weight_matrix.shape[0] - 1) / 2
+    ))
+    num_half_columns = int(numpy.round(
+        (weight_matrix.shape[1] - 1) / 2
+    ))
+
+    x_resolution_matrix_deg[:, (num_half_columns + 1):] *= -1
+    y_resolution_matrix_deg[(num_half_rows + 1):, :] *= -1
+
     x_wavenumber_matrix_deg01 = (2 * x_resolution_matrix_deg) ** -1
     y_wavenumber_matrix_deg01 = (2 * y_resolution_matrix_deg) ** -1
 
+    sort_indices = numpy.argsort(x_wavenumber_matrix_deg01[0, :])
+    x_wavenumber_matrix_deg01 = x_wavenumber_matrix_deg01[:, sort_indices]
+    absolute_weight_matrix = absolute_weight_matrix[:, sort_indices]
+
+    sort_indices = numpy.argsort(y_wavenumber_matrix_deg01[:, 0])
+    y_wavenumber_matrix_deg01 = y_wavenumber_matrix_deg01[sort_indices, :]
+    absolute_weight_matrix = absolute_weight_matrix[sort_indices, :]
+
     axes_object.pcolormesh(
         x_wavenumber_matrix_deg01[0, :], y_wavenumber_matrix_deg01[:, 0],
-        real_weight_matrix, cmap=WEIGHT_COLOUR_MAP_OBJECT,
-        vmin=-1 * max_colour_value, vmax=max_colour_value, shading='flat',
+        absolute_weight_matrix, cmap=WEIGHT_COLOUR_MAP_OBJECT,
+        vmin=0., vmax=max_colour_value, shading='flat',
         edgecolors='None', zorder=-1e11
     )
 
@@ -184,10 +203,11 @@ def _plot_fourier_weights(
     axes_object.set_title(title_string)
 
     gg_plotting_utils.plot_linear_colour_bar(
-        axes_object_or_matrix=axes_object, data_matrix=real_weight_matrix,
+        axes_object_or_matrix=axes_object, data_matrix=absolute_weight_matrix,
         colour_map_object=WEIGHT_COLOUR_MAP_OBJECT,
-        min_value=-1 * max_colour_value, max_value=max_colour_value,
-        orientation_string='vertical', font_size=FONT_SIZE
+        min_value=0., max_value=max_colour_value,
+        orientation_string='vertical', font_size=FONT_SIZE,
+        extend_min=False, extend_max=True
     )
 
     print('Saving figure to file: "{0:s}"...'.format(output_file_name))
@@ -394,8 +414,11 @@ def _run(top_prediction_dir_name, valid_time_string, radar_number,
     weight_tensor = tensorflow.signal.fft2d(probability_tensor)
     weight_matrix = K.eval(weight_tensor)[0, ...]
 
+    # max_colour_value = numpy.percentile(
+    #     numpy.absolute(numpy.real(weight_matrix)), MAX_COLOUR_PERCENTILE
+    # )
     max_colour_value = numpy.percentile(
-        numpy.absolute(numpy.real(weight_matrix)), 99.
+        numpy.absolute(weight_matrix), MAX_COLOUR_PERCENTILE
     )
     this_file_name = '{0:s}/original_weights.jpg'.format(output_dir_name)
     panel_file_names[1] = this_file_name
@@ -433,8 +456,18 @@ def _run(top_prediction_dir_name, valid_time_string, radar_number,
         max_resolution_metres=max_resolution_deg
     )
 
+    # weight_matrix = fourier_utils.apply_butterworth_filter(
+    #     coefficient_matrix=numpy.ones(weight_matrix.shape), filter_order=4.,
+    #     grid_spacing_metres=GRID_SPACING_DEG,
+    #     min_resolution_metres=min_resolution_deg,
+    #     max_resolution_metres=max_resolution_deg
+    # )
+
+    # max_colour_value = numpy.percentile(
+    #     numpy.absolute(numpy.real(weight_matrix)), MAX_COLOUR_PERCENTILE
+    # )
     max_colour_value = numpy.percentile(
-        numpy.absolute(numpy.real(weight_matrix)), 99.
+        numpy.absolute(weight_matrix), MAX_COLOUR_PERCENTILE
     )
     this_file_name = '{0:s}/filtered_weights.jpg'.format(output_dir_name)
     panel_file_names[3] = this_file_name

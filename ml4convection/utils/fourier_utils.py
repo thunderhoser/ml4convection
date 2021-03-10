@@ -48,7 +48,7 @@ def _get_spatial_resolutions(num_grid_rows, num_grid_columns,
         0, num_half_columns, num=num_half_columns + 1, dtype=int
     )
     x_wavenumbers = numpy.concatenate((
-        unique_x_wavenumbers, unique_x_wavenumbers[1:]
+        unique_x_wavenumbers, unique_x_wavenumbers[1:][::-1]
     ))
     x_wavenumber_matrix = numpy.expand_dims(x_wavenumbers, axis=0)
     x_wavenumber_matrix = numpy.repeat(
@@ -65,7 +65,7 @@ def _get_spatial_resolutions(num_grid_rows, num_grid_columns,
         0, num_half_rows, num=num_half_rows + 1, dtype=int
     )
     y_wavenumbers = numpy.concatenate((
-        unique_y_wavenumbers, unique_y_wavenumbers[1:]
+        unique_y_wavenumbers, unique_y_wavenumbers[1:][::-1]
     ))
     y_wavenumber_matrix = numpy.expand_dims(y_wavenumbers, axis=1)
     y_wavenumber_matrix = numpy.repeat(
