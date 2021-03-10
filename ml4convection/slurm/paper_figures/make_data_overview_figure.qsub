@@ -28,7 +28,7 @@ set CODE_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_stan
 set TOP_SATELLITE_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_project/satellite_data/quality_controlled"
 set TOP_REFLECTIVITY_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_project/radar_data"
 set TOP_ECHO_CLASSIFN_DIR_NAME="${TOP_REFLECTIVITY_DIR_NAME}/new_echo_classification/no_tracking"
-set MASK_FILE_NAME="${TOP_REFLECTIVITY_DIR_NAME}/radar_mask_100km.nc"
+set MASK_FILE_NAME="${TOP_REFLECTIVITY_DIR_NAME}/radar_mask_100km_omit-north.nc"
 
 set OUTPUT_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_project/journal_paper/data_overview_figure"
 
