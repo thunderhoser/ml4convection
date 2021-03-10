@@ -29,7 +29,7 @@ set CODE_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_stan
 set MODEL_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_models/experiment13b/persistence_model"
 
 set SMOOTHING_RADII_PX=(0 1 2 3 4 5)
-set PROB_THRESHOLDS=(-1 -1 -1 -1 -1 -1)
+set PROB_THRESHOLDS=(0.05 0.45 0.35 0.30 0.25 0.20)
 
 set smoothing_radius_px=${SMOOTHING_RADII_PX[$SLURM_ARRAY_TASK_ID]}
 set prob_threshold=${PROB_THRESHOLDS[$SLURM_ARRAY_TASK_ID]}
