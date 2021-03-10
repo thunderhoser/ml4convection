@@ -27,7 +27,7 @@ conda activate base
 
 set CODE_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_standalone/ml4convection"
 set MODEL_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_models/experiment13b/persistence_model"
-set TOP_OUTPUT_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_project/journal_paper/90minute_models/persistence"
+set TOP_OUTPUT_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_project/journal_paper/30minute_models/persistence"
 
 set SMOOTHING_RADII_PX=(0 1 2 3 4 5)
 set smoothing_radius_px=${SMOOTHING_RADII_PX[$SLURM_ARRAY_TASK_ID]}
