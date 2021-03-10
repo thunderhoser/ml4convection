@@ -17,6 +17,10 @@ import prediction_io
 import satellite_io
 import neural_net
 
+DUMMY_LOSS_FUNCTION_NAME = neural_net.metric_params_to_name(
+    score_name=neural_net.FSS_NAME, half_window_size_px=1
+)
+
 TARGET_DIR_ARG_NAME = 'input_target_dir_name'
 LEAD_TIME_ARG_NAME = 'lead_time_seconds'
 SMOOTHING_RADIUS_ARG_NAME = 'smoothing_radius_px'
@@ -111,8 +115,8 @@ def _write_metafile(target_file_names, lead_time_seconds,
         num_validation_batches_per_epoch=100,
         validation_option_dict=training_option_dict,
         do_early_stopping=True, plateau_lr_multiplier=0.6,
-        loss_function_name='fss1',
-        fourier_spatial_coeff_matrix=None, fourier_freq_coeff_matrix=None,
+        loss_function_name=DUMMY_LOSS_FUNCTION_NAME,
+        metric_names=[DUMMY_LOSS_FUNCTION_NAME],
         mask_matrix=mask_matrix, full_mask_matrix=mask_matrix
     )
 
