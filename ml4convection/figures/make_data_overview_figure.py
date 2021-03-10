@@ -58,7 +58,8 @@ ECHO_CLASSIFN_DIR_HELP_STRING = (
 )
 MASK_FILE_HELP_STRING = (
     'Name of mask file (will be read by `radar_io.read_mask_file`).  Unmasked '
-    'area will be plotted with grey outline.'
+    'area will be plotted with grey outline.  If you do not want to plot a '
+    'mask, leave this alone.'
 )
 VALID_TIME_HELP_STRING = (
     'Will plot data for this valid time (format "yyyy-mm-dd-HHMM").'
@@ -81,7 +82,7 @@ INPUT_ARG_PARSER.add_argument(
     help=ECHO_CLASSIFN_DIR_HELP_STRING
 )
 INPUT_ARG_PARSER.add_argument(
-    '--' + MASK_FILE_ARG_NAME, type=str, required=True,
+    '--' + MASK_FILE_ARG_NAME, type=str, required=False, default='',
     help=MASK_FILE_HELP_STRING
 )
 INPUT_ARG_PARSER.add_argument(
@@ -321,6 +322,9 @@ def _run(top_satellite_dir_name, top_reflectivity_dir_name,
     :param output_dir_name: Same.
     """
 
+    if mask_file_name == '':
+        mask_file_name = None
+
     file_system_utils.mkdir_recursive_if_necessary(
         directory_name=output_dir_name
     )
@@ -334,8 +338,11 @@ def _run(top_satellite_dir_name, top_reflectivity_dir_name,
 
     border_latitudes_deg_n, border_longitudes_deg_e = border_io.read_file()
 
-    print('Reading mask from: "{0:s}"...'.format(mask_file_name))
-    mask_dict = radar_io.read_mask_file(mask_file_name)
+    if mask_file_name is None:
+        mask_dict = None
+    else:
+        print('Reading mask from: "{0:s}"...'.format(mask_file_name))
+        mask_dict = radar_io.read_mask_file(mask_file_name)
 
     satellite_file_name = satellite_io.find_file(
         top_directory_name=top_satellite_dir_name,
