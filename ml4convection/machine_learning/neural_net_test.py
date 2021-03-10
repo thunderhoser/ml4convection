@@ -279,6 +279,39 @@ FOURTH_PARTIAL_GRID_DICT_AFTER = {
     neural_net.LAST_INPUT_COLUMN_KEY: -1
 }
 
+# The following constants are used to test metric_params_to_name,
+# metric_name_to_params, and get_metrics.
+SCORE_NAMES = [
+    neural_net.FSS_NAME, neural_net.BRIER_SCORE_NAME,
+    neural_net.CSI_NAME, neural_net.FREQUENCY_BIAS_NAME,
+    neural_net.IOU_NAME, neural_net.DICE_COEFF_NAME,
+    neural_net.FSS_NAME, neural_net.BRIER_SCORE_NAME,
+    neural_net.CSI_NAME, neural_net.FREQUENCY_BIAS_NAME,
+    neural_net.IOU_NAME, neural_net.DICE_COEFF_NAME
+]
+HALF_WINDOW_SIZES_PX = [0, 1, 2, 3, 4, 5, None, None, None, None, None, None]
+MIN_RESOLUTIONS_DEG = [
+    None, None, None, None, None, None, 0., 0.1, 0.1, 0., 0.1, 0.1
+]
+MAX_RESOLUTIONS_DEG = [
+    None, None, None, None, None, None, 0.5, 0.5, numpy.inf, 0.5, 0.5, numpy.inf
+]
+
+METRIC_NAMES = [
+    neural_net.FSS_NAME + '_neigh0', neural_net.BRIER_SCORE_NAME + '_neigh1',
+    neural_net.CSI_NAME + '_neigh2', neural_net.FREQUENCY_BIAS_NAME + '_neigh3',
+    neural_net.IOU_NAME + '_neigh4', neural_net.DICE_COEFF_NAME + '_neigh5',
+    neural_net.FSS_NAME + '_band_0.0000000000deg_0.5000000000deg',
+    neural_net.BRIER_SCORE_NAME + '_band_0.1000000000deg_0.5000000000deg',
+    neural_net.CSI_NAME + '_band_0.1000000000deg_infdeg',
+    neural_net.FREQUENCY_BIAS_NAME + '_band_0.0000000000deg_0.5000000000deg',
+    neural_net.IOU_NAME + '_band_0.1000000000deg_0.5000000000deg',
+    neural_net.DICE_COEFF_NAME + '_band_0.1000000000deg_infdeg'
+]
+
+MASK_MATRIX = numpy.random.random_integers(low=0, high=1, size=(13, 11))
+MASK_MATRIX = MASK_MATRIX.astype(bool)
+
 
 class NeuralNetTests(unittest.TestCase):
     """Each method is a unit test for neural_net.py."""
@@ -527,6 +560,78 @@ class NeuralNetTests(unittest.TestCase):
 
         self.assertTrue(
             this_partial_grid_dict == FOURTH_PARTIAL_GRID_DICT_AFTER
+        )
+
+    def test_metric_params_to_name(self):
+        """Ensures correct output from metric_params_to_name."""
+
+        for k in range(len(METRIC_NAMES)):
+            this_metric_name = neural_net.metric_params_to_name(
+                score_name=SCORE_NAMES[k],
+                half_window_size_px=HALF_WINDOW_SIZES_PX[k],
+                min_resolution_deg=MIN_RESOLUTIONS_DEG[k],
+                max_resolution_deg=MAX_RESOLUTIONS_DEG[k]
+            )
+
+            self.assertTrue(this_metric_name == METRIC_NAMES[k])
+
+    def test_metric_name_to_params(self):
+        """Ensures correct output from metric_name_to_params."""
+
+        for k in range(len(METRIC_NAMES)):
+            this_param_dict = neural_net.metric_name_to_params(METRIC_NAMES[k])
+
+            self.assertTrue(
+                this_param_dict[neural_net.SCORE_NAME_KEY] == SCORE_NAMES[k]
+            )
+            self.assertTrue(
+                this_param_dict[neural_net.HALF_WINDOW_SIZE_KEY] ==
+                HALF_WINDOW_SIZES_PX[k]
+            )
+
+            this_min_resolution_deg = (
+                this_param_dict[neural_net.MIN_RESOLUTION_KEY]
+            )
+            this_max_resolution_deg = (
+                this_param_dict[neural_net.MAX_RESOLUTION_KEY]
+            )
+
+            if this_min_resolution_deg is None:
+                self.assertTrue(MIN_RESOLUTIONS_DEG[k] is None)
+            else:
+                self.assertTrue(numpy.isclose(
+                    this_min_resolution_deg, MIN_RESOLUTIONS_DEG[k],
+                    atol=TOLERANCE
+                ))
+
+            if this_max_resolution_deg is None:
+                self.assertTrue(MAX_RESOLUTIONS_DEG[k] is None)
+            else:
+                self.assertTrue(numpy.isclose(
+                    this_max_resolution_deg, MAX_RESOLUTIONS_DEG[k],
+                    atol=TOLERANCE
+                ))
+
+    def test_get_metrics_as_loss(self):
+        """Ensures correct output from get_metrics.
+
+        In this case, returning metrics as loss functions.
+        """
+
+        neural_net.get_metrics(
+            metric_names=METRIC_NAMES, mask_matrix=MASK_MATRIX,
+            use_as_loss_function=True
+        )
+
+    def test_get_metrics_no_loss(self):
+        """Ensures correct output from get_metrics.
+
+        In this case, returning metrics as metrics rather than loss functions.
+        """
+
+        neural_net.get_metrics(
+            metric_names=METRIC_NAMES, mask_matrix=MASK_MATRIX,
+            use_as_loss_function=False
         )
 
 

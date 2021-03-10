@@ -17,15 +17,36 @@ from ml4convection.io import twb_satellite_io
 from ml4convection.io import example_io
 from ml4convection.utils import general_utils
 from ml4convection.utils import radar_utils
+from ml4convection.utils import fourier_utils
 from ml4convection.machine_learning import custom_losses
 from ml4convection.machine_learning import custom_metrics
 from ml4convection.machine_learning import fourier_metrics
 
 TOLERANCE = 1e-6
 
+FSS_NAME = 'fss'
+BRIER_SCORE_NAME = 'brier'
+CSI_NAME = 'csi'
+FREQUENCY_BIAS_NAME = 'bias'
+IOU_NAME = 'iou'
+DICE_COEFF_NAME = 'dice'
+
+VALID_SCORE_NAMES = [
+    FSS_NAME, BRIER_SCORE_NAME, CSI_NAME, FREQUENCY_BIAS_NAME, IOU_NAME,
+    DICE_COEFF_NAME
+]
+
+SCORE_NAME_KEY = 'score_name'
+HALF_WINDOW_SIZE_KEY = 'half_window_size_px'
+MIN_RESOLUTION_KEY = 'min_resolution_deg'
+MAX_RESOLUTION_KEY = 'max_resolution_deg'
+
 DAYS_TO_SECONDS = 86400
 DATE_FORMAT = '%Y%m%d'
 NUM_RADARS = len(radar_utils.RADAR_LATITUDES_DEG_N)
+
+MIN_RESOLUTION_DEG = 0.01
+MAX_RESOLUTION_DEG = 5.
 
 MIN_NORMALIZED_COORD = -3.
 MAX_NORMALIZED_COORD = 3.
@@ -73,8 +94,7 @@ VALIDATION_OPTIONS_KEY = 'validation_option_dict'
 EARLY_STOPPING_KEY = 'do_early_stopping'
 PLATEAU_LR_MUTIPLIER_KEY = 'plateau_lr_multiplier'
 LOSS_FUNCTION_KEY = 'loss_function_name'
-FOURIER_SPATIAL_COEFFS_KEY = 'fourier_spatial_coeff_matrix'
-FOURIER_FREQ_COEFFS_KEY = 'fourier_freq_coeff_matrix'
+METRIC_NAMES_KEY = 'metric_names'
 MASK_MATRIX_KEY = 'mask_matrix'
 FULL_MASK_MATRIX_KEY = 'full_mask_matrix'
 
@@ -82,8 +102,7 @@ METADATA_KEYS = [
     USE_PARTIAL_GRIDS_KEY, NUM_EPOCHS_KEY, NUM_TRAINING_BATCHES_KEY,
     TRAINING_OPTIONS_KEY, NUM_VALIDATION_BATCHES_KEY, VALIDATION_OPTIONS_KEY,
     EARLY_STOPPING_KEY, PLATEAU_LR_MUTIPLIER_KEY, LOSS_FUNCTION_KEY,
-    FOURIER_SPATIAL_COEFFS_KEY, FOURIER_FREQ_COEFFS_KEY,
-    MASK_MATRIX_KEY, FULL_MASK_MATRIX_KEY
+    METRIC_NAMES_KEY, MASK_MATRIX_KEY, FULL_MASK_MATRIX_KEY
 ]
 
 PREDICTOR_MATRIX_KEY = 'predictor_matrix'
@@ -101,6 +120,24 @@ FIRST_INPUT_ROW_KEY = 'first_input_row'
 LAST_INPUT_ROW_KEY = 'last_input_row'
 FIRST_INPUT_COLUMN_KEY = 'first_input_column'
 LAST_INPUT_COLUMN_KEY = 'last_input_column'
+
+
+def _check_score_name(score_name):
+    """Error-checks name of evaluation score.
+
+    :param score_name: Name of evaluation score.
+    :raises: ValueError: if `score_name not in VALID_SCORE_NAMES`.
+    """
+
+    error_checking.assert_is_string(score_name)
+    if score_name in VALID_SCORE_NAMES:
+        return
+
+    error_string = (
+        'Valid scores (listed below) do not include "{0:s}":\n{1:s}'
+    ).format(score_name, str(VALID_SCORE_NAMES))
+
+    raise ValueError(error_string)
 
 
 def _check_generator_args(option_dict):
@@ -442,8 +479,7 @@ def _write_metafile(
         num_training_batches_per_epoch,
         training_option_dict, num_validation_batches_per_epoch,
         validation_option_dict, do_early_stopping, plateau_lr_multiplier,
-        loss_function_name, fourier_spatial_coeff_matrix,
-        fourier_freq_coeff_matrix, mask_matrix, full_mask_matrix):
+        loss_function_name, metric_names, mask_matrix, full_mask_matrix):
     """Writes metadata to Dill file.
 
     M = number of rows in prediction grid
@@ -459,8 +495,7 @@ def _write_metafile(
     :param do_early_stopping: Same.
     :param plateau_lr_multiplier: Same.
     :param loss_function_name: Same.
-    :param fourier_spatial_coeff_matrix: Same.
-    :param fourier_freq_coeff_matrix: Same.
+    :param metric_names: Same.
     :param mask_matrix: Same.
     :param full_mask_matrix: Same.
     """
@@ -475,8 +510,7 @@ def _write_metafile(
         EARLY_STOPPING_KEY: do_early_stopping,
         PLATEAU_LR_MUTIPLIER_KEY: plateau_lr_multiplier,
         LOSS_FUNCTION_KEY: loss_function_name,
-        FOURIER_SPATIAL_COEFFS_KEY: fourier_spatial_coeff_matrix,
-        FOURIER_FREQ_COEFFS_KEY: fourier_freq_coeff_matrix,
+        METRIC_NAMES_KEY: metric_names,
         MASK_MATRIX_KEY: mask_matrix,
         FULL_MASK_MATRIX_KEY: full_mask_matrix
     }
@@ -711,7 +745,104 @@ def predictor_matrix_from_keras(predictor_matrix, num_lag_times):
     return numpy.concatenate(predictor_matrix_by_example, axis=0)
 
 
-def get_metrics(mask_matrix):
+def metric_params_to_name(
+        score_name, half_window_size_px=None, min_resolution_deg=None,
+        max_resolution_deg=None):
+    """Converts parameters for evaluation metric to name.
+
+    If `half_window_size_px is not None`, will assume neighbourhood-based
+    metric.
+
+    If `half_window_size_px is None`, will assume scale-separation-based metric
+    with Fourier decomposition.
+
+    :param score_name: Name of score (must be accepted by `_check_score_name`).
+    :param half_window_size_px: Half-window size (pixels) for neighbourhood.
+    :param min_resolution_deg: Minimum resolution (degrees) allowed through
+        band-pass filter.
+    :param max_resolution_deg: Max resolution (degrees) allowed through
+        band-pass filter.
+    :return: metric_name: Metric name (string).
+    """
+
+    _check_score_name(score_name)
+
+    if half_window_size_px is not None:
+        error_checking.assert_is_integer(half_window_size_px)
+        error_checking.assert_is_geq(half_window_size_px, 0)
+
+        return '{0:s}_neigh{1:d}'.format(score_name, half_window_size_px)
+
+    error_checking.assert_is_geq(min_resolution_deg, 0.)
+    error_checking.assert_is_greater(max_resolution_deg, min_resolution_deg)
+
+    if min_resolution_deg <= MIN_RESOLUTION_DEG:
+        min_resolution_deg = 0.
+    if max_resolution_deg >= MAX_RESOLUTION_DEG:
+        max_resolution_deg = numpy.inf
+
+    return '{0:s}_band_{1:.10f}deg_{2:.10f}deg'.format(
+        score_name, min_resolution_deg, max_resolution_deg
+    )
+
+
+def metric_name_to_params(metric_name):
+    """Converts name of evaluation metric to parameters.
+
+    This method is the inverse of `metric_params_to_name`.
+
+    :param metric_name: Metric name (string).
+    :return: param_dict: Dictionary with the following keys.
+    param_dict['score_name']: See doc for `metric_params_to_name`.
+    param_dict['half_window_size_px']: Same.
+    param_dict['min_resolution_deg']: Same.
+    param_dict['max_resolution_deg']: Same.
+    """
+
+    error_checking.assert_is_string(metric_name)
+    metric_name_parts = metric_name.split('_')
+
+    score_name = metric_name_parts[0]
+    _check_score_name(score_name)
+
+    if len(metric_name_parts) == 2:
+        assert metric_name_parts[1].startswith('neigh')
+        half_window_size_px = int(
+            metric_name_parts[1].replace('neigh', '')
+        )
+
+        return {
+            SCORE_NAME_KEY: score_name,
+            HALF_WINDOW_SIZE_KEY: half_window_size_px,
+            MIN_RESOLUTION_KEY: None,
+            MAX_RESOLUTION_KEY: None
+        }
+
+    assert len(metric_name_parts) == 4
+    assert metric_name_parts[1] == 'band'
+
+    assert metric_name_parts[2].endswith('deg')
+    min_resolution_deg = float(
+        metric_name_parts[2].replace('deg', '')
+    )
+
+    assert metric_name_parts[3].endswith('deg')
+    max_resolution_deg = float(
+        metric_name_parts[3].replace('deg', '')
+    )
+
+    error_checking.assert_is_geq(min_resolution_deg, 0.)
+    error_checking.assert_is_greater(max_resolution_deg, min_resolution_deg)
+
+    return {
+        SCORE_NAME_KEY: score_name,
+        HALF_WINDOW_SIZE_KEY: None,
+        MIN_RESOLUTION_KEY: min_resolution_deg,
+        MAX_RESOLUTION_KEY: max_resolution_deg
+    }
+
+
+def get_metrics_legacy(mask_matrix):
     """Returns metrics used for on-the-fly monitoring.
 
     M = number of rows in grid
@@ -831,6 +962,142 @@ def get_metrics(mask_matrix):
         'iou_5by5': iou_function_size2,
         'iou_7by7': iou_function_size3
     }
+
+    return metric_function_list, metric_function_dict
+
+
+def get_metrics(metric_names, mask_matrix, use_as_loss_function):
+    """Returns metrics used for on-the-fly monitoring.
+
+    K = number of metrics
+    M = number of rows in grid
+    N = number of columns in grid
+
+    :param metric_names: length-K list of metric names (each must be accepted by
+        `metric_name_to_params`).
+    :param mask_matrix: M-by-N numpy array of Boolean flags.  Only pixels marked
+        "True" are considered in each metric.
+    :param use_as_loss_function: Boolean flag.  If True (False), will return
+        each metric to be used as a loss function (metric).
+    :return: metric_function_list: length-K list of functions.
+    :return: metric_function_dict: Dictionary, where each key is a function name
+        and each value is a function itself.
+    """
+
+    error_checking.assert_is_string_list(metric_names)
+    error_checking.assert_is_boolean_numpy_array(mask_matrix)
+    error_checking.assert_is_numpy_array(mask_matrix, num_dimensions=2)
+    error_checking.assert_is_boolean(use_as_loss_function)
+
+    fourier_dimensions = 3 * numpy.array(mask_matrix.shape, dtype=int)
+
+    metric_function_list = []
+    metric_function_dict = dict()
+
+    for this_metric_name in metric_names:
+        this_param_dict = metric_name_to_params(this_metric_name)
+
+        if this_param_dict[HALF_WINDOW_SIZE_KEY] is None:
+            this_spatial_coeff_matrix = fourier_utils.apply_blackman_window(
+                numpy.full(fourier_dimensions, 1.)
+            )
+            this_frequency_coeff_matrix = (
+                fourier_utils.apply_butterworth_filter(
+                    coefficient_matrix=numpy.full(fourier_dimensions, 1.),
+                    filter_order=2., grid_spacing_metres=0.0125,
+                    min_resolution_metres=this_param_dict[MIN_RESOLUTION_KEY],
+                    max_resolution_metres=this_param_dict[MAX_RESOLUTION_KEY]
+                )
+            )
+
+            if this_param_dict[SCORE_NAME_KEY] == FSS_NAME:
+                this_function = fourier_metrics.pixelwise_fss(
+                    spatial_coeff_matrix=this_spatial_coeff_matrix,
+                    frequency_coeff_matrix=this_frequency_coeff_matrix,
+                    mask_matrix=mask_matrix,
+                    use_as_loss_function=use_as_loss_function,
+                    function_name=this_metric_name
+                )
+            elif this_param_dict[SCORE_NAME_KEY] == BRIER_SCORE_NAME:
+                this_function = fourier_metrics.brier_score(
+                    spatial_coeff_matrix=this_spatial_coeff_matrix,
+                    frequency_coeff_matrix=this_frequency_coeff_matrix,
+                    mask_matrix=mask_matrix,
+                    use_as_loss_function=use_as_loss_function,
+                    function_name=this_metric_name
+                )
+            elif this_param_dict[SCORE_NAME_KEY] == CSI_NAME:
+                this_function = fourier_metrics.csi(
+                    spatial_coeff_matrix=this_spatial_coeff_matrix,
+                    frequency_coeff_matrix=this_frequency_coeff_matrix,
+                    mask_matrix=mask_matrix,
+                    use_as_loss_function=use_as_loss_function,
+                    function_name=this_metric_name
+                )
+            elif this_param_dict[SCORE_NAME_KEY] == FREQUENCY_BIAS_NAME:
+                this_function = fourier_metrics.frequency_bias(
+                    spatial_coeff_matrix=this_spatial_coeff_matrix,
+                    frequency_coeff_matrix=this_frequency_coeff_matrix,
+                    mask_matrix=mask_matrix, function_name=this_metric_name
+                )
+            elif this_param_dict[SCORE_NAME_KEY] == IOU_NAME:
+                this_function = fourier_metrics.iou(
+                    spatial_coeff_matrix=this_spatial_coeff_matrix,
+                    frequency_coeff_matrix=this_frequency_coeff_matrix,
+                    mask_matrix=mask_matrix,
+                    use_as_loss_function=use_as_loss_function,
+                    function_name=this_metric_name
+                )
+            else:
+                this_function = fourier_metrics.dice_coeff(
+                    spatial_coeff_matrix=this_spatial_coeff_matrix,
+                    frequency_coeff_matrix=this_frequency_coeff_matrix,
+                    mask_matrix=mask_matrix,
+                    use_as_loss_function=use_as_loss_function,
+                    function_name=this_metric_name
+                )
+        else:
+            if this_param_dict[SCORE_NAME_KEY] == FSS_NAME:
+                this_function = custom_losses.fractions_skill_score(
+                    half_window_size_px=this_param_dict[HALF_WINDOW_SIZE_KEY],
+                    mask_matrix=mask_matrix,
+                    use_as_loss_function=use_as_loss_function,
+                    function_name=this_metric_name
+                )
+            elif this_param_dict[SCORE_NAME_KEY] == BRIER_SCORE_NAME:
+                this_function = custom_metrics.brier_score(
+                    half_window_size_px=this_param_dict[HALF_WINDOW_SIZE_KEY],
+                    mask_matrix=mask_matrix, function_name=this_metric_name
+                )
+            elif this_param_dict[SCORE_NAME_KEY] == CSI_NAME:
+                this_function = custom_metrics.csi(
+                    half_window_size_px=this_param_dict[HALF_WINDOW_SIZE_KEY],
+                    mask_matrix=mask_matrix,
+                    use_as_loss_function=use_as_loss_function,
+                    function_name=this_metric_name
+                )
+            elif this_param_dict[SCORE_NAME_KEY] == FREQUENCY_BIAS_NAME:
+                this_function = custom_metrics.frequency_bias(
+                    half_window_size_px=this_param_dict[HALF_WINDOW_SIZE_KEY],
+                    mask_matrix=mask_matrix, function_name=this_metric_name
+                )
+            elif this_param_dict[SCORE_NAME_KEY] == IOU_NAME:
+                this_function = custom_metrics.iou(
+                    half_window_size_px=this_param_dict[HALF_WINDOW_SIZE_KEY],
+                    mask_matrix=mask_matrix,
+                    use_as_loss_function=use_as_loss_function,
+                    function_name=this_metric_name
+                )
+            else:
+                this_function = custom_metrics.dice_coeff(
+                    half_window_size_px=this_param_dict[HALF_WINDOW_SIZE_KEY],
+                    mask_matrix=mask_matrix,
+                    use_as_loss_function=use_as_loss_function,
+                    function_name=this_metric_name
+                )
+
+        metric_function_list.append(this_function)
+        metric_function_dict[this_metric_name] = this_function
 
     return metric_function_list, metric_function_dict
 
@@ -1384,10 +1651,9 @@ def train_model(
         model_object, output_dir_name, num_epochs, use_partial_grids,
         num_training_batches_per_epoch, training_option_dict,
         num_validation_batches_per_epoch, validation_option_dict,
-        mask_matrix, full_mask_matrix, do_early_stopping=True,
-        plateau_lr_multiplier=DEFAULT_LEARNING_RATE_MULTIPLIER,
-        loss_function_name=None, fourier_spatial_coeff_matrix=None,
-        fourier_freq_coeff_matrix=None):
+        mask_matrix, full_mask_matrix, loss_function_name, metric_names,
+        do_early_stopping=True,
+        plateau_lr_multiplier=DEFAULT_LEARNING_RATE_MULTIPLIER):
     """Trains neural net on either full grid or partial grids.
 
     M = number of rows in full grid
@@ -1419,23 +1685,16 @@ def train_model(
     :param mask_matrix: m-by-n numpy array of Boolean flags.  Grid cells labeled
         True (False) are (not) used for model evaluation.
     :param full_mask_matrix: Same but with dimensions of M x N.
+    :param loss_function_name: Name of loss function.  Must be accepted by
+        `metric_name_to_params`.
+    :param metric_names: 1-D list of metric names.  Each name must be accepted
+        by `metric_name_to_params`.
     :param do_early_stopping: Boolean flag.  If True, will stop training early
         if validation loss has not improved over last several epochs (see
         constants at top of file for what exactly this means).
     :param plateau_lr_multiplier: Multiplier for learning rate.  Learning
         rate will be multiplied by this factor upon plateau in validation
         performance.
-    :param loss_function_name: Name of loss function.  If the loss function is
-        fractions skill score, this should be "fssX", where X is the half-window
-        size in pixels.  If the loss function is Fourier-based, this should be
-        the method name, like "fourier_metrics.csi".  If you are not using a
-        custom loss function, leave this as None.
-    :param fourier_spatial_coeff_matrix: numpy array (3M x 3N) of coefficients
-        for window function, to be applied in spatial domain.  If you are not
-        using a Fourier-based loss function, leave this alone.
-    :param fourier_freq_coeff_matrix: numpy array (3M x 3N) of coefficients for
-        filter function, to be applied in frequency domain.  If you are not
-        using a Fourier-based loss function, leave this alone.
     """
 
     file_system_utils.mkdir_recursive_if_necessary(
@@ -1472,25 +1731,10 @@ def train_model(
         error_checking.assert_is_greater(plateau_lr_multiplier, 0.)
         error_checking.assert_is_less_than(plateau_lr_multiplier, 1.)
 
-    if loss_function_name is not None:
-        error_checking.assert_is_string(loss_function_name)
-
-    if not (
-            fourier_spatial_coeff_matrix is None
-            and fourier_freq_coeff_matrix is None
-    ):
-        error_checking.assert_is_numpy_array_without_nan(
-            fourier_spatial_coeff_matrix
-        )
-        error_checking.assert_is_numpy_array(
-            fourier_spatial_coeff_matrix, num_dimensions=2
-        )
-        error_checking.assert_is_numpy_array_without_nan(
-            fourier_freq_coeff_matrix
-        )
-        error_checking.assert_is_numpy_array(
-            fourier_freq_coeff_matrix, num_dimensions=2
-        )
+    _ = metric_name_to_params(loss_function_name)
+    error_checking.assert_is_string_list(metric_names)
+    for this_metric_name in metric_names:
+        _ = metric_name_to_params(this_metric_name)
 
     training_option_dict = _check_generator_args(training_option_dict)
 
@@ -1547,9 +1791,7 @@ def train_model(
         validation_option_dict=validation_option_dict,
         do_early_stopping=do_early_stopping,
         plateau_lr_multiplier=plateau_lr_multiplier,
-        loss_function_name=loss_function_name,
-        fourier_spatial_coeff_matrix=fourier_spatial_coeff_matrix,
-        fourier_freq_coeff_matrix=fourier_freq_coeff_matrix,
+        loss_function_name=loss_function_name, metric_names=metric_names,
         mask_matrix=mask_matrix, full_mask_matrix=full_mask_matrix
     )
 
@@ -1593,28 +1835,32 @@ def read_model(hdf5_file_name, for_mirrored_training=False):
     metadata_dict = read_metafile(metafile_name)
     mask_matrix = metadata_dict[MASK_MATRIX_KEY]
     loss_function_name = metadata_dict[LOSS_FUNCTION_KEY]
-    fourier_spatial_coeff_matrix = metadata_dict[FOURIER_SPATIAL_COEFFS_KEY]
-    fourier_freq_coeff_matrix = metadata_dict[FOURIER_FREQ_COEFFS_KEY]
+    metric_names = metadata_dict[METRIC_NAMES_KEY]
 
-    metric_list, custom_object_dict = get_metrics(mask_matrix)
-
-    if fourier_spatial_coeff_matrix is not None:
-        eval_string = (
-            '{0:s}(spatial_coeff_matrix=fourier_spatial_coeff_matrix, '
-            'frequency_coeff_matrix=fourier_freq_coeff_matrix, '
-            'mask_matrix=mask_matrix, use_as_loss_function=True)'
-        ).format(loss_function_name)
-
-        custom_object_dict['loss'] = eval(eval_string)
-
-    elif loss_function_name is not None:
-        assert loss_function_name.startswith('fss')
-        half_window_size_px = int(loss_function_name.replace('fss', ''))
-
-        custom_object_dict['loss'] = custom_losses.fractions_skill_score(
-            half_window_size_px=half_window_size_px,
-            mask_matrix=mask_matrix, use_as_loss_function=True
+    if metric_names is None:
+        metric_list, custom_object_dict = get_metrics_legacy(mask_matrix)
+    else:
+        metric_list, custom_object_dict = get_metrics(
+            metric_names=metric_names, mask_matrix=mask_matrix,
+            use_as_loss_function=False
         )
+
+    if loss_function_name is not None:
+        try:
+            loss_function = get_metrics(
+                metric_names=[loss_function_name], mask_matrix=mask_matrix,
+                use_as_loss_function=True
+            )[0][0]
+        except:
+            assert loss_function_name.startswith('fss')
+            half_window_size_px = int(loss_function_name.replace('fss', ''))
+
+            loss_function = custom_losses.fractions_skill_score(
+                half_window_size_px=half_window_size_px,
+                mask_matrix=mask_matrix, use_as_loss_function=True
+            )
+
+        custom_object_dict['loss'] = loss_function
 
     model_object = tf_keras.models.load_model(
         hdf5_file_name, custom_objects=custom_object_dict, compile=False
@@ -1682,8 +1928,7 @@ def read_metafile(dill_file_name):
     metadata_dict['do_early_stopping']: Same.
     metadata_dict['plateau_lr_multiplier']: Same.
     metadata_dict['loss_function_name']: Same.
-    metadata_dict['fourier_spatial_coeff_matrix']: Same.
-    metadata_dict['fourier_freq_coeff_matrix']: Same.
+    metadata_dict['metric_names']: Same.
     metadata_dict['mask_matrix']: Same.
     metadata_dict['full_mask_matrix']: Same.
 
@@ -1697,14 +1942,13 @@ def read_metafile(dill_file_name):
     dill_file_handle.close()
 
     if LOSS_FUNCTION_KEY not in metadata_dict:
-        fss_half_window_size_px = metadata_dict['fss_half_window_size_px']
-        metadata_dict[LOSS_FUNCTION_KEY] = 'fss{0:d}'.format(
-            fss_half_window_size_px
+        metadata_dict[LOSS_FUNCTION_KEY] = metric_params_to_name(
+            score_name=FSS_NAME,
+            half_window_size_px=metadata_dict['fss_half_window_size_px']
         )
 
-    if FOURIER_SPATIAL_COEFFS_KEY not in metadata_dict:
-        metadata_dict[FOURIER_SPATIAL_COEFFS_KEY] = None
-        metadata_dict[FOURIER_FREQ_COEFFS_KEY] = None
+    if METRIC_NAMES_KEY not in metadata_dict:
+        metadata_dict[METRIC_NAMES_KEY] = None
 
     num_grid_points = (
         len(twb_satellite_io.GRID_LATITUDES_DEG_N) *
