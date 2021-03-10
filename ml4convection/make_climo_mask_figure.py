@@ -29,7 +29,8 @@ DUMMY_FIELD_NAME = 'reflectivity_column_max_dbz'
 
 MASK_COLOUR_MAP_OBJECT = pyplot.get_cmap('winter')
 MASK_COLOUR_NORM_OBJECT = pyplot.Normalize(vmin=0., vmax=1.)
-MASK_OUTLINE_COLOUR = numpy.array([139, 69, 19], dtype=float) / 255
+# MASK_OUTLINE_COLOUR = numpy.array([139, 69, 19], dtype=float) / 255
+MASK_OUTLINE_COLOUR = numpy.full(3, 152. / 255)
 
 INNER_DOMAIN_HALF_WIDTH_PX = 52
 COMPLETE_DOMAIN_HALF_WIDTH_PX = 102

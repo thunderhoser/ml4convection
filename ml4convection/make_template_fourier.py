@@ -74,7 +74,7 @@ def _run():
     loss_function = neural_net.get_metrics(
         metric_names=[LOSS_FUNCTION_NAME], mask_matrix=partial_mask_matrix,
         use_as_loss_function=True
-    )
+    )[0][0]
 
     file_system_utils.mkdir_recursive_if_necessary(
         directory_name=OUTPUT_DIR_NAME
