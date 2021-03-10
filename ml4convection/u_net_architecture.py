@@ -13,6 +13,7 @@ sys.path.append(os.path.normpath(os.path.join(THIS_DIRECTORY_NAME, '..')))
 import error_checking
 import architecture_utils
 import neural_net
+import coord_conv
 
 INPUT_DIMENSIONS_KEY = 'input_dimensions'
 NUM_LEVELS_KEY = 'num_levels'
@@ -28,6 +29,7 @@ OUTPUT_ACTIV_FUNCTION_ALPHA_KEY = 'output_activ_function_alpha'
 L1_WEIGHT_KEY = 'l1_weight'
 L2_WEIGHT_KEY = 'l2_weight'
 USE_BATCH_NORM_KEY = 'use_batch_normalization'
+USE_COORD_CONV_KEY = 'use_coord_conv'
 
 DEFAULT_ARCHITECTURE_OPTION_DICT = {
     NUM_LEVELS_KEY: 7,
@@ -44,7 +46,8 @@ DEFAULT_ARCHITECTURE_OPTION_DICT = {
     OUTPUT_ACTIV_FUNCTION_ALPHA_KEY: 0.,
     L1_WEIGHT_KEY: 0.,
     L2_WEIGHT_KEY: 0.001,
-    USE_BATCH_NORM_KEY: True
+    USE_BATCH_NORM_KEY: True,
+    USE_COORD_CONV_KEY: False
 }
 
 
@@ -83,6 +86,8 @@ def _check_architecture_args(option_dict):
     option_dict['l2_weight']: Weight for L_2 regularization.
     option_dict['use_batch_normalization']: Boolean flag.  If True, will use
         batch normalization after each inner (non-output) layer.
+    option_dict['use_coord_conv']: Boolean flag.  If True, will use coord-conv
+        in each convolutional layer.
 
     :return: option_dict: Same as input, except defaults may have been added.
     """
@@ -144,11 +149,12 @@ def _check_architecture_args(option_dict):
     error_checking.assert_is_geq(option_dict[L1_WEIGHT_KEY], 0.)
     error_checking.assert_is_geq(option_dict[L2_WEIGHT_KEY], 0.)
     error_checking.assert_is_boolean(option_dict[USE_BATCH_NORM_KEY])
+    error_checking.assert_is_boolean(option_dict[USE_COORD_CONV_KEY])
 
     return option_dict
 
 
-def create_model(option_dict, loss_function, mask_matrix):
+def create_model(option_dict, loss_function, mask_matrix, metric_names):
     """Creates U-net.
 
     This method sets up the architecture, loss function, and optimizer -- and
@@ -164,11 +170,15 @@ def create_model(option_dict, loss_function, mask_matrix):
     :param loss_function: Loss function.
     :param mask_matrix: M-by-N numpy array of Boolean flags.  Only pixels marked
         "True" are considered in the loss function and metrics.
+    :param metric_names: See doc for `neural_net.get_metrics`.
     :return: model_object: Instance of `keras.models.Model`, with the
         aforementioned architecture.
     """
 
-    metric_function_list = neural_net.get_metrics(mask_matrix)[0]
+    metric_function_list = neural_net.get_metrics(
+        metric_names=metric_names, mask_matrix=mask_matrix,
+        use_as_loss_function=False
+    )[0]
     option_dict = _check_architecture_args(option_dict)
 
     input_dimensions = option_dict[INPUT_DIMENSIONS_KEY]
@@ -185,6 +195,7 @@ def create_model(option_dict, loss_function, mask_matrix):
     l1_weight = option_dict[L1_WEIGHT_KEY]
     l2_weight = option_dict[L2_WEIGHT_KEY]
     use_batch_normalization = option_dict[USE_BATCH_NORM_KEY]
+    use_coord_conv = option_dict[USE_COORD_CONV_KEY]
 
     input_layer_object = keras.layers.Input(
         shape=tuple(input_dimensions.tolist())
@@ -205,6 +216,11 @@ def create_model(option_dict, loss_function, mask_matrix):
                     this_input_layer_object = pooling_layer_by_level[i - 1]
             else:
                 this_input_layer_object = conv_layer_by_level[i]
+
+            if use_coord_conv:
+                this_input_layer_object = coord_conv.add_spatial_coords_2d(
+                    this_input_layer_object
+                )
 
             conv_layer_by_level[i] = architecture_utils.get_2d_conv_layer(
                 num_kernel_rows=3, num_kernel_columns=3,
@@ -254,6 +270,9 @@ def create_model(option_dict, loss_function, mask_matrix):
             size=(2, 2)
         )(conv_layer_by_level[num_levels])
 
+    if use_coord_conv:
+        this_layer_object = coord_conv.add_spatial_coords_2d(this_layer_object)
+
     i = num_levels - 1
     upconv_layer_by_level[i] = architecture_utils.get_2d_conv_layer(
         num_kernel_rows=2, num_kernel_columns=2,
@@ -298,6 +317,11 @@ def create_model(option_dict, loss_function, mask_matrix):
             else:
                 this_input_layer_object = skip_layer_by_level[i]
 
+            if use_coord_conv:
+                this_input_layer_object = coord_conv.add_spatial_coords_2d(
+                    this_input_layer_object
+                )
+
             skip_layer_by_level[i] = architecture_utils.get_2d_conv_layer(
                 num_kernel_rows=3, num_kernel_columns=3,
                 num_rows_per_stride=1, num_columns_per_stride=1,
@@ -325,6 +349,11 @@ def create_model(option_dict, loss_function, mask_matrix):
                 )
 
         if i == 0:
+            if use_coord_conv:
+                skip_layer_by_level[i] = coord_conv.add_spatial_coords_2d(
+                    skip_layer_by_level[i]
+                )
+
             skip_layer_by_level[i] = architecture_utils.get_2d_conv_layer(
                 num_kernel_rows=3, num_kernel_columns=3,
                 num_rows_per_stride=1, num_columns_per_stride=1, num_filters=2,
@@ -356,6 +385,11 @@ def create_model(option_dict, loss_function, mask_matrix):
                 size=(2, 2)
             )(skip_layer_by_level[i])
 
+        if use_coord_conv:
+            this_layer_object = coord_conv.add_spatial_coords_2d(
+                this_layer_object
+            )
+
         upconv_layer_by_level[i - 1] = architecture_utils.get_2d_conv_layer(
             num_kernel_rows=2, num_kernel_columns=2,
             num_rows_per_stride=1, num_columns_per_stride=1,
@@ -386,6 +420,11 @@ def create_model(option_dict, loss_function, mask_matrix):
 
         merged_layer_by_level[i - 1] = keras.layers.Concatenate(axis=-1)(
             [conv_layer_by_level[i - 1], upconv_layer_by_level[i - 1]]
+        )
+
+    if use_coord_conv:
+        skip_layer_by_level[0] = coord_conv.add_spatial_coords_2d(
+            skip_layer_by_level[0]
         )
 
     skip_layer_by_level[0] = architecture_utils.get_2d_conv_layer(

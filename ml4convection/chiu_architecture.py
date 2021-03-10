@@ -201,7 +201,7 @@ def _get_time_slicing_function(time_index):
     return time_slicing_function
 
 
-def create_model(option_dict, loss_function, mask_matrix):
+def create_model(option_dict, loss_function, mask_matrix, metric_names):
     """Creates Chiu net.
 
     This method sets up the architecture, loss function, and optimizer -- and
@@ -216,11 +216,15 @@ def create_model(option_dict, loss_function, mask_matrix):
     :param loss_function: Loss function.
     :param mask_matrix: M-by-N numpy array of Boolean flags.  Only pixels marked
         "True" are considered in the loss function and metrics.
+    :param metric_names: See doc for `neural_net.get_metrics`.
     :return: model_object: Instance of `keras.models.Model`, with the
         aforementioned architecture.
     """
 
-    metric_function_list = neural_net.get_metrics(mask_matrix)[0]
+    metric_function_list = neural_net.get_metrics(
+        metric_names=metric_names, mask_matrix=mask_matrix,
+        use_as_loss_function=False
+    )[0]
     option_dict = _check_args(option_dict)
 
     input_dimensions = option_dict[INPUT_DIMENSIONS_KEY]

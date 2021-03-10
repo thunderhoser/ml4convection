@@ -13,8 +13,6 @@ import file_system_utils
 import radar_io
 import u_net_architecture
 import neural_net
-import fourier_utils
-import fourier_metrics
 
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 
@@ -31,6 +29,15 @@ PARTIAL_MASK_FILE_NAME = (
     '{0:s}/ml4convection_project/radar_data/'
     'radar_mask_100km_omit-north_partial.nc'
 ).format(HOME_DIR_NAME)
+
+LOSS_FUNCTION_NAME = 'fss_band_0.0500000000deg_infdeg'
+
+METRIC_NAMES = [
+    'fss_neigh0', 'fss_neigh1', 'fss_neigh2', 'fss_neigh3', 'fss_neigh4',
+    'csi_neigh0', 'csi_neigh1', 'csi_neigh2', 'csi_neigh3', 'csi_neigh4',
+    'iou_neigh0', 'iou_neigh1', 'iou_neigh2', 'iou_neigh3', 'iou_neigh4',
+    'csi_band_0.0500000000deg_infdeg', 'iou_band_0.0500000000deg_infdeg'
+]
 
 DEFAULT_OPTION_DICT = {
     u_net_architecture.INPUT_DIMENSIONS_KEY:
@@ -64,18 +71,9 @@ def _run():
         radar_io.MASK_MATRIX_KEY
     ]
 
-    spatial_coeff_matrix = fourier_utils.apply_blackman_window(
-        numpy.full((615, 615), 1.)
-    )
-    frequency_coeff_matrix = fourier_utils.apply_butterworth_filter(
-        coefficient_matrix=numpy.full((615, 615), 1.),
-        filter_order=2., grid_spacing_metres=1250.,
-        min_resolution_metres=5000., max_resolution_metres=numpy.inf
-    )
-    loss_function = fourier_metrics.pixelwise_fss(
-        spatial_coeff_matrix=spatial_coeff_matrix,
-        frequency_coeff_matrix=frequency_coeff_matrix,
-        mask_matrix=partial_mask_matrix, use_as_loss_function=True
+    loss_function = neural_net.get_metrics(
+        metric_names=[LOSS_FUNCTION_NAME], mask_matrix=partial_mask_matrix,
+        use_as_loss_function=True
     )
 
     file_system_utils.mkdir_recursive_if_necessary(
@@ -84,7 +82,7 @@ def _run():
 
     this_model_object = u_net_architecture.create_model(
         option_dict=DEFAULT_OPTION_DICT, loss_function=loss_function,
-        mask_matrix=partial_mask_matrix
+        mask_matrix=partial_mask_matrix, metric_names=METRIC_NAMES
     )
 
     this_model_file_name = '{0:s}/model.h5'.format(OUTPUT_DIR_NAME)
@@ -108,9 +106,8 @@ def _run():
         num_validation_batches_per_epoch=100,
         validation_option_dict=dummy_option_dict,
         do_early_stopping=True, plateau_lr_multiplier=0.6,
-        loss_function_name='fourier_metrics.pixelwise_fss',
-        fourier_spatial_coeff_matrix=spatial_coeff_matrix,
-        fourier_freq_coeff_matrix=frequency_coeff_matrix,
+        loss_function_name=LOSS_FUNCTION_NAME,
+        metric_names=METRIC_NAMES,
         mask_matrix=partial_mask_matrix, full_mask_matrix=full_mask_matrix
     )
 
