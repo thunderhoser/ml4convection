@@ -160,9 +160,6 @@ def _find_input_files(
         for t in possible_valid_time_strings
     ]
 
-    for this_file_name in possible_pred_fig_file_names:
-        print(this_file_name)
-
     valid_times_unix_sec = []
     prediction_figure_file_names = []
 
