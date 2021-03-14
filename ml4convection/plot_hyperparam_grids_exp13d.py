@@ -151,24 +151,6 @@ def _plot_scores_2d(
     pyplot.xticks(x_tick_values, x_tick_labels, rotation=90.)
     pyplot.yticks(y_tick_values, y_tick_labels)
 
-    colour_norm_object = matplotlib.colors.Normalize(
-        vmin=min_colour_value, vmax=max_colour_value, clip=False
-    )
-
-    colour_bar_object = gg_plotting_utils.plot_colour_bar(
-        axes_object_or_matrix=axes_object,
-        data_matrix=score_matrix[numpy.invert(numpy.isnan(score_matrix))],
-        colour_map_object=colour_map_object,
-        colour_norm_object=colour_norm_object,
-        orientation_string='vertical', extend_min=False, extend_max=False,
-        fraction_of_axis_length=0.5, font_size=DEFAULT_FONT_SIZE
-    )
-
-    tick_values = colour_bar_object.get_ticks()
-    tick_strings = ['{0:.2g}'.format(v) for v in tick_values]
-    colour_bar_object.set_ticks(tick_values)
-    colour_bar_object.set_ticklabels(tick_strings)
-
     return figure_object, axes_object
 
 
@@ -422,6 +404,14 @@ def _run(experiment_dir_name, matching_distance_px, output_dir_name):
     )
     pyplot.close(figure_object)
 
+    _add_colour_bar(
+        figure_file_name=figure_file_name,
+        colour_map_object=DEFAULT_COLOUR_MAP_OBJECT,
+        min_colour_value=numpy.nanpercentile(aupd_matrix, 1),
+        max_colour_value=numpy.nanpercentile(aupd_matrix, 99),
+        temporary_dir_name=output_dir_name
+    )
+
     # Plot max CSI.
     figure_object, axes_object = _plot_scores_2d(
         score_matrix=max_csi_matrix,
@@ -449,6 +439,14 @@ def _run(experiment_dir_name, matching_distance_px, output_dir_name):
     )
     pyplot.close(figure_object)
 
+    _add_colour_bar(
+        figure_file_name=figure_file_name,
+        colour_map_object=DEFAULT_COLOUR_MAP_OBJECT,
+        min_colour_value=numpy.nanpercentile(max_csi_matrix, 1),
+        max_colour_value=numpy.nanpercentile(max_csi_matrix, 99),
+        temporary_dir_name=output_dir_name
+    )
+
     # Plot FSS.
     figure_object, axes_object = _plot_scores_2d(
         score_matrix=fss_matrix,
@@ -475,6 +473,14 @@ def _run(experiment_dir_name, matching_distance_px, output_dir_name):
         pad_inches=0, bbox_inches='tight'
     )
     pyplot.close(figure_object)
+
+    _add_colour_bar(
+        figure_file_name=figure_file_name,
+        colour_map_object=DEFAULT_COLOUR_MAP_OBJECT,
+        min_colour_value=numpy.nanpercentile(fss_matrix, 1),
+        max_colour_value=numpy.nanpercentile(fss_matrix, 99),
+        temporary_dir_name=output_dir_name
+    )
 
     # Plot BSS.
     this_max_value = numpy.nanpercentile(numpy.absolute(bss_matrix), 99.)
@@ -505,6 +511,14 @@ def _run(experiment_dir_name, matching_distance_px, output_dir_name):
         pad_inches=0, bbox_inches='tight'
     )
     pyplot.close(figure_object)
+
+    _add_colour_bar(
+        figure_file_name=figure_file_name,
+        colour_map_object=BSS_COLOUR_MAP_OBJECT,
+        min_colour_value=this_min_value,
+        max_colour_value=this_max_value,
+        temporary_dir_name=output_dir_name
+    )
 
 
 if __name__ == '__main__':
