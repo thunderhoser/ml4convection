@@ -75,7 +75,15 @@ LAG_TIME_STRINGS_MINUTES = [
     '0,60', '0,60,120', '0,60,120,180', '0,60,120,180,240'
 ]
 
-DEFAULT_FONT_SIZE = 14
+BEST_MARKER_TYPE = '*'
+BEST_MARKER_SIZE_GRID_CELLS = 0.3
+MARKER_COLOUR = numpy.full(3, 0.)
+
+SELECTED_MARKER_TYPE = 'o'
+SELECTED_MARKER_SIZE_GRID_CELLS = 0.2
+SELECTED_MARKER_INDICES = numpy.array([-1, -1], dtype=int)
+
+DEFAULT_FONT_SIZE = 20
 
 pyplot.rc('font', size=DEFAULT_FONT_SIZE)
 pyplot.rc('axes', titlesize=DEFAULT_FONT_SIZE)
@@ -215,6 +223,48 @@ def _print_ranking_one_score(score_matrix, score_name):
         ))
 
 
+def _add_markers(figure_object, axes_object, best_marker_indices):
+    """Adds markers to figure.
+
+    :param figure_object: Figure handle (instance of
+        `matplotlib.figure.Figure`).
+    :param axes_object: Axes handle (instance of
+        `matplotlib.axes._subplots.AxesSubplot`).
+    :param best_marker_indices: length-2 numpy array of array indices for best
+        model.
+    """
+
+    figure_width_px = (
+        figure_object.get_size_inches()[0] * figure_object.dpi
+    )
+    marker_size_px = figure_width_px * (
+        BEST_MARKER_SIZE_GRID_CELLS / len(LAG_TIME_STRINGS_SEC)
+    )
+
+    axes_object.plot(
+        best_marker_indices[1], best_marker_indices[0],
+        linestyle='None', marker=BEST_MARKER_TYPE,
+        markersize=marker_size_px, markeredgewidth=0,
+        markerfacecolor=MARKER_COLOUR,
+        markeredgecolor=MARKER_COLOUR
+    )
+
+    figure_width_px = (
+        figure_object.get_size_inches()[0] * figure_object.dpi
+    )
+    marker_size_px = figure_width_px * (
+        BEST_MARKER_SIZE_GRID_CELLS / len(LAG_TIME_STRINGS_SEC)
+    )
+
+    axes_object.plot(
+        SELECTED_MARKER_INDICES[1], SELECTED_MARKER_INDICES[0],
+        linestyle='None', marker=SELECTED_MARKER_TYPE,
+        markersize=marker_size_px, markeredgewidth=0,
+        markerfacecolor=MARKER_COLOUR,
+        markeredgecolor=MARKER_COLOUR
+    )
+
+
 def _run(experiment_dir_name, matching_distance_px, output_dir_name):
     """Plots scores on hyperparameter grid for Experiment 13e.
 
@@ -287,6 +337,18 @@ def _run(experiment_dir_name, matching_distance_px, output_dir_name):
     _print_ranking_one_score(score_matrix=bss_matrix, score_name='BSS')
     print(SEPARATOR_STRING)
 
+    this_index = numpy.argmax(numpy.ravel(aupd_matrix))
+    max_aupd_indices = numpy.unravel_index(this_index, aupd_matrix.shape)
+
+    this_index = numpy.argmax(numpy.ravel(max_csi_matrix))
+    max_csi_indices = numpy.unravel_index(this_index, max_csi_matrix.shape)
+
+    this_index = numpy.argmax(numpy.ravel(fss_matrix))
+    max_fss_indices = numpy.unravel_index(this_index, fss_matrix.shape)
+
+    this_index = numpy.argmax(numpy.ravel(bss_matrix))
+    max_bss_indices = numpy.unravel_index(this_index, bss_matrix.shape)
+
     # Plot AUPD.
     figure_object, axes_object = _plot_scores_2d(
         score_matrix=aupd_matrix,
@@ -294,6 +356,11 @@ def _run(experiment_dir_name, matching_distance_px, output_dir_name):
         max_colour_value=numpy.nanpercentile(aupd_matrix, 99),
         x_tick_labels=x_tick_labels, y_tick_labels=y_tick_labels,
         colour_map_object=DEFAULT_COLOUR_MAP_OBJECT
+    )
+
+    _add_markers(
+        figure_object=figure_object, axes_object=axes_object,
+        best_marker_indices=max_aupd_indices
     )
 
     axes_object.set_xlabel(x_axis_label)
@@ -318,10 +385,15 @@ def _run(experiment_dir_name, matching_distance_px, output_dir_name):
         colour_map_object=DEFAULT_COLOUR_MAP_OBJECT
     )
 
+    _add_markers(
+        figure_object=figure_object, axes_object=axes_object,
+        best_marker_indices=max_csi_indices
+    )
+
     axes_object.set_xlabel(x_axis_label)
     axes_object.set_ylabel(y_axis_label)
 
-    axes_object.set_title('Maximum CSI')
+    axes_object.set_title('Critical success index')
     figure_file_name = '{0:s}/csi_grid.jpg'.format(output_dir_name)
 
     print('Saving figure to: "{0:s}"...'.format(figure_file_name))
@@ -338,6 +410,11 @@ def _run(experiment_dir_name, matching_distance_px, output_dir_name):
         max_colour_value=numpy.nanpercentile(fss_matrix, 99),
         x_tick_labels=x_tick_labels, y_tick_labels=y_tick_labels,
         colour_map_object=DEFAULT_COLOUR_MAP_OBJECT
+    )
+
+    _add_markers(
+        figure_object=figure_object, axes_object=axes_object,
+        best_marker_indices=max_fss_indices
     )
 
     axes_object.set_xlabel(x_axis_label)
@@ -363,6 +440,11 @@ def _run(experiment_dir_name, matching_distance_px, output_dir_name):
         min_colour_value=this_min_value, max_colour_value=this_max_value,
         x_tick_labels=x_tick_labels, y_tick_labels=y_tick_labels,
         colour_map_object=BSS_COLOUR_MAP_OBJECT
+    )
+
+    _add_markers(
+        figure_object=figure_object, axes_object=axes_object,
+        best_marker_indices=max_bss_indices
     )
 
     axes_object.set_xlabel(x_axis_label)
