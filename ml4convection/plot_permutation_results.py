@@ -136,7 +136,7 @@ def _run(input_file_name, num_predictors_to_plot, confidence_level,
         bar_face_colour=BAR_FACE_COLOUR
     )
     axes_object_matrix[0, 0].set_title('Single-pass test')
-    axes_object_matrix[0, 0].set_xlabel('Negative FSS')
+    axes_object_matrix[0, 0].set_xlabel('Fractions score')
 
     permutation_plotting.plot_multipass_test(
         permutation_dict=permutation_dict, axes_object=axes_object_matrix[0, 1],
@@ -145,7 +145,7 @@ def _run(input_file_name, num_predictors_to_plot, confidence_level,
         bar_face_colour=BAR_FACE_COLOUR
     )
     axes_object_matrix[0, 1].set_title('Multi-pass test')
-    axes_object_matrix[0, 1].set_xlabel('Negative FSS')
+    axes_object_matrix[0, 1].set_xlabel('Fractions score')
     axes_object_matrix[0, 1].set_ylabel('')
 
     figure_file_name = '{0:s}/permutation_test_abs-values.jpg'.format(
@@ -170,7 +170,9 @@ def _run(input_file_name, num_predictors_to_plot, confidence_level,
         bar_face_colour=BAR_FACE_COLOUR
     )
     axes_object_matrix[0, 0].set_title('Single-pass test')
-    axes_object_matrix[0, 0].set_xlabel('Negative FSS (fraction of original)')
+    axes_object_matrix[0, 0].set_xlabel(
+        'Fractions score (fraction of original)'
+    )
 
     permutation_plotting.plot_multipass_test(
         permutation_dict=permutation_dict, axes_object=axes_object_matrix[0, 1],
@@ -179,7 +181,9 @@ def _run(input_file_name, num_predictors_to_plot, confidence_level,
         bar_face_colour=BAR_FACE_COLOUR
     )
     axes_object_matrix[0, 1].set_title('Multi-pass test')
-    axes_object_matrix[0, 1].set_xlabel('Negative FSS (fraction of original)')
+    axes_object_matrix[0, 1].set_xlabel(
+        'Fractions score (fraction of original)'
+    )
     axes_object_matrix[0, 1].set_ylabel('')
 
     figure_file_name = '{0:s}/permutation_test_percentage.jpg'.format(
