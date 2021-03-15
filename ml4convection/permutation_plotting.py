@@ -15,7 +15,7 @@ sys.path.append(os.path.normpath(os.path.join(THIS_DIRECTORY_NAME, '..')))
 
 import error_checking
 import gg_permutation
-import plotting_utils
+import gg_plotting_utils
 
 DEFAULT_CONFIDENCE_LEVEL = 0.95
 
@@ -75,7 +75,7 @@ def _label_bars(axes_object, y_tick_coords, y_tick_strings, significant_flags):
         different cost than the [i + 1]th step.
     """
 
-    this_colour = plotting_utils.colour_from_numpy_to_tuple(BAR_TEXT_COLOUR)
+    this_colour = gg_plotting_utils.colour_from_numpy_to_tuple(BAR_TEXT_COLOUR)
 
     for j in range(len(y_tick_coords)):
         y_tick_strings[j] = y_tick_strings[j].replace(
@@ -99,9 +99,9 @@ def _predictor_name_to_face_colour(predictor_name):
     """
 
     if predictor_name in SOUNDING_PREDICTOR_NAMES:
-        return plotting_utils.colour_from_numpy_to_tuple(SOUNDING_COLOUR)
+        return gg_plotting_utils.colour_from_numpy_to_tuple(SOUNDING_COLOUR)
 
-    return plotting_utils.colour_from_numpy_to_tuple(DEFAULT_FACE_COLOUR)
+    return gg_plotting_utils.colour_from_numpy_to_tuple(DEFAULT_FACE_COLOUR)
 
 
 def _get_error_matrix(cost_matrix, is_cost_auc, confidence_level,
@@ -253,10 +253,11 @@ def _plot_bars(
         ]
 
         face_colour_arg.insert(
-            0, plotting_utils.colour_from_numpy_to_tuple(NO_PERMUTATION_COLOUR)
+            0,
+            gg_plotting_utils.colour_from_numpy_to_tuple(NO_PERMUTATION_COLOUR)
         )
     else:
-        face_colour_arg = plotting_utils.colour_from_numpy_to_tuple(
+        face_colour_arg = gg_plotting_utils.colour_from_numpy_to_tuple(
             bar_face_colour)
 
     if axes_object is None:
@@ -280,10 +281,11 @@ def _plot_bars(
 
         axes_object.barh(
             y_tick_coords, mean_costs, color=face_colour_arg,
-            edgecolor=plotting_utils.colour_from_numpy_to_tuple(
-                BAR_EDGE_COLOUR),
+            edgecolor=
+            gg_plotting_utils.colour_from_numpy_to_tuple(BAR_EDGE_COLOUR),
             linewidth=BAR_EDGE_WIDTH, xerr=error_matrix,
-            ecolor=plotting_utils.colour_from_numpy_to_tuple(ERROR_BAR_COLOUR),
+            ecolor=
+            gg_plotting_utils.colour_from_numpy_to_tuple(ERROR_BAR_COLOUR),
             capsize=ERROR_BAR_CAP_SIZE, error_kw=ERROR_BAR_DICT
         )
     else:
@@ -293,8 +295,8 @@ def _plot_bars(
 
         axes_object.barh(
             y_tick_coords, mean_costs, color=face_colour_arg,
-            edgecolor=plotting_utils.colour_from_numpy_to_tuple(
-                BAR_EDGE_COLOUR),
+            edgecolor=
+            gg_plotting_utils.colour_from_numpy_to_tuple(BAR_EDGE_COLOUR),
             linewidth=BAR_EDGE_WIDTH
         )
 
@@ -305,7 +307,8 @@ def _plot_bars(
 
     axes_object.plot(
         reference_x_coords, reference_y_tick_coords,
-        color=plotting_utils.colour_from_numpy_to_tuple(REFERENCE_LINE_COLOUR),
+        color=
+        gg_plotting_utils.colour_from_numpy_to_tuple(REFERENCE_LINE_COLOUR),
         linestyle='--', linewidth=REFERENCE_LINE_WIDTH
     )
 
