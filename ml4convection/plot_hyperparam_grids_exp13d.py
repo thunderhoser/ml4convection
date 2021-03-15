@@ -496,7 +496,7 @@ def _run(experiment_dir_name, matching_distance_px, output_dir_name):
 
     _add_markers(
         figure_object=figure_object, axes_object=axes_object,
-        best_marker_indices=max_fss_indices
+        best_marker_indices=max_bss_indices
     )
 
     axes_object.set_xlabel(x_axis_label)
@@ -515,8 +515,7 @@ def _run(experiment_dir_name, matching_distance_px, output_dir_name):
     _add_colour_bar(
         figure_file_name=figure_file_name,
         colour_map_object=BSS_COLOUR_MAP_OBJECT,
-        min_colour_value=this_min_value,
-        max_colour_value=this_max_value,
+        min_colour_value=this_min_value, max_colour_value=this_max_value,
         temporary_dir_name=output_dir_name
     )
 
