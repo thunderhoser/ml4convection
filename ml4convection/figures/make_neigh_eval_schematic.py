@@ -17,7 +17,7 @@ DUMMY_FIELD_NAME = 'reflectivity_column_max_dbz'
 
 ACTUAL_ENUM = 1
 FORECAST_ENUM = 2
-MATCHING_DISTANCE_PX = 2.
+MATCHING_DISTANCE_PX = 4.
 
 GOOD_MASK_MATRIX = numpy.full((8, 10), 0, dtype=int)
 GOOD_MASK_MATRIX[4, 3] = ACTUAL_ENUM
@@ -230,7 +230,9 @@ def _run(output_dir_name, use_square_neigh):
     _plot_one_panel(
         mask_matrix=GOOD_MASK_MATRIX, use_square_neigh=use_square_neigh,
         actual_to_forecast=True, letter_label='a',
-        title_string='Observation-oriented true positive',
+        title_string='{0:s}-oriented true positive'.format(
+            'Observation' if use_square_neigh else 'Actual'
+        ),
         output_file_name=panel_file_names[-1]
     )
 
@@ -250,7 +252,9 @@ def _run(output_dir_name, use_square_neigh):
     _plot_one_panel(
         mask_matrix=GOOD_MASK_MATRIX, use_square_neigh=use_square_neigh,
         actual_to_forecast=False, letter_label='c',
-        title_string='Prediction-oriented true positive',
+        title_string='{0:s}-oriented true positive'.format(
+            'Prediction' if use_square_neigh else 'Forecast'
+        ),
         output_file_name=panel_file_names[-1]
     )
 
