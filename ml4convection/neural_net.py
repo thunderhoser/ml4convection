@@ -31,12 +31,12 @@ import fourier_metrics
 
 TOLERANCE = 1e-6
 
-FSS_NAME = 'fss'
-BRIER_SCORE_NAME = 'brier'
-CSI_NAME = 'csi'
-FREQUENCY_BIAS_NAME = 'bias'
-IOU_NAME = 'iou'
-DICE_COEFF_NAME = 'dice'
+FSS_NAME = fourier_metrics.FSS_NAME
+BRIER_SCORE_NAME = fourier_metrics.BRIER_SCORE_NAME
+CSI_NAME = fourier_metrics.CSI_NAME
+FREQUENCY_BIAS_NAME = fourier_metrics.FREQUENCY_BIAS_NAME
+IOU_NAME = fourier_metrics.IOU_NAME
+DICE_COEFF_NAME = fourier_metrics.DICE_COEFF_NAME
 
 VALID_SCORE_NAMES = [
     FSS_NAME, BRIER_SCORE_NAME, CSI_NAME, FREQUENCY_BIAS_NAME, IOU_NAME,
@@ -994,114 +994,119 @@ def get_metrics(metric_names, mask_matrix, use_as_loss_function):
     error_checking.assert_is_string_list(metric_names)
     error_checking.assert_is_boolean_numpy_array(mask_matrix)
     error_checking.assert_is_numpy_array(mask_matrix, num_dimensions=2)
+
+    if len(metric_names) > 1:
+        use_as_loss_function = False
+
     error_checking.assert_is_boolean(use_as_loss_function)
 
-    fourier_dimensions = 3 * numpy.array(mask_matrix.shape, dtype=int)
+    min_resolutions_deg = [
+        metric_name_to_params(n)[MIN_RESOLUTION_KEY] for n in metric_names
+    ]
+    min_resolutions_deg = numpy.array([
+        -1. if r is None else r for r in min_resolutions_deg
+    ])
 
+    max_resolutions_deg = [
+        metric_name_to_params(n)[MAX_RESOLUTION_KEY] for n in metric_names
+    ]
+    max_resolutions_deg = numpy.array([
+        -1. if r is None else r for r in max_resolutions_deg
+    ])
+
+    resolution_matrix_deg = numpy.transpose(numpy.vstack((
+        min_resolutions_deg, max_resolutions_deg
+    )))
+    unique_resolution_matrix_deg, orig_to_unique_indices = numpy.unique(
+        resolution_matrix_deg, axis=0, return_inverse=True
+    )
+    num_unique_resolutions = unique_resolution_matrix_deg.shape[0]
+
+    fourier_dimensions = 3 * numpy.array(mask_matrix.shape, dtype=int)
     metric_function_list = []
     metric_function_dict = dict()
+
+    for k in range(num_unique_resolutions):
+        if unique_resolution_matrix_deg[k, 0] < 0:
+            continue
+
+        this_spatial_coeff_matrix = fourier_utils.apply_blackman_window(
+            numpy.full(fourier_dimensions, 1.)
+        )
+        this_frequency_coeff_matrix = (
+            fourier_utils.apply_butterworth_filter(
+                coefficient_matrix=numpy.full(fourier_dimensions, 1.),
+                filter_order=2., grid_spacing_metres=0.0125,
+                min_resolution_metres=unique_resolution_matrix_deg[k, 0],
+                max_resolution_metres=unique_resolution_matrix_deg[k, 1]
+            )
+        )
+
+        this_function_name = metric_params_to_name(
+            score_name=FSS_NAME, half_window_size_px=None,
+            min_resolution_deg=unique_resolution_matrix_deg[k, 0],
+            max_resolution_deg=unique_resolution_matrix_deg[k, 1]
+        )
+        this_function_name = '_'.join(
+            ['metrics'] + this_function_name.split('_')[1:]
+        )
+
+        these_indices = numpy.where(orig_to_unique_indices == k)[0]
+        this_function = fourier_metrics.metrics(
+            spatial_coeff_matrix=this_spatial_coeff_matrix,
+            frequency_coeff_matrix=this_frequency_coeff_matrix,
+            mask_matrix=mask_matrix,
+            metric_names=[metric_names[i] for i in these_indices],
+            function_name=this_function_name
+        )
+
+        metric_function_list.append(this_function)
+        metric_function_dict[this_function_name] = this_function
 
     for this_metric_name in metric_names:
         this_param_dict = metric_name_to_params(this_metric_name)
 
         if this_param_dict[HALF_WINDOW_SIZE_KEY] is None:
-            this_spatial_coeff_matrix = fourier_utils.apply_blackman_window(
-                numpy.full(fourier_dimensions, 1.)
-            )
-            this_frequency_coeff_matrix = (
-                fourier_utils.apply_butterworth_filter(
-                    coefficient_matrix=numpy.full(fourier_dimensions, 1.),
-                    filter_order=2., grid_spacing_metres=0.0125,
-                    min_resolution_metres=this_param_dict[MIN_RESOLUTION_KEY],
-                    max_resolution_metres=this_param_dict[MAX_RESOLUTION_KEY]
-                )
-            )
+            continue
 
-            if this_param_dict[SCORE_NAME_KEY] == FSS_NAME:
-                this_function = fourier_metrics.pixelwise_fss(
-                    spatial_coeff_matrix=this_spatial_coeff_matrix,
-                    frequency_coeff_matrix=this_frequency_coeff_matrix,
-                    mask_matrix=mask_matrix,
-                    use_as_loss_function=use_as_loss_function,
-                    function_name=this_metric_name
-                )
-            elif this_param_dict[SCORE_NAME_KEY] == BRIER_SCORE_NAME:
-                this_function = fourier_metrics.brier_score(
-                    spatial_coeff_matrix=this_spatial_coeff_matrix,
-                    frequency_coeff_matrix=this_frequency_coeff_matrix,
-                    mask_matrix=mask_matrix,
-                    use_as_loss_function=use_as_loss_function,
-                    function_name=this_metric_name
-                )
-            elif this_param_dict[SCORE_NAME_KEY] == CSI_NAME:
-                this_function = fourier_metrics.csi(
-                    spatial_coeff_matrix=this_spatial_coeff_matrix,
-                    frequency_coeff_matrix=this_frequency_coeff_matrix,
-                    mask_matrix=mask_matrix,
-                    use_as_loss_function=use_as_loss_function,
-                    function_name=this_metric_name
-                )
-            elif this_param_dict[SCORE_NAME_KEY] == FREQUENCY_BIAS_NAME:
-                this_function = fourier_metrics.frequency_bias(
-                    spatial_coeff_matrix=this_spatial_coeff_matrix,
-                    frequency_coeff_matrix=this_frequency_coeff_matrix,
-                    mask_matrix=mask_matrix, function_name=this_metric_name
-                )
-            elif this_param_dict[SCORE_NAME_KEY] == IOU_NAME:
-                this_function = fourier_metrics.iou(
-                    spatial_coeff_matrix=this_spatial_coeff_matrix,
-                    frequency_coeff_matrix=this_frequency_coeff_matrix,
-                    mask_matrix=mask_matrix,
-                    use_as_loss_function=use_as_loss_function,
-                    function_name=this_metric_name
-                )
-            else:
-                this_function = fourier_metrics.dice_coeff(
-                    spatial_coeff_matrix=this_spatial_coeff_matrix,
-                    frequency_coeff_matrix=this_frequency_coeff_matrix,
-                    mask_matrix=mask_matrix,
-                    use_as_loss_function=use_as_loss_function,
-                    function_name=this_metric_name
-                )
+        if this_param_dict[SCORE_NAME_KEY] == FSS_NAME:
+            this_function = custom_losses.fractions_skill_score(
+                half_window_size_px=this_param_dict[HALF_WINDOW_SIZE_KEY],
+                mask_matrix=mask_matrix,
+                use_as_loss_function=use_as_loss_function,
+                function_name=this_metric_name
+            )
+        elif this_param_dict[SCORE_NAME_KEY] == BRIER_SCORE_NAME:
+            this_function = custom_metrics.brier_score(
+                half_window_size_px=this_param_dict[HALF_WINDOW_SIZE_KEY],
+                mask_matrix=mask_matrix, function_name=this_metric_name
+            )
+        elif this_param_dict[SCORE_NAME_KEY] == CSI_NAME:
+            this_function = custom_metrics.csi(
+                half_window_size_px=this_param_dict[HALF_WINDOW_SIZE_KEY],
+                mask_matrix=mask_matrix,
+                use_as_loss_function=use_as_loss_function,
+                function_name=this_metric_name
+            )
+        elif this_param_dict[SCORE_NAME_KEY] == FREQUENCY_BIAS_NAME:
+            this_function = custom_metrics.frequency_bias(
+                half_window_size_px=this_param_dict[HALF_WINDOW_SIZE_KEY],
+                mask_matrix=mask_matrix, function_name=this_metric_name
+            )
+        elif this_param_dict[SCORE_NAME_KEY] == IOU_NAME:
+            this_function = custom_metrics.iou(
+                half_window_size_px=this_param_dict[HALF_WINDOW_SIZE_KEY],
+                mask_matrix=mask_matrix,
+                use_as_loss_function=use_as_loss_function,
+                function_name=this_metric_name
+            )
         else:
-            if this_param_dict[SCORE_NAME_KEY] == FSS_NAME:
-                this_function = custom_losses.fractions_skill_score(
-                    half_window_size_px=this_param_dict[HALF_WINDOW_SIZE_KEY],
-                    mask_matrix=mask_matrix,
-                    use_as_loss_function=use_as_loss_function,
-                    function_name=this_metric_name
-                )
-            elif this_param_dict[SCORE_NAME_KEY] == BRIER_SCORE_NAME:
-                this_function = custom_metrics.brier_score(
-                    half_window_size_px=this_param_dict[HALF_WINDOW_SIZE_KEY],
-                    mask_matrix=mask_matrix, function_name=this_metric_name
-                )
-            elif this_param_dict[SCORE_NAME_KEY] == CSI_NAME:
-                this_function = custom_metrics.csi(
-                    half_window_size_px=this_param_dict[HALF_WINDOW_SIZE_KEY],
-                    mask_matrix=mask_matrix,
-                    use_as_loss_function=use_as_loss_function,
-                    function_name=this_metric_name
-                )
-            elif this_param_dict[SCORE_NAME_KEY] == FREQUENCY_BIAS_NAME:
-                this_function = custom_metrics.frequency_bias(
-                    half_window_size_px=this_param_dict[HALF_WINDOW_SIZE_KEY],
-                    mask_matrix=mask_matrix, function_name=this_metric_name
-                )
-            elif this_param_dict[SCORE_NAME_KEY] == IOU_NAME:
-                this_function = custom_metrics.iou(
-                    half_window_size_px=this_param_dict[HALF_WINDOW_SIZE_KEY],
-                    mask_matrix=mask_matrix,
-                    use_as_loss_function=use_as_loss_function,
-                    function_name=this_metric_name
-                )
-            else:
-                this_function = custom_metrics.dice_coeff(
-                    half_window_size_px=this_param_dict[HALF_WINDOW_SIZE_KEY],
-                    mask_matrix=mask_matrix,
-                    use_as_loss_function=use_as_loss_function,
-                    function_name=this_metric_name
-                )
+            this_function = custom_metrics.dice_coeff(
+                half_window_size_px=this_param_dict[HALF_WINDOW_SIZE_KEY],
+                mask_matrix=mask_matrix,
+                use_as_loss_function=use_as_loss_function,
+                function_name=this_metric_name
+            )
 
         metric_function_list.append(this_function)
         metric_function_dict[this_metric_name] = this_function
