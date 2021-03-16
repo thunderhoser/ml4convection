@@ -36,7 +36,10 @@ METRIC_NAMES = [
     'fss_neigh0', 'fss_neigh1', 'fss_neigh2', 'fss_neigh3', 'fss_neigh4',
     'csi_neigh0', 'csi_neigh1', 'csi_neigh2', 'csi_neigh3', 'csi_neigh4',
     'iou_neigh0', 'iou_neigh1', 'iou_neigh2', 'iou_neigh3', 'iou_neigh4',
-    'csi_band_0.0500000000deg_infdeg', 'iou_band_0.0500000000deg_infdeg'
+    'csi_band_0.0500000000deg_infdeg', 'iou_band_0.0500000000deg_infdeg',
+    'freqmsereal_band_0.0500000000deg_infdeg',
+    'freqmseimag_band_0.0500000000deg_infdeg',
+    'freqmse_band_0.0500000000deg_infdeg'
 ]
 
 DEFAULT_OPTION_DICT = {

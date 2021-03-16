@@ -26,10 +26,13 @@ CSI_NAME = 'csi'
 FREQUENCY_BIAS_NAME = 'bias'
 IOU_NAME = 'iou'
 DICE_COEFF_NAME = 'dice'
+REAL_FREQ_MSE_NAME = 'freqmsereal'
+IMAGINARY_FREQ_MSE_NAME = 'freqmseimag'
+FREQ_MSE_NAME = 'freqmse'
 
 VALID_SCORE_NAMES = [
     FSS_NAME, BRIER_SCORE_NAME, CSI_NAME, FREQUENCY_BIAS_NAME, IOU_NAME,
-    DICE_COEFF_NAME
+    DICE_COEFF_NAME, REAL_FREQ_MSE_NAME, IMAGINARY_FREQ_MSE_NAME, FREQ_MSE_NAME
 ]
 
 
@@ -126,6 +129,10 @@ def _filter_fields(
     :param orig_num_columns: Same.
     :return: target_tensor: Filtered version of input.
     :return: prediction_tensor: Filtered version of input.
+    :return: target_coeff_tensor: Tensor of filtered Fourier weights, in the
+        same shape as `target_tensor`.
+    :return: predicted_coeff_tensor: Tensor of filtered Fourier weights, in the
+        same shape as `prediction_tensor`.
     """
 
     padding_arg = (
@@ -166,7 +173,10 @@ def _filter_fields(
     prediction_tensor = K.maximum(prediction_tensor, 0.)
     prediction_tensor = K.minimum(prediction_tensor, 1.)
 
-    return target_tensor, prediction_tensor
+    return (
+        target_tensor, prediction_tensor,
+        target_coeff_tensor, predicted_coeff_tensor
+    )
 
 
 def _get_brier_score(target_tensor, prediction_tensor, mask_matrix):
@@ -313,6 +323,38 @@ def _get_dice_coeff(target_tensor, prediction_tensor, mask_matrix):
     )
 
 
+def _get_frequency_domain_mse(
+        target_coeff_tensor, predicted_coeff_tensor, include_real,
+        include_imaginary):
+    """Computes mean squared error (MSE) in frequency domain.
+
+    :param target_coeff_tensor: See output doc for `_filter_fields`.
+    :param predicted_coeff_tensor: Same.
+    :param include_real: See input doc for `frequency_domain_mse`.
+    :param include_imaginary: Same.
+    """
+
+    error_checking.assert_is_boolean(include_real)
+    error_checking.assert_is_boolean(include_imaginary)
+    error_checking.assert_is_greater(
+        int(include_real) + int(include_imaginary), 0
+    )
+
+    if not include_imaginary:
+        target_coeff_tensor = tensorflow.math.real(target_coeff_tensor)
+        predicted_coeff_tensor = tensorflow.math.real(
+            predicted_coeff_tensor
+        )
+
+    if not include_real:
+        target_coeff_tensor = tensorflow.math.imag(target_coeff_tensor)
+        predicted_coeff_tensor = tensorflow.math.imag(
+            predicted_coeff_tensor
+        )
+
+    return K.mean(K.abs(target_coeff_tensor - predicted_coeff_tensor) ** 2)
+
+
 def brier_score(
         spatial_coeff_matrix, frequency_coeff_matrix, mask_matrix,
         use_as_loss_function=True, function_name=None):
@@ -354,7 +396,7 @@ def brier_score(
             spatial_coeff_matrix=spatial_coeff_matrix,
             frequency_coeff_matrix=frequency_coeff_matrix,
             orig_num_rows=orig_num_rows, orig_num_columns=orig_num_columns
-        )
+        )[:2]
 
         return _get_brier_score(
             target_tensor=target_tensor, prediction_tensor=prediction_tensor,
@@ -407,7 +449,7 @@ def csi(spatial_coeff_matrix, frequency_coeff_matrix, mask_matrix,
             spatial_coeff_matrix=spatial_coeff_matrix,
             frequency_coeff_matrix=frequency_coeff_matrix,
             orig_num_rows=orig_num_rows, orig_num_columns=orig_num_columns
-        )
+        )[:2]
 
         csi_value = _get_csi(
             target_tensor=target_tensor, prediction_tensor=prediction_tensor,
@@ -461,7 +503,7 @@ def frequency_bias(spatial_coeff_matrix, frequency_coeff_matrix, mask_matrix,
             spatial_coeff_matrix=spatial_coeff_matrix,
             frequency_coeff_matrix=frequency_coeff_matrix,
             orig_num_rows=orig_num_rows, orig_num_columns=orig_num_columns
-        )
+        )[:2]
 
         return _get_frequency_bias(
             target_tensor=target_tensor, prediction_tensor=prediction_tensor,
@@ -514,7 +556,7 @@ def pixelwise_fss(spatial_coeff_matrix, frequency_coeff_matrix, mask_matrix,
             spatial_coeff_matrix=spatial_coeff_matrix,
             frequency_coeff_matrix=frequency_coeff_matrix,
             orig_num_rows=orig_num_rows, orig_num_columns=orig_num_columns
-        )
+        )[:2]
 
         fss_value = _get_pixelwise_fss(
             target_tensor=target_tensor, prediction_tensor=prediction_tensor,
@@ -572,7 +614,7 @@ def iou(spatial_coeff_matrix, frequency_coeff_matrix, mask_matrix,
             spatial_coeff_matrix=spatial_coeff_matrix,
             frequency_coeff_matrix=frequency_coeff_matrix,
             orig_num_rows=orig_num_rows, orig_num_columns=orig_num_columns
-        )
+        )[:2]
 
         iou_value = _get_iou(
             target_tensor=target_tensor, prediction_tensor=prediction_tensor,
@@ -631,7 +673,7 @@ def dice_coeff(
             spatial_coeff_matrix=spatial_coeff_matrix,
             frequency_coeff_matrix=frequency_coeff_matrix,
             orig_num_rows=orig_num_rows, orig_num_columns=orig_num_columns
-        )
+        )[:2]
 
         dice_value = _get_dice_coeff(
             target_tensor=target_tensor, prediction_tensor=prediction_tensor,
@@ -689,7 +731,10 @@ def metrics(spatial_coeff_matrix, frequency_coeff_matrix, mask_matrix,
             each value is a metric value (scalar).
         """
 
-        target_tensor, prediction_tensor = _filter_fields(
+        (
+            target_tensor, prediction_tensor,
+            target_coeff_tensor, predicted_coeff_tensor
+        ) = _filter_fields(
             target_tensor=target_tensor, prediction_tensor=prediction_tensor,
             spatial_coeff_matrix=spatial_coeff_matrix,
             frequency_coeff_matrix=frequency_coeff_matrix,
@@ -729,11 +774,29 @@ def metrics(spatial_coeff_matrix, frequency_coeff_matrix, mask_matrix,
                     prediction_tensor=prediction_tensor,
                     mask_matrix=mask_matrix
                 )
-            else:
+            elif score_names[i] == DICE_COEFF_NAME:
                 metrics_dict[metric_names[i]] = _get_dice_coeff(
                     target_tensor=target_tensor,
                     prediction_tensor=prediction_tensor,
                     mask_matrix=mask_matrix
+                )
+            elif score_names[i] == REAL_FREQ_MSE_NAME:
+                metrics_dict[metric_names[i]] = _get_frequency_domain_mse(
+                    target_coeff_tensor=target_coeff_tensor,
+                    predicted_coeff_tensor=predicted_coeff_tensor,
+                    include_real=True, include_imaginary=False
+                )
+            elif score_names[i] == IMAGINARY_FREQ_MSE_NAME:
+                metrics_dict[metric_names[i]] = _get_frequency_domain_mse(
+                    target_coeff_tensor=target_coeff_tensor,
+                    predicted_coeff_tensor=predicted_coeff_tensor,
+                    include_real=False, include_imaginary=True
+                )
+            else:
+                metrics_dict[metric_names[i]] = _get_frequency_domain_mse(
+                    target_coeff_tensor=target_coeff_tensor,
+                    predicted_coeff_tensor=predicted_coeff_tensor,
+                    include_real=True, include_imaginary=True
                 )
 
         return metrics_dict
@@ -742,3 +805,171 @@ def metrics(spatial_coeff_matrix, frequency_coeff_matrix, mask_matrix,
         metrics_function.__name__ = function_name
 
     return metrics_function
+
+
+def frequency_domain_mse_real(
+        spatial_coeff_matrix, frequency_coeff_matrix, function_name=None):
+    """Creates function to compute MSE on real part of Fourier weights.
+
+    :param spatial_coeff_matrix: See doc for `_check_input_args`.
+    :param frequency_coeff_matrix: Same.
+    :param function_name: Same.
+    :return: mse_function: Function (defined below).
+    """
+
+    orig_num_rows = int(numpy.round(
+        float(spatial_coeff_matrix.shape[0]) / 3
+    ))
+    orig_num_columns = int(numpy.round(
+        float(spatial_coeff_matrix.shape[1]) / 3
+    ))
+    mask_matrix = numpy.full((orig_num_rows, orig_num_columns), 1, dtype=bool)
+
+    argument_dict = _check_input_args(
+        spatial_coeff_matrix=spatial_coeff_matrix,
+        frequency_coeff_matrix=frequency_coeff_matrix,
+        mask_matrix=mask_matrix, function_name=function_name
+    )
+
+    spatial_coeff_matrix = argument_dict[SPATIAL_COEFFS_KEY]
+    frequency_coeff_matrix = argument_dict[FREQUENCY_COEFFS_KEY]
+    orig_num_rows = argument_dict[ORIG_NUM_ROWS_KEY]
+    orig_num_columns = argument_dict[ORIG_NUM_COLUMNS_KEY]
+
+    def mse_function(target_tensor, prediction_tensor):
+        """Computes MSE on real part of Fourier weights.
+
+        :param target_tensor: Tensor of target (actual) values.
+        :param prediction_tensor: Tensor of predicted values.
+        :return: mse: Mean squared error (scalar).
+        """
+
+        target_coeff_tensor, predicted_coeff_tensor = _filter_fields(
+            target_tensor=target_tensor, prediction_tensor=prediction_tensor,
+            spatial_coeff_matrix=spatial_coeff_matrix,
+            frequency_coeff_matrix=frequency_coeff_matrix,
+            orig_num_rows=orig_num_rows, orig_num_columns=orig_num_columns
+        )[2:]
+
+        return _get_frequency_domain_mse(
+            target_coeff_tensor=target_coeff_tensor,
+            predicted_coeff_tensor=predicted_coeff_tensor,
+            include_real=True, include_imaginary=False
+        )
+
+    if function_name is not None:
+        mse_function.__name__ = function_name
+
+    return mse_function
+
+
+def frequency_domain_mse_imag(
+        spatial_coeff_matrix, frequency_coeff_matrix, function_name=None):
+    """Creates function to compute MSE on imaginary part of Fourier weights.
+
+    :param spatial_coeff_matrix: See doc for `_check_input_args`.
+    :param frequency_coeff_matrix: Same.
+    :param function_name: Same.
+    :return: mse_function: Function (defined below).
+    """
+
+    orig_num_rows = int(numpy.round(
+        float(spatial_coeff_matrix.shape[0]) / 3
+    ))
+    orig_num_columns = int(numpy.round(
+        float(spatial_coeff_matrix.shape[1]) / 3
+    ))
+    mask_matrix = numpy.full((orig_num_rows, orig_num_columns), 1, dtype=bool)
+
+    argument_dict = _check_input_args(
+        spatial_coeff_matrix=spatial_coeff_matrix,
+        frequency_coeff_matrix=frequency_coeff_matrix,
+        mask_matrix=mask_matrix, function_name=function_name
+    )
+
+    spatial_coeff_matrix = argument_dict[SPATIAL_COEFFS_KEY]
+    frequency_coeff_matrix = argument_dict[FREQUENCY_COEFFS_KEY]
+    orig_num_rows = argument_dict[ORIG_NUM_ROWS_KEY]
+    orig_num_columns = argument_dict[ORIG_NUM_COLUMNS_KEY]
+
+    def mse_function(target_tensor, prediction_tensor):
+        """Computes MSE on imaginary part of Fourier weights.
+
+        :param target_tensor: Tensor of target (actual) values.
+        :param prediction_tensor: Tensor of predicted values.
+        :return: mse: Mean squared error (scalar).
+        """
+
+        target_coeff_tensor, predicted_coeff_tensor = _filter_fields(
+            target_tensor=target_tensor, prediction_tensor=prediction_tensor,
+            spatial_coeff_matrix=spatial_coeff_matrix,
+            frequency_coeff_matrix=frequency_coeff_matrix,
+            orig_num_rows=orig_num_rows, orig_num_columns=orig_num_columns
+        )[2:]
+
+        return _get_frequency_domain_mse(
+            target_coeff_tensor=target_coeff_tensor,
+            predicted_coeff_tensor=predicted_coeff_tensor,
+            include_real=False, include_imaginary=True
+        )
+
+    if function_name is not None:
+        mse_function.__name__ = function_name
+
+    return mse_function
+
+
+def frequency_domain_mse(
+        spatial_coeff_matrix, frequency_coeff_matrix, function_name=None):
+    """Creates function to compute MSE on Fourier weights (real & imagnry part).
+
+    :param spatial_coeff_matrix: See doc for `_check_input_args`.
+    :param frequency_coeff_matrix: Same.
+    :param function_name: Same.
+    :return: mse_function: Function (defined below).
+    """
+
+    orig_num_rows = int(numpy.round(
+        float(spatial_coeff_matrix.shape[0]) / 3
+    ))
+    orig_num_columns = int(numpy.round(
+        float(spatial_coeff_matrix.shape[1]) / 3
+    ))
+    mask_matrix = numpy.full((orig_num_rows, orig_num_columns), 1, dtype=bool)
+
+    argument_dict = _check_input_args(
+        spatial_coeff_matrix=spatial_coeff_matrix,
+        frequency_coeff_matrix=frequency_coeff_matrix,
+        mask_matrix=mask_matrix, function_name=function_name
+    )
+
+    spatial_coeff_matrix = argument_dict[SPATIAL_COEFFS_KEY]
+    frequency_coeff_matrix = argument_dict[FREQUENCY_COEFFS_KEY]
+    orig_num_rows = argument_dict[ORIG_NUM_ROWS_KEY]
+    orig_num_columns = argument_dict[ORIG_NUM_COLUMNS_KEY]
+
+    def mse_function(target_tensor, prediction_tensor):
+        """Computes MSE on Fourier weights (real & imaginary part).
+
+        :param target_tensor: Tensor of target (actual) values.
+        :param prediction_tensor: Tensor of predicted values.
+        :return: mse: Mean squared error (scalar).
+        """
+
+        target_coeff_tensor, predicted_coeff_tensor = _filter_fields(
+            target_tensor=target_tensor, prediction_tensor=prediction_tensor,
+            spatial_coeff_matrix=spatial_coeff_matrix,
+            frequency_coeff_matrix=frequency_coeff_matrix,
+            orig_num_rows=orig_num_rows, orig_num_columns=orig_num_columns
+        )[2:]
+
+        return _get_frequency_domain_mse(
+            target_coeff_tensor=target_coeff_tensor,
+            predicted_coeff_tensor=predicted_coeff_tensor,
+            include_real=True, include_imaginary=True
+        )
+
+    if function_name is not None:
+        mse_function.__name__ = function_name
+
+    return mse_function
