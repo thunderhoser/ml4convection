@@ -122,6 +122,108 @@ class FourierMetricsTests(unittest.TestCase):
             this_dice_coeff, DICE_COEFF, atol=TOLERANCE
         ))
 
+    def test_metrics(self):
+        """Ensures correct output from metrics()."""
+
+        these_metric_names = [
+            fourier_metrics.BRIER_SCORE_NAME + '_foo',
+            fourier_metrics.CSI_NAME + '_foo',
+            fourier_metrics.FREQUENCY_BIAS_NAME + '_foo',
+            fourier_metrics.FSS_NAME + '_foo',
+            fourier_metrics.IOU_NAME + '_foo',
+            fourier_metrics.DICE_COEFF_NAME + '_foo',
+            fourier_metrics.REAL_FREQ_MSE_NAME + '_foo',
+            fourier_metrics.IMAGINARY_FREQ_MSE_NAME + '_foo',
+            fourier_metrics.FREQ_MSE_NAME + '_foo'
+        ]
+
+        this_function = fourier_metrics.metrics(
+            spatial_coeff_matrix=SPATIAL_COEFF_MATRIX,
+            frequency_coeff_matrix=FREQUENCY_COEFF_MATRIX,
+            mask_matrix=MASK_MATRIX,
+            metric_names=these_metric_names, function_name='metrics_foo'
+        )
+
+        metrics_dict = this_function(TARGET_TENSOR, PREDICTION_TENSOR)
+
+        self.assertTrue(numpy.isclose(
+            K.eval(metrics_dict[fourier_metrics.BRIER_SCORE_NAME + '_foo']),
+            BRIER_SCORE, atol=TOLERANCE
+        ))
+        self.assertTrue(numpy.isclose(
+            K.eval(metrics_dict[fourier_metrics.CSI_NAME + '_foo']),
+            CSI_VALUE, atol=TOLERANCE
+        ))
+        self.assertTrue(numpy.isclose(
+            K.eval(metrics_dict[fourier_metrics.FREQUENCY_BIAS_NAME + '_foo']),
+            FREQUENCY_BIAS, atol=TOLERANCE
+        ))
+        self.assertTrue(numpy.isclose(
+            K.eval(metrics_dict[fourier_metrics.FSS_NAME + '_foo']),
+            PIXELWISE_FSS, atol=TOLERANCE
+        ))
+        self.assertTrue(numpy.isclose(
+            K.eval(metrics_dict[fourier_metrics.IOU_NAME + '_foo']),
+            IOU_VALUE, atol=TOLERANCE
+        ))
+        self.assertTrue(numpy.isclose(
+            K.eval(metrics_dict[fourier_metrics.DICE_COEFF_NAME + '_foo']),
+            DICE_COEFF, atol=TOLERANCE
+        ))
+
+        self.assertTrue(
+            K.eval(metrics_dict[fourier_metrics.REAL_FREQ_MSE_NAME + '_foo'])
+            > 0.
+        )
+        self.assertTrue(
+            K.eval(
+                metrics_dict[fourier_metrics.IMAGINARY_FREQ_MSE_NAME + '_foo']
+            ) > 0.
+        )
+        self.assertTrue(
+            K.eval(metrics_dict[fourier_metrics.FREQ_MSE_NAME + '_foo'])
+            > 0.
+        )
+
+    def test_frequency_domain_mse_real(self):
+        """Ensures correct output from frequency_domain_mse_real."""
+
+        this_function = fourier_metrics.frequency_domain_mse_real(
+            spatial_coeff_matrix=SPATIAL_COEFF_MATRIX,
+            frequency_coeff_matrix=FREQUENCY_COEFF_MATRIX
+        )
+
+        this_mse = K.eval(
+            this_function(TARGET_TENSOR, PREDICTION_TENSOR)
+        )
+        self.assertTrue(this_mse > 0.)
+
+    def test_frequency_domain_mse_imag(self):
+        """Ensures correct output from frequency_domain_mse_imag."""
+
+        this_function = fourier_metrics.frequency_domain_mse_imag(
+            spatial_coeff_matrix=SPATIAL_COEFF_MATRIX,
+            frequency_coeff_matrix=FREQUENCY_COEFF_MATRIX
+        )
+
+        this_mse = K.eval(
+            this_function(TARGET_TENSOR, PREDICTION_TENSOR)
+        )
+        self.assertTrue(this_mse > 0.)
+
+    def test_frequency_domain_mse(self):
+        """Ensures correct output from frequency_domain_mse."""
+
+        this_function = fourier_metrics.frequency_domain_mse(
+            spatial_coeff_matrix=SPATIAL_COEFF_MATRIX,
+            frequency_coeff_matrix=FREQUENCY_COEFF_MATRIX
+        )
+
+        this_mse = K.eval(
+            this_function(TARGET_TENSOR, PREDICTION_TENSOR)
+        )
+        self.assertTrue(this_mse > 0.)
+
 
 if __name__ == '__main__':
     unittest.main()
