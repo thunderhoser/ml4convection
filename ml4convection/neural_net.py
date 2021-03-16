@@ -1004,74 +1004,74 @@ def get_metrics(metric_names, mask_matrix, use_as_loss_function):
     metric_function_list = []
     metric_function_dict = dict()
 
-    # if not use_as_loss_function:
-    #     min_resolutions_deg = [
-    #         metric_name_to_params(n)[MIN_RESOLUTION_KEY] for n in metric_names
-    #     ]
-    #     min_resolutions_deg = numpy.array([
-    #         -1. if r is None else r for r in min_resolutions_deg
-    #     ])
-    #
-    #     max_resolutions_deg = [
-    #         metric_name_to_params(n)[MAX_RESOLUTION_KEY] for n in metric_names
-    #     ]
-    #     max_resolutions_deg = numpy.array([
-    #         -1. if r is None else r for r in max_resolutions_deg
-    #     ])
-    #
-    #     resolution_matrix_deg = numpy.transpose(numpy.vstack((
-    #         min_resolutions_deg, max_resolutions_deg
-    #     )))
-    #     unique_resolution_matrix_deg, orig_to_unique_indices = numpy.unique(
-    #         resolution_matrix_deg, axis=0, return_inverse=True
-    #     )
-    #     num_unique_resolutions = unique_resolution_matrix_deg.shape[0]
-    #
-    #     for k in range(num_unique_resolutions):
-    #         if unique_resolution_matrix_deg[k, 0] < 0:
-    #             continue
-    #
-    #         this_spatial_coeff_matrix = fourier_utils.apply_blackman_window(
-    #             numpy.full(fourier_dimensions, 1.)
-    #         )
-    #         this_frequency_coeff_matrix = (
-    #             fourier_utils.apply_butterworth_filter(
-    #                 coefficient_matrix=numpy.full(fourier_dimensions, 1.),
-    #                 filter_order=2., grid_spacing_metres=0.0125,
-    #                 min_resolution_metres=unique_resolution_matrix_deg[k, 0],
-    #                 max_resolution_metres=unique_resolution_matrix_deg[k, 1]
-    #             )
-    #         )
-    #
-    #         this_metric_wrapper_name = metric_params_to_name(
-    #             score_name=FSS_NAME, half_window_size_px=None,
-    #             min_resolution_deg=unique_resolution_matrix_deg[k, 0],
-    #             max_resolution_deg=unique_resolution_matrix_deg[k, 1]
-    #         )
-    #         this_metric_wrapper_name = '_'.join(
-    #             ['metrics'] + this_metric_wrapper_name.split('_')[1:]
-    #         )
-    #
-    #         these_indices = numpy.where(orig_to_unique_indices == k)[0]
-    #         this_function = fourier_metrics.metrics(
-    #             spatial_coeff_matrix=this_spatial_coeff_matrix,
-    #             frequency_coeff_matrix=this_frequency_coeff_matrix,
-    #             mask_matrix=mask_matrix,
-    #             metric_names=[metric_names[i] for i in these_indices],
-    #             function_name=this_metric_wrapper_name
-    #         )
-    #
-    #         metric_function_list.append(this_function)
-    #         metric_function_dict[this_metric_wrapper_name] = this_function
+    if not use_as_loss_function:
+        min_resolutions_deg = [
+            metric_name_to_params(n)[MIN_RESOLUTION_KEY] for n in metric_names
+        ]
+        min_resolutions_deg = numpy.array([
+            -1. if r is None else r for r in min_resolutions_deg
+        ])
+
+        max_resolutions_deg = [
+            metric_name_to_params(n)[MAX_RESOLUTION_KEY] for n in metric_names
+        ]
+        max_resolutions_deg = numpy.array([
+            -1. if r is None else r for r in max_resolutions_deg
+        ])
+
+        resolution_matrix_deg = numpy.transpose(numpy.vstack((
+            min_resolutions_deg, max_resolutions_deg
+        )))
+        unique_resolution_matrix_deg, orig_to_unique_indices = numpy.unique(
+            resolution_matrix_deg, axis=0, return_inverse=True
+        )
+        num_unique_resolutions = unique_resolution_matrix_deg.shape[0]
+
+        for k in range(num_unique_resolutions):
+            if unique_resolution_matrix_deg[k, 0] < 0:
+                continue
+
+            this_spatial_coeff_matrix = fourier_utils.apply_blackman_window(
+                numpy.full(fourier_dimensions, 1.)
+            )
+            this_frequency_coeff_matrix = (
+                fourier_utils.apply_butterworth_filter(
+                    coefficient_matrix=numpy.full(fourier_dimensions, 1.),
+                    filter_order=2., grid_spacing_metres=0.0125,
+                    min_resolution_metres=unique_resolution_matrix_deg[k, 0],
+                    max_resolution_metres=unique_resolution_matrix_deg[k, 1]
+                )
+            )
+
+            this_metric_wrapper_name = metric_params_to_name(
+                score_name=FSS_NAME, half_window_size_px=None,
+                min_resolution_deg=unique_resolution_matrix_deg[k, 0],
+                max_resolution_deg=unique_resolution_matrix_deg[k, 1]
+            )
+            this_metric_wrapper_name = '_'.join(
+                ['metrics'] + this_metric_wrapper_name.split('_')[1:]
+            )
+
+            these_indices = numpy.where(orig_to_unique_indices == k)[0]
+            this_function = fourier_metrics.metrics(
+                spatial_coeff_matrix=this_spatial_coeff_matrix,
+                frequency_coeff_matrix=this_frequency_coeff_matrix,
+                mask_matrix=mask_matrix,
+                metric_names=[metric_names[i] for i in these_indices],
+                function_name=this_metric_wrapper_name
+            )
+
+            metric_function_list.append(this_function)
+            metric_function_dict[this_metric_wrapper_name] = this_function
 
     for this_metric_name in metric_names:
         this_param_dict = metric_name_to_params(this_metric_name)
 
-        # if (
-        #         this_param_dict[HALF_WINDOW_SIZE_KEY] is None
-        #         and not use_as_loss_function
-        # ):
-        #     continue
+        if (
+                this_param_dict[HALF_WINDOW_SIZE_KEY] is None
+                and not use_as_loss_function
+        ):
+            continue
 
         if this_param_dict[HALF_WINDOW_SIZE_KEY] is None:
             this_spatial_coeff_matrix = fourier_utils.apply_blackman_window(
@@ -1920,6 +1920,8 @@ def read_model(hdf5_file_name, for_mirrored_training=False):
             metric_names=metric_names, mask_matrix=mask_matrix,
             use_as_loss_function=False
         )
+
+    print(custom_object_dict)
 
     if loss_function_name is not None:
         try:
