@@ -271,8 +271,9 @@ def _run(top_prediction_dir_name, valid_time_string, radar_number,
         prediction_dict=prediction_dict, example_index=0,
         border_latitudes_deg_n=border_latitudes_deg_n,
         border_longitudes_deg_e=border_longitudes_deg_e,
-        mask_matrix=mask_matrix, plot_deterministic=False,
-        probability_threshold=None, max_prob_in_colour_bar=1.,
+        mask_matrix=mask_matrix,
+        plot_deterministic=False, probability_threshold=None,
+        max_prob_in_colour_bar=1., make_lowest_prob_grey=True,
         title_string='Original probability field',
         output_dir_name=output_dir_name, font_size=FONT_SIZE
     )
@@ -280,7 +281,9 @@ def _run(top_prediction_dir_name, valid_time_string, radar_number,
     new_file_name = '{0:s}/original_field.jpg'.format(output_dir_name)
     shutil.move(orig_file_name, new_file_name)
 
-    num_panels = NUM_PANEL_ROWS * NUM_PANEL_COLUMNS
+    # TODO(thunderhoser): HACK
+    # num_panels = NUM_PANEL_ROWS * NUM_PANEL_COLUMNS
+    num_panels = 7
     panel_file_names = [''] * num_panels
     panel_file_names[0] = new_file_name
 
@@ -346,8 +349,9 @@ def _run(top_prediction_dir_name, valid_time_string, radar_number,
         prediction_dict=prediction_dict, example_index=0,
         border_latitudes_deg_n=border_latitudes_deg_n,
         border_longitudes_deg_e=border_longitudes_deg_e,
-        mask_matrix=mask_matrix, plot_deterministic=False,
-        probability_threshold=None, max_prob_in_colour_bar=1.,
+        mask_matrix=mask_matrix,
+        plot_deterministic=False, probability_threshold=None,
+        max_prob_in_colour_bar=1., make_lowest_prob_grey=True,
         title_string='Tapered probability field',
         output_dir_name=output_dir_name, font_size=FONT_SIZE
     )
@@ -381,8 +385,9 @@ def _run(top_prediction_dir_name, valid_time_string, radar_number,
         prediction_dict=prediction_dict, example_index=0,
         border_latitudes_deg_n=border_latitudes_deg_n,
         border_longitudes_deg_e=border_longitudes_deg_e,
-        mask_matrix=mask_matrix, plot_deterministic=False,
-        probability_threshold=None, max_prob_in_colour_bar=1.,
+        mask_matrix=mask_matrix,
+        plot_deterministic=False, probability_threshold=None,
+        max_prob_in_colour_bar=1., make_lowest_prob_grey=True,
         title_string='Windowed probability field',
         output_dir_name=output_dir_name, font_size=FONT_SIZE
     )
@@ -448,6 +453,46 @@ def _run(top_prediction_dir_name, valid_time_string, radar_number,
         border_width_pixels=SMALL_BORDER_WIDTH_PX
     )
 
+    # Plot Butterworth filter.
+    butterworth_filter_matrix = fourier_utils.apply_butterworth_filter(
+        coefficient_matrix=numpy.ones(weight_matrix.shape), filter_order=2.,
+        grid_spacing_metres=GRID_SPACING_DEG,
+        min_resolution_metres=min_resolution_deg,
+        max_resolution_metres=max_resolution_deg
+    )
+
+    max_colour_value = numpy.percentile(
+        butterworth_filter_matrix, MAX_COLOUR_PERCENTILE
+    )
+    this_file_name = '{0:s}/butterworth_filter.jpg'.format(output_dir_name)
+    panel_file_names[3] = this_file_name
+
+    _plot_fourier_weights(
+        weight_matrix=butterworth_filter_matrix,
+        max_colour_value=max_colour_value,
+        title_string='Butterworth filter',
+        output_file_name=panel_file_names[3]
+    )
+
+    letter_label = chr(ord(letter_label) + 1)
+
+    imagemagick_utils.trim_whitespace(
+        input_file_name=panel_file_names[3],
+        output_file_name=panel_file_names[3],
+        border_width_pixels=LARGE_BORDER_WIDTH_PX
+    )
+    _overlay_text(
+        image_file_name=panel_file_names[3],
+        x_offset_from_left_px=0,
+        y_offset_from_top_px=2 * LARGE_BORDER_WIDTH_PX,
+        text_string='({0:s})'.format(letter_label)
+    )
+    imagemagick_utils.trim_whitespace(
+        input_file_name=panel_file_names[3],
+        output_file_name=panel_file_names[3],
+        border_width_pixels=SMALL_BORDER_WIDTH_PX
+    )
+
     # Plot filtered Fourier weights.
     weight_matrix = fourier_utils.apply_butterworth_filter(
         coefficient_matrix=weight_matrix, filter_order=2.,
@@ -470,30 +515,30 @@ def _run(top_prediction_dir_name, valid_time_string, radar_number,
         numpy.absolute(weight_matrix), MAX_COLOUR_PERCENTILE
     )
     this_file_name = '{0:s}/filtered_weights.jpg'.format(output_dir_name)
-    panel_file_names[3] = this_file_name
+    panel_file_names[5] = this_file_name
 
     _plot_fourier_weights(
         weight_matrix=weight_matrix, max_colour_value=max_colour_value,
         title_string='Filtered Fourier weights',
-        output_file_name=panel_file_names[3]
+        output_file_name=panel_file_names[5]
     )
 
     letter_label = chr(ord(letter_label) + 1)
 
     imagemagick_utils.trim_whitespace(
-        input_file_name=panel_file_names[3],
-        output_file_name=panel_file_names[3],
+        input_file_name=panel_file_names[5],
+        output_file_name=panel_file_names[5],
         border_width_pixels=LARGE_BORDER_WIDTH_PX
     )
     _overlay_text(
-        image_file_name=panel_file_names[3],
+        image_file_name=panel_file_names[5],
         x_offset_from_left_px=0,
         y_offset_from_top_px=2 * LARGE_BORDER_WIDTH_PX,
         text_string='({0:s})'.format(letter_label)
     )
     imagemagick_utils.trim_whitespace(
-        input_file_name=panel_file_names[3],
-        output_file_name=panel_file_names[3],
+        input_file_name=panel_file_names[5],
+        output_file_name=panel_file_names[5],
         border_width_pixels=SMALL_BORDER_WIDTH_PX
     )
 
@@ -534,8 +579,9 @@ def _run(top_prediction_dir_name, valid_time_string, radar_number,
         prediction_dict=prediction_dict, example_index=0,
         border_latitudes_deg_n=border_latitudes_deg_n,
         border_longitudes_deg_e=border_longitudes_deg_e,
-        mask_matrix=mask_matrix, plot_deterministic=False,
-        probability_threshold=None, max_prob_in_colour_bar=1.,
+        mask_matrix=mask_matrix,
+        plot_deterministic=False, probability_threshold=None,
+        max_prob_in_colour_bar=1., make_lowest_prob_grey=True,
         title_string='Filtered probability field',
         output_dir_name=output_dir_name, font_size=FONT_SIZE
     )

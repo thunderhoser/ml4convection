@@ -422,7 +422,9 @@ def _run(top_satellite_dir_name, top_radar_dir_name, top_prediction_dir_name,
     )
 
     colour_map_object, colour_norm_object = (
-        prediction_plotting.get_prob_colour_scheme(1.)
+        prediction_plotting.get_prob_colour_scheme(
+            max_probability=1., make_lowest_prob_grey=False
+        )
     )
 
     gg_plotting_utils.plot_colour_bar(

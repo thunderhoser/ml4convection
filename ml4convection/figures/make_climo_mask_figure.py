@@ -110,7 +110,9 @@ def _plot_climo(
     )
 
     colour_map_object, colour_norm_object = (
-        prediction_plotting.get_prob_colour_scheme(max_colour_value)
+        prediction_plotting.get_prob_colour_scheme(
+            max_probability=max_colour_value, make_lowest_prob_grey=False
+        )
     )
 
     colour_bar_object = gg_plotting_utils.plot_colour_bar(

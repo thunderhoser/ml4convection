@@ -124,7 +124,7 @@ def _plot_predictions_one_example(
         prediction_dict, example_index, border_latitudes_deg_n,
         border_longitudes_deg_e, mask_matrix, plot_deterministic,
         probability_threshold, max_prob_in_colour_bar, output_dir_name,
-        title_string=None, font_size=30):
+        title_string=None, font_size=30, make_lowest_prob_grey=False):
     """Plots predictions (and targets) for one example (time step).
 
     M = number of rows in grid
@@ -143,6 +143,8 @@ def _plot_predictions_one_example(
     :param output_dir_name: Same.
     :param title_string: Figure title.
     :param font_size: Font size.
+    :param make_lowest_prob_grey: Boolean flag.  If True (False), will make
+        lowest probabilities grey (white).
     :return: output_file_name: Path to output file.
     """
 
@@ -202,7 +204,8 @@ def _plot_predictions_one_example(
             min_longitude_deg_e=longitudes_deg_e[0],
             latitude_spacing_deg=numpy.diff(latitudes_deg_n[:2])[0],
             longitude_spacing_deg=numpy.diff(longitudes_deg_e[:2])[0],
-            max_prob_in_colour_bar=max_prob_in_colour_bar
+            max_prob_in_colour_bar=max_prob_in_colour_bar,
+            make_lowest_prob_grey=make_lowest_prob_grey
         )
 
         if title_string is None:
@@ -211,14 +214,17 @@ def _plot_predictions_one_example(
             )
 
         colour_map_object, colour_norm_object = (
-            prediction_plotting.get_prob_colour_scheme(max_prob_in_colour_bar)
+            prediction_plotting.get_prob_colour_scheme(
+                max_probability=max_prob_in_colour_bar,
+                make_lowest_prob_grey=make_lowest_prob_grey
+            )
         )
 
         gg_plotting_utils.plot_colour_bar(
             axes_object_or_matrix=axes_object, data_matrix=probability_matrix,
             colour_map_object=colour_map_object,
             colour_norm_object=colour_norm_object,
-            orientation_string='vertical', extend_min=False, extend_max=False,
+            orientation_string='vertical', extend_min=True, extend_max=False,
             font_size=font_size
         )
 
