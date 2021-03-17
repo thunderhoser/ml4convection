@@ -30,6 +30,7 @@ IS_LAYER_OUTPUT_KEY = 'is_layer_output'
 LAYER_NAME_KEY = 'layer_name'
 NEURON_INDICES_KEY = 'neuron_indices'
 IDEAL_ACTIVATION_KEY = 'ideal_activation'
+MULTIPLY_BY_INPUT_KEY = 'multiply_by_input'
 
 VALID_TIMES_KEY = 'valid_times_unix_sec'
 LATITUDES_KEY = 'latitudes_deg_n'
@@ -37,7 +38,8 @@ LONGITUDES_KEY = 'longitudes_deg_e'
 SALIENCY_MATRIX_KEY = 'saliency_matrix'
 
 
-def check_metadata(layer_name, neuron_indices, ideal_activation):
+def check_metadata(layer_name, neuron_indices, ideal_activation,
+                   multiply_by_input):
     """Checks metadata for errors.
 
     The "relevant neuron" is that whose activation will be used in the numerator
@@ -53,6 +55,9 @@ def check_metadata(layer_name, neuron_indices, ideal_activation):
     :param ideal_activation: Ideal neuron activation, used to define loss
         function.  The loss function will be
         (neuron_activation - ideal_activation)**2.
+    :param multiply_by_input: Boolean flag.  If True, saliency will be
+        multiplied by input, so the interpretation method will actually be
+        input * gradient.
     """
 
     error_checking.assert_is_string(layer_name)
@@ -60,11 +65,12 @@ def check_metadata(layer_name, neuron_indices, ideal_activation):
     error_checking.assert_is_geq_numpy_array(neuron_indices, 0)
     error_checking.assert_is_numpy_array(neuron_indices, num_dimensions=1)
     error_checking.assert_is_not_nan(ideal_activation)
+    error_checking.assert_is_boolean(multiply_by_input)
 
 
 def get_saliency_one_neuron(
         model_object, predictor_matrix, layer_name, neuron_indices,
-        ideal_activation):
+        ideal_activation, multiply_by_input):
     """Computes saliency maps with respect to activation of one neuron.
 
     :param model_object: Trained neural net (instance of `keras.models.Model` or
@@ -74,13 +80,14 @@ def get_saliency_one_neuron(
     :param layer_name: See doc for `check_metadata`.
     :param neuron_indices: Same.
     :param ideal_activation: Same.
+    :param multiply_by_input: Same.
     :return: saliency_matrix: Matrix of saliency values, with same shape as
         `predictor_matrix`.
     """
 
     check_metadata(
         layer_name=layer_name, neuron_indices=neuron_indices,
-        ideal_activation=ideal_activation
+        ideal_activation=ideal_activation, multiply_by_input=multiply_by_input
     )
     error_checking.assert_is_numpy_array_without_nan(predictor_matrix)
 
@@ -99,10 +106,15 @@ def get_saliency_one_neuron(
 
     loss_tensor = (activation_tensor - ideal_activation) ** 2
 
-    return saliency_utils.do_saliency_calculations(
+    saliency_matrix = saliency_utils.do_saliency_calculations(
         model_object=model_object, loss_tensor=loss_tensor,
         list_of_input_matrices=[predictor_matrix]
     )[0]
+
+    if multiply_by_input:
+        saliency_matrix = saliency_matrix * predictor_matrix
+
+    return saliency_matrix
 
 
 def find_file(
@@ -183,7 +195,7 @@ def file_name_to_radar_num(saliency_file_name):
 def write_file(
         netcdf_file_name, saliency_matrix, valid_times_unix_sec,
         latitudes_deg_n, longitudes_deg_e, model_file_name, is_layer_output,
-        layer_name, neuron_indices, ideal_activation):
+        layer_name, neuron_indices, ideal_activation, multiply_by_input):
     """Writes saliency maps to NetCDF file.
 
     E = number of examples
@@ -205,6 +217,7 @@ def write_file(
     :param layer_name: See doc for `check_metadata`.
     :param neuron_indices: Same.
     :param ideal_activation: Same.
+    :param multiply_by_input: Same.
     """
 
     # Check input args.
@@ -213,7 +226,7 @@ def write_file(
 
     check_metadata(
         layer_name=layer_name, neuron_indices=neuron_indices,
-        ideal_activation=ideal_activation
+        ideal_activation=ideal_activation, multiply_by_input=multiply_by_input
     )
 
     error_checking.assert_is_numpy_array(valid_times_unix_sec, num_dimensions=1)
@@ -265,6 +278,7 @@ def write_file(
     dataset_object.setncattr(LAYER_NAME_KEY, layer_name)
     dataset_object.setncattr(NEURON_INDICES_KEY, neuron_indices)
     dataset_object.setncattr(IDEAL_ACTIVATION_KEY, ideal_activation)
+    dataset_object.setncattr(MULTIPLY_BY_INPUT_KEY, int(multiply_by_input))
 
     dataset_object.createDimension(EXAMPLE_DIMENSION_KEY, num_examples)
     dataset_object.createDimension(ROW_DIMENSION_KEY, saliency_matrix.shape[1])
@@ -324,6 +338,7 @@ def read_file(netcdf_file_name):
     saliency_dict['layer_name']: Same.
     saliency_dict['neuron_indices']: Same.
     saliency_dict['ideal_activation']: Same.
+    saliency_dict['multiply_by_input']: Same.
     """
 
     dataset_object = netCDF4.Dataset(netcdf_file_name)
@@ -336,6 +351,8 @@ def read_file(netcdf_file_name):
             getattr(dataset_object, NEURON_INDICES_KEY), dtype=int
         ),
         IDEAL_ACTIVATION_KEY: getattr(dataset_object, IDEAL_ACTIVATION_KEY),
+        MULTIPLY_BY_INPUT_KEY:
+            bool(getattr(dataset_object, MULTIPLY_BY_INPUT_KEY)),
         VALID_TIMES_KEY: numpy.array(
             dataset_object.variables[VALID_TIMES_KEY][:], dtype=int
         ),
