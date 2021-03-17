@@ -288,6 +288,12 @@ def _plot_predictions_one_model(
         colors=(MASK_OUTLINE_COLOUR,), linewidths=2, linestyles='solid'
     )
 
+    colour_map_object, colour_norm_object = (
+        prediction_plotting.get_prob_colour_scheme(
+            max_probability=1., make_lowest_prob_grey=False
+        )
+    )
+
     prediction_plotting.plot_probabilistic(
         target_matrix=target_matrix, probability_matrix=probability_matrix,
         figure_object=figure_object, axes_object=axes_object,
@@ -295,7 +301,8 @@ def _plot_predictions_one_model(
         min_longitude_deg_e=longitudes_deg_e[0],
         latitude_spacing_deg=numpy.diff(latitudes_deg_n[:2])[0],
         longitude_spacing_deg=numpy.diff(longitudes_deg_e[:2])[0],
-        max_prob_in_colour_bar=1.
+        colour_map_object=colour_map_object,
+        colour_norm_object=colour_norm_object
     )
 
     plotting_utils.plot_grid_lines(
@@ -385,7 +392,9 @@ def _run(top_prediction_dir_names, model_descriptions_abbrev, valid_time_string,
 
         if k == num_models - 1:
             colour_map_object, colour_norm_object = (
-                prediction_plotting.get_prob_colour_scheme(1.)
+                prediction_plotting.get_prob_colour_scheme(
+                    max_probability=1., make_lowest_prob_grey=False
+                )
             )
 
             gg_plotting_utils.plot_colour_bar(
