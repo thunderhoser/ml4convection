@@ -19,6 +19,7 @@ LAYER_ARG_NAME = 'layer_name'
 IS_LAYER_OUTPUT_ARG_NAME = 'is_layer_output'
 NEURON_INDICES_ARG_NAME = 'neuron_indices'
 IDEAL_ACTIVATION_ARG_NAME = 'ideal_activation'
+MULTIPLY_BY_INPUT_ARG_NAME = 'multiply_by_input'
 OUTPUT_DIR_ARG_NAME = 'output_dir_name'
 
 MODEL_FILE_HELP_STRING = (
@@ -50,6 +51,10 @@ NEURON_INDICES_HELP_STRING = (
 IDEAL_ACTIVATION_HELP_STRING = (
     'Ideal neuron activation, used to define loss function.  The loss function '
     'will be (neuron_activation - ideal_activation)**2.'
+)
+MULTIPLY_BY_INPUT_HELP_STRING = (
+    'Boolean flag.  If 1, saliency will be multiplied by input, so the '
+    'interpretation method will actually be input * gradient.'
 )
 OUTPUT_DIR_HELP_STRING = (
     'Name of output directory.  Results will be written here by '
@@ -90,6 +95,10 @@ INPUT_ARG_PARSER.add_argument(
     help=IDEAL_ACTIVATION_HELP_STRING
 )
 INPUT_ARG_PARSER.add_argument(
+    '--' + MULTIPLY_BY_INPUT_ARG_NAME, type=int, required=False, default=0,
+    help=MULTIPLY_BY_INPUT_HELP_STRING
+)
+INPUT_ARG_PARSER.add_argument(
     '--' + OUTPUT_DIR_ARG_NAME, type=str, required=True,
     help=OUTPUT_DIR_HELP_STRING
 )
@@ -98,7 +107,7 @@ INPUT_ARG_PARSER.add_argument(
 def _get_saliency_one_day(
         model_object, data_option_dict, valid_date_string, model_file_name,
         layer_name, is_layer_output, neuron_indices, ideal_activation,
-        output_dir_name):
+        multiply_by_input, output_dir_name):
     """Creates saliency maps for one day.
 
     :param model_object: Trained model (instance of `keras.models.Model` or
@@ -110,6 +119,7 @@ def _get_saliency_one_day(
     :param is_layer_output: Same.
     :param neuron_indices: Same.
     :param ideal_activation: Same.
+    :param multiply_by_input: Same.
     :param output_dir_name: Same.
     """
 
@@ -140,7 +150,8 @@ def _get_saliency_one_day(
             predictor_matrix=
             data_dict_by_radar[k][neural_net.PREDICTOR_MATRIX_KEY],
             layer_name=layer_name, neuron_indices=neuron_indices,
-            ideal_activation=ideal_activation
+            ideal_activation=ideal_activation,
+            multiply_by_input=multiply_by_input
         )
 
         output_file_name = saliency.find_file(
@@ -158,13 +169,14 @@ def _get_saliency_one_day(
             longitudes_deg_e=data_dict_by_radar[k][neural_net.LONGITUDES_KEY],
             model_file_name=model_file_name, is_layer_output=is_layer_output,
             layer_name=layer_name, neuron_indices=neuron_indices,
-            ideal_activation=ideal_activation
+            ideal_activation=ideal_activation,
+            multiply_by_input=multiply_by_input
         )
 
 
 def _run(model_file_name, top_predictor_dir_name, top_target_dir_name,
          valid_date_strings, layer_name, is_layer_output, neuron_indices,
-         ideal_activation, output_dir_name):
+         ideal_activation, multiply_by_input, output_dir_name):
     """Runs permutation-based importance test.
 
     This is effectively the main method.
@@ -177,6 +189,7 @@ def _run(model_file_name, top_predictor_dir_name, top_target_dir_name,
     :param is_layer_output: Same.
     :param neuron_indices: Same.
     :param ideal_activation: Same.
+    :param multiply_by_input: Same.
     :param output_dir_name: Same.
     """
 
@@ -219,7 +232,7 @@ def _run(model_file_name, top_predictor_dir_name, top_target_dir_name,
             valid_date_string=this_date_string, model_file_name=model_file_name,
             layer_name=layer_name, is_layer_output=is_layer_output,
             neuron_indices=neuron_indices, ideal_activation=ideal_activation,
-            output_dir_name=output_dir_name
+            multiply_by_input=multiply_by_input, output_dir_name=output_dir_name
         )
 
 
@@ -241,5 +254,8 @@ if __name__ == '__main__':
             getattr(INPUT_ARG_OBJECT, NEURON_INDICES_ARG_NAME), dtype=int
         ),
         ideal_activation=getattr(INPUT_ARG_OBJECT, IDEAL_ACTIVATION_ARG_NAME),
+        multiply_by_input=bool(
+            getattr(INPUT_ARG_OBJECT, MULTIPLY_BY_INPUT_ARG_NAME)
+        ),
         output_dir_name=getattr(INPUT_ARG_OBJECT, OUTPUT_DIR_ARG_NAME)
     )

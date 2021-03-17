@@ -771,7 +771,8 @@ def metric_params_to_name(
     _check_score_name(score_name)
 
     if half_window_size_px is not None:
-        error_checking.assert_is_integer(half_window_size_px)
+        error_checking.assert_is_not_nan(half_window_size_px)
+        half_window_size_px = int(numpy.round(half_window_size_px))
         error_checking.assert_is_geq(half_window_size_px, 0)
 
         return '{0:s}_neigh{1:d}'.format(score_name, half_window_size_px)

@@ -25,6 +25,10 @@ DATE_FORMAT = neural_net.DATE_FORMAT
 TIME_FORMAT_FOR_FILES = '%Y-%m-%d-%H%M'
 SECONDS_TO_MINUTES = 1. / 60
 
+MARKER_SIZE_GRID_CELLS = 2.
+MARKER_TYPE = '*'
+MARKER_COLOUR = numpy.full(3, 0.)
+
 FIGURE_WIDTH_INCHES = 15.
 FIGURE_HEIGHT_INCHES = 15.
 FIGURE_RESOLUTION_DPI = 300
@@ -44,6 +48,8 @@ pyplot.rc('figure', titlesize=FONT_SIZE)
 SALIENCY_FILE_ARG_NAME = 'input_saliency_file_name'
 PREDICTOR_DIR_ARG_NAME = 'input_predictor_dir_name'
 TARGET_DIR_ARG_NAME = 'input_target_dir_name'
+LAG_TIMES_ARG_NAME = 'lag_times_sec'
+BAND_NUMBERS_ARG_NAME = 'band_numbers'
 SMOOTHING_RADIUS_ARG_NAME = 'smoothing_radius_px'
 COLOUR_MAP_ARG_NAME = 'colour_map_name'
 MIN_CONTOUR_VALUE_ARG_NAME = 'min_abs_contour_value'
@@ -65,6 +71,14 @@ TARGET_DIR_HELP_STRING = (
     'Name of top-level directory with targets to use.  Files therein will be '
     'found by `example_io.find_target_file` and read by '
     '`example_io.read_target_file`.'
+)
+LAG_TIMES_HELP_STRING = (
+    'Will plot saliency maps for only these lag times (seconds).  To plot '
+    'saliency maps for all lag times, leave this argument alone.'
+)
+BAND_NUMBERS_HELP_STRING = (
+    'Will plot saliency maps for only these spectral bands (integers).  To plot'
+    ' saliency maps for all bands, leave this argument alone.'
 )
 SMOOTHING_RADIUS_HELP_STRING = (
     'e-folding radius for Gaussian smoother (num pixels).  If you do not want '
@@ -99,6 +113,14 @@ INPUT_ARG_PARSER.add_argument(
 INPUT_ARG_PARSER.add_argument(
     '--' + TARGET_DIR_ARG_NAME, type=str, required=True,
     help=TARGET_DIR_HELP_STRING
+)
+INPUT_ARG_PARSER.add_argument(
+    '--' + LAG_TIMES_ARG_NAME, type=int, nargs='+', required=False,
+    default=[-1], help=LAG_TIMES_HELP_STRING
+)
+INPUT_ARG_PARSER.add_argument(
+    '--' + BAND_NUMBERS_ARG_NAME, type=int, nargs='+', required=False,
+    default=[-1], help=BAND_NUMBERS_HELP_STRING
 )
 INPUT_ARG_PARSER.add_argument(
     '--' + SMOOTHING_RADIUS_ARG_NAME, type=float, required=False,
@@ -281,15 +303,16 @@ def _plot_predictors_one_example(
 
 
 def _plot_saliency_one_example(
-        saliency_dict, example_index, axes_object_matrix, colour_map_object,
-        min_abs_contour_value, max_abs_contour_value, half_num_contours,
-        line_width):
+        saliency_dict, example_index, figure_object_matrix, axes_object_matrix,
+        colour_map_object, min_abs_contour_value, max_abs_contour_value,
+        half_num_contours, line_width):
     """Plots saliency for one example.
 
     :param saliency_dict: Dictionary returned by `saliency.read_file`.
     :param example_index: Will plot the [i]th example, where
         i = `example_index`.
-    :param axes_object_matrix: See doc for `_plot_predictors_one_example`.
+    :param figure_object_matrix: See doc for `_plot_predictors_one_example`.
+    :param axes_object_matrix: Same.
     :param colour_map_object: See documentation at top of file.
     :param min_abs_contour_value: Same.
     :param max_abs_contour_value: Same.
@@ -299,6 +322,9 @@ def _plot_saliency_one_example(
 
     latitudes_deg_n = saliency_dict[saliency.LATITUDES_KEY]
     longitudes_deg_e = saliency_dict[saliency.LONGITUDES_KEY]
+    neuron_indices = saliency_dict[saliency.NEURON_INDICES_KEY]
+    is_layer_output = saliency_dict[saliency.IS_LAYER_OUTPUT_KEY]
+
     saliency_matrix = (
         saliency_dict[saliency.SALIENCY_MATRIX_KEY][example_index, ...]
     )
@@ -320,6 +346,24 @@ def _plot_saliency_one_example(
                 max_abs_contour_value=max_abs_contour_value,
                 half_num_contours=half_num_contours, line_width=line_width
             )
+
+            if is_layer_output:
+                figure_width_px = (
+                    figure_object_matrix[j, k].get_size_inches()[0] *
+                    figure_object_matrix[j, k].dpi
+                )
+                marker_size_px = figure_width_px * (
+                    float(MARKER_SIZE_GRID_CELLS) / saliency_matrix.shape[1]
+                )
+
+                axes_object_matrix[j, k].plot(
+                    longitudes_deg_e[neuron_indices[1]],
+                    latitudes_deg_n[neuron_indices[0]],
+                    linestyle='None', marker=MARKER_TYPE,
+                    markersize=marker_size_px, markeredgewidth=0,
+                    markerfacecolor=MARKER_COLOUR,
+                    markeredgecolor=MARKER_COLOUR
+                )
 
             if not (j == 0 and k == num_channels - 1):
                 continue
@@ -407,8 +451,9 @@ def _concat_panels_one_example(figure_object_matrix, valid_time_unix_sec,
 
 
 def _run(saliency_file_name, top_predictor_dir_name, top_target_dir_name,
-         smoothing_radius_px, colour_map_name, min_abs_contour_value,
-         max_abs_contour_value, half_num_contours, line_width, output_dir_name):
+         lag_times_sec, band_numbers, smoothing_radius_px, colour_map_name,
+         min_abs_contour_value, max_abs_contour_value, half_num_contours,
+         line_width, output_dir_name):
     """Plots saliency maps.
 
     This is effectively the main method.
@@ -416,6 +461,8 @@ def _run(saliency_file_name, top_predictor_dir_name, top_target_dir_name,
     :param saliency_file_name: See documentation at top of file.
     :param top_predictor_dir_name: Same.
     :param top_target_dir_name: Same.
+    :param lag_times_sec: Same.
+    :param band_numbers: Same.
     :param smoothing_radius_px: Same.
     :param colour_map_name: Same.
     :param min_abs_contour_value: Same.
@@ -429,6 +476,10 @@ def _run(saliency_file_name, top_predictor_dir_name, top_target_dir_name,
         smoothing_radius_px = None
     if max_abs_contour_value <= 0:
         max_abs_contour_value = None
+    if len(lag_times_sec) == 1 and lag_times_sec[0] < 0:
+        lag_times_sec = None
+    if len(band_numbers) == 1 and band_numbers[0] <= 0:
+        band_numbers = None
 
     error_checking.assert_is_geq(half_num_contours, 5)
     file_system_utils.mkdir_recursive_if_necessary(
@@ -441,11 +492,6 @@ def _run(saliency_file_name, top_predictor_dir_name, top_target_dir_name,
     print('Reading data from: "{0:s}"...'.format(saliency_file_name))
     saliency_dict = saliency.read_file(saliency_file_name)
 
-    if smoothing_radius_px is not None:
-        saliency_dict = _smooth_maps(
-            saliency_dict=saliency_dict, smoothing_radius_px=smoothing_radius_px
-        )
-
     model_metafile_name = neural_net.find_metafile(
         model_file_name=saliency_dict[saliency.MODEL_FILE_KEY],
         raise_error_if_missing=True
@@ -454,6 +500,46 @@ def _run(saliency_file_name, top_predictor_dir_name, top_target_dir_name,
     print('Reading metadata from: "{0:s}"...'.format(model_metafile_name))
     model_metadata_dict = neural_net.read_metafile(model_metafile_name)
     training_option_dict = model_metadata_dict[neural_net.TRAINING_OPTIONS_KEY]
+
+    saliency_matrix = saliency_dict[saliency.SALIENCY_MATRIX_KEY]
+
+    if len(saliency_matrix.shape) == 4:
+        num_lag_times = len(training_option_dict[neural_net.LAG_TIMES_KEY])
+
+        saliency_matrix = neural_net.predictor_matrix_from_keras(
+            predictor_matrix=saliency_matrix, num_lag_times=num_lag_times
+        )
+        saliency_matrix = neural_net.predictor_matrix_to_keras(
+            predictor_matrix=saliency_matrix, num_lag_times=num_lag_times,
+            add_time_dimension=True
+        )
+
+    if lag_times_sec is not None:
+        these_indices = numpy.array([
+            numpy.where(
+                training_option_dict[neural_net.LAG_TIMES_KEY] == t
+            )[0][0] for t in lag_times_sec
+        ], dtype=int)
+
+        saliency_matrix = saliency_matrix[..., these_indices, :]
+        training_option_dict[neural_net.LAG_TIMES_KEY] = lag_times_sec
+
+    if band_numbers is not None:
+        these_indices = numpy.array([
+            numpy.where(
+                training_option_dict[neural_net.BAND_NUMBERS_KEY] == n
+            )[0][0] for n in band_numbers
+        ], dtype=int)
+
+        saliency_matrix = saliency_matrix[..., these_indices]
+        training_option_dict[neural_net.BAND_NUMBERS_KEY] = band_numbers
+
+    saliency_dict[saliency.SALIENCY_MATRIX_KEY] = saliency_matrix
+
+    if smoothing_radius_px is not None:
+        saliency_dict = _smooth_maps(
+            saliency_dict=saliency_dict, smoothing_radius_px=smoothing_radius_px
+        )
 
     valid_date_string = saliency.file_name_to_date(saliency_file_name)
     radar_number = saliency.file_name_to_radar_num(saliency_file_name)
@@ -469,8 +555,7 @@ def _run(saliency_file_name, top_predictor_dir_name, top_target_dir_name,
             training_option_dict[neural_net.LEAD_TIME_KEY],
         neural_net.LAG_TIMES_KEY:
             training_option_dict[neural_net.LAG_TIMES_KEY],
-        neural_net.INCLUDE_TIME_DIM_KEY:
-            training_option_dict[neural_net.INCLUDE_TIME_DIM_KEY],
+        neural_net.INCLUDE_TIME_DIM_KEY: True,
         neural_net.OMIT_NORTH_RADAR_KEY:
             training_option_dict[neural_net.OMIT_NORTH_RADAR_KEY],
         neural_net.NORMALIZE_FLAG_KEY: False,
@@ -484,26 +569,6 @@ def _run(saliency_file_name, top_predictor_dir_name, top_target_dir_name,
         option_dict=predictor_option_dict, return_coords=True,
         radar_number=radar_number
     )[radar_number]
-
-    brightness_temp_matrix_kelvins = (
-        predictor_dict[neural_net.PREDICTOR_MATRIX_KEY]
-    )
-
-    if len(brightness_temp_matrix_kelvins.shape) == 4:
-        num_lag_times = len(predictor_option_dict[neural_net.LAG_TIMES_KEY])
-
-        brightness_temp_matrix_kelvins = neural_net.predictor_matrix_from_keras(
-            predictor_matrix=brightness_temp_matrix_kelvins,
-            num_lag_times=num_lag_times
-        )
-        brightness_temp_matrix_kelvins = neural_net.predictor_matrix_to_keras(
-            predictor_matrix=brightness_temp_matrix_kelvins,
-            num_lag_times=num_lag_times, add_time_dimension=True
-        )
-
-    predictor_dict[neural_net.PREDICTOR_MATRIX_KEY] = (
-        brightness_temp_matrix_kelvins
-    )
 
     num_examples = saliency_dict[saliency.SALIENCY_MATRIX_KEY].shape[0]
 
@@ -528,6 +593,7 @@ def _run(saliency_file_name, top_predictor_dir_name, top_target_dir_name,
 
         _plot_saliency_one_example(
             saliency_dict=saliency_dict, example_index=i,
+            figure_object_matrix=figure_object_matrix,
             axes_object_matrix=axes_object_matrix,
             colour_map_object=colour_map_object,
             min_abs_contour_value=min_abs_contour_value,
@@ -556,6 +622,12 @@ if __name__ == '__main__':
             INPUT_ARG_OBJECT, PREDICTOR_DIR_ARG_NAME
         ),
         top_target_dir_name=getattr(INPUT_ARG_OBJECT, TARGET_DIR_ARG_NAME),
+        lag_times_sec=numpy.array(
+            getattr(INPUT_ARG_OBJECT, LAG_TIMES_ARG_NAME), dtype=int
+        ),
+        band_numbers=numpy.array(
+            getattr(INPUT_ARG_OBJECT, BAND_NUMBERS_ARG_NAME), dtype=int
+        ),
         smoothing_radius_px=getattr(
             INPUT_ARG_OBJECT, SMOOTHING_RADIUS_ARG_NAME
         ),
