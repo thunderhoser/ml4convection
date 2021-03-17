@@ -123,8 +123,8 @@ INPUT_ARG_PARSER.add_argument(
 def _plot_predictions_one_example(
         prediction_dict, example_index, border_latitudes_deg_n,
         border_longitudes_deg_e, mask_matrix, plot_deterministic,
-        probability_threshold, max_prob_in_colour_bar, output_dir_name,
-        title_string=None, font_size=30, make_lowest_prob_grey=False):
+        probability_threshold, colour_map_object, colour_norm_object,
+        output_dir_name, title_string=None, font_size=30, cbar_extend_min=True):
     """Plots predictions (and targets) for one example (time step).
 
     M = number of rows in grid
@@ -139,12 +139,13 @@ def _plot_predictions_one_example(
         the grid point is unmasked.
     :param plot_deterministic: See documentation at top of file.
     :param probability_threshold: Same.
-    :param max_prob_in_colour_bar: Same.
-    :param output_dir_name: Same.
+    :param colour_map_object: See doc for
+        `prediction_plotting.plot_probabilistic`.
+    :param colour_norm_object: Same.
+    :param output_dir_name: See documentation at top of file.
     :param title_string: Figure title.
     :param font_size: Font size.
-    :param make_lowest_prob_grey: Boolean flag.  If True (False), will make
-        lowest probabilities grey (white).
+    :param cbar_extend_min: Boolean flag.
     :return: output_file_name: Path to output file.
     """
 
@@ -204,8 +205,8 @@ def _plot_predictions_one_example(
             min_longitude_deg_e=longitudes_deg_e[0],
             latitude_spacing_deg=numpy.diff(latitudes_deg_n[:2])[0],
             longitude_spacing_deg=numpy.diff(longitudes_deg_e[:2])[0],
-            max_prob_in_colour_bar=max_prob_in_colour_bar,
-            make_lowest_prob_grey=make_lowest_prob_grey
+            colour_map_object=colour_map_object,
+            colour_norm_object=colour_norm_object
         )
 
         if title_string is None:
@@ -213,19 +214,12 @@ def _plot_predictions_one_example(
                 valid_time_string
             )
 
-        colour_map_object, colour_norm_object = (
-            prediction_plotting.get_prob_colour_scheme(
-                max_probability=max_prob_in_colour_bar,
-                make_lowest_prob_grey=make_lowest_prob_grey
-            )
-        )
-
         gg_plotting_utils.plot_colour_bar(
             axes_object_or_matrix=axes_object, data_matrix=probability_matrix,
             colour_map_object=colour_map_object,
             colour_norm_object=colour_norm_object,
-            orientation_string='vertical', extend_min=True, extend_max=False,
-            font_size=font_size
+            orientation_string='vertical', extend_min=cbar_extend_min,
+            extend_max=False, font_size=font_size
         )
 
     plotting_utils.plot_grid_lines(
@@ -255,8 +249,8 @@ def _plot_predictions_one_example(
 def _plot_predictions_one_day(
         prediction_file_name, border_latitudes_deg_n, border_longitudes_deg_e,
         use_partial_grids, daily_times_seconds, plot_deterministic,
-        probability_threshold, max_prob_in_colour_bar, output_dir_name,
-        smoothing_radius_px=None):
+        probability_threshold, colour_map_object, colour_norm_object,
+        output_dir_name, smoothing_radius_px=None):
     """Plots predictions (and targets) for one day.
 
     P = number of points in border set
@@ -269,8 +263,10 @@ def _plot_predictions_one_day(
     :param daily_times_seconds: Same.
     :param plot_deterministic: Same.
     :param probability_threshold: Same.
-    :param max_prob_in_colour_bar: Same.
-    :param output_dir_name: Same.
+    :param colour_map_object: See doc for
+        `prediction_plotting.plot_probabilistic`.
+    :param colour_norm_object: Same.
+    :param output_dir_name: See documentation at top of file.
     :param smoothing_radius_px: Same.
     """
 
@@ -334,7 +330,8 @@ def _plot_predictions_one_day(
             mask_matrix=mask_matrix.astype(int),
             plot_deterministic=plot_deterministic,
             probability_threshold=probability_threshold,
-            max_prob_in_colour_bar=max_prob_in_colour_bar,
+            colour_map_object=colour_map_object,
+            colour_norm_object=colour_norm_object,
             output_dir_name=output_dir_name
         )
 
@@ -376,6 +373,12 @@ def _run(top_prediction_dir_name, first_date_string, last_date_string,
     else:
         probability_threshold = None
 
+    colour_map_object, colour_norm_object = (
+        prediction_plotting.get_prob_colour_scheme(
+            max_probability=max_prob_in_colour_bar, make_lowest_prob_grey=False
+        )
+    )
+
     if not use_partial_grids:
         if smoothing_radius_px <= 0:
             smoothing_radius_px = None
@@ -398,7 +401,8 @@ def _run(top_prediction_dir_name, first_date_string, last_date_string,
                 smoothing_radius_px=smoothing_radius_px,
                 plot_deterministic=plot_deterministic,
                 probability_threshold=probability_threshold,
-                max_prob_in_colour_bar=max_prob_in_colour_bar,
+                colour_map_object=colour_map_object,
+                colour_norm_object=colour_norm_object,
                 output_dir_name=output_dir_name
             )
 
@@ -450,7 +454,8 @@ def _run(top_prediction_dir_name, first_date_string, last_date_string,
                 use_partial_grids=use_partial_grids,
                 plot_deterministic=plot_deterministic,
                 probability_threshold=probability_threshold,
-                max_prob_in_colour_bar=max_prob_in_colour_bar,
+                colour_map_object=colour_map_object,
+                colour_norm_object=colour_norm_object,
                 output_dir_name=this_output_dir_name
             )
 

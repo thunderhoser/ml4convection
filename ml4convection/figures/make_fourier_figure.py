@@ -16,6 +16,7 @@ from gewittergefahr.plotting import imagemagick_utils
 from ml4convection.io import border_io
 from ml4convection.io import prediction_io
 from ml4convection.utils import fourier_utils
+from ml4convection.plotting import prediction_plotting
 from ml4convection.scripts import plot_predictions
 
 LARGE_NUMBER = 1e10
@@ -24,6 +25,10 @@ DATE_FORMAT = prediction_io.DATE_FORMAT
 
 GRID_SPACING_DEG = 0.0125
 WEIGHT_COLOUR_MAP_OBJECT = pyplot.get_cmap('Reds')
+BLACKMAN_COLOUR_MAP_OBJECT = pyplot.get_cmap('cividis')
+BLACKMAN_COLOUR_NORM_OBJECT = pyplot.Normalize(vmin=0., vmax=1.)
+BUTTERWORTH_COLOUR_MAP_OBJECT = pyplot.get_cmap('cividis')
+BUTTERWORTH_COLOUR_NORM_OBJECT = pyplot.Normalize(vmin=0., vmax=1.)
 
 CONVERT_EXE_NAME = '/usr/bin/convert'
 TITLE_FONT_SIZE = 200
@@ -36,7 +41,7 @@ FIGURE_RESOLUTION_DPI = 300
 
 LARGE_BORDER_WIDTH_PX = 225
 SMALL_BORDER_WIDTH_PX = 10
-NUM_PANEL_ROWS = 3
+NUM_PANEL_ROWS = 4
 NUM_PANEL_COLUMNS = 2
 CONCAT_FIGURE_SIZE_PX = int(1e7)
 
@@ -134,14 +139,18 @@ def _overlay_text(
 
 
 def _plot_fourier_weights(
-        weight_matrix, max_colour_value, title_string, output_file_name):
+        weight_matrix, colour_map_object, colour_norm_object, title_string,
+        output_file_name):
     """Plots Fourier weights in 2-D grid.
 
     M = number of rows in spatial grid
     N = number of columns in spatial grid
 
     :param weight_matrix: M-by-N numpy array of weights.
-    :param max_colour_value: Max absolute value in colour scheme.
+    :param colour_map_object: Colour map (instance of `matplotlib.pyplot.cm`).
+    :param colour_norm_object: Colour-normalizer (maps from data space to
+        colour-bar space, which goes from 0...1).  This is an instance of
+        `matplotlib.colors.Normalize`.
     :param title_string: Figure title.
     :param output_file_name: Path to output file.  Figure will be saved here.
     """
@@ -183,9 +192,8 @@ def _plot_fourier_weights(
 
     axes_object.pcolormesh(
         x_wavenumber_matrix_deg01[0, :], y_wavenumber_matrix_deg01[:, 0],
-        absolute_weight_matrix, cmap=WEIGHT_COLOUR_MAP_OBJECT,
-        vmin=0., vmax=max_colour_value, shading='flat',
-        edgecolors='None', zorder=-1e11
+        absolute_weight_matrix, cmap=colour_map_object, norm=colour_norm_object,
+        shading='flat', edgecolors='None', zorder=-1e11
     )
 
     tick_wavenumbers_deg01 = axes_object.get_xticks()
@@ -202,12 +210,12 @@ def _plot_fourier_weights(
     axes_object.set_ylabel(r'Meridional wavelength ($^{\circ}$)')
     axes_object.set_title(title_string)
 
-    gg_plotting_utils.plot_linear_colour_bar(
+    gg_plotting_utils.plot_colour_bar(
         axes_object_or_matrix=axes_object, data_matrix=absolute_weight_matrix,
-        colour_map_object=WEIGHT_COLOUR_MAP_OBJECT,
-        min_value=0., max_value=max_colour_value,
+        colour_map_object=colour_map_object,
+        colour_norm_object=colour_norm_object,
         orientation_string='vertical', font_size=FONT_SIZE,
-        extend_min=False, extend_max=True
+        extend_min=False, extend_max='Butterworth' not in title_string
     )
 
     print('Saving figure to file: "{0:s}"...'.format(output_file_name))
@@ -267,23 +275,28 @@ def _run(top_prediction_dir_name, valid_time_string, radar_number,
         1, dtype=bool
     )
 
+    prob_colour_map_object, prob_colour_norm_object = (
+        prediction_plotting.get_prob_colour_scheme(
+            max_probability=1., make_lowest_prob_grey=True
+        )
+    )
+
     orig_file_name = plot_predictions._plot_predictions_one_example(
         prediction_dict=prediction_dict, example_index=0,
         border_latitudes_deg_n=border_latitudes_deg_n,
         border_longitudes_deg_e=border_longitudes_deg_e,
         mask_matrix=mask_matrix,
         plot_deterministic=False, probability_threshold=None,
-        max_prob_in_colour_bar=1., make_lowest_prob_grey=True,
-        title_string='Original probability field',
-        output_dir_name=output_dir_name, font_size=FONT_SIZE
+        colour_map_object=prob_colour_map_object,
+        colour_norm_object=prob_colour_norm_object,
+        output_dir_name=output_dir_name,
+        title_string='Original probability field', font_size=FONT_SIZE
     )
 
     new_file_name = '{0:s}/original_field.jpg'.format(output_dir_name)
     shutil.move(orig_file_name, new_file_name)
 
-    # TODO(thunderhoser): HACK
-    # num_panels = NUM_PANEL_ROWS * NUM_PANEL_COLUMNS
-    num_panels = 7
+    num_panels = NUM_PANEL_ROWS * NUM_PANEL_COLUMNS
     panel_file_names = [''] * num_panels
     panel_file_names[0] = new_file_name
 
@@ -351,9 +364,10 @@ def _run(top_prediction_dir_name, valid_time_string, radar_number,
         border_longitudes_deg_e=border_longitudes_deg_e,
         mask_matrix=mask_matrix,
         plot_deterministic=False, probability_threshold=None,
-        max_prob_in_colour_bar=1., make_lowest_prob_grey=True,
-        title_string='Tapered probability field',
-        output_dir_name=output_dir_name, font_size=FONT_SIZE
+        colour_map_object=prob_colour_map_object,
+        colour_norm_object=prob_colour_norm_object,
+        output_dir_name=output_dir_name,
+        title_string='Tapered probability field', font_size=FONT_SIZE
     )
 
     new_file_name = '{0:s}/tapered_field.jpg'.format(output_dir_name)
@@ -374,11 +388,18 @@ def _run(top_prediction_dir_name, valid_time_string, radar_number,
         text_string='({0:s})'.format(letter_label)
     )
 
-    # Plot windowed predictions.
+    # Plot Blackman-Harris window.
+    probability_matrix = (
+        prediction_dict[prediction_io.PROBABILITY_MATRIX_KEY][0, ...] + 0.
+    )
+    bh_window_matrix = fourier_utils.apply_blackman_window(
+        numpy.ones(probability_matrix.shape)
+    )
+    bh_window_matrix = numpy.maximum(bh_window_matrix, 0.)
+    bh_window_matrix = numpy.minimum(bh_window_matrix, 1.)
+
     prediction_dict[prediction_io.PROBABILITY_MATRIX_KEY][0, ...] = (
-        fourier_utils.apply_blackman_window(
-            prediction_dict[prediction_io.PROBABILITY_MATRIX_KEY][0, ...]
-        )
+        bh_window_matrix + 0.
     )
 
     orig_file_name = plot_predictions._plot_predictions_one_example(
@@ -387,12 +408,14 @@ def _run(top_prediction_dir_name, valid_time_string, radar_number,
         border_longitudes_deg_e=border_longitudes_deg_e,
         mask_matrix=mask_matrix,
         plot_deterministic=False, probability_threshold=None,
-        max_prob_in_colour_bar=1., make_lowest_prob_grey=True,
-        title_string='Windowed probability field',
-        output_dir_name=output_dir_name, font_size=FONT_SIZE
+        colour_map_object=BLACKMAN_COLOUR_MAP_OBJECT,
+        colour_norm_object=BLACKMAN_COLOUR_NORM_OBJECT,
+        output_dir_name=output_dir_name,
+        title_string='Blackman-Harris window', font_size=FONT_SIZE,
+        cbar_extend_min=False
     )
 
-    new_file_name = '{0:s}/windowed_field.jpg'.format(output_dir_name)
+    new_file_name = '{0:s}/blackman_harris_window.jpg'.format(output_dir_name)
     shutil.move(orig_file_name, new_file_name)
     panel_file_names[4] = new_file_name
 
@@ -405,6 +428,41 @@ def _run(top_prediction_dir_name, valid_time_string, radar_number,
     )
     _overlay_text(
         image_file_name=panel_file_names[4],
+        x_offset_from_left_px=0,
+        y_offset_from_top_px=LARGE_BORDER_WIDTH_PX,
+        text_string='({0:s})'.format(letter_label)
+    )
+
+    # Plot windowed predictions.
+    prediction_dict[prediction_io.PROBABILITY_MATRIX_KEY][0, ...] = (
+        fourier_utils.apply_blackman_window(probability_matrix)
+    )
+
+    orig_file_name = plot_predictions._plot_predictions_one_example(
+        prediction_dict=prediction_dict, example_index=0,
+        border_latitudes_deg_n=border_latitudes_deg_n,
+        border_longitudes_deg_e=border_longitudes_deg_e,
+        mask_matrix=mask_matrix,
+        plot_deterministic=False, probability_threshold=None,
+        colour_map_object=prob_colour_map_object,
+        colour_norm_object=prob_colour_norm_object,
+        output_dir_name=output_dir_name,
+        title_string='Windowed probability field', font_size=FONT_SIZE
+    )
+
+    new_file_name = '{0:s}/windowed_field.jpg'.format(output_dir_name)
+    shutil.move(orig_file_name, new_file_name)
+    panel_file_names[6] = new_file_name
+
+    letter_label = chr(ord(letter_label) + 1)
+
+    imagemagick_utils.trim_whitespace(
+        input_file_name=panel_file_names[6],
+        output_file_name=panel_file_names[6],
+        border_width_pixels=SMALL_BORDER_WIDTH_PX
+    )
+    _overlay_text(
+        image_file_name=panel_file_names[6],
         x_offset_from_left_px=0,
         y_offset_from_top_px=LARGE_BORDER_WIDTH_PX,
         text_string='({0:s})'.format(letter_label)
@@ -425,11 +483,15 @@ def _run(top_prediction_dir_name, valid_time_string, radar_number,
     max_colour_value = numpy.percentile(
         numpy.absolute(weight_matrix), MAX_COLOUR_PERCENTILE
     )
+    this_colour_norm_object = pyplot.Normalize(vmin=0., vmax=max_colour_value)
+
     this_file_name = '{0:s}/original_weights.jpg'.format(output_dir_name)
     panel_file_names[1] = this_file_name
 
     _plot_fourier_weights(
-        weight_matrix=weight_matrix, max_colour_value=max_colour_value,
+        weight_matrix=weight_matrix,
+        colour_map_object=WEIGHT_COLOUR_MAP_OBJECT,
+        colour_norm_object=this_colour_norm_object,
         title_string='Original Fourier weights',
         output_file_name=panel_file_names[1]
     )
@@ -461,15 +523,13 @@ def _run(top_prediction_dir_name, valid_time_string, radar_number,
         max_resolution_metres=max_resolution_deg
     )
 
-    max_colour_value = numpy.percentile(
-        butterworth_filter_matrix, MAX_COLOUR_PERCENTILE
-    )
     this_file_name = '{0:s}/butterworth_filter.jpg'.format(output_dir_name)
     panel_file_names[3] = this_file_name
 
     _plot_fourier_weights(
         weight_matrix=butterworth_filter_matrix,
-        max_colour_value=max_colour_value,
+        colour_map_object=BUTTERWORTH_COLOUR_MAP_OBJECT,
+        colour_norm_object=BUTTERWORTH_COLOUR_NORM_OBJECT,
         title_string='Butterworth filter',
         output_file_name=panel_file_names[3]
     )
@@ -514,11 +574,15 @@ def _run(top_prediction_dir_name, valid_time_string, radar_number,
     max_colour_value = numpy.percentile(
         numpy.absolute(weight_matrix), MAX_COLOUR_PERCENTILE
     )
+    this_colour_norm_object = pyplot.Normalize(vmin=0., vmax=max_colour_value)
+
     this_file_name = '{0:s}/filtered_weights.jpg'.format(output_dir_name)
     panel_file_names[5] = this_file_name
 
     _plot_fourier_weights(
-        weight_matrix=weight_matrix, max_colour_value=max_colour_value,
+        weight_matrix=weight_matrix,
+        colour_map_object=WEIGHT_COLOUR_MAP_OBJECT,
+        colour_norm_object=this_colour_norm_object,
         title_string='Filtered Fourier weights',
         output_file_name=panel_file_names[5]
     )
@@ -581,9 +645,10 @@ def _run(top_prediction_dir_name, valid_time_string, radar_number,
         border_longitudes_deg_e=border_longitudes_deg_e,
         mask_matrix=mask_matrix,
         plot_deterministic=False, probability_threshold=None,
-        max_prob_in_colour_bar=1., make_lowest_prob_grey=True,
-        title_string='Filtered probability field',
-        output_dir_name=output_dir_name, font_size=FONT_SIZE
+        colour_map_object=prob_colour_map_object,
+        colour_norm_object=prob_colour_norm_object,
+        output_dir_name=output_dir_name,
+        title_string='Filtered probability field', font_size=FONT_SIZE
     )
 
     new_file_name = '{0:s}/filtered_field.jpg'.format(output_dir_name)
