@@ -107,6 +107,12 @@ def _plot_climo(
     dummy_target_matrix = numpy.full(event_freq_matrix.shape, 0, dtype=int)
     max_colour_value = numpy.nanmax(event_freq_matrix)
 
+    colour_map_object, colour_norm_object = (
+        prediction_plotting.get_prob_colour_scheme(
+            max_probability=max_colour_value, make_lowest_prob_grey=False
+        )
+    )
+
     prediction_plotting.plot_probabilistic(
         probability_matrix=event_freq_matrix, target_matrix=dummy_target_matrix,
         figure_object=figure_object, axes_object=axes_object,
@@ -114,11 +120,8 @@ def _plot_climo(
         min_longitude_deg_e=longitudes_deg_e[0],
         latitude_spacing_deg=numpy.diff(latitudes_deg_n[:2])[0],
         longitude_spacing_deg=numpy.diff(longitudes_deg_e[:2])[0],
-        max_prob_in_colour_bar=max_colour_value
-    )
-
-    colour_map_object, colour_norm_object = (
-        prediction_plotting.get_prob_colour_scheme(max_colour_value)
+        colour_map_object=colour_map_object,
+        colour_norm_object=colour_norm_object
     )
 
     colour_bar_object = gg_plotting_utils.plot_colour_bar(

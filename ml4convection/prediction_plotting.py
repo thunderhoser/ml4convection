@@ -66,16 +66,19 @@ def _get_deterministic_colour_scheme(for_targets):
     return colour_map_object, colour_norm_object
 
 
-def get_prob_colour_scheme(max_probability=1.):
+def get_prob_colour_scheme(max_probability=1., make_lowest_prob_grey=False):
     """Returns colour scheme for probabilities.
 
     :param max_probability: Max probability in colour bar.
+    :param make_lowest_prob_grey: Boolean flag.  If True (False), will make
+        lowest probabilities grey (white).
     :return: colour_map_object: See doc for `_get_deterministic_colour_scheme`.
     :return: colour_norm_object: Same.
     """
 
     error_checking.assert_is_greater(max_probability, 0.)
     error_checking.assert_is_leq(max_probability, 1.)
+    error_checking.assert_is_boolean(make_lowest_prob_grey)
 
     main_colour_list = [
         # numpy.array([0, 90, 50]),
@@ -94,11 +97,21 @@ def get_prob_colour_scheme(max_probability=1.):
     for i in range(len(main_colour_list)):
         main_colour_list[i] = main_colour_list[i].astype(float) / 255
 
+    if make_lowest_prob_grey:
+        main_colour_list = [numpy.full(3, 152. / 255)] + main_colour_list
+
     colour_map_object = matplotlib.colors.ListedColormap(main_colour_list)
     colour_map_object.set_under(BACKGROUND_COLOUR)
     colour_map_object.set_over(main_colour_list[-1])
 
     colour_bounds = max_probability * numpy.linspace(0.05, 1, num=20)
+
+    if make_lowest_prob_grey:
+        colour_bounds = numpy.concatenate((
+            numpy.array([max_probability * 0.001]),
+            colour_bounds
+        ))
+
     colour_norm_object = matplotlib.colors.BoundaryNorm(
         colour_bounds, colour_map_object.N
     )
@@ -194,7 +207,7 @@ def plot_deterministic(
 def plot_probabilistic(
         target_matrix, probability_matrix, figure_object, axes_object,
         min_latitude_deg_n, min_longitude_deg_e, latitude_spacing_deg,
-        longitude_spacing_deg, max_prob_in_colour_bar=1.,
+        longitude_spacing_deg, colour_map_object, colour_norm_object,
         target_marker_size_grid_cells=0.45,
         target_marker_type=DEFAULT_TARGET_MARKER_TYPE,
         target_marker_colour=DEFAULT_TARGET_MARKER_COLOUR):
@@ -213,7 +226,10 @@ def plot_probabilistic(
     :param min_longitude_deg_e: Same.
     :param latitude_spacing_deg: Same.
     :param longitude_spacing_deg: Same.
-    :param max_prob_in_colour_bar: Max probability in colour bar.
+    :param colour_map_object: Colour map (instance of `matplotlib.pyplot.cm`).
+    :param colour_norm_object: Colour-normalizer (maps from data space to
+        colour-bar space, which goes from 0...1).  This is an instance of
+        `matplotlib.colors.Normalize`.
     :param target_marker_size_grid_cells: Size of marker used to show where
         convection occurs.
     :param target_marker_type: Type of marker used to show where convection
@@ -250,10 +266,6 @@ def plot_probabilistic(
             lat_spacing_deg=latitude_spacing_deg,
             lng_spacing_deg=longitude_spacing_deg
         )
-    )
-
-    colour_map_object, colour_norm_object = get_prob_colour_scheme(
-        max_prob_in_colour_bar
     )
 
     if hasattr(colour_norm_object, 'boundaries'):
