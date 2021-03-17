@@ -260,6 +260,9 @@ def _plot_predictions_one_model(
         )
 
     model_file_name = prediction_dict[prediction_io.MODEL_FILE_KEY]
+
+    # TODO(thunderhoser): This is a HACK.
+    model_file_name = model_file_name.replace('experiment12d', 'experiment13d')
     model_metafile_name = neural_net.find_metafile(model_file_name)
 
     print('Reading model metadata from: "{0:s}"...'.format(
