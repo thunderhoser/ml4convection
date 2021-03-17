@@ -51,7 +51,7 @@ PREDICTION_DIRS_ARG_NAME = 'input_prediction_dir_names'
 MODEL_DESCRIPTIONS_ARG_NAME = 'model_description_strings'
 VALID_TIME_ARG_NAME = 'valid_time_string'
 RADAR_DIR_ARG_NAME = 'input_radar_dir_name'
-SMOOTHING_RADIUS_ARG_NAME = 'smoothing_radius_px'
+SMOOTHING_RADII_ARG_NAME = 'smoothing_radii_px'
 OUTPUT_DIR_ARG_NAME = 'output_dir_name'
 
 PREDICTION_DIRS_HELP_STRING = (
@@ -71,9 +71,9 @@ RADAR_DIR_HELP_STRING = (
     '`radar_io.read_file` and read by `radar_io.read_reflectivity_file`.  If '
     'you do not want to plot radar data, leave this alone.'
 )
-SMOOTHING_RADIUS_HELP_STRING = (
-    'Radius for Gaussian smoother.  If you do not want to smooth predictions, '
-    'leave this alone.'
+SMOOTHING_RADII_HELP_STRING = (
+    'Radii for Gaussian smoother (one per model).  Use non-positive number for '
+    'no smoothing.'
 )
 OUTPUT_DIR_HELP_STRING = (
     'Name of output directory.  Figures will be saved here.'
@@ -97,8 +97,8 @@ INPUT_ARG_PARSER.add_argument(
     help=RADAR_DIR_HELP_STRING
 )
 INPUT_ARG_PARSER.add_argument(
-    '--' + SMOOTHING_RADIUS_ARG_NAME, type=float, required=False, default=-1,
-    help=SMOOTHING_RADIUS_HELP_STRING
+    '--' + SMOOTHING_RADII_ARG_NAME, type=float, nargs='+', required=True,
+    help=SMOOTHING_RADII_HELP_STRING
 )
 INPUT_ARG_PARSER.add_argument(
     '--' + OUTPUT_DIR_ARG_NAME, type=str, required=True,
@@ -317,7 +317,7 @@ def _plot_predictions_one_model(
 
 
 def _run(top_prediction_dir_names, model_descriptions_abbrev, valid_time_string,
-         top_radar_dir_name, smoothing_radius_px, output_dir_name):
+         top_radar_dir_name, smoothing_radii_px, output_dir_name):
     """Makes figure with predictions from different models.
 
     This is effectively the main method.
@@ -326,7 +326,7 @@ def _run(top_prediction_dir_names, model_descriptions_abbrev, valid_time_string,
     :param model_descriptions_abbrev: Same.
     :param valid_time_string: Same.
     :param top_radar_dir_name: Same.
-    :param smoothing_radius_px: Same.
+    :param smoothing_radii_px: Same.
     :param output_dir_name: Same.
     """
 
@@ -340,8 +340,6 @@ def _run(top_prediction_dir_names, model_descriptions_abbrev, valid_time_string,
 
     if top_radar_dir_name == '':
         top_radar_dir_name = None
-    if smoothing_radius_px <= 0:
-        smoothing_radius_px = None
 
     num_models = len(top_prediction_dir_names)
     num_panels = num_models + int(top_radar_dir_name is not None)
@@ -350,6 +348,11 @@ def _run(top_prediction_dir_names, model_descriptions_abbrev, valid_time_string,
     error_checking.assert_is_numpy_array(
         numpy.array(model_descriptions_abbrev), exact_dimensions=expected_dim
     )
+    error_checking.assert_is_numpy_array(
+        smoothing_radii_px, exact_dimensions=expected_dim
+    )
+
+    smoothing_radii_px = [r if r >= 0 else None for r in smoothing_radii_px]
 
     file_system_utils.mkdir_recursive_if_necessary(
         directory_name=output_dir_name
@@ -381,7 +384,7 @@ def _run(top_prediction_dir_names, model_descriptions_abbrev, valid_time_string,
             valid_time_string=valid_time_string,
             title_string=model_descriptions_verbose[k],
             figure_object=figure_object, axes_object=axes_object,
-            smoothing_radius_px=smoothing_radius_px
+            smoothing_radius_px=smoothing_radii_px[k]
         )
 
         gg_plotting_utils.label_axes(
@@ -486,8 +489,8 @@ if __name__ == '__main__':
         ),
         valid_time_string=getattr(INPUT_ARG_OBJECT, VALID_TIME_ARG_NAME),
         top_radar_dir_name=getattr(INPUT_ARG_OBJECT, RADAR_DIR_ARG_NAME),
-        smoothing_radius_px=getattr(
-            INPUT_ARG_OBJECT, SMOOTHING_RADIUS_ARG_NAME
+        smoothing_radii_px=numpy.array(
+            getattr(INPUT_ARG_OBJECT, SMOOTHING_RADII_ARG_NAME), dtype=float
         ),
         output_dir_name=getattr(INPUT_ARG_OBJECT, OUTPUT_DIR_ARG_NAME)
     )
