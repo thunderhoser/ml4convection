@@ -46,7 +46,7 @@ python3 -u "${CODE_DIR_NAME}/make_saliency_maps.py" \
 --input_predictor_dir_name="${TOP_PREDICTOR_DIR_NAME}" \
 --input_target_dir_name="${TOP_TARGET_DIR_NAME}" \
 --valid_date_strings "20170603" \
---layer_name="last_conv_activation" \
+--layer_name="activation_23" \
 --is_layer_output=1 \
 --neuron_indices 102 102 0 \
 --ideal_activation=1 \
