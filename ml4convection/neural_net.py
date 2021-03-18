@@ -2068,6 +2068,24 @@ def read_metafile(dill_file_name):
             full_mask_dict[radar_io.MASK_MATRIX_KEY]
         )
 
+    training_option_dict = metadata_dict[TRAINING_OPTIONS_KEY]
+    validation_option_dict = metadata_dict[VALIDATION_OPTIONS_KEY]
+
+    if LAG_TIMES_KEY not in training_option_dict:
+        training_option_dict[LAG_TIMES_KEY] = numpy.array([0], dtype=int)
+        validation_option_dict[LAG_TIMES_KEY] = numpy.array([0], dtype=int)
+
+    if INCLUDE_TIME_DIM_KEY not in training_option_dict:
+        training_option_dict[INCLUDE_TIME_DIM_KEY] = False
+        validation_option_dict[INCLUDE_TIME_DIM_KEY] = False
+
+    if OMIT_NORTH_RADAR_KEY not in training_option_dict:
+        training_option_dict[OMIT_NORTH_RADAR_KEY] = False
+        validation_option_dict[OMIT_NORTH_RADAR_KEY] = False
+
+    metadata_dict[TRAINING_OPTIONS_KEY] = training_option_dict
+    metadata_dict[VALIDATION_OPTIONS_KEY] = validation_option_dict
+
     missing_keys = list(set(METADATA_KEYS) - set(metadata_dict.keys()))
     if len(missing_keys) == 0:
         return metadata_dict
