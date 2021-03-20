@@ -24,6 +24,10 @@ import plot_saliency_maps
 
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 
+MARKER_SIZE_GRID_CELLS = 4.
+MARKER_TYPE = '*'
+MARKER_COLOUR = numpy.full(3, 0.)
+
 FONT_SIZE = 50
 pyplot.rc('font', size=FONT_SIZE)
 pyplot.rc('axes', titlesize=FONT_SIZE)
@@ -36,6 +40,8 @@ pyplot.rc('figure', titlesize=FONT_SIZE)
 GRADCAM_FILE_ARG_NAME = 'input_gradcam_file_name'
 PREDICTOR_DIR_ARG_NAME = 'input_predictor_dir_name'
 TARGET_DIR_ARG_NAME = 'input_target_dir_name'
+LAG_TIMES_ARG_NAME = 'lag_times_sec'
+BAND_NUMBERS_ARG_NAME = 'band_numbers'
 SMOOTHING_RADIUS_ARG_NAME = 'smoothing_radius_px'
 COLOUR_MAP_ARG_NAME = 'colour_map_name'
 MIN_CONTOUR_VALUE_ARG_NAME = 'min_contour_value'
@@ -57,6 +63,14 @@ TARGET_DIR_HELP_STRING = (
     'Name of top-level directory with targets to use.  Files therein will be '
     'found by `example_io.find_target_file` and read by '
     '`example_io.read_target_file`.'
+)
+LAG_TIMES_HELP_STRING = (
+    'Will plot CAMs overlain with only these lag times (seconds).  To plot CAMs'
+    ' overlain with all lag times, leave this argument alone.'
+)
+BAND_NUMBERS_HELP_STRING = (
+    'Will plot CAMs overlain with only these spectral bands (integers).  To '
+    'plot CAMs overlain with all bands, leave this argument alone.'
 )
 SMOOTHING_RADIUS_HELP_STRING = (
     'e-folding radius for Gaussian smoother (num pixels).  If you do not want '
@@ -89,6 +103,14 @@ INPUT_ARG_PARSER.add_argument(
 INPUT_ARG_PARSER.add_argument(
     '--' + TARGET_DIR_ARG_NAME, type=str, required=True,
     help=TARGET_DIR_HELP_STRING
+)
+INPUT_ARG_PARSER.add_argument(
+    '--' + LAG_TIMES_ARG_NAME, type=int, nargs='+', required=False,
+    default=[-1], help=LAG_TIMES_HELP_STRING
+)
+INPUT_ARG_PARSER.add_argument(
+    '--' + BAND_NUMBERS_ARG_NAME, type=int, nargs='+', required=False,
+    default=[-1], help=BAND_NUMBERS_HELP_STRING
 )
 INPUT_ARG_PARSER.add_argument(
     '--' + SMOOTHING_RADIUS_ARG_NAME, type=float, required=False,
@@ -151,8 +173,9 @@ def _smooth_maps(gradcam_dict, smoothing_radius_px):
 
 
 def _plot_cam_one_example(
-        gradcam_dict, example_index, axes_object_matrix, colour_map_object,
-        min_contour_value, max_contour_value, num_contours, line_width):
+        gradcam_dict, example_index, figure_object_matrix, axes_object_matrix,
+        colour_map_object, min_contour_value, max_contour_value, num_contours,
+        line_width):
     """Plots class-activation map for one example.
 
     T = number of lag times
@@ -161,6 +184,8 @@ def _plot_cam_one_example(
     :param gradcam_dict: Dictionary returned by `gradcam.read_file`.
     :param example_index: Will plot the [i]th example, where
         i = `example_index`.
+    :param figure_object_matrix: T-by-C numpy array of figure handles (instances
+        of `matplotlib.figure.Figure`).
     :param axes_object_matrix: T-by-C numpy array of axes handles (instances of
         `matplotlib.axes._subplots.AxesSubplot`).
     :param colour_map_object: See documentation at top of file.
@@ -172,6 +197,9 @@ def _plot_cam_one_example(
 
     latitudes_deg_n = gradcam_dict[gradcam.LATITUDES_KEY]
     longitudes_deg_e = gradcam_dict[gradcam.LONGITUDES_KEY]
+    output_row = gradcam_dict[gradcam.OUTPUT_ROW_KEY]
+    output_column = gradcam_dict[gradcam.OUTPUT_COLUMN_KEY]
+
     class_activation_matrix = (
         gradcam_dict[gradcam.CLASS_ACTIVATIONS_KEY][example_index, ...] + 0.
     )
@@ -205,6 +233,22 @@ def _plot_cam_one_example(
                 line_width=line_width
             )
 
+            figure_width_px = (
+                figure_object_matrix[j, k].get_size_inches()[0] *
+                figure_object_matrix[j, k].dpi
+            )
+            marker_size_px = figure_width_px * (
+                float(MARKER_SIZE_GRID_CELLS) /
+                class_activation_matrix_log10.shape[1]
+            )
+            axes_object_matrix[j, k].plot(
+                longitudes_deg_e[output_column], latitudes_deg_n[output_row],
+                linestyle='None', marker=MARKER_TYPE,
+                markersize=marker_size_px, markeredgewidth=0,
+                markerfacecolor=MARKER_COLOUR,
+                markeredgecolor=MARKER_COLOUR
+            )
+
             if not (j == 0 and k == num_channels - 1):
                 continue
 
@@ -227,8 +271,9 @@ def _plot_cam_one_example(
 
 
 def _run(gradcam_file_name, top_predictor_dir_name, top_target_dir_name,
-         smoothing_radius_px, colour_map_name, min_contour_value,
-         max_contour_value, num_contours, line_width, output_dir_name):
+         lag_times_sec, band_numbers, smoothing_radius_px, colour_map_name,
+         min_contour_value, max_contour_value, num_contours, line_width,
+         output_dir_name):
     """Plots class-activation maps.
 
     This is effectively the main method.
@@ -236,6 +281,8 @@ def _run(gradcam_file_name, top_predictor_dir_name, top_target_dir_name,
     :param gradcam_file_name: See documentation at top of file.
     :param top_predictor_dir_name: Same.
     :param top_target_dir_name: Same.
+    :param lag_times_sec: Same.
+    :param band_numbers: Same.
     :param smoothing_radius_px: Same.
     :param colour_map_name: Same.
     :param min_contour_value: Same.
@@ -249,6 +296,10 @@ def _run(gradcam_file_name, top_predictor_dir_name, top_target_dir_name,
         smoothing_radius_px = None
     if max_contour_value <= 0:
         max_contour_value = None
+    if len(lag_times_sec) == 1 and lag_times_sec[0] < 0:
+        lag_times_sec = None
+    if len(band_numbers) == 1 and band_numbers[0] <= 0:
+        band_numbers = None
 
     min_contour_value = numpy.maximum(min_contour_value, 1e-6)
     file_system_utils.mkdir_recursive_if_necessary(
@@ -275,6 +326,11 @@ def _run(gradcam_file_name, top_predictor_dir_name, top_target_dir_name,
     model_metadata_dict = neural_net.read_metafile(model_metafile_name)
     training_option_dict = model_metadata_dict[neural_net.TRAINING_OPTIONS_KEY]
 
+    if lag_times_sec is not None:
+        training_option_dict[neural_net.LAG_TIMES_KEY] = lag_times_sec
+    if band_numbers is not None:
+        training_option_dict[neural_net.BAND_NUMBERS_KEY] = band_numbers
+
     valid_date_string = gradcam.file_name_to_date(gradcam_file_name)
     radar_number = gradcam.file_name_to_radar_num(gradcam_file_name)
 
@@ -289,8 +345,7 @@ def _run(gradcam_file_name, top_predictor_dir_name, top_target_dir_name,
             training_option_dict[neural_net.LEAD_TIME_KEY],
         neural_net.LAG_TIMES_KEY:
             training_option_dict[neural_net.LAG_TIMES_KEY],
-        neural_net.INCLUDE_TIME_DIM_KEY:
-            training_option_dict[neural_net.INCLUDE_TIME_DIM_KEY],
+        neural_net.INCLUDE_TIME_DIM_KEY: True,
         neural_net.OMIT_NORTH_RADAR_KEY:
             training_option_dict[neural_net.OMIT_NORTH_RADAR_KEY],
         neural_net.NORMALIZE_FLAG_KEY: False,
@@ -304,26 +359,6 @@ def _run(gradcam_file_name, top_predictor_dir_name, top_target_dir_name,
         option_dict=predictor_option_dict, return_coords=True,
         radar_number=radar_number
     )[radar_number]
-
-    brightness_temp_matrix_kelvins = (
-        predictor_dict[neural_net.PREDICTOR_MATRIX_KEY]
-    )
-
-    if len(brightness_temp_matrix_kelvins.shape) == 4:
-        num_lag_times = len(predictor_option_dict[neural_net.LAG_TIMES_KEY])
-
-        brightness_temp_matrix_kelvins = neural_net.predictor_matrix_from_keras(
-            predictor_matrix=brightness_temp_matrix_kelvins,
-            num_lag_times=num_lag_times
-        )
-        brightness_temp_matrix_kelvins = neural_net.predictor_matrix_to_keras(
-            predictor_matrix=brightness_temp_matrix_kelvins,
-            num_lag_times=num_lag_times, add_time_dimension=True
-        )
-
-    predictor_dict[neural_net.PREDICTOR_MATRIX_KEY] = (
-        brightness_temp_matrix_kelvins
-    )
 
     num_examples = gradcam_dict[gradcam.CLASS_ACTIVATIONS_KEY].shape[0]
 
@@ -342,6 +377,7 @@ def _run(gradcam_file_name, top_predictor_dir_name, top_target_dir_name,
 
         _plot_cam_one_example(
             gradcam_dict=gradcam_dict, example_index=i,
+            figure_object_matrix=figure_object_matrix,
             axes_object_matrix=axes_object_matrix,
             colour_map_object=colour_map_object,
             min_contour_value=min_contour_value,
@@ -370,6 +406,12 @@ if __name__ == '__main__':
             INPUT_ARG_OBJECT, PREDICTOR_DIR_ARG_NAME
         ),
         top_target_dir_name=getattr(INPUT_ARG_OBJECT, TARGET_DIR_ARG_NAME),
+        lag_times_sec=numpy.array(
+            getattr(INPUT_ARG_OBJECT, LAG_TIMES_ARG_NAME), dtype=int
+        ),
+        band_numbers=numpy.array(
+            getattr(INPUT_ARG_OBJECT, BAND_NUMBERS_ARG_NAME), dtype=int
+        ),
         smoothing_radius_px=getattr(
             INPUT_ARG_OBJECT, SMOOTHING_RADIUS_ARG_NAME
         ),
