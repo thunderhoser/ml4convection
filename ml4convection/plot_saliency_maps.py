@@ -13,7 +13,7 @@ THIS_DIRECTORY_NAME = os.path.dirname(os.path.realpath(
 ))
 sys.path.append(os.path.normpath(os.path.join(THIS_DIRECTORY_NAME, '..')))
 
-import gg_general_utils
+import general_utils
 import time_conversion
 import file_system_utils
 import error_checking
@@ -32,7 +32,7 @@ DATE_FORMAT = neural_net.DATE_FORMAT
 TIME_FORMAT_FOR_FILES = '%Y-%m-%d-%H%M'
 SECONDS_TO_MINUTES = 1. / 60
 
-MARKER_SIZE_GRID_CELLS = 2.
+MARKER_SIZE_GRID_CELLS = 4.
 MARKER_TYPE = '*'
 MARKER_COLOUR = numpy.full(3, 0.)
 
