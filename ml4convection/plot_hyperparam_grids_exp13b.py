@@ -3,6 +3,7 @@
 import os
 import sys
 import argparse
+from PIL import Image
 import numpy
 import matplotlib
 matplotlib.use('agg')
@@ -17,6 +18,7 @@ sys.path.append(os.path.normpath(os.path.join(THIS_DIRECTORY_NAME, '..')))
 import evaluation
 import gg_model_evaluation as gg_model_eval
 import gg_plotting_utils
+import imagemagick_utils
 import file_system_utils
 
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
@@ -45,9 +47,10 @@ MARKER_COLOUR = numpy.full(3, 0.)
 
 SELECTED_MARKER_TYPE = 'o'
 SELECTED_MARKER_SIZE_GRID_CELLS = 0.2
-SELECTED_MARKER_INDICES = numpy.array([2, 12], dtype=int)
+SELECTED_MARKER_INDICES = numpy.array([3, 9], dtype=int)
 
 DEFAULT_FONT_SIZE = 20
+COLOUR_BAR_FONT_SIZE = 25
 
 pyplot.rc('font', size=DEFAULT_FONT_SIZE)
 pyplot.rc('axes', titlesize=DEFAULT_FONT_SIZE)
@@ -229,6 +232,72 @@ def _add_markers(figure_object, axes_object, best_marker_indices):
     )
 
 
+def _add_colour_bar(
+        figure_file_name, colour_map_object, min_colour_value, max_colour_value,
+        temporary_dir_name):
+    """Adds colour bar to saved image file.
+
+    :param figure_file_name: Path to saved image file.  Colour bar will be added
+        to this image.
+    :param colour_map_object: Colour scheme (instance of `matplotlib.pyplot.cm`
+        or similar).
+    :param min_colour_value: Minimum value in colour scheme.
+    :param max_colour_value: Max value in colour scheme.
+    :param temporary_dir_name: Name of temporary output directory.
+    """
+
+    this_image_matrix = Image.open(figure_file_name)
+    figure_width_px, figure_height_px = this_image_matrix.size
+    figure_width_inches = float(figure_width_px) / FIGURE_RESOLUTION_DPI
+    figure_height_inches = float(figure_height_px) / FIGURE_RESOLUTION_DPI
+
+    extra_figure_object, extra_axes_object = pyplot.subplots(
+        1, 1, figsize=(figure_width_inches, figure_height_inches)
+    )
+    extra_axes_object.axis('off')
+
+    colour_norm_object = matplotlib.colors.Normalize(
+        vmin=min_colour_value, vmax=max_colour_value, clip=False
+    )
+    dummy_values = numpy.array([min_colour_value, max_colour_value])
+
+    colour_bar_object = gg_plotting_utils.plot_colour_bar(
+        axes_object_or_matrix=extra_axes_object, data_matrix=dummy_values,
+        colour_map_object=colour_map_object,
+        colour_norm_object=colour_norm_object,
+        orientation_string='vertical', extend_min=False, extend_max=False,
+        fraction_of_axis_length=1.25, font_size=COLOUR_BAR_FONT_SIZE
+    )
+
+    tick_values = colour_bar_object.get_ticks()
+    tick_strings = ['{0:.2g}'.format(v) for v in tick_values]
+    colour_bar_object.set_ticks(tick_values)
+    colour_bar_object.set_ticklabels(tick_strings)
+
+    extra_file_name = '{0:s}/extra_colour_bar.jpg'.format(temporary_dir_name)
+    print('Saving colour bar to: "{0:s}"...'.format(extra_file_name))
+
+    extra_figure_object.savefig(
+        extra_file_name, dpi=FIGURE_RESOLUTION_DPI,
+        pad_inches=0, bbox_inches='tight'
+    )
+    pyplot.close(extra_figure_object)
+
+    print('Concatenating colour bar to: "{0:s}"...'.format(figure_file_name))
+
+    imagemagick_utils.concatenate_images(
+        input_file_names=[figure_file_name, extra_file_name],
+        output_file_name=figure_file_name,
+        num_panel_rows=1, num_panel_columns=2,
+        extra_args_string='-gravity Center'
+    )
+
+    os.remove(extra_file_name)
+    imagemagick_utils.trim_whitespace(
+        input_file_name=figure_file_name, output_file_name=figure_file_name
+    )
+
+
 def _run(experiment_dir_name, matching_distance_px, output_dir_name):
     """Plots scores on hyperparameter grid for Experiment 13b.
 
@@ -340,6 +409,14 @@ def _run(experiment_dir_name, matching_distance_px, output_dir_name):
     )
     pyplot.close(figure_object)
 
+    _add_colour_bar(
+        figure_file_name=figure_file_name,
+        colour_map_object=DEFAULT_COLOUR_MAP_OBJECT,
+        min_colour_value=numpy.nanpercentile(aupd_matrix, 1),
+        max_colour_value=numpy.nanpercentile(aupd_matrix, 99),
+        temporary_dir_name=output_dir_name
+    )
+
     # Plot max CSI.
     figure_object, axes_object = _plot_scores_2d(
         score_matrix=max_csi_matrix,
@@ -367,6 +444,14 @@ def _run(experiment_dir_name, matching_distance_px, output_dir_name):
     )
     pyplot.close(figure_object)
 
+    _add_colour_bar(
+        figure_file_name=figure_file_name,
+        colour_map_object=DEFAULT_COLOUR_MAP_OBJECT,
+        min_colour_value=numpy.nanpercentile(max_csi_matrix, 1),
+        max_colour_value=numpy.nanpercentile(max_csi_matrix, 99),
+        temporary_dir_name=output_dir_name
+    )
+
     # Plot FSS.
     figure_object, axes_object = _plot_scores_2d(
         score_matrix=fss_matrix,
@@ -393,6 +478,14 @@ def _run(experiment_dir_name, matching_distance_px, output_dir_name):
         pad_inches=0, bbox_inches='tight'
     )
     pyplot.close(figure_object)
+
+    _add_colour_bar(
+        figure_file_name=figure_file_name,
+        colour_map_object=DEFAULT_COLOUR_MAP_OBJECT,
+        min_colour_value=numpy.nanpercentile(fss_matrix, 1),
+        max_colour_value=numpy.nanpercentile(fss_matrix, 99),
+        temporary_dir_name=output_dir_name
+    )
 
     # Plot BSS.
     this_max_value = numpy.nanpercentile(numpy.absolute(bss_matrix), 99.)
@@ -423,6 +516,13 @@ def _run(experiment_dir_name, matching_distance_px, output_dir_name):
         pad_inches=0, bbox_inches='tight'
     )
     pyplot.close(figure_object)
+
+    _add_colour_bar(
+        figure_file_name=figure_file_name,
+        colour_map_object=BSS_COLOUR_MAP_OBJECT,
+        min_colour_value=this_min_value, max_colour_value=this_max_value,
+        temporary_dir_name=output_dir_name
+    )
 
 
 if __name__ == '__main__':
