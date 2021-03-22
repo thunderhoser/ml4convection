@@ -138,24 +138,6 @@ def _plot_scores_2d(
     pyplot.xticks(x_tick_values, x_tick_labels, rotation=90.)
     pyplot.yticks(y_tick_values, y_tick_labels)
 
-    colour_norm_object = matplotlib.colors.Normalize(
-        vmin=min_colour_value, vmax=max_colour_value, clip=False
-    )
-
-    colour_bar_object = gg_plotting_utils.plot_colour_bar(
-        axes_object_or_matrix=axes_object,
-        data_matrix=score_matrix[numpy.invert(numpy.isnan(score_matrix))],
-        colour_map_object=colour_map_object,
-        colour_norm_object=colour_norm_object,
-        orientation_string='vertical', extend_min=False, extend_max=False,
-        fraction_of_axis_length=0.8, font_size=DEFAULT_FONT_SIZE
-    )
-
-    tick_values = colour_bar_object.get_ticks()
-    tick_strings = ['{0:.2g}'.format(v) for v in tick_values]
-    colour_bar_object.set_ticks(tick_values)
-    colour_bar_object.set_ticklabels(tick_strings)
-
     return figure_object, axes_object
 
 
