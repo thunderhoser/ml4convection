@@ -1,0 +1,51 @@
+#!/bin/tcsh
+
+#SBATCH --job-name="compute_advanced_ungridded_scores"
+#SBATCH --partition="fge"
+#SBATCH --account="rda-ghpcs"
+#SBATCH --qos="batch"
+#SBATCH --ntasks=1
+#SBATCH --nodes=1
+#SBATCH --cpus-per-task=1
+#SBATCH --mem=8G
+##SBATCH --nodes=1
+##SBATCH --ntasks=1
+##SBATCH --cpus-per-task=1
+##SBATCH --ntasks-per-node=1
+#SBATCH --time=02:00:00
+#SBATCH --array=1
+#SBATCH --exclude=h28n12
+##SBATCH --exclude=h31n03,h28n12
+##SBATCH --exclude=h29n01,h26n05,h28n06,h29n07,h30n03,h30n15
+#SBATCH --mail-type=BEGIN,END,FAIL
+#SBATCH --mail-user=ryan.lagerquist@noaa.gov
+#SBATCH --output=compute_advanced_ungridded_scores_%A_%a.out
+
+module load cuda/10.1
+source /scratch2/BMC/gsd-hpcs/Jebb.Q.Stewart/conda3.7/etc/profile.d/conda.csh
+conda activate base
+
+set CODE_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_standalone/ml4convection"
+set TOP_TARGET_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_project/targets/new_echo_classification/no_tracking/omit_north_radar/full_grids"
+set TOP_MODEL_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_models/experiment13e"
+
+set FIRST_VALIDN_DATE_STRING="20180101"
+set LAST_VALIDN_DATE_STRING="20181224"
+
+set L2_WEIGHTS=(0.0000031623)
+set LAG_TIME_STRINGS_DASHED=("0-1200")
+
+set l2_weight=${L2_WEIGHTS[$SLURM_ARRAY_TASK_ID]}
+set l2_weight_string=`printf "%.10f" $l2_weight`
+set lag_time_string_dashed=${LAG_TIME_STRINGS_DASHED[$SLURM_ARRAY_TASK_ID]}
+
+set model_dir_name="${TOP_MODEL_DIR_NAME}/l2-weight=${l2_weight_string}_lag-times-sec=${lag_time_string_dashed}"
+set evaluation_dir_name="${model_dir_name}/testing/full_grids/evaluation/matching_distance_px=4.000000"
+
+python3 -u "${CODE_DIR_NAME}/compute_advanced_scores_ungridded.py" \
+--input_basic_score_dir_name="${evaluation_dir_name}" \
+--first_date_string="${FIRST_VALIDN_DATE_STRING}" \
+--last_date_string="${LAST_VALIDN_DATE_STRING}" \
+--use_partial_grids=0 \
+--input_climo_file_name="${TOP_TARGET_DIR_NAME}/climo_dilation-distance-px=4.000000.p" \
+--output_dir_name="${evaluation_dir_name}"
