@@ -2003,6 +2003,10 @@ def find_metafile(model_file_name, raise_error_if_missing=True):
         os.path.split(model_file_name)[0]
     )
 
+    # TODO(thunderhoser): HACK.
+    if not os.path.isfile(metafile_name):
+        metafile_name = metafile_name.replace('experiment12d', 'experiment13d')
+
     if raise_error_if_missing and not os.path.isfile(metafile_name):
         error_string = 'Cannot find file.  Expected at: "{0:s}"'.format(
             metafile_name
