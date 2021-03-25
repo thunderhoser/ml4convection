@@ -289,20 +289,20 @@ def _plot_scores_as_graph(score_tables_xarray, probability_threshold):
     legend_handles = [this_handle]
     legend_strings = ['FSS']
 
-    # Plot BSS.
-    bss_values = numpy.array([
-        t[evaluation.BRIER_SKILL_SCORE_KEY][0] for t in score_tables_xarray
-    ])
-
-    this_handle = main_axes_object.plot(
-        x_values, bss_values, color=SECOND_SCORE_COLOUR, linewidth=LINE_WIDTH,
-        marker=MARKER_TYPE, markersize=MARKER_SIZE, markeredgewidth=0,
-        markerfacecolor=SECOND_SCORE_COLOUR,
-        markeredgecolor=SECOND_SCORE_COLOUR
-    )[0]
-
-    legend_handles.append(this_handle)
-    legend_strings.append('BSS')
+    # # Plot BSS.
+    # bss_values = numpy.array([
+    #     t[evaluation.BRIER_SKILL_SCORE_KEY][0] for t in score_tables_xarray
+    # ])
+    # 
+    # this_handle = main_axes_object.plot(
+    #     x_values, bss_values, color=SECOND_SCORE_COLOUR, linewidth=LINE_WIDTH,
+    #     marker=MARKER_TYPE, markersize=MARKER_SIZE, markeredgewidth=0,
+    #     markerfacecolor=SECOND_SCORE_COLOUR,
+    #     markeredgecolor=SECOND_SCORE_COLOUR
+    # )[0]
+    # 
+    # legend_handles.append(this_handle)
+    # legend_strings.append('BSS')
 
     # Plot CSI.
     all_prob_thresholds = score_tables_xarray[0].coords[
@@ -332,10 +332,10 @@ def _plot_scores_as_graph(score_tables_xarray, probability_threshold):
     ])
 
     this_handle = main_axes_object.plot(
-        x_values, csi_values, color=THIRD_SCORE_COLOUR, linewidth=LINE_WIDTH,
+        x_values, csi_values, color=SECOND_SCORE_COLOUR, linewidth=LINE_WIDTH,
         marker=MARKER_TYPE, markersize=MARKER_SIZE, markeredgewidth=0,
-        markerfacecolor=THIRD_SCORE_COLOUR,
-        markeredgecolor=THIRD_SCORE_COLOUR
+        markerfacecolor=SECOND_SCORE_COLOUR,
+        markeredgecolor=SECOND_SCORE_COLOUR
     )[0]
 
     legend_handles.append(this_handle)
@@ -348,19 +348,21 @@ def _plot_scores_as_graph(score_tables_xarray, probability_threshold):
     ])
 
     this_handle = main_axes_object.plot(
-        x_values, bias_values, color=FOURTH_SCORE_COLOUR, linewidth=LINE_WIDTH,
+        x_values, bias_values, color=THIRD_SCORE_COLOUR, linewidth=LINE_WIDTH,
         marker=MARKER_TYPE, markersize=MARKER_SIZE, markeredgewidth=0,
-        markerfacecolor=FOURTH_SCORE_COLOUR,
-        markeredgecolor=FOURTH_SCORE_COLOUR
+        markerfacecolor=THIRD_SCORE_COLOUR,
+        markeredgecolor=THIRD_SCORE_COLOUR
     )[0]
 
     legend_handles.append(this_handle)
-    legend_strings.append('Bias')
+    legend_strings.append('Frequency bias')
 
-    y_min, y_max = main_axes_object.get_ylim()
-    y_min = max([y_min, -1.])
-    y_max = min([y_max, 2.])
-    main_axes_object.set_ylim(y_min, y_max)
+    # y_min, y_max = main_axes_object.get_ylim()
+    # y_min = max([y_min, -1.])
+    # y_max = min([y_max, 2.])
+    # main_axes_object.set_ylim(y_min, y_max)
+
+    main_axes_object.set_ylim(0, 2)
 
     main_axes_object.grid(
         b=True, which='major', axis='y', linestyle='--',
