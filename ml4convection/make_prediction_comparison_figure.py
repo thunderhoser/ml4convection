@@ -326,7 +326,10 @@ def _plot_predictions_one_model(
         model_metafile_name
     ))
     model_metadata_dict = neural_net.read_metafile(model_metafile_name)
+
     mask_matrix = model_metadata_dict[neural_net.FULL_MASK_MATRIX_KEY]
+    mask_matrix = mask_matrix[good_lat_indices, :]
+    mask_matrix = mask_matrix[:, good_lng_indices]
 
     target_matrix = prediction_dict[prediction_io.TARGET_MATRIX_KEY][0, ...]
     target_matrix[mask_matrix == False] = 0
