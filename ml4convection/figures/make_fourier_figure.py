@@ -34,7 +34,7 @@ CONVERT_EXE_NAME = '/usr/bin/convert'
 TITLE_FONT_SIZE = 200
 TITLE_FONT_NAME = 'DejaVu-Sans-Bold'
 
-MAX_COLOUR_PERCENTILE = 95.
+MAX_COLOUR_PERCENTILE = 99.5
 FIGURE_WIDTH_INCHES = 15
 FIGURE_HEIGHT_INCHES = 15
 FIGURE_RESOLUTION_DPI = 300
@@ -492,7 +492,7 @@ def _run(top_prediction_dir_name, valid_time_string, radar_number,
         weight_matrix=weight_matrix,
         colour_map_object=WEIGHT_COLOUR_MAP_OBJECT,
         colour_norm_object=this_colour_norm_object,
-        title_string='Original Fourier weights',
+        title_string='Original Fourier spectrum',
         output_file_name=panel_file_names[1]
     )
 
@@ -583,7 +583,7 @@ def _run(top_prediction_dir_name, valid_time_string, radar_number,
         weight_matrix=weight_matrix,
         colour_map_object=WEIGHT_COLOUR_MAP_OBJECT,
         colour_norm_object=this_colour_norm_object,
-        title_string='Filtered Fourier weights',
+        title_string='Filtered Fourier spectrum',
         output_file_name=panel_file_names[5]
     )
 
