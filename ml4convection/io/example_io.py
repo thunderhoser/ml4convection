@@ -56,6 +56,9 @@ FULL_ROW_DIMENSION_KEY = 'full_grid_row'
 FULL_COLUMN_DIMENSION_KEY = 'full_grid_column'
 BAND_DIMENSION_KEY = 'band'
 
+EXAMPLE_DIMENSION_KEY = 'example'
+RADAR_NUMBERS_KEY = 'radar_numbers'
+
 
 def _create_predictors_one_day(
         input_file_name, spatial_downsampling_factor, normalization_dict,
@@ -1588,3 +1591,68 @@ def concat_target_data(target_dicts):
             ), axis=0)
 
     return target_dict
+
+
+def write_example_ids(netcdf_file_name, valid_times_unix_sec, radar_numbers):
+    """Writes example IDs to NetCDF file.
+
+    This method is only for examples on a partial grid; thus, radar_numbers is
+    a required input argument.
+
+    E = number of examples
+
+    :param netcdf_file_name: Path to output file.
+    :param valid_times_unix_sec: length-E numpy array of valid times.
+    :param radar_numbers: length-E numpy array of radar numbers.
+    """
+
+    # Check input args.
+    error_checking.assert_is_integer_numpy_array(valid_times_unix_sec)
+    error_checking.assert_is_numpy_array(valid_times_unix_sec, num_dimensions=1)
+
+    num_examples = len(valid_times_unix_sec)
+    expected_dim = numpy.array([num_examples], dtype=int)
+
+    error_checking.assert_is_integer_numpy_array(radar_numbers)
+    error_checking.assert_is_numpy_array(
+        radar_numbers, exact_dimensions=expected_dim
+    )
+
+    # Write file.
+    file_system_utils.mkdir_recursive_if_necessary(file_name=netcdf_file_name)
+    dataset_object = netCDF4.Dataset(
+        netcdf_file_name, 'w', format='NETCDF3_64BIT_OFFSET'
+    )
+
+    dataset_object.createDimension(EXAMPLE_DIMENSION_KEY, num_examples)
+
+    dataset_object.createVariable(
+        VALID_TIMES_KEY, datatype=numpy.int32, dimensions=EXAMPLE_DIMENSION_KEY
+    )
+    dataset_object.variables[VALID_TIMES_KEY][:] = valid_times_unix_sec
+
+    dataset_object.createVariable(
+        RADAR_NUMBERS_KEY, datatype=numpy.int32,
+        dimensions=EXAMPLE_DIMENSION_KEY
+    )
+    dataset_object.variables[RADAR_NUMBERS_KEY][:] = radar_numbers
+
+    dataset_object.close()
+
+
+def read_example_ids(netcdf_file_name):
+    """Reads example IDs from NetCDF file.
+
+    E = number of examples
+
+    :param netcdf_file_name: Path to input file.
+    :return: valid_times_unix_sec: length-E numpy array of valid times.
+    :return: radar_numbers: length-E numpy array of radar numbers.
+    """
+
+    dataset_object = netCDF4.Dataset(netcdf_file_name)
+    valid_times_unix_sec = dataset_object.variables[VALID_TIMES_KEY][:]
+    radar_numbers = dataset_object.variables[RADAR_NUMBERS_KEY][:]
+    dataset_object.close()
+
+    return valid_times_unix_sec, radar_numbers
