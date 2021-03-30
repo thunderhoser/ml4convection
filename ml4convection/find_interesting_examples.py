@@ -246,6 +246,19 @@ def _run(top_prediction_dir_name, first_date_string, last_date_string,
             example_radar_numbers[i]
         ))
 
+    print(SEPARATOR_STRING)
+
+    time_array_string = ' '.join([
+        '"{0:s}"'.format(t) for t in example_time_strings
+    ])
+    print(time_array_string)
+    print(SEPARATOR_STRING)
+
+    radar_num_array_string = ' '.join([
+        '{0:d}'.format(n) for n in example_radar_numbers
+    ])
+    print(radar_num_array_string)
+
 
 if __name__ == '__main__':
     INPUT_ARG_OBJECT = INPUT_ARG_PARSER.parse_args()
