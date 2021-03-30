@@ -12,6 +12,7 @@ sys.path.append(os.path.normpath(os.path.join(THIS_DIRECTORY_NAME, '..')))
 
 import time_conversion
 import error_checking
+import example_io
 import prediction_io
 import radar_utils
 
@@ -30,6 +31,7 @@ FIND_LOWEST_PROBS_ARG_NAME = 'find_lowest_probs'
 MIN_PROB_ARG_NAME = 'min_probability'
 MAX_PROB_ARG_NAME = 'max_probability'
 NUM_EXAMPLES_ARG_NAME = 'num_examples'
+OUTPUT_FILE_ARG_NAME = 'output_file_name'
 
 PREDICTION_DIR_HELP_STRING = (
     'Name of top-level directory with predictions.  Files therein will be found'
@@ -62,6 +64,10 @@ MINMAX_PROB_HELP_STRING = (
 ).format(MIN_PROB_ARG_NAME, MAX_PROB_ARG_NAME)
 
 NUM_EXAMPLES_HELP_STRING = 'Number of interesting examples to find.'
+OUTPUT_FILE_HELP_STRING = (
+    'Path to output file.  IDs of interesting examples will be written here by '
+    '`example_io.write_example_ids`.'
+)
 
 INPUT_ARG_PARSER = argparse.ArgumentParser()
 INPUT_ARG_PARSER.add_argument(
@@ -101,11 +107,15 @@ INPUT_ARG_PARSER.add_argument(
     '--' + NUM_EXAMPLES_ARG_NAME, type=int, required=False, default=100,
     help=NUM_EXAMPLES_HELP_STRING
 )
+INPUT_ARG_PARSER.add_argument(
+    '--' + OUTPUT_FILE_ARG_NAME, type=str, required=True,
+    help=OUTPUT_FILE_HELP_STRING
+)
 
 
 def _run(top_prediction_dir_name, first_date_string, last_date_string,
          grid_row, grid_column, find_highest_probs, find_lowest_probs,
-         min_probability, max_probability, num_examples):
+         min_probability, max_probability, num_examples, output_file_name):
     """Finds interesting examples (valid times).
 
     This is effectively the main method.
@@ -120,6 +130,7 @@ def _run(top_prediction_dir_name, first_date_string, last_date_string,
     :param min_probability: Same.
     :param max_probability: Same.
     :param num_examples: Same.
+    :param output_file_name: Same.
     """
 
     # Check input args.
@@ -246,6 +257,15 @@ def _run(top_prediction_dir_name, first_date_string, last_date_string,
             example_radar_numbers[i]
         ))
 
+    print(SEPARATOR_STRING)
+    print('Writing results to: "{0:s}"...'.format(output_file_name))
+
+    example_io.write_example_ids(
+        netcdf_file_name=output_file_name,
+        valid_times_unix_sec=example_times_unix_sec,
+        radar_numbers=example_radar_numbers
+    )
+
 
 if __name__ == '__main__':
     INPUT_ARG_OBJECT = INPUT_ARG_PARSER.parse_args()
@@ -266,5 +286,6 @@ if __name__ == '__main__':
         ),
         min_probability=getattr(INPUT_ARG_OBJECT, MIN_PROB_ARG_NAME),
         max_probability=getattr(INPUT_ARG_OBJECT, MAX_PROB_ARG_NAME),
-        num_examples=getattr(INPUT_ARG_OBJECT, NUM_EXAMPLES_ARG_NAME)
+        num_examples=getattr(INPUT_ARG_OBJECT, NUM_EXAMPLES_ARG_NAME),
+        output_file_name=getattr(INPUT_ARG_OBJECT, OUTPUT_FILE_ARG_NAME)
     )

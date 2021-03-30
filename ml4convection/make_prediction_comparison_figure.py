@@ -33,6 +33,11 @@ MASK_OUTLINE_COLOUR = numpy.full(3, 152. / 255)
 
 NUM_PANEL_COLUMNS = 2
 
+MIN_PLOT_LATITUDE_DEG_N = 21.
+MAX_PLOT_LATITUDE_DEG_N = 25.
+MIN_PLOT_LONGITUDE_DEG_E = 119.
+MAX_PLOT_LONGITUDE_DEG_E = 123.
+
 FIGURE_WIDTH_INCHES = 15.
 FIGURE_HEIGHT_INCHES = 15.
 FIGURE_RESOLUTION_DPI = 300
@@ -143,8 +148,33 @@ def _plot_reflectivity(
         desired_times_unix_sec=numpy.array([valid_time_unix_sec], dtype=int)
     )[0]
 
-    reflectivity_dict = radar_io.expand_to_satellite_grid(
-        any_radar_dict=reflectivity_dict, fill_nans=True
+    # reflectivity_dict = radar_io.expand_to_satellite_grid(
+    #     any_radar_dict=reflectivity_dict, fill_nans=True
+    # )
+
+    good_lat_indices = numpy.where(numpy.logical_and(
+        reflectivity_dict[radar_io.LATITUDES_KEY] >= MIN_PLOT_LATITUDE_DEG_N,
+        reflectivity_dict[radar_io.LATITUDES_KEY] <= MAX_PLOT_LATITUDE_DEG_N
+    ))[0]
+
+    good_lng_indices = numpy.where(numpy.logical_and(
+        reflectivity_dict[radar_io.LONGITUDES_KEY] >= MIN_PLOT_LONGITUDE_DEG_E,
+        reflectivity_dict[radar_io.LONGITUDES_KEY] <= MAX_PLOT_LONGITUDE_DEG_E
+    ))[0]
+
+    reflectivity_dict[radar_io.LATITUDES_KEY] = (
+        reflectivity_dict[radar_io.LATITUDES_KEY][good_lat_indices]
+    )
+    reflectivity_dict[radar_io.LONGITUDES_KEY] = (
+        reflectivity_dict[radar_io.LONGITUDES_KEY][good_lng_indices]
+    )
+    reflectivity_dict[radar_io.REFLECTIVITY_KEY] = (
+        reflectivity_dict[radar_io.REFLECTIVITY_KEY][:, good_lat_indices, ...]
+    )
+    reflectivity_dict[radar_io.REFLECTIVITY_KEY] = (
+        reflectivity_dict[radar_io.REFLECTIVITY_KEY][
+            :, :, good_lng_indices, ...
+        ]
     )
 
     latitudes_deg_n = reflectivity_dict[radar_io.LATITUDES_KEY]
@@ -253,6 +283,36 @@ def _plot_predictions_one_model(
         desired_times_unix_sec=numpy.array([valid_time_unix_sec], dtype=int)
     )[0]
 
+    good_lat_indices = numpy.where(numpy.logical_and(
+        prediction_dict[prediction_io.LATITUDES_KEY] >= MIN_PLOT_LATITUDE_DEG_N,
+        prediction_dict[prediction_io.LATITUDES_KEY] <= MAX_PLOT_LATITUDE_DEG_N
+    ))[0]
+
+    good_lng_indices = numpy.where(numpy.logical_and(
+        prediction_dict[prediction_io.LONGITUDES_KEY] >=
+        MIN_PLOT_LONGITUDE_DEG_E,
+        prediction_dict[prediction_io.LONGITUDES_KEY] <=
+        MAX_PLOT_LONGITUDE_DEG_E
+    ))[0]
+
+    prediction_dict[prediction_io.LATITUDES_KEY] = (
+        prediction_dict[prediction_io.LATITUDES_KEY][good_lat_indices]
+    )
+    prediction_dict[prediction_io.LONGITUDES_KEY] = (
+        prediction_dict[prediction_io.LONGITUDES_KEY][good_lng_indices]
+    )
+
+    these_keys = [
+        prediction_io.TARGET_MATRIX_KEY, prediction_io.PROBABILITY_MATRIX_KEY
+    ]
+    for this_key in these_keys:
+        prediction_dict[this_key] = (
+            prediction_dict[this_key][:, good_lat_indices, :]
+        )
+        prediction_dict[this_key] = (
+            prediction_dict[this_key][..., good_lng_indices]
+        )
+
     if smoothing_radius_px is not None:
         prediction_dict = prediction_io.smooth_probabilities(
             prediction_dict=prediction_dict,
@@ -260,9 +320,6 @@ def _plot_predictions_one_model(
         )
 
     model_file_name = prediction_dict[prediction_io.MODEL_FILE_KEY]
-
-    # TODO(thunderhoser): This is a HACK.
-    model_file_name = model_file_name.replace('experiment12d', 'experiment13d')
     model_metafile_name = neural_net.find_metafile(model_file_name)
 
     print('Reading model metadata from: "{0:s}"...'.format(
