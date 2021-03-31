@@ -1,4 +1,4 @@
-"""Averages saliency maps via probability-matched means (PMM)."""
+"""Composites saliency maps via probability-matched means (PMM)."""
 
 import os
 import argparse
@@ -35,7 +35,7 @@ TARGET_DIR_HELP_STRING = (
     '`example_io.find_target_file` and read by `example_io.read_target_file`.'
 )
 DATE_HELP_STRING = (
-    'Date (format "yyyymmdd").  This script will average saliency maps for '
+    'Date (format "yyyymmdd").  This script will composite saliency maps for '
     'valid dates in the period `{0:s}`...`{1:s}`.'
 ).format(FIRST_DATE_ARG_NAME, LAST_DATE_ARG_NAME)
 
@@ -162,7 +162,7 @@ def _read_saliency_one_file(saliency_file_name, top_predictor_dir_name,
 def _run(top_saliency_dir_name, top_predictor_dir_name, top_target_dir_name,
          first_date_string, last_date_string, max_pmm_percentile_level,
          output_file_name):
-    """Averages saliency maps via probability-matched means (PMM).
+    """Composites saliency maps via probability-matched means (PMM).
 
     This is effectively the main method.
 
