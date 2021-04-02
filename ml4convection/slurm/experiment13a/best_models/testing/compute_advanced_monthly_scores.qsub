@@ -48,6 +48,7 @@ while ($i <= ${#MONTHS})
     --input_basic_score_dir_name="${evaluation_dir_name}" \
     --first_date_string="20180101" \
     --last_date_string="20181224" \
+    --num_bootstrap_reps=10 \
     --use_partial_grids=0 \
     --desired_month=${MONTHS[$i]} \
     --split_by_hour=0 \
