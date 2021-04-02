@@ -36,6 +36,8 @@ VALID_TIMES_KEY = 'valid_times_unix_sec'
 LATITUDES_KEY = 'latitudes_deg_n'
 LONGITUDES_KEY = 'longitudes_deg_e'
 SALIENCY_MATRIX_KEY = 'saliency_matrix'
+MEAN_SALIENCY_KEY = 'mean_saliency_matrix'
+MEAN_DENORM_PREDICTORS_KEY = 'mean_denorm_predictor_matrix'
 
 
 def check_metadata(layer_name, neuron_indices, ideal_activation,
@@ -369,3 +371,139 @@ def read_file(netcdf_file_name):
 
     dataset_object.close()
     return saliency_dict
+
+
+def write_composite_file(
+        netcdf_file_name, mean_saliency_matrix, mean_denorm_predictor_matrix,
+        model_file_name, is_layer_output, layer_name, neuron_indices,
+        ideal_activation, multiply_by_input):
+    """Writes composite saliency map (average over many cases) to NetCDF file.
+
+    M = number of rows in grid
+    N = number of columns in grid
+    T = number of lag times
+    C = number of channels
+
+    :param netcdf_file_name: Path to output file.
+    :param mean_saliency_matrix: numpy array of saliency values.  Must be
+        M x N x C or M x N x T x C.
+    :param mean_denorm_predictor_matrix: numpy array of denormalized predictors
+        (same shape as `mean_saliency_matrix`).
+    :param model_file_name: See doc for `write_file`.
+    :param is_layer_output: Same.
+    :param layer_name: Same.
+    :param neuron_indices: Same.
+    :param ideal_activation: Same.
+    :param multiply_by_input: Same.
+    """
+
+    # Check input args.
+    error_checking.assert_is_string(model_file_name)
+    error_checking.assert_is_boolean(is_layer_output)
+
+    check_metadata(
+        layer_name=layer_name, neuron_indices=neuron_indices,
+        ideal_activation=ideal_activation, multiply_by_input=multiply_by_input
+    )
+
+    error_checking.assert_is_numpy_array_without_nan(mean_saliency_matrix)
+    num_saliency_dim = len(mean_saliency_matrix.shape)
+    error_checking.assert_is_geq(num_saliency_dim, 3)
+    error_checking.assert_is_leq(num_saliency_dim, 4)
+
+    has_time_dimension = num_saliency_dim == 4
+
+    error_checking.assert_is_numpy_array_without_nan(
+        mean_denorm_predictor_matrix
+    )
+    error_checking.assert_is_numpy_array(
+        mean_denorm_predictor_matrix,
+        exact_dimensions=numpy.array(mean_saliency_matrix.shape, dtype=int)
+    )
+
+    # Write to NetCDF file.
+    file_system_utils.mkdir_recursive_if_necessary(file_name=netcdf_file_name)
+    dataset_object = netCDF4.Dataset(
+        netcdf_file_name, 'w', format='NETCDF3_64BIT_OFFSET'
+    )
+
+    dataset_object.setncattr(MODEL_FILE_KEY, model_file_name)
+    dataset_object.setncattr(IS_LAYER_OUTPUT_KEY, int(is_layer_output))
+    dataset_object.setncattr(LAYER_NAME_KEY, layer_name)
+    dataset_object.setncattr(NEURON_INDICES_KEY, neuron_indices)
+    dataset_object.setncattr(IDEAL_ACTIVATION_KEY, ideal_activation)
+    dataset_object.setncattr(MULTIPLY_BY_INPUT_KEY, int(multiply_by_input))
+
+    dataset_object.createDimension(
+        ROW_DIMENSION_KEY, mean_saliency_matrix.shape[0]
+    )
+    dataset_object.createDimension(
+        COLUMN_DIMENSION_KEY, mean_saliency_matrix.shape[1]
+    )
+    dataset_object.createDimension(
+        CHANNEL_DIMENSION_KEY, mean_saliency_matrix.shape[-1]
+    )
+
+    if has_time_dimension:
+        dataset_object.createDimension(
+            LAG_TIME_DIMENSION_KEY, mean_saliency_matrix.shape[-2]
+        )
+
+    these_dim = (ROW_DIMENSION_KEY, COLUMN_DIMENSION_KEY)
+    if has_time_dimension:
+        these_dim += (LAG_TIME_DIMENSION_KEY,)
+    these_dim += (CHANNEL_DIMENSION_KEY,)
+
+    dataset_object.createVariable(
+        MEAN_SALIENCY_KEY, datatype=numpy.float32, dimensions=these_dim
+    )
+    dataset_object.variables[MEAN_SALIENCY_KEY][:] = mean_saliency_matrix
+
+    dataset_object.createVariable(
+        MEAN_DENORM_PREDICTORS_KEY, datatype=numpy.float32, dimensions=these_dim
+    )
+    dataset_object.variables[MEAN_DENORM_PREDICTORS_KEY][:] = (
+        mean_denorm_predictor_matrix
+    )
+
+    dataset_object.close()
+
+
+def read_composite_file(netcdf_file_name):
+    """Reads composite saliency map from NetCDF file.
+
+    :param netcdf_file_name: Path to input file.
+    :return: mean_saliency_dict: Dictionary with the following keys.
+    mean_saliency_dict['mean_saliency_matrix']: See doc for
+        `write_composite_file`.
+    mean_saliency_dict['mean_denorm_predictor_matrix']: Same.
+    mean_saliency_dict['model_file_name']: Same.
+    mean_saliency_dict['is_layer_output']: Same.
+    mean_saliency_dict['layer_name']: Same.
+    mean_saliency_dict['neuron_indices']: Same.
+    mean_saliency_dict['ideal_activation']: Same.
+    mean_saliency_dict['multiply_by_input']: Same.
+    """
+
+    dataset_object = netCDF4.Dataset(netcdf_file_name)
+
+    mean_saliency_dict = {
+        MODEL_FILE_KEY: str(getattr(dataset_object, MODEL_FILE_KEY)),
+        IS_LAYER_OUTPUT_KEY: bool(getattr(dataset_object, IS_LAYER_OUTPUT_KEY)),
+        LAYER_NAME_KEY: str(getattr(dataset_object, LAYER_NAME_KEY)),
+        NEURON_INDICES_KEY: numpy.array(
+            getattr(dataset_object, NEURON_INDICES_KEY), dtype=int
+        ),
+        IDEAL_ACTIVATION_KEY: getattr(dataset_object, IDEAL_ACTIVATION_KEY),
+        MULTIPLY_BY_INPUT_KEY:
+            bool(getattr(dataset_object, MULTIPLY_BY_INPUT_KEY)),
+        MEAN_SALIENCY_KEY: numpy.array(
+            dataset_object.variables[MEAN_SALIENCY_KEY][:], dtype=float
+        ),
+        MEAN_DENORM_PREDICTORS_KEY: numpy.array(
+            dataset_object.variables[MEAN_DENORM_PREDICTORS_KEY][:], dtype=float
+        )
+    }
+
+    dataset_object.close()
+    return mean_saliency_dict
