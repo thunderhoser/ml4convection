@@ -1241,6 +1241,13 @@ def get_advanced_scores_ungridded(
     time_indices = numpy.linspace(0, num_times - 1, num=num_times, dtype=int)
 
     for i in range(num_bootstrap_reps):
+        print((
+            'Computing advanced scores for {0:d}th of {1:d} bootstrap '
+            'replicates...'
+        ).format(
+            i + 1, num_bootstrap_reps
+        ))
+
         if num_bootstrap_reps == 1:
             b = basic_score_table_xarray
         else:

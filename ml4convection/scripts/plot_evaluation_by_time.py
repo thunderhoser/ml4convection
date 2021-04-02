@@ -590,7 +590,7 @@ def _run(input_dir_name, probability_threshold, confidence_level,
         # Plot hourly reliability curves.
         figure_object, axes_object = _plot_reliability_curves(
             score_tables_xarray=hourly_score_tables_xarray,
-            confidence_level=confidence_level
+            confidence_level=None
         )
         axes_object.set_title('Reliability curve by hour')
 
@@ -608,7 +608,7 @@ def _run(input_dir_name, probability_threshold, confidence_level,
         # Plot monthly reliability curves.
         figure_object, axes_object = _plot_reliability_curves(
             score_tables_xarray=monthly_score_tables_xarray,
-            confidence_level=confidence_level
+            confidence_level=None
         )
         axes_object.set_title('Reliability curve by month')
 

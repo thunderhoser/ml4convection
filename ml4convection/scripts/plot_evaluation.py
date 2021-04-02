@@ -11,8 +11,6 @@ from gewittergefahr.gg_utils import error_checking
 from ml4convection.utils import evaluation
 from ml4convection.plotting import evaluation_plotting as eval_plotting
 
-# TODO(thunderhoser): Make confidence interval an input arg.
-
 TOLERANCE = 1e-6
 
 BOUNDING_BOX_DICT = {
