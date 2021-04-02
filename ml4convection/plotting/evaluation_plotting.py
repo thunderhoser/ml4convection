@@ -408,8 +408,8 @@ def _confidence_interval_to_polygon(
     R = number of bootstrap replicates
     V = number of vertices in resulting polygon = 2 * P + 1
 
-    :param x_value_matrix: P-by-R numpy array of x-values.
-    :param y_value_matrix: P-by-R numpy array of y-values.
+    :param x_value_matrix: R-by-P numpy array of x-values.
+    :param y_value_matrix: R-by-P numpy array of y-values.
     :param confidence_level: Confidence level (in range 0...1).
     :param same_order: Boolean flag.  If True (False), minimum x-values will be
         matched with minimum (maximum) y-values.
@@ -436,16 +436,16 @@ def _confidence_interval_to_polygon(
     max_percentile = 50 * (1. + confidence_level)
 
     x_values_bottom = numpy.nanpercentile(
-        x_value_matrix, min_percentile, axis=1, interpolation='linear'
+        x_value_matrix, min_percentile, axis=0, interpolation='linear'
     )
     x_values_top = numpy.nanpercentile(
-        x_value_matrix, max_percentile, axis=1, interpolation='linear'
+        x_value_matrix, max_percentile, axis=0, interpolation='linear'
     )
     y_values_bottom = numpy.nanpercentile(
-        y_value_matrix, min_percentile, axis=1, interpolation='linear'
+        y_value_matrix, min_percentile, axis=0, interpolation='linear'
     )
     y_values_top = numpy.nanpercentile(
-        y_value_matrix, max_percentile, axis=1, interpolation='linear'
+        y_value_matrix, max_percentile, axis=0, interpolation='linear'
     )
 
     real_indices = numpy.where(numpy.invert(numpy.logical_or(
@@ -490,8 +490,8 @@ def plot_reliability_curve(
 
     :param axes_object: Will plot on these axes (instance of
         `matplotlib.axes._subplots.AxesSubplot`).
-    :param mean_prediction_matrix: B-by-R numpy array of mean predicted values.
-    :param mean_observation_matrix: B-by-R numpy array of mean observed values.
+    :param mean_prediction_matrix: R-by-B numpy array of mean predicted values.
+    :param mean_observation_matrix: R-by-B numpy array of mean observed values.
     :param min_value_to_plot: See doc for `plot_attributes_diagram`.
     :param max_value_to_plot: Same.
     :param confidence_level: Same.
@@ -530,8 +530,8 @@ def plot_reliability_curve(
             linestyle='dashed', linewidth=REFERENCE_LINE_WIDTH
         )
 
-    mean_predictions = numpy.nanmean(mean_prediction_matrix, axis=1)
-    mean_observations = numpy.nanmean(mean_observation_matrix, axis=1)
+    mean_predictions = numpy.nanmean(mean_prediction_matrix, axis=0)
+    mean_observations = numpy.nanmean(mean_observation_matrix, axis=0)
     nan_flags = numpy.logical_or(
         numpy.isnan(mean_predictions), numpy.isnan(mean_observations)
     )
@@ -578,9 +578,9 @@ def plot_roc_curve(
     R = number of bootstrap replicates
 
     :param axes_object: Instance of `matplotlib.axes._subplots.AxesSubplot`.
-    :param pod_matrix: T-by-R numpy array of POD (probability of detection)
+    :param pod_matrix: R-by-T numpy array of POD (probability of detection)
         values.
-    :param pofd_matrix: T-by-R numpy array of POFD (probability of false
+    :param pofd_matrix: R-by-T numpy array of POFD (probability of false
         detection) values.
     :param confidence_level: Will plot confidence interval at this level.
     :param line_colour: Line colour.
@@ -632,8 +632,8 @@ def plot_roc_curve(
             linestyle='dashed', linewidth=REFERENCE_LINE_WIDTH
         )
 
-    pofd_by_threshold = numpy.nanmean(pofd_matrix, axis=1)
-    pod_by_threshold = numpy.nanmean(pod_matrix, axis=1)
+    pofd_by_threshold = numpy.nanmean(pofd_matrix, axis=0)
+    pod_by_threshold = numpy.nanmean(pod_matrix, axis=0)
     nan_flags = numpy.logical_or(
         numpy.isnan(pofd_by_threshold), numpy.isnan(pod_by_threshold)
     )
@@ -680,9 +680,9 @@ def plot_performance_diagram(
     R = number of bootstrap replicates
 
     :param axes_object: Instance of `matplotlib.axes._subplots.AxesSubplot`.
-    :param pod_matrix: T-by-R numpy array of POD (probability of detection)
+    :param pod_matrix: R-by-T numpy array of POD (probability of detection)
         values.
-    :param success_ratio_matrix: T-by-R numpy array of success ratios.
+    :param success_ratio_matrix: R-by-T numpy array of success ratios.
     :param confidence_level: Will plot confidence interval at this level.
     :param line_colour: Line colour.
     :param plot_background: Boolean flag.  If True, will plot background
@@ -758,8 +758,8 @@ def plot_performance_diagram(
             fmt=FREQ_BIAS_STRING_FORMAT, fontsize=FONT_SIZE
         )
 
-    success_ratio_by_threshold = numpy.nanmean(success_ratio_matrix, axis=1)
-    pod_by_threshold = numpy.nanmean(pod_matrix, axis=1)
+    success_ratio_by_threshold = numpy.nanmean(success_ratio_matrix, axis=0)
+    pod_by_threshold = numpy.nanmean(pod_matrix, axis=0)
     nan_flags = numpy.logical_or(
         numpy.isnan(success_ratio_by_threshold), numpy.isnan(pod_by_threshold)
     )
@@ -817,8 +817,8 @@ def plot_attributes_diagram(
         `matplotlib.figure.Figure`).
     :param axes_object: Will plot on these axes (instance of
         `matplotlib.axes._subplots.AxesSubplot`).
-    :param mean_prediction_matrix: B-by-R numpy array of mean predicted values.
-    :param mean_observation_matrix: B-by-R numpy array of mean observed values.
+    :param mean_prediction_matrix: R-by-B numpy array of mean predicted values.
+    :param mean_observation_matrix: R-by-B numpy array of mean observed values.
     :param example_counts: length-B numpy array with number of examples in each
         bin.
     :param mean_value_in_training: Mean of target variable in training data.
@@ -887,7 +887,7 @@ def plot_attributes_diagram(
 
     _plot_inset_histogram(
         figure_object=figure_object,
-        bin_centers=numpy.nanmean(mean_prediction_matrix, axis=1),
+        bin_centers=numpy.nanmean(mean_prediction_matrix, axis=0),
         bin_counts=example_counts, has_predictions=True, bar_colour=line_colour
     )
 
