@@ -8,6 +8,7 @@ import matplotlib
 matplotlib.use('agg')
 from matplotlib import pyplot
 import matplotlib.colors
+import matplotlib.patches
 from scipy.interpolate import interp1d
 
 THIS_DIRECTORY_NAME = os.path.dirname(os.path.realpath(
@@ -37,6 +38,7 @@ FIRST_SCORE_COLOUR = numpy.array([217, 95, 2], dtype=float) / 255
 SECOND_SCORE_COLOUR = numpy.array([117, 112, 179], dtype=float) / 255
 THIRD_SCORE_COLOUR = numpy.array([27, 158, 119], dtype=float) / 255
 FOURTH_SCORE_COLOUR = numpy.full(3, 0.)
+POLYGON_OPACITY = 0.5
 
 HISTOGRAM_EDGE_WIDTH = 1.5
 HISTOGRAM_FACE_COLOUR = numpy.full(3, 152. / 255)
@@ -113,13 +115,17 @@ def _plot_performance_diagrams(score_tables_xarray):
     )
 
     for i in range(num_tables):
-        these_pod = score_tables_xarray[i][evaluation.POD_KEY].values
-        these_success_ratios = (
-            score_tables_xarray[i][evaluation.SUCCESS_RATIO_KEY].values
+        these_pod = numpy.nanmean(
+            score_tables_xarray[i][evaluation.POD_KEY].values, axis=0
+        )
+        these_success_ratios = numpy.nanmean(
+            score_tables_xarray[i][evaluation.SUCCESS_RATIO_KEY].values, axis=0
         )
         eval_plotting.plot_performance_diagram(
-            axes_object=axes_object, pod_by_threshold=these_pod,
-            success_ratio_by_threshold=these_success_ratios,
+            axes_object=axes_object,
+            pod_matrix=score_tables_xarray[i][evaluation.POD_KEY].values,
+            success_ratio_matrix=
+            score_tables_xarray[i][evaluation.SUCCESS_RATIO_KEY].values,
             line_colour=colour_matrix[i, ...],
             plot_background=i == 0, plot_csi_in_grey=True
         )
@@ -192,16 +198,20 @@ def _plot_reliability_curves(score_tables_xarray):
     )
 
     for i in range(num_tables):
-        these_mean_probs = (
-            score_tables_xarray[i][evaluation.BINNED_MEAN_PROBS_KEY].values
+        these_mean_probs = numpy.nanmean(
+            score_tables_xarray[i][evaluation.BINNED_MEAN_PROBS_KEY].values,
+            axis=0
         )
-        these_event_freqs = (
-            score_tables_xarray[i][evaluation.BINNED_EVENT_FREQS_KEY].values
+        these_event_freqs = numpy.nanmean(
+            score_tables_xarray[i][evaluation.BINNED_EVENT_FREQS_KEY].values,
+            axis=0
         )
         eval_plotting.plot_reliability_curve(
             axes_object=axes_object,
-            mean_predictions=these_mean_probs,
-            mean_observations=these_event_freqs,
+            mean_prediction_matrix=
+            score_tables_xarray[i][evaluation.BINNED_MEAN_PROBS_KEY].values,
+            mean_observation_matrix=
+            score_tables_xarray[i][evaluation.BINNED_EVENT_FREQS_KEY].values,
             min_value_to_plot=0., max_value_to_plot=1.,
             line_colour=colour_matrix[i, ...], plot_background=i == 0
         )
@@ -275,32 +285,52 @@ def _plot_scores_as_graph(score_tables_xarray, probability_threshold):
     x_values = numpy.linspace(0, num_tables - 1, num=num_tables, dtype=float)
 
     # Plot FSS.
-    fss_values = numpy.array([
-        t[evaluation.FSS_KEY][0] for t in score_tables_xarray
-    ])
+    fss_matrix = numpy.concatenate(
+        [t[evaluation.FSS_KEY] for t in score_tables_xarray], axis=1
+    )
+    num_bootstrap_reps = fss_matrix.shape[0]
 
     this_handle = main_axes_object.plot(
-        x_values, fss_values, color=FIRST_SCORE_COLOUR, linewidth=LINE_WIDTH,
-        marker=MARKER_TYPE, markersize=MARKER_SIZE, markeredgewidth=0,
-        markerfacecolor=FIRST_SCORE_COLOUR,
+        x_values, numpy.mean(fss_matrix, axis=0), color=FIRST_SCORE_COLOUR,
+        linewidth=LINE_WIDTH, marker=MARKER_TYPE, markersize=MARKER_SIZE,
+        markeredgewidth=0, markerfacecolor=FIRST_SCORE_COLOUR,
         markeredgecolor=FIRST_SCORE_COLOUR
     )[0]
 
     legend_handles = [this_handle]
     legend_strings = ['FSS']
 
+    if num_bootstrap_reps > 1:
+        x_value_matrix = numpy.expand_dims(x_values, axis=0)
+        x_value_matrix = numpy.repeat(
+            x_value_matrix, axis=0, repeats=num_bootstrap_reps
+        )
+
+        polygon_coord_matrix = eval_plotting.confidence_interval_to_polygon(
+            x_value_matrix=x_value_matrix, y_value_matrix=fss_matrix,
+            confidence_level=0.95, same_order=False
+        )
+
+        polygon_colour = matplotlib.colors.to_rgba(
+            FIRST_SCORE_COLOUR, POLYGON_OPACITY
+        )
+        patch_object = matplotlib.patches.Polygon(
+            polygon_coord_matrix, lw=0, ec=polygon_colour, fc=polygon_colour
+        )
+        main_axes_object.add_patch(patch_object)
+
     # # Plot BSS.
     # bss_values = numpy.array([
     #     t[evaluation.BRIER_SKILL_SCORE_KEY][0] for t in score_tables_xarray
     # ])
-    # 
+    #
     # this_handle = main_axes_object.plot(
     #     x_values, bss_values, color=SECOND_SCORE_COLOUR, linewidth=LINE_WIDTH,
     #     marker=MARKER_TYPE, markersize=MARKER_SIZE, markeredgewidth=0,
     #     markerfacecolor=SECOND_SCORE_COLOUR,
     #     markeredgecolor=SECOND_SCORE_COLOUR
     # )[0]
-    # 
+    #
     # legend_handles.append(this_handle)
     # legend_strings.append('BSS')
 
@@ -326,36 +356,74 @@ def _plot_scores_as_graph(score_tables_xarray, probability_threshold):
 
         raise ValueError(error_string)
 
-    csi_values = numpy.array([
-        t[evaluation.CSI_KEY][prob_threshold_index]
+    csi_matrix = numpy.concatenate([
+        t[evaluation.CSI_KEY][:, prob_threshold_index]
         for t in score_tables_xarray
-    ])
+    ], axis=1)
 
     this_handle = main_axes_object.plot(
-        x_values, csi_values, color=SECOND_SCORE_COLOUR, linewidth=LINE_WIDTH,
-        marker=MARKER_TYPE, markersize=MARKER_SIZE, markeredgewidth=0,
-        markerfacecolor=SECOND_SCORE_COLOUR,
+        x_values, numpy.mean(csi_matrix, axis=0), color=SECOND_SCORE_COLOUR,
+        linewidth=LINE_WIDTH, marker=MARKER_TYPE, markersize=MARKER_SIZE,
+        markeredgewidth=0, markerfacecolor=SECOND_SCORE_COLOUR,
         markeredgecolor=SECOND_SCORE_COLOUR
     )[0]
 
     legend_handles.append(this_handle)
     legend_strings.append('CSI')
 
+    if num_bootstrap_reps > 1:
+        x_value_matrix = numpy.expand_dims(x_values, axis=0)
+        x_value_matrix = numpy.repeat(
+            x_value_matrix, axis=0, repeats=num_bootstrap_reps
+        )
+
+        polygon_coord_matrix = eval_plotting.confidence_interval_to_polygon(
+            x_value_matrix=x_value_matrix, y_value_matrix=csi_matrix,
+            confidence_level=0.95, same_order=False
+        )
+
+        polygon_colour = matplotlib.colors.to_rgba(
+            SECOND_SCORE_COLOUR, POLYGON_OPACITY
+        )
+        patch_object = matplotlib.patches.Polygon(
+            polygon_coord_matrix, lw=0, ec=polygon_colour, fc=polygon_colour
+        )
+        main_axes_object.add_patch(patch_object)
+
     # Plot frequency bias.
-    bias_values = numpy.array([
-        t[evaluation.FREQUENCY_BIAS_KEY][prob_threshold_index]
+    bias_matrix = numpy.concatenate([
+        t[evaluation.FREQUENCY_BIAS_KEY][:, prob_threshold_index]
         for t in score_tables_xarray
-    ])
+    ], axis=1)
 
     this_handle = main_axes_object.plot(
-        x_values, bias_values, color=THIRD_SCORE_COLOUR, linewidth=LINE_WIDTH,
-        marker=MARKER_TYPE, markersize=MARKER_SIZE, markeredgewidth=0,
-        markerfacecolor=THIRD_SCORE_COLOUR,
+        x_values, numpy.mean(bias_matrix, axis=0), color=THIRD_SCORE_COLOUR,
+        linewidth=LINE_WIDTH, marker=MARKER_TYPE, markersize=MARKER_SIZE,
+        markeredgewidth=0, markerfacecolor=THIRD_SCORE_COLOUR,
         markeredgecolor=THIRD_SCORE_COLOUR
     )[0]
 
     legend_handles.append(this_handle)
     legend_strings.append('Frequency bias')
+
+    if num_bootstrap_reps > 1:
+        x_value_matrix = numpy.expand_dims(x_values, axis=0)
+        x_value_matrix = numpy.repeat(
+            x_value_matrix, axis=0, repeats=num_bootstrap_reps
+        )
+
+        polygon_coord_matrix = eval_plotting.confidence_interval_to_polygon(
+            x_value_matrix=x_value_matrix, y_value_matrix=bias_matrix,
+            confidence_level=0.95, same_order=False
+        )
+
+        polygon_colour = matplotlib.colors.to_rgba(
+            THIRD_SCORE_COLOUR, POLYGON_OPACITY
+        )
+        patch_object = matplotlib.patches.Polygon(
+            polygon_coord_matrix, lw=0, ec=polygon_colour, fc=polygon_colour
+        )
+        main_axes_object.add_patch(patch_object)
 
     # y_min, y_max = main_axes_object.get_ylim()
     # y_min = max([y_min, -1.])
@@ -378,7 +446,7 @@ def _plot_scores_as_graph(score_tables_xarray, probability_threshold):
     positive_example_counts = numpy.array([
         numpy.nansum(
             t[evaluation.BINNED_NUM_EXAMPLES_KEY].values *
-            t[evaluation.BINNED_EVENT_FREQS_KEY].values
+            numpy.nanmean(t[evaluation.BINNED_EVENT_FREQS_KEY].values, axis=0)
         )
         for t in score_tables_xarray
     ])
