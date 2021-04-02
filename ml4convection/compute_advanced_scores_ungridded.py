@@ -26,6 +26,7 @@ NUM_RADARS = len(radar_utils.RADAR_LATITUDES_DEG_N)
 INPUT_DIR_ARG_NAME = 'input_basic_score_dir_name'
 FIRST_DATE_ARG_NAME = 'first_date_string'
 LAST_DATE_ARG_NAME = 'last_date_string'
+NUM_BOOTSTRAP_ARG_NAME = 'num_bootstrap_reps'
 USE_PARTIAL_GRIDS_ARG_NAME = 'use_partial_grids'
 MONTH_ARG_NAME = 'desired_month'
 SPLIT_BY_HOUR_ARG_NAME = 'split_by_hour'
@@ -42,6 +43,7 @@ DATE_HELP_STRING = (
     'period `{0:s}`...`{1:s}`.'
 ).format(FIRST_DATE_ARG_NAME, LAST_DATE_ARG_NAME)
 
+NUM_BOOTSTRAP_HELP_STRING = 'Number of bootstrap replicates.'
 USE_PARTIAL_GRIDS_HELP_STRING = (
     'Boolean flag.  If 1 (0), will compute scores for partial (full) grids.'
 )
@@ -76,6 +78,10 @@ INPUT_ARG_PARSER.add_argument(
     '--' + LAST_DATE_ARG_NAME, type=str, required=True, help=DATE_HELP_STRING
 )
 INPUT_ARG_PARSER.add_argument(
+    '--' + NUM_BOOTSTRAP_ARG_NAME, type=int, required=True,
+    help=NUM_BOOTSTRAP_HELP_STRING
+)
+INPUT_ARG_PARSER.add_argument(
     '--' + USE_PARTIAL_GRIDS_ARG_NAME, type=int, required=False, default=0,
     help=USE_PARTIAL_GRIDS_HELP_STRING
 )
@@ -99,12 +105,13 @@ INPUT_ARG_PARSER.add_argument(
 
 def _compute_scores_partial_grids(
         top_basic_score_dir_name, first_date_string, last_date_string,
-        climo_file_name, output_dir_name):
+        num_bootstrap_reps, climo_file_name, output_dir_name):
     """Computes advanced scores on full grid.
 
     :param top_basic_score_dir_name: See documentation at top of file.
     :param first_date_string: Same.
     :param last_date_string: Same.
+    :param num_bootstrap_reps: Same.
     :param climo_file_name: Same.
     :param output_dir_name: Same.
     """
@@ -163,7 +170,8 @@ def _compute_scores_partial_grids(
         evaluation.get_advanced_scores_ungridded(
             basic_score_table_xarray=basic_score_table_xarray,
             training_event_frequency=
-            climo_dict[climatology_io.EVENT_FREQ_OVERALL_KEY]
+            climo_dict[climatology_io.EVENT_FREQ_OVERALL_KEY],
+            num_bootstrap_reps=num_bootstrap_reps
         )
     )
     print(advanced_score_table_xarray)
@@ -182,12 +190,14 @@ def _compute_scores_partial_grids(
 
 def _compute_scores_full_grid(
         top_basic_score_dir_name, first_date_string, last_date_string,
-        desired_month, split_by_hour, climo_file_name, output_dir_name):
+        num_bootstrap_reps, desired_month, split_by_hour, climo_file_name,
+        output_dir_name):
     """Computes advanced scores on full grid.
 
     :param top_basic_score_dir_name: See documentation at top of file.
     :param first_date_string: Same.
     :param last_date_string: Same.
+    :param num_bootstrap_reps: Same.
     :param desired_month: Same.
     :param split_by_hour: Same.
     :param climo_file_name: Same.
@@ -287,7 +297,8 @@ def _compute_scores_full_grid(
         advanced_score_table_xarray = (
             evaluation.get_advanced_scores_ungridded(
                 basic_score_table_xarray=basic_score_table_xarray,
-                training_event_frequency=this_event_freq
+                training_event_frequency=this_event_freq,
+                num_bootstrap_reps=num_bootstrap_reps
             )
         )
         print(advanced_score_table_xarray)
@@ -311,8 +322,8 @@ def _compute_scores_full_grid(
 
 
 def _run(top_basic_score_dir_name, first_date_string, last_date_string,
-         use_partial_grids, desired_month, split_by_hour, climo_file_name,
-         output_dir_name):
+         num_bootstrap_reps, use_partial_grids, desired_month, split_by_hour,
+         climo_file_name, output_dir_name):
     """Computes advanced eval scores sans grid (combined over full domain).
 
     This is effectively the main method.
@@ -320,6 +331,7 @@ def _run(top_basic_score_dir_name, first_date_string, last_date_string,
     :param top_basic_score_dir_name: See documentation at top of file.
     :param first_date_string: Same.
     :param last_date_string: Same.
+    :param num_bootstrap_reps: Same.
     :param desired_month: Same.
     :param split_by_hour: Same.
     :param climo_file_name: Same.
@@ -339,6 +351,7 @@ def _run(top_basic_score_dir_name, first_date_string, last_date_string,
             top_basic_score_dir_name=top_basic_score_dir_name,
             first_date_string=first_date_string,
             last_date_string=last_date_string,
+            num_bootstrap_reps=num_bootstrap_reps,
             desired_month=desired_month, split_by_hour=split_by_hour,
             climo_file_name=climo_file_name, output_dir_name=output_dir_name
         )
@@ -349,6 +362,7 @@ def _run(top_basic_score_dir_name, first_date_string, last_date_string,
         top_basic_score_dir_name=top_basic_score_dir_name,
         first_date_string=first_date_string,
         last_date_string=last_date_string,
+        num_bootstrap_reps=num_bootstrap_reps,
         climo_file_name=climo_file_name, output_dir_name=output_dir_name
     )
 
@@ -360,6 +374,7 @@ if __name__ == '__main__':
         top_basic_score_dir_name=getattr(INPUT_ARG_OBJECT, INPUT_DIR_ARG_NAME),
         first_date_string=getattr(INPUT_ARG_OBJECT, FIRST_DATE_ARG_NAME),
         last_date_string=getattr(INPUT_ARG_OBJECT, LAST_DATE_ARG_NAME),
+        num_bootstrap_reps=getattr(INPUT_ARG_OBJECT, NUM_BOOTSTRAP_ARG_NAME),
         use_partial_grids=bool(
             getattr(INPUT_ARG_OBJECT, USE_PARTIAL_GRIDS_ARG_NAME)
         ),

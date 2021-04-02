@@ -58,6 +58,7 @@ CONCAT_FIGURE_SIZE_PX = int(1e7)
 
 INPUT_DIR_ARG_NAME = 'input_dir_name'
 PROB_THRESHOLD_ARG_NAME = 'probability_threshold'
+CONFIDENCE_LEVEL_ARG_NAME = 'confidence_level'
 OUTPUT_DIR_ARG_NAME = 'output_dir_name'
 
 INPUT_DIR_HELP_STRING = (
@@ -68,6 +69,10 @@ INPUT_DIR_HELP_STRING = (
 PROB_THRESHOLD_HELP_STRING = (
     'Probability threshold used to compute POD, success ratio, and CSI.  If you'
     ' do not want to plot the aforelisted scores, leave this argument alone.'
+)
+CONFIDENCE_LEVEL_HELP_STRING = (
+    'Confidence intervals (if number of bootstrap replicates > 1) will be '
+    'plotted at this level.'
 )
 OUTPUT_DIR_HELP_STRING = (
     'Name of output directory.  Figures will be saved here.'
@@ -83,17 +88,22 @@ INPUT_ARG_PARSER.add_argument(
     help=PROB_THRESHOLD_HELP_STRING
 )
 INPUT_ARG_PARSER.add_argument(
+    '--' + CONFIDENCE_LEVEL_ARG_NAME, type=float, required=False, default=0.95,
+    help=CONFIDENCE_LEVEL_HELP_STRING
+)
+INPUT_ARG_PARSER.add_argument(
     '--' + OUTPUT_DIR_ARG_NAME, type=str, required=True,
     help=OUTPUT_DIR_HELP_STRING
 )
 
 
-def _plot_performance_diagrams(score_tables_xarray):
+def _plot_performance_diagrams(score_tables_xarray, confidence_level):
     """Plots performance diagrams.
 
     :param score_tables_xarray: 1-D list of tables in format returned by
         `evaluation.read_advanced_score_file`, where each table corresponds to
         either one month or one hour.
+    :param confidence_level: See documentation at top of file.
     :return: figure_object: Figure handle (instance of
         `matplotlib.figure.Figure`).
     :return: axes_object: Axes handle (instance of
@@ -126,6 +136,7 @@ def _plot_performance_diagrams(score_tables_xarray):
             pod_matrix=score_tables_xarray[i][evaluation.POD_KEY].values,
             success_ratio_matrix=
             score_tables_xarray[i][evaluation.SUCCESS_RATIO_KEY].values,
+            confidence_level=confidence_level,
             line_colour=colour_matrix[i, ...],
             plot_background=i == 0, plot_csi_in_grey=True
         )
@@ -175,10 +186,11 @@ def _plot_performance_diagrams(score_tables_xarray):
     return figure_object, axes_object
 
 
-def _plot_reliability_curves(score_tables_xarray):
+def _plot_reliability_curves(score_tables_xarray, confidence_level):
     """Plots reliability curves.
 
     :param score_tables_xarray: See doc for `_plot_performance_diagrams`.
+    :param confidence_level: See documentation at top of file.
     :return: figure_object: Same.
     :return: axes_object: Same.
     """
@@ -212,6 +224,7 @@ def _plot_reliability_curves(score_tables_xarray):
             score_tables_xarray[i][evaluation.BINNED_MEAN_PROBS_KEY].values,
             mean_observation_matrix=
             score_tables_xarray[i][evaluation.BINNED_EVENT_FREQS_KEY].values,
+            confidence_level=confidence_level,
             min_value_to_plot=0., max_value_to_plot=1.,
             line_colour=colour_matrix[i, ...], plot_background=i == 0
         )
@@ -261,12 +274,14 @@ def _plot_reliability_curves(score_tables_xarray):
     return figure_object, axes_object
 
 
-def _plot_scores_as_graph(score_tables_xarray, probability_threshold):
+def _plot_scores_as_graph(score_tables_xarray, probability_threshold,
+                          confidence_level):
     """Plots scores vs. time as graph.
 
     :param score_tables_xarray: See doc for `_plot_performance_diagrams`.
     :param probability_threshold: Probability threshold at which to compute CSI
         and frequency bias.
+    :param confidence_level: See documentation at top of file.
     :return: figure_object: See doc for `_plot_performance_diagrams`.
     :return: axes_object: Same.
     :raises: ValueError: if desired probability threshold cannot be found.
@@ -308,7 +323,7 @@ def _plot_scores_as_graph(score_tables_xarray, probability_threshold):
 
         polygon_coord_matrix = eval_plotting.confidence_interval_to_polygon(
             x_value_matrix=x_value_matrix, y_value_matrix=fss_matrix,
-            confidence_level=0.95, same_order=False
+            confidence_level=confidence_level, same_order=False
         )
 
         polygon_colour = matplotlib.colors.to_rgba(
@@ -379,7 +394,7 @@ def _plot_scores_as_graph(score_tables_xarray, probability_threshold):
 
         polygon_coord_matrix = eval_plotting.confidence_interval_to_polygon(
             x_value_matrix=x_value_matrix, y_value_matrix=csi_matrix,
-            confidence_level=0.95, same_order=False
+            confidence_level=confidence_level, same_order=False
         )
 
         polygon_colour = matplotlib.colors.to_rgba(
@@ -414,7 +429,7 @@ def _plot_scores_as_graph(score_tables_xarray, probability_threshold):
 
         polygon_coord_matrix = eval_plotting.confidence_interval_to_polygon(
             x_value_matrix=x_value_matrix, y_value_matrix=bias_matrix,
-            confidence_level=0.95, same_order=False
+            confidence_level=confidence_level, same_order=False
         )
 
         polygon_colour = matplotlib.colors.to_rgba(
@@ -473,13 +488,15 @@ def _plot_scores_as_graph(score_tables_xarray, probability_threshold):
     return figure_object, main_axes_object
 
 
-def _run(input_dir_name, probability_threshold, output_dir_name):
+def _run(input_dir_name, probability_threshold, confidence_level,
+         output_dir_name):
     """Plots results of model evaluation by hour and month.
 
     This is effectively the main method.
 
     :param input_dir_name: See documentation at top of file.
     :param probability_threshold: Same.
+    :param confidence_level: Same.
     :param output_dir_name: Same.
     """
 
@@ -545,7 +562,8 @@ def _run(input_dir_name, probability_threshold, output_dir_name):
 
         # Plot hourly performance diagrams.
         figure_object, axes_object = _plot_performance_diagrams(
-            score_tables_xarray=hourly_score_tables_xarray
+            score_tables_xarray=hourly_score_tables_xarray,
+            confidence_level=confidence_level
         )
         axes_object.set_title('Performance diagram by hour')
 
@@ -561,7 +579,8 @@ def _run(input_dir_name, probability_threshold, output_dir_name):
 
         # Plot monthly performance diagrams.
         figure_object, axes_object = _plot_performance_diagrams(
-            score_tables_xarray=monthly_score_tables_xarray
+            score_tables_xarray=monthly_score_tables_xarray,
+            confidence_level=confidence_level
         )
         axes_object.set_title('Performance diagram by month')
 
@@ -578,7 +597,8 @@ def _run(input_dir_name, probability_threshold, output_dir_name):
 
         # Plot hourly reliability curves.
         figure_object, axes_object = _plot_reliability_curves(
-            score_tables_xarray=hourly_score_tables_xarray
+            score_tables_xarray=hourly_score_tables_xarray,
+            confidence_level=confidence_level
         )
         axes_object.set_title('Reliability curve by hour')
 
@@ -595,7 +615,8 @@ def _run(input_dir_name, probability_threshold, output_dir_name):
 
         # Plot monthly reliability curves.
         figure_object, axes_object = _plot_reliability_curves(
-            score_tables_xarray=monthly_score_tables_xarray
+            score_tables_xarray=monthly_score_tables_xarray,
+            confidence_level=confidence_level
         )
         axes_object.set_title('Reliability curve by month')
 
@@ -622,7 +643,8 @@ def _run(input_dir_name, probability_threshold, output_dir_name):
     # Plot scalar scores by hour.
     figure_object, axes_object = _plot_scores_as_graph(
         score_tables_xarray=hourly_score_tables_xarray,
-        probability_threshold=probability_threshold
+        probability_threshold=probability_threshold,
+        confidence_level=confidence_level
     )
 
     axes_object.set_title('Scalar scores by hour', y=1.2)
@@ -642,7 +664,8 @@ def _run(input_dir_name, probability_threshold, output_dir_name):
     # Plot scalar scores by month.
     figure_object, axes_object = _plot_scores_as_graph(
         score_tables_xarray=monthly_score_tables_xarray,
-        probability_threshold=probability_threshold
+        probability_threshold=probability_threshold,
+        confidence_level=confidence_level
     )
 
     axes_object.set_title('Scalar scores by month', y=1.2)
@@ -667,5 +690,6 @@ if __name__ == '__main__':
         probability_threshold=getattr(
             INPUT_ARG_OBJECT, PROB_THRESHOLD_ARG_NAME
         ),
+        confidence_level=getattr(INPUT_ARG_OBJECT, CONFIDENCE_LEVEL_ARG_NAME),
         output_dir_name=getattr(INPUT_ARG_OBJECT, OUTPUT_DIR_ARG_NAME)
     )

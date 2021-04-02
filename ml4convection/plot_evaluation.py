@@ -19,8 +19,6 @@ import error_checking
 import evaluation
 import evaluation_plotting as eval_plotting
 
-# TODO(thunderhoser): Make confidence interval an input arg.
-
 TOLERANCE = 1e-6
 
 BOUNDING_BOX_DICT = {
@@ -41,6 +39,7 @@ FIGURE_HEIGHT_INCHES = 15
 
 ADVANCED_SCORE_FILE_ARG_NAME = 'input_advanced_score_file_name'
 BEST_THRESHOLD_ARG_NAME = 'best_prob_threshold'
+CONFIDENCE_LEVEL_ARG_NAME = 'confidence_level'
 OUTPUT_DIR_ARG_NAME = 'output_dir_name'
 
 ADVANCED_SCORE_FILE_HELP_STRING = (
@@ -52,6 +51,10 @@ BEST_THRESHOLD_HELP_STRING = (
     'Will be marked with a star in the performance diagram.  If you want to let'
     ' this script choose the best probability threshold (e.g., if you are '
     'plotting validation data), leave this argument empty.'
+)
+CONFIDENCE_LEVEL_HELP_STRING = (
+    'Confidence intervals (if number of bootstrap replicates > 1) will be '
+    'plotted at this level.'
 )
 OUTPUT_DIR_HELP_STRING = (
     'Name of output directory.  Figures will be saved here.'
@@ -67,18 +70,24 @@ INPUT_ARG_PARSER.add_argument(
     help=BEST_THRESHOLD_HELP_STRING
 )
 INPUT_ARG_PARSER.add_argument(
+    '--' + CONFIDENCE_LEVEL_ARG_NAME, type=float, required=False, default=0.95,
+    help=CONFIDENCE_LEVEL_HELP_STRING
+)
+INPUT_ARG_PARSER.add_argument(
     '--' + OUTPUT_DIR_ARG_NAME, type=str, required=True,
     help=OUTPUT_DIR_HELP_STRING
 )
 
 
-def _run(advanced_score_file_name, best_prob_threshold, output_dir_name):
+def _run(advanced_score_file_name, best_prob_threshold, confidence_level,
+         output_dir_name):
     """Plots results of model evaluation.
 
     This is effectively the main method.
 
     :param advanced_score_file_name: See documentation at top of file.
     :param best_prob_threshold: Same.
+    :param confidence_level: Same.
     :param output_dir_name: Same.
     :raises: ValueError: if input file contains gridded scores.
     """
@@ -114,7 +123,8 @@ def _run(advanced_score_file_name, best_prob_threshold, output_dir_name):
     eval_plotting.plot_performance_diagram(
         axes_object=axes_object,
         pod_matrix=a[evaluation.POD_KEY].values,
-        success_ratio_matrix=a[evaluation.SUCCESS_RATIO_KEY].values
+        success_ratio_matrix=a[evaluation.SUCCESS_RATIO_KEY].values,
+        confidence_level=confidence_level
     )
 
     # TODO(thunderhoser): Probably want confidence interval... maybe.
@@ -203,6 +213,7 @@ def _run(advanced_score_file_name, best_prob_threshold, output_dir_name):
         mean_observation_matrix=a[evaluation.BINNED_EVENT_FREQS_KEY].values,
         example_counts=a[evaluation.BINNED_NUM_EXAMPLES_KEY].values,
         mean_value_in_training=a[evaluation.TRAINING_EVENT_FREQ_KEY].values[0],
+        confidence_level=confidence_level,
         min_value_to_plot=0., max_value_to_plot=1.
     )
 
@@ -251,5 +262,6 @@ if __name__ == '__main__':
             INPUT_ARG_OBJECT, ADVANCED_SCORE_FILE_ARG_NAME
         ),
         best_prob_threshold=getattr(INPUT_ARG_OBJECT, BEST_THRESHOLD_ARG_NAME),
+        confidence_level=getattr(INPUT_ARG_OBJECT, CONFIDENCE_LEVEL_ARG_NAME),
         output_dir_name=getattr(INPUT_ARG_OBJECT, OUTPUT_DIR_ARG_NAME)
     )
