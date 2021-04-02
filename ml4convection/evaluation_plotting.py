@@ -554,7 +554,7 @@ def plot_reliability_curve(
             color=line_colour, linestyle=line_style, linewidth=line_width
         )[0]
 
-    num_bootstrap_reps = mean_prediction_matrix.shape[1]
+    num_bootstrap_reps = mean_prediction_matrix.shape[0]
 
     if num_bootstrap_reps > 1:
         polygon_coord_matrix = _confidence_interval_to_polygon(
@@ -656,7 +656,7 @@ def plot_roc_curve(
             color=line_colour, linestyle='solid', linewidth=DEFAULT_LINE_WIDTH
         )[0]
 
-    num_bootstrap_reps = pod_matrix.shape[1]
+    num_bootstrap_reps = pod_matrix.shape[0]
 
     if num_bootstrap_reps > 1:
         polygon_coord_matrix = _confidence_interval_to_polygon(
@@ -783,7 +783,7 @@ def plot_performance_diagram(
             linestyle='solid', linewidth=DEFAULT_LINE_WIDTH
         )[0]
 
-    num_bootstrap_reps = pod_matrix.shape[1]
+    num_bootstrap_reps = pod_matrix.shape[0]
 
     if num_bootstrap_reps > 1:
         polygon_coord_matrix = _confidence_interval_to_polygon(
@@ -856,7 +856,7 @@ def plot_attributes_diagram(
         exact_dimensions=numpy.array(mean_prediction_matrix.shape, dtype=int)
     )
 
-    num_bins = mean_prediction_matrix.shape[0]
+    num_bins = mean_prediction_matrix.shape[1]
 
     error_checking.assert_is_integer_numpy_array(example_counts)
     error_checking.assert_is_geq_numpy_array(example_counts, 0)
