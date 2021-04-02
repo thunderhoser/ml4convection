@@ -357,7 +357,7 @@ def _plot_scores_as_graph(score_tables_xarray, probability_threshold):
         raise ValueError(error_string)
 
     csi_matrix = numpy.concatenate([
-        t[evaluation.CSI_KEY][:, prob_threshold_index]
+        t[evaluation.CSI_KEY][:, [prob_threshold_index]]
         for t in score_tables_xarray
     ], axis=1)
 
@@ -392,7 +392,7 @@ def _plot_scores_as_graph(score_tables_xarray, probability_threshold):
 
     # Plot frequency bias.
     bias_matrix = numpy.concatenate([
-        t[evaluation.FREQUENCY_BIAS_KEY][:, prob_threshold_index]
+        t[evaluation.FREQUENCY_BIAS_KEY][:, [prob_threshold_index]]
         for t in score_tables_xarray
     ], axis=1)
 
