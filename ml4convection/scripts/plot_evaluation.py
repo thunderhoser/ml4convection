@@ -103,26 +103,31 @@ def _run(advanced_score_file_name, best_prob_threshold, output_dir_name):
 
     eval_plotting.plot_performance_diagram(
         axes_object=axes_object,
-        pod_by_threshold=a[evaluation.POD_KEY].values,
-        success_ratio_by_threshold=a[evaluation.SUCCESS_RATIO_KEY].values
+        pod_matrix=a[evaluation.POD_KEY].values,
+        success_ratio_matrix=a[evaluation.SUCCESS_RATIO_KEY].values
     )
 
+    # TODO(thunderhoser): Probably want confidence interval... maybe.
     area_under_curve = gg_model_eval.get_area_under_perf_diagram(
-        pod_by_threshold=a[evaluation.POD_KEY].values,
-        success_ratio_by_threshold=a[evaluation.SUCCESS_RATIO_KEY].values
+        pod_by_threshold=numpy.nanmean(a[evaluation.POD_KEY].values, axis=1),
+        success_ratio_by_threshold=
+        numpy.nanmean(a[evaluation.SUCCESS_RATIO_KEY].values, axis=1)
     )
+
+    mean_frequency_biases = numpy.nanmean(
+        a[evaluation.FREQUENCY_BIAS_KEY].values, axis=1
+    )
+    mean_csi_values = numpy.nanmean(a[evaluation.CSI_KEY].values, axis=1)
 
     if best_prob_threshold is None:
         best_threshold_index = numpy.nanargmin(
-            numpy.absolute(a[evaluation.FREQUENCY_BIAS_KEY].values - 1.)
+            numpy.absolute(mean_frequency_biases - 1.)
         )
-        max_csi = numpy.nanmax(a[evaluation.CSI_KEY].values)
-        csi_at_best_threshold = (
-            a[evaluation.CSI_KEY].values[best_threshold_index]
-        )
+        max_csi = numpy.nanmax(mean_csi_values)
+        csi_at_best_threshold = mean_csi_values[best_threshold_index]
 
         if csi_at_best_threshold < 0.9 * max_csi:
-            best_threshold_index = numpy.nanargmax(a[evaluation.CSI_KEY].values)
+            best_threshold_index = numpy.nanargmax(mean_csi_values)
     else:
         threshold_diffs = numpy.absolute(
             a.coords[evaluation.PROBABILITY_THRESHOLD_DIM].values -
@@ -133,10 +138,8 @@ def _run(advanced_score_file_name, best_prob_threshold, output_dir_name):
     best_prob_threshold = a.coords[evaluation.PROBABILITY_THRESHOLD_DIM].values[
         best_threshold_index
     ]
-    csi_at_best_threshold = a[evaluation.CSI_KEY].values[best_threshold_index]
-    bias_at_best_threshold = (
-        a[evaluation.FREQUENCY_BIAS_KEY].values[best_threshold_index]
-    )
+    csi_at_best_threshold = mean_csi_values[best_threshold_index]
+    bias_at_best_threshold = mean_frequency_biases[best_threshold_index]
 
     annotation_string = (
         'Area under curve = {0:.3g}\n'
@@ -156,9 +159,14 @@ def _run(advanced_score_file_name, best_prob_threshold, output_dir_name):
         transform=axes_object.transAxes
     )
 
+    mean_success_ratios = numpy.nanmean(
+        a[evaluation.SUCCESS_RATIO_KEY].values, axis=1
+    )
+    mean_pod_values = numpy.nanmean(a[evaluation.POD_KEY].values, axis=1)
+
     axes_object.plot(
-        a[evaluation.SUCCESS_RATIO_KEY].values[best_threshold_index],
-        a[evaluation.POD_KEY].values[best_threshold_index],
+        mean_success_ratios[best_threshold_index],
+        mean_pod_values[best_threshold_index],
         linestyle='None', marker=MARKER_TYPE, markersize=MARKER_SIZE,
         markeredgewidth=MARKER_EDGE_WIDTH,
         markerfacecolor=eval_plotting.PERF_DIAGRAM_COLOUR,
@@ -181,8 +189,8 @@ def _run(advanced_score_file_name, best_prob_threshold, output_dir_name):
     )
     eval_plotting.plot_attributes_diagram(
         figure_object=figure_object, axes_object=axes_object,
-        mean_predictions=a[evaluation.BINNED_MEAN_PROBS_KEY].values,
-        mean_observations=a[evaluation.BINNED_EVENT_FREQS_KEY].values,
+        mean_prediction_matrix=a[evaluation.BINNED_MEAN_PROBS_KEY].values,
+        mean_observation_matrix=a[evaluation.BINNED_EVENT_FREQS_KEY].values,
         example_counts=a[evaluation.BINNED_NUM_EXAMPLES_KEY].values,
         mean_value_in_training=a[evaluation.TRAINING_EVENT_FREQ_KEY].values[0],
         min_value_to_plot=0., max_value_to_plot=1.
@@ -206,8 +214,8 @@ def _run(advanced_score_file_name, best_prob_threshold, output_dir_name):
         'Brier score = {0:.2g}\n'
         'Brier skill score = {1:.2g}'
     ).format(
-        a[evaluation.BRIER_SCORE_KEY].values[0],
-        a[evaluation.BRIER_SKILL_SCORE_KEY].values[0]
+        numpy.nanmean(a[evaluation.BRIER_SCORE_KEY].values),
+        numpy.nanmean(a[evaluation.BRIER_SKILL_SCORE_KEY].values)
     )
 
     axes_object.text(

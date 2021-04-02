@@ -7,6 +7,7 @@ from matplotlib import pyplot
 from gewittergefahr.gg_utils import error_checking
 from gewittergefahr.plotting import plotting_utils
 
+POLYGON_OPACITY = 0.5
 CSI_LEVELS = numpy.linspace(0, 1, num=11, dtype=float)
 PEIRCE_SCORE_LEVELS = numpy.linspace(0, 1, num=11, dtype=float)
 
@@ -399,21 +400,101 @@ def _get_csi_colour_scheme(use_grey_scheme):
     return colour_map_object, colour_norm_object
 
 
+def _confidence_interval_to_polygon(
+        x_value_matrix, y_value_matrix, confidence_level, same_order):
+    """Turns confidence interval into polygon.
+
+    P = number of points
+    R = number of bootstrap replicates
+    V = number of vertices in resulting polygon = 2 * P + 1
+
+    :param x_value_matrix: P-by-R numpy array of x-values.
+    :param y_value_matrix: P-by-R numpy array of y-values.
+    :param confidence_level: Confidence level (in range 0...1).
+    :param same_order: Boolean flag.  If True (False), minimum x-values will be
+        matched with minimum (maximum) y-values.
+    :return: polygon_coord_matrix: V-by-2 numpy array of coordinates
+        (x-coordinates in first column, y-coords in second).
+    """
+
+    error_checking.assert_is_numpy_array(x_value_matrix, num_dimensions=2)
+    error_checking.assert_is_numpy_array(y_value_matrix, num_dimensions=2)
+
+    expected_dim = numpy.array([
+        x_value_matrix.shape[0], y_value_matrix.shape[1]
+    ], dtype=int)
+
+    error_checking.assert_is_numpy_array(
+        y_value_matrix, exact_dimensions=expected_dim
+    )
+
+    error_checking.assert_is_geq(confidence_level, 0.9)
+    error_checking.assert_is_leq(confidence_level, 1.)
+    error_checking.assert_is_boolean(same_order)
+
+    min_percentile = 50 * (1. - confidence_level)
+    max_percentile = 50 * (1. + confidence_level)
+
+    x_values_bottom = numpy.nanpercentile(
+        x_value_matrix, min_percentile, axis=1, interpolation='linear'
+    )
+    x_values_top = numpy.nanpercentile(
+        x_value_matrix, max_percentile, axis=1, interpolation='linear'
+    )
+    y_values_bottom = numpy.nanpercentile(
+        y_value_matrix, min_percentile, axis=1, interpolation='linear'
+    )
+    y_values_top = numpy.nanpercentile(
+        y_value_matrix, max_percentile, axis=1, interpolation='linear'
+    )
+
+    real_indices = numpy.where(numpy.invert(numpy.logical_or(
+        numpy.isnan(x_values_bottom), numpy.isnan(y_values_bottom)
+    )))[0]
+
+    if len(real_indices) == 0:
+        return None
+
+    x_values_bottom = x_values_bottom[real_indices]
+    x_values_top = x_values_top[real_indices]
+    y_values_bottom = y_values_bottom[real_indices]
+    y_values_top = y_values_top[real_indices]
+
+    x_vertices = numpy.concatenate((
+        x_values_top, x_values_bottom[::-1], x_values_top[[0]]
+    ))
+
+    if same_order:
+        y_vertices = numpy.concatenate((
+            y_values_top, y_values_bottom[::-1], y_values_top[[0]]
+        ))
+    else:
+        y_vertices = numpy.concatenate((
+            y_values_bottom, y_values_top[::-1], y_values_bottom[[0]]
+        ))
+
+    return numpy.transpose(numpy.vstack((
+        x_vertices, y_vertices
+    )))
+
+
 def plot_reliability_curve(
-        axes_object, mean_predictions, mean_observations, min_value_to_plot,
-        max_value_to_plot, line_colour=RELIABILITY_LINE_COLOUR,
-        line_style='solid', line_width=DEFAULT_LINE_WIDTH,
-        plot_background=True):
+        axes_object, mean_prediction_matrix, mean_observation_matrix,
+        min_value_to_plot, max_value_to_plot, confidence_level=0.95,
+        line_colour=RELIABILITY_LINE_COLOUR, line_style='solid',
+        line_width=DEFAULT_LINE_WIDTH, plot_background=True):
     """Plots reliability curve.
 
     B = number of bins
+    R = number of bootstrap replicates
 
     :param axes_object: Will plot on these axes (instance of
         `matplotlib.axes._subplots.AxesSubplot`).
-    :param mean_predictions: length-B numpy array of mean predicted values.
-    :param mean_observations: length-B numpy array of mean observed values.
+    :param mean_prediction_matrix: B-by-R numpy array of mean predicted values.
+    :param mean_observation_matrix: B-by-R numpy array of mean observed values.
     :param min_value_to_plot: See doc for `plot_attributes_diagram`.
     :param max_value_to_plot: Same.
+    :param confidence_level: Same.
     :param line_colour: Line colour (in any format accepted by matplotlib).
     :param line_style: Line style (in any format accepted by matplotlib).
     :param line_width: Line width (in any format accepted by matplotlib).
@@ -426,12 +507,12 @@ def plot_reliability_curve(
     # classification.
 
     # Check input args.
-    error_checking.assert_is_numpy_array(mean_predictions, num_dimensions=1)
-
-    num_bins = len(mean_predictions)
-    expected_dim = numpy.array([num_bins], dtype=int)
     error_checking.assert_is_numpy_array(
-        mean_observations, exact_dimensions=expected_dim
+        mean_prediction_matrix, num_dimensions=2
+    )
+    error_checking.assert_is_numpy_array(
+        mean_observation_matrix,
+        exact_dimensions=numpy.array(mean_prediction_matrix.shape, dtype=int)
     )
 
     error_checking.assert_is_geq(max_value_to_plot, min_value_to_plot)
@@ -449,6 +530,8 @@ def plot_reliability_curve(
             linestyle='dashed', linewidth=REFERENCE_LINE_WIDTH
         )
 
+    mean_predictions = numpy.nanmean(mean_prediction_matrix, axis=1)
+    mean_observations = numpy.nanmean(mean_observation_matrix, axis=1)
     nan_flags = numpy.logical_or(
         numpy.isnan(mean_predictions), numpy.isnan(mean_observations)
     )
@@ -463,6 +546,21 @@ def plot_reliability_curve(
             color=line_colour, linestyle=line_style, linewidth=line_width
         )[0]
 
+    num_bootstrap_reps = mean_prediction_matrix.shape[1]
+
+    if num_bootstrap_reps > 1:
+        polygon_coord_matrix = _confidence_interval_to_polygon(
+            x_value_matrix=mean_prediction_matrix,
+            y_value_matrix=mean_observation_matrix,
+            confidence_level=confidence_level, same_order=False
+        )
+
+        polygon_colour = matplotlib.colors.to_rgba(line_colour, POLYGON_OPACITY)
+        patch_object = matplotlib.patches.Polygon(
+            polygon_coord_matrix, lw=0, ec=polygon_colour, fc=polygon_colour
+        )
+        axes_object.add_patch(patch_object)
+
     axes_object.set_xlabel('Forecast probability')
     axes_object.set_ylabel('Conditional event frequency')
     axes_object.set_xlim(min_value_to_plot, max_value_to_plot)
@@ -471,58 +569,51 @@ def plot_reliability_curve(
     return main_line_handle
 
 
-def plot_roc_curve(axes_object, pod_by_threshold, pofd_by_threshold,
-                   line_colour=ROC_CURVE_COLOUR, plot_background=True):
+def plot_roc_curve(
+        axes_object, pod_matrix, pofd_matrix, confidence_level=0.95,
+        line_colour=ROC_CURVE_COLOUR, plot_background=True):
     """Plots ROC (receiver operating characteristic) curve.
 
     T = number of probability thresholds
+    R = number of bootstrap replicates
 
     :param axes_object: Instance of `matplotlib.axes._subplots.AxesSubplot`.
-    :param pod_by_threshold: length-T numpy array of POD (probability of
+    :param pod_matrix: T-by-R numpy array of POD (probability of detection)
+        values.
+    :param pofd_matrix: T-by-R numpy array of POFD (probability of false
         detection) values.
-    :param pofd_by_threshold: length-T numpy array of POFD (probability of false
-        detection) values.
+    :param confidence_level: Will plot confidence interval at this level.
     :param line_colour: Line colour.
     :param plot_background: Boolean flag.  If True, will plot background
         (reference line and Peirce-score contours).
     :return: line_handle: Line handle for ROC curve.
     """
 
-    error_checking.assert_is_numpy_array(pod_by_threshold, num_dimensions=1)
-    error_checking.assert_is_geq_numpy_array(
-        pod_by_threshold, 0., allow_nan=True
-    )
-    error_checking.assert_is_leq_numpy_array(
-        pod_by_threshold, 1., allow_nan=True
-    )
-
-    num_thresholds = len(pod_by_threshold)
-    expected_dim = numpy.array([num_thresholds], dtype=int)
+    error_checking.assert_is_numpy_array(pod_matrix, num_dimensions=2)
+    error_checking.assert_is_geq_numpy_array(pod_matrix, 0., allow_nan=True)
+    error_checking.assert_is_leq_numpy_array(pod_matrix, 1., allow_nan=True)
 
     error_checking.assert_is_numpy_array(
-        pofd_by_threshold, exact_dimensions=expected_dim
+        pofd_matrix,
+        exact_dimensions=numpy.array(pod_matrix.shape, dtype=int)
     )
-    error_checking.assert_is_geq_numpy_array(
-        pofd_by_threshold, 0., allow_nan=True
-    )
-    error_checking.assert_is_leq_numpy_array(
-        pofd_by_threshold, 1., allow_nan=True
-    )
+    error_checking.assert_is_geq_numpy_array(pofd_matrix, 0., allow_nan=True)
+    error_checking.assert_is_leq_numpy_array(pofd_matrix, 1., allow_nan=True)
 
     error_checking.assert_is_boolean(plot_background)
 
     if plot_background:
-        pofd_matrix, pod_matrix = _get_pofd_pod_grid()
-        peirce_score_matrix = pod_matrix - pofd_matrix
+        this_pofd_matrix, this_pod_matrix = _get_pofd_pod_grid()
+        peirce_score_matrix = this_pod_matrix - this_pofd_matrix
 
         this_colour_map_object, this_colour_norm_object = (
             _get_peirce_colour_scheme()
         )
 
         pyplot.contourf(
-            pofd_matrix, pod_matrix, peirce_score_matrix, PEIRCE_SCORE_LEVELS,
-            cmap=this_colour_map_object, norm=this_colour_norm_object, vmin=0.,
-            vmax=1., axes=axes_object
+            this_pofd_matrix, this_pod_matrix, peirce_score_matrix,
+            PEIRCE_SCORE_LEVELS, cmap=this_colour_map_object,
+            norm=this_colour_norm_object, vmin=0., vmax=1., axes=axes_object
         )
 
         colour_bar_object = plotting_utils.plot_colour_bar(
@@ -541,6 +632,8 @@ def plot_roc_curve(axes_object, pod_by_threshold, pofd_by_threshold,
             linestyle='dashed', linewidth=REFERENCE_LINE_WIDTH
         )
 
+    pofd_by_threshold = numpy.nanmean(pofd_matrix, axis=1)
+    pod_by_threshold = numpy.nanmean(pod_matrix, axis=1)
     nan_flags = numpy.logical_or(
         numpy.isnan(pofd_by_threshold), numpy.isnan(pod_by_threshold)
     )
@@ -555,6 +648,20 @@ def plot_roc_curve(axes_object, pod_by_threshold, pofd_by_threshold,
             color=line_colour, linestyle='solid', linewidth=DEFAULT_LINE_WIDTH
         )[0]
 
+    num_bootstrap_reps = pod_matrix.shape[1]
+
+    if num_bootstrap_reps > 1:
+        polygon_coord_matrix = _confidence_interval_to_polygon(
+            x_value_matrix=pofd_matrix, y_value_matrix=pod_matrix,
+            confidence_level=confidence_level, same_order=False
+        )
+
+        polygon_colour = matplotlib.colors.to_rgba(line_colour, POLYGON_OPACITY)
+        patch_object = matplotlib.patches.Polygon(
+            polygon_coord_matrix, lw=0, ec=polygon_colour, fc=polygon_colour
+        )
+        axes_object.add_patch(patch_object)
+
     axes_object.set_xlabel('POFD (probability of false detection)')
     axes_object.set_ylabel('POD (probability of detection)')
     axes_object.set_xlim(0., 1.)
@@ -564,17 +671,19 @@ def plot_roc_curve(axes_object, pod_by_threshold, pofd_by_threshold,
 
 
 def plot_performance_diagram(
-        axes_object, pod_by_threshold, success_ratio_by_threshold,
+        axes_object, pod_matrix, success_ratio_matrix, confidence_level=0.95,
         line_colour=PERF_DIAGRAM_COLOUR, plot_background=True,
         plot_csi_in_grey=False):
     """Plots performance diagram.
 
     T = number of probability thresholds
+    R = number of bootstrap replicates
 
     :param axes_object: Instance of `matplotlib.axes._subplots.AxesSubplot`.
-    :param pod_by_threshold: length-T numpy array of POD (probability of
-        detection) values.
-    :param success_ratio_by_threshold: length-T numpy array of success ratios.
+    :param pod_matrix: T-by-R numpy array of POD (probability of detection)
+        values.
+    :param success_ratio_matrix: T-by-R numpy array of success ratios.
+    :param confidence_level: Will plot confidence interval at this level.
     :param line_colour: Line colour.
     :param plot_background: Boolean flag.  If True, will plot background
         (frequency-bias and CSI contours).
@@ -583,44 +692,40 @@ def plot_performance_diagram(
     :return: line_handle: Line handle for ROC curve.
     """
 
-    error_checking.assert_is_numpy_array(pod_by_threshold, num_dimensions=1)
-    error_checking.assert_is_geq_numpy_array(
-        pod_by_threshold, 0., allow_nan=True
-    )
-    error_checking.assert_is_leq_numpy_array(
-        pod_by_threshold, 1., allow_nan=True
-    )
-
-    num_thresholds = len(pod_by_threshold)
-    expected_dim = numpy.array([num_thresholds], dtype=int)
+    error_checking.assert_is_numpy_array(pod_matrix, num_dimensions=2)
+    error_checking.assert_is_geq_numpy_array(pod_matrix, 0., allow_nan=True)
+    error_checking.assert_is_leq_numpy_array(pod_matrix, 1., allow_nan=True)
 
     error_checking.assert_is_numpy_array(
-        success_ratio_by_threshold, exact_dimensions=expected_dim
+        success_ratio_matrix,
+        exact_dimensions=numpy.array(pod_matrix.shape, dtype=int)
     )
     error_checking.assert_is_geq_numpy_array(
-        success_ratio_by_threshold, 0., allow_nan=True
+        success_ratio_matrix, 0., allow_nan=True
     )
     error_checking.assert_is_leq_numpy_array(
-        success_ratio_by_threshold, 1., allow_nan=True
+        success_ratio_matrix, 1., allow_nan=True
     )
 
     error_checking.assert_is_boolean(plot_background)
     error_checking.assert_is_boolean(plot_csi_in_grey)
 
     if plot_background:
-        success_ratio_matrix, pod_matrix = _get_sr_pod_grid()
+        this_success_ratio_matrix, this_pod_matrix = _get_sr_pod_grid()
         csi_matrix = _csi_from_sr_and_pod(
-            success_ratio_array=success_ratio_matrix, pod_array=pod_matrix
+            success_ratio_array=this_success_ratio_matrix,
+            pod_array=this_pod_matrix
         )
         frequency_bias_matrix = _bias_from_sr_and_pod(
-            success_ratio_array=success_ratio_matrix, pod_array=pod_matrix
+            success_ratio_array=this_success_ratio_matrix,
+            pod_array=this_pod_matrix
         )
 
         this_colour_map_object, this_colour_norm_object = (
             _get_csi_colour_scheme(use_grey_scheme=plot_csi_in_grey)
         )
         pyplot.contourf(
-            success_ratio_matrix, pod_matrix, csi_matrix, CSI_LEVELS,
+            this_success_ratio_matrix, this_pod_matrix, csi_matrix, CSI_LEVELS,
             cmap=this_colour_map_object, norm=this_colour_norm_object, vmin=0.,
             vmax=1., axes=axes_object
         )
@@ -644,7 +749,7 @@ def plot_performance_diagram(
             bias_colours_2d_tuple += (bias_colour_tuple,)
 
         bias_contour_object = pyplot.contour(
-            success_ratio_matrix, pod_matrix, frequency_bias_matrix,
+            this_success_ratio_matrix, this_pod_matrix, frequency_bias_matrix,
             FREQ_BIAS_LEVELS, colors=bias_colours_2d_tuple,
             linewidths=FREQ_BIAS_WIDTH, linestyles='dashed', axes=axes_object
         )
@@ -653,6 +758,8 @@ def plot_performance_diagram(
             fmt=FREQ_BIAS_STRING_FORMAT, fontsize=FONT_SIZE
         )
 
+    success_ratio_by_threshold = numpy.nanmean(success_ratio_matrix, axis=1)
+    pod_by_threshold = numpy.nanmean(pod_matrix, axis=1)
     nan_flags = numpy.logical_or(
         numpy.isnan(success_ratio_by_threshold), numpy.isnan(pod_by_threshold)
     )
@@ -668,6 +775,20 @@ def plot_performance_diagram(
             linestyle='solid', linewidth=DEFAULT_LINE_WIDTH
         )[0]
 
+    num_bootstrap_reps = pod_matrix.shape[1]
+
+    if num_bootstrap_reps > 1:
+        polygon_coord_matrix = _confidence_interval_to_polygon(
+            x_value_matrix=success_ratio_matrix, y_value_matrix=pod_matrix,
+            confidence_level=confidence_level, same_order=False
+        )
+
+        polygon_colour = matplotlib.colors.to_rgba(line_colour, POLYGON_OPACITY)
+        patch_object = matplotlib.patches.Polygon(
+            polygon_coord_matrix, lw=0, ec=polygon_colour, fc=polygon_colour
+        )
+        axes_object.add_patch(patch_object)
+
     axes_object.set_xlabel('Success ratio (1 - FAR)')
     axes_object.set_ylabel('POD (probability of detection)')
     axes_object.set_xlim(0., 1.)
@@ -677,9 +798,10 @@ def plot_performance_diagram(
 
 
 def plot_attributes_diagram(
-        figure_object, axes_object, mean_predictions, mean_observations,
-        example_counts, mean_value_in_training, min_value_to_plot,
-        max_value_to_plot, line_colour=RELIABILITY_LINE_COLOUR,
+        figure_object, axes_object, mean_prediction_matrix,
+        mean_observation_matrix, example_counts, mean_value_in_training,
+        min_value_to_plot, max_value_to_plot, confidence_level=0.95,
+        line_colour=RELIABILITY_LINE_COLOUR,
         line_style='solid', line_width=DEFAULT_LINE_WIDTH,
         inv_mean_observations=None, inv_example_counts=None):
     """Plots attributes diagram.
@@ -689,19 +811,21 @@ def plot_attributes_diagram(
     of observed values.
 
     B = number of bins
+    R = number of bootstrap replicates
 
     :param figure_object: Will plot on this figure (instance of
         `matplotlib.figure.Figure`).
     :param axes_object: Will plot on these axes (instance of
         `matplotlib.axes._subplots.AxesSubplot`).
-    :param mean_predictions: length-B numpy array of mean predicted values.
-    :param mean_observations: length-B numpy array of mean observed values.
+    :param mean_prediction_matrix: B-by-R numpy array of mean predicted values.
+    :param mean_observation_matrix: B-by-R numpy array of mean observed values.
     :param example_counts: length-B numpy array with number of examples in each
         bin.
     :param mean_value_in_training: Mean of target variable in training data.
     :param min_value_to_plot: Minimum value in plot (for both x- and y-axes).
     :param max_value_to_plot: Max value in plot (for both x- and y-axes).
         If None, will be determined automatically.
+    :param confidence_level: Will plot confidence interval at this level.
     :param line_colour: See doc for `plot_reliability_curve`.
     :param line_width: Same.
     :param line_style: Same.
@@ -716,18 +840,21 @@ def plot_attributes_diagram(
     # classification.
 
     # Check input args.
-    error_checking.assert_is_numpy_array(mean_predictions, num_dimensions=1)
-
-    num_bins = len(mean_predictions)
-    expected_dim = numpy.array([num_bins], dtype=int)
     error_checking.assert_is_numpy_array(
-        mean_observations, exact_dimensions=expected_dim
+        mean_prediction_matrix, num_dimensions=2
     )
+    error_checking.assert_is_numpy_array(
+        mean_observation_matrix,
+        exact_dimensions=numpy.array(mean_prediction_matrix.shape, dtype=int)
+    )
+
+    num_bins = mean_prediction_matrix.shape[0]
 
     error_checking.assert_is_integer_numpy_array(example_counts)
     error_checking.assert_is_geq_numpy_array(example_counts, 0)
     error_checking.assert_is_numpy_array(
-        example_counts, exact_dimensions=expected_dim
+        example_counts,
+        exact_dimensions=numpy.array([num_bins], dtype=int)
     )
 
     error_checking.assert_is_not_nan(mean_value_in_training)
@@ -741,13 +868,15 @@ def plot_attributes_diagram(
 
     if plot_obs_histogram:
         error_checking.assert_is_numpy_array(
-            inv_mean_observations, exact_dimensions=expected_dim
+            inv_mean_observations,
+            exact_dimensions=numpy.array([num_bins], dtype=int)
         )
 
         error_checking.assert_is_integer_numpy_array(inv_example_counts)
         error_checking.assert_is_geq_numpy_array(inv_example_counts, 0)
         error_checking.assert_is_numpy_array(
-            inv_example_counts, exact_dimensions=expected_dim
+            inv_example_counts,
+            exact_dimensions=numpy.array([num_bins], dtype=int)
         )
 
     # Do actual stuff.
@@ -757,7 +886,8 @@ def plot_attributes_diagram(
     )
 
     _plot_inset_histogram(
-        figure_object=figure_object, bin_centers=mean_predictions,
+        figure_object=figure_object,
+        bin_centers=numpy.nanmean(mean_prediction_matrix, axis=1),
         bin_counts=example_counts, has_predictions=True, bar_colour=line_colour
     )
 
@@ -769,9 +899,10 @@ def plot_attributes_diagram(
         )
 
     return plot_reliability_curve(
-        axes_object=axes_object, mean_predictions=mean_predictions,
-        mean_observations=mean_observations,
+        axes_object=axes_object, mean_prediction_matrix=mean_prediction_matrix,
+        mean_observation_matrix=mean_observation_matrix,
         min_value_to_plot=min_value_to_plot,
         max_value_to_plot=max_value_to_plot,
+        confidence_level=confidence_level,
         line_colour=line_colour, line_style=line_style, line_width=line_width
     )
