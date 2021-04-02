@@ -119,15 +119,15 @@ def _run(advanced_score_file_name, best_prob_threshold, output_dir_name):
 
     # TODO(thunderhoser): Probably want confidence interval... maybe.
     area_under_curve = gg_model_eval.get_area_under_perf_diagram(
-        pod_by_threshold=numpy.nanmean(a[evaluation.POD_KEY].values, axis=1),
+        pod_by_threshold=numpy.nanmean(a[evaluation.POD_KEY].values, axis=0),
         success_ratio_by_threshold=
-        numpy.nanmean(a[evaluation.SUCCESS_RATIO_KEY].values, axis=1)
+        numpy.nanmean(a[evaluation.SUCCESS_RATIO_KEY].values, axis=0)
     )
 
     mean_frequency_biases = numpy.nanmean(
-        a[evaluation.FREQUENCY_BIAS_KEY].values, axis=1
+        a[evaluation.FREQUENCY_BIAS_KEY].values, axis=0
     )
-    mean_csi_values = numpy.nanmean(a[evaluation.CSI_KEY].values, axis=1)
+    mean_csi_values = numpy.nanmean(a[evaluation.CSI_KEY].values, axis=0)
 
     if best_prob_threshold is None:
         best_threshold_index = numpy.nanargmin(
@@ -170,9 +170,9 @@ def _run(advanced_score_file_name, best_prob_threshold, output_dir_name):
     )
 
     mean_success_ratios = numpy.nanmean(
-        a[evaluation.SUCCESS_RATIO_KEY].values, axis=1
+        a[evaluation.SUCCESS_RATIO_KEY].values, axis=0
     )
-    mean_pod_values = numpy.nanmean(a[evaluation.POD_KEY].values, axis=1)
+    mean_pod_values = numpy.nanmean(a[evaluation.POD_KEY].values, axis=0)
 
     axes_object.plot(
         mean_success_ratios[best_threshold_index],
