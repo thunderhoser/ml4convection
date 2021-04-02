@@ -32,7 +32,7 @@ BOOTSTRAP_REPLICATE_DIM_KEY = 'bootstrap_replicate'
 PREDICTOR_CHAR_DIM_KEY = 'predictor_name_char'
 
 
-def _permute_values(predictor_matrix, channel_index,
+def _permute_values(predictor_matrix, data_option_dict, channel_index,
                     permuted_example_indices=None):
     """Permutes values of one channel over examples.
 
@@ -41,6 +41,8 @@ def _permute_values(predictor_matrix, channel_index,
 
     :param predictor_matrix: numpy array of predictors, where first axis has
         length E and last axis has length C.
+    :param data_option_dict: See input doc for
+        `neural_net.create_data_partial_grids`.
     :param channel_index: Index of channel to permute.
     :param permuted_example_indices: length-E numpy array of permuted indices.
         If None, this method will permute randomly.
@@ -55,18 +57,41 @@ def _permute_values(predictor_matrix, channel_index,
             predictor_matrix.shape[0]
         )
 
+    if not data_option_dict[neural_net.INCLUDE_TIME_DIM_KEY]:
+        num_lag_times = len(data_option_dict[neural_net.LAG_TIMES_KEY])
+
+        predictor_matrix = neural_net.predictor_matrix_from_keras(
+            predictor_matrix=predictor_matrix, num_lag_times=num_lag_times
+        )
+        predictor_matrix = neural_net.predictor_matrix_to_keras(
+            predictor_matrix=predictor_matrix, num_lag_times=num_lag_times,
+            add_time_dimension=True
+        )
+
     predictor_matrix[..., channel_index] = (
         predictor_matrix[..., channel_index][permuted_example_indices, ...]
     )
 
+    if not data_option_dict[neural_net.INCLUDE_TIME_DIM_KEY]:
+        num_lag_times = len(data_option_dict[neural_net.LAG_TIMES_KEY])
+
+        predictor_matrix = neural_net.predictor_matrix_from_keras(
+            predictor_matrix=predictor_matrix, num_lag_times=num_lag_times
+        )
+        predictor_matrix = neural_net.predictor_matrix_to_keras(
+            predictor_matrix=predictor_matrix, num_lag_times=num_lag_times,
+            add_time_dimension=False
+        )
+
     return predictor_matrix, permuted_example_indices
 
 
-def _depermute_values(predictor_matrix, channel_index,
+def _depermute_values(predictor_matrix, data_option_dict, channel_index,
                       permuted_example_indices):
     """Depermutes (cleans up) values of one channel over examples.
 
     :param predictor_matrix: See doc for `_permute_values`.
+    :param data_option_dict: Same.
     :param channel_index: Same.
     :param permuted_example_indices: Same.
     :return: predictor_matrix: Same.
@@ -77,22 +102,47 @@ def _depermute_values(predictor_matrix, channel_index,
         len(permuted_example_indices)
     )
 
+    if not data_option_dict[neural_net.INCLUDE_TIME_DIM_KEY]:
+        num_lag_times = len(data_option_dict[neural_net.LAG_TIMES_KEY])
+
+        predictor_matrix = neural_net.predictor_matrix_from_keras(
+            predictor_matrix=predictor_matrix, num_lag_times=num_lag_times
+        )
+        predictor_matrix = neural_net.predictor_matrix_to_keras(
+            predictor_matrix=predictor_matrix, num_lag_times=num_lag_times,
+            add_time_dimension=True
+        )
+
     predictor_matrix[..., channel_index] = (
         predictor_matrix[..., channel_index][sort_indices, ...]
     )
+
+    if not data_option_dict[neural_net.INCLUDE_TIME_DIM_KEY]:
+        num_lag_times = len(data_option_dict[neural_net.LAG_TIMES_KEY])
+
+        predictor_matrix = neural_net.predictor_matrix_from_keras(
+            predictor_matrix=predictor_matrix, num_lag_times=num_lag_times
+        )
+        predictor_matrix = neural_net.predictor_matrix_to_keras(
+            predictor_matrix=predictor_matrix, num_lag_times=num_lag_times,
+            add_time_dimension=False
+        )
 
     return predictor_matrix
 
 
 def _get_fss_components_one_batch(
-        data_dict, permuted_index_matrix, is_forward_test, is_start_of_test,
-        model_object, matching_distance_px, square_filter, eroded_mask_matrix):
+        data_dict, data_option_dict, permuted_index_matrix, is_forward_test,
+        is_start_of_test, model_object, matching_distance_px, square_filter,
+        eroded_mask_matrix):
     """Returns FSS (fractions skill score) components for one batch of data.
 
     E = number of examples
     C = number of channels
 
     :param data_dict: Dictionary returned by
+        `neural_net.create_data_partial_grids`.
+    :param data_option_dict: See input doc for
         `neural_net.create_data_partial_grids`.
     :param permuted_index_matrix: See doc for `run_forward_test_one_step`.
     :param is_forward_test: Boolean flag.  If True (False), running forward
@@ -114,7 +164,7 @@ def _get_fss_components_one_batch(
     target_matrix = data_dict[neural_net.TARGET_MATRIX_KEY][..., 0] + 0
 
     num_examples = predictor_matrix.shape[0]
-    num_channels = predictor_matrix.shape[-1]
+    num_channels = len(data_option_dict[neural_net.BAND_NUMBERS_KEY])
 
     actual_sse_matrix = numpy.full((num_examples, num_channels), numpy.nan)
     reference_sse_matrix = numpy.full((num_examples, num_channels), numpy.nan)
@@ -131,7 +181,8 @@ def _get_fss_components_one_batch(
             for j in range(num_channels):
                 predictor_matrix, new_permuted_index_matrix[:, j] = (
                     _permute_values(
-                        predictor_matrix=predictor_matrix, channel_index=j,
+                        predictor_matrix=predictor_matrix,
+                        data_option_dict=data_option_dict, channel_index=j,
                         permuted_example_indices=None
                     )
                 )
@@ -177,7 +228,8 @@ def _get_fss_components_one_batch(
             continue
 
         predictor_matrix = _permute_values(
-            predictor_matrix=predictor_matrix, channel_index=j,
+            predictor_matrix=predictor_matrix,
+            data_option_dict=data_option_dict, channel_index=j,
             permuted_example_indices=permuted_index_matrix[:, j]
         )[0]
 
@@ -193,7 +245,8 @@ def _get_fss_components_one_batch(
             this_predictor_matrix, new_permuted_index_matrix[:, j] = (
                 _permute_values(
                     predictor_matrix=predictor_matrix + 0.,
-                    channel_index=j, permuted_example_indices=None
+                    data_option_dict=data_option_dict, channel_index=j,
+                    permuted_example_indices=None
                 )
             )
 
@@ -204,7 +257,8 @@ def _get_fss_components_one_batch(
             ))
 
             this_predictor_matrix = _depermute_values(
-                predictor_matrix=predictor_matrix + 0., channel_index=j,
+                predictor_matrix=predictor_matrix + 0.,
+                data_option_dict=data_option_dict, channel_index=j,
                 permuted_example_indices=permuted_index_matrix[:, j]
             )
 
@@ -519,7 +573,7 @@ def make_fss_cost_function(
                     reference_sse_matrix[first_index:last_index, :],
                     new_permuted_index_matrix[first_index:last_index, :]
                 ) = _get_fss_components_one_batch(
-                    data_dict=this_data_dict,
+                    data_dict=this_data_dict, data_option_dict=data_option_dict,
                     permuted_index_matrix=this_permuted_index_matrix,
                     is_forward_test=is_forward_test,
                     is_start_of_test=is_start_of_test,
