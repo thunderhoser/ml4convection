@@ -556,7 +556,7 @@ def plot_reliability_curve(
 
     num_bootstrap_reps = mean_prediction_matrix.shape[0]
 
-    if num_bootstrap_reps > 1:
+    if num_bootstrap_reps > 1 and confidence_level is not None:
         polygon_coord_matrix = confidence_interval_to_polygon(
             x_value_matrix=mean_prediction_matrix,
             y_value_matrix=mean_observation_matrix,

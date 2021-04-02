@@ -39,6 +39,7 @@ python3 -u "${CODE_DIR_NAME}/compute_advanced_scores_ungridded.py" \
 --input_basic_score_dir_name="${evaluation_dir_name}" \
 --first_date_string="20180101" \
 --last_date_string="20181224" \
+--num_bootstrap_reps=1000 \
 --use_partial_grids=0 \
 --input_climo_file_name="${TOP_TARGET_DIR_NAME}/climo_dilation-distance-px=4.000000.p" \
 --output_dir_name="${evaluation_dir_name}"
