@@ -400,7 +400,7 @@ def _get_csi_colour_scheme(use_grey_scheme):
     return colour_map_object, colour_norm_object
 
 
-def _confidence_interval_to_polygon(
+def confidence_interval_to_polygon(
         x_value_matrix, y_value_matrix, confidence_level, same_order):
     """Turns confidence interval into polygon.
 
@@ -549,7 +549,7 @@ def plot_reliability_curve(
     num_bootstrap_reps = mean_prediction_matrix.shape[0]
 
     if num_bootstrap_reps > 1:
-        polygon_coord_matrix = _confidence_interval_to_polygon(
+        polygon_coord_matrix = confidence_interval_to_polygon(
             x_value_matrix=mean_prediction_matrix,
             y_value_matrix=mean_observation_matrix,
             confidence_level=confidence_level, same_order=False
@@ -651,7 +651,7 @@ def plot_roc_curve(
     num_bootstrap_reps = pod_matrix.shape[0]
 
     if num_bootstrap_reps > 1:
-        polygon_coord_matrix = _confidence_interval_to_polygon(
+        polygon_coord_matrix = confidence_interval_to_polygon(
             x_value_matrix=pofd_matrix, y_value_matrix=pod_matrix,
             confidence_level=confidence_level, same_order=False
         )
@@ -778,7 +778,7 @@ def plot_performance_diagram(
     num_bootstrap_reps = pod_matrix.shape[0]
 
     if num_bootstrap_reps > 1:
-        polygon_coord_matrix = _confidence_interval_to_polygon(
+        polygon_coord_matrix = confidence_interval_to_polygon(
             x_value_matrix=success_ratio_matrix, y_value_matrix=pod_matrix,
             confidence_level=confidence_level, same_order=False
         )
