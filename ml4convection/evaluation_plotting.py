@@ -788,7 +788,7 @@ def plot_performance_diagram(
     if num_bootstrap_reps > 1:
         polygon_coord_matrix = confidence_interval_to_polygon(
             x_value_matrix=success_ratio_matrix, y_value_matrix=pod_matrix,
-            confidence_level=confidence_level, same_order=False
+            confidence_level=confidence_level, same_order=True
         )
 
         polygon_colour = matplotlib.colors.to_rgba(line_colour, POLYGON_OPACITY)
