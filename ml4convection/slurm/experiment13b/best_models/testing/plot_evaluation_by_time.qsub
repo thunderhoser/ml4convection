@@ -45,5 +45,5 @@ set evaluation_dir_name="${model_dir_name}/testing/full_grids/evaluation/matchin
 python3 -u "${CODE_DIR_NAME}/plot_evaluation_by_time.py" \
 --input_dir_name="${evaluation_dir_name}" \
 --probability_threshold=${prob_threshold_string} \
---confidence_level=0.99 \
+--confidence_level=0.95 \
 --output_dir_name="${evaluation_dir_name}"
