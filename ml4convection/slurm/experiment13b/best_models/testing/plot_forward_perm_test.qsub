@@ -41,5 +41,5 @@ set output_dir_name="${model_dir_name}/testing/partial_grids/permutation_test_fo
 
 python3 -u "${CODE_DIR_NAME}/plot_permutation_results.py" \
 --input_file_name="${input_file_name}" \
---confidence_level=0.95 \
+--confidence_level=0.99 \
 --output_dir_name="${output_dir_name}"
