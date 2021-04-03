@@ -33,5 +33,5 @@ set output_dir_name="${evaluation_dir_name}/advanced_scores_gridded=0"
 python3 -u "${CODE_DIR_NAME}/plot_evaluation.py" \
 --input_advanced_score_file_name="${advanced_score_file_name}" \
 --best_prob_threshold=0.25 \
---confidence_level=0.99 \
+--confidence_level=0.95 \
 --output_dir_name="${output_dir_name}"
