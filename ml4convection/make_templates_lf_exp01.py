@@ -32,7 +32,7 @@ PARTIAL_MASK_FILE_NAME = (
     'radar_mask_100km_omit-north_partial.nc'
 ).format(HOME_DIR_NAME)
 
-METRIC_NAMES = [
+LOSS_FUNCTION_NAMES = [
     'brier_neigh0', 'brier_neigh1', 'brier_neigh2', 'brier_neigh3',
     'brier_neigh4', 'brier_neigh6', 'brier_neigh8', 'brier_neigh12',
     'brier_0.0000d_0.0125d',
@@ -109,7 +109,13 @@ METRIC_NAMES = [
     'fmse_0.8000d_infd'
 ]
 
-LOSS_FUNCTION_NAMES = METRIC_NAMES[:80]
+METRIC_NAMES = [n for n in LOSS_FUNCTION_NAMES if '_neigh1' not in n]
+METRIC_NAMES = [n for n in METRIC_NAMES if '_neigh3' not in n]
+METRIC_NAMES = [n for n in METRIC_NAMES if '_0.0125d_0.0250d' not in n]
+METRIC_NAMES = [n for n in METRIC_NAMES if '_0.0500d_0.1000d' not in n]
+METRIC_NAMES = [n for n in METRIC_NAMES if '_0.2000d_0.4000d' not in n]
+
+print(len(METRIC_NAMES))
 
 OPTION_DICT = {
     u_net_architecture.INPUT_DIMENSIONS_KEY:
