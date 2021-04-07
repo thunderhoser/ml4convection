@@ -1752,7 +1752,8 @@ def train_model(
         num_validation_batches_per_epoch, validation_option_dict,
         mask_matrix, full_mask_matrix, loss_function_name, metric_names,
         do_early_stopping=True,
-        plateau_lr_multiplier=DEFAULT_LEARNING_RATE_MULTIPLIER):
+        plateau_lr_multiplier=DEFAULT_LEARNING_RATE_MULTIPLIER,
+        save_every_epoch=True):
     """Trains neural net on either full grid or partial grids.
 
     M = number of rows in full grid
@@ -1794,6 +1795,8 @@ def train_model(
     :param plateau_lr_multiplier: Multiplier for learning rate.  Learning
         rate will be multiplied by this factor upon plateau in validation
         performance.
+    :param save_every_epoch: Boolean flag.  If True, will save new model after
+        every epoch.
     """
 
     file_system_utils.mkdir_recursive_if_necessary(
@@ -1808,6 +1811,7 @@ def train_model(
     error_checking.assert_is_integer(num_validation_batches_per_epoch)
     error_checking.assert_is_geq(num_validation_batches_per_epoch, 2)
     error_checking.assert_is_boolean(do_early_stopping)
+    error_checking.assert_is_boolean(save_every_epoch)
 
     error_checking.assert_is_numpy_array(mask_matrix, num_dimensions=2)
     error_checking.assert_is_numpy_array(full_mask_matrix, num_dimensions=2)
@@ -1849,7 +1853,14 @@ def train_model(
         validation_option_dict[this_key] = training_option_dict[this_key]
 
     validation_option_dict = _check_generator_args(validation_option_dict)
-    model_file_name = '{0:s}/model.h5'.format(output_dir_name)
+
+    if save_every_epoch:
+        model_file_name = (
+            output_dir_name +
+            '/model_epoch={epoch:03d}_val-loss={val_loss:.6f}.h5'
+        )
+    else:
+        model_file_name = '{0:s}/model.h5'.format(output_dir_name)
 
     history_object = keras.callbacks.CSVLogger(
         filename='{0:s}/history.csv'.format(output_dir_name),
