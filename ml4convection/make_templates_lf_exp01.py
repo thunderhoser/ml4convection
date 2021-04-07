@@ -32,7 +32,7 @@ PARTIAL_MASK_FILE_NAME = (
     'radar_mask_100km_omit-north_partial.nc'
 ).format(HOME_DIR_NAME)
 
-LOSS_FUNCTION_NAMES = [
+ALL_FUNCTION_NAMES = [
     'brier_neigh0', 'brier_neigh1', 'brier_neigh2', 'brier_neigh3',
     'brier_neigh4', 'brier_neigh6', 'brier_neigh8', 'brier_neigh12',
     'brier_0.0000d_0.0125d',
@@ -83,38 +83,34 @@ LOSS_FUNCTION_NAMES = [
     'dice_0.2000d_0.4000d',
     'dice_0.4000d_0.8000d',
     'dice_0.8000d_infd',
-    # 'fmser_0.0000d_0.0125d',
-    # 'fmser_0.0125d_0.0250d',
-    # 'fmser_0.0250d_0.0500d',
-    # 'fmser_0.0500d_0.1000d',
-    # 'fmser_0.1000d_0.2000d',
-    # 'fmser_0.2000d_0.4000d',
-    # 'fmser_0.4000d_0.8000d',
-    # 'fmser_0.8000d_infd',
-    # 'fmsei_0.0000d_0.0125d',
-    # 'fmsei_0.0125d_0.0250d',
-    # 'fmsei_0.0250d_0.0500d',
-    # 'fmsei_0.0500d_0.1000d',
-    # 'fmsei_0.1000d_0.2000d',
-    # 'fmsei_0.2000d_0.4000d',
-    # 'fmsei_0.4000d_0.8000d',
-    # 'fmsei_0.8000d_infd',
-    # 'fmse_0.0000d_0.0125d',
-    # 'fmse_0.0125d_0.0250d',
-    # 'fmse_0.0250d_0.0500d',
-    # 'fmse_0.0500d_0.1000d',
-    # 'fmse_0.1000d_0.2000d',
-    # 'fmse_0.2000d_0.4000d',
-    # 'fmse_0.4000d_0.8000d',
-    # 'fmse_0.8000d_infd'
+    'fmser_0.0000d_0.0125d',
+    'fmser_0.0125d_0.0250d',
+    'fmser_0.0250d_0.0500d',
+    'fmser_0.0500d_0.1000d',
+    'fmser_0.1000d_0.2000d',
+    'fmser_0.2000d_0.4000d',
+    'fmser_0.4000d_0.8000d',
+    'fmser_0.8000d_infd',
+    'fmsei_0.0000d_0.0125d',
+    'fmsei_0.0125d_0.0250d',
+    'fmsei_0.0250d_0.0500d',
+    'fmsei_0.0500d_0.1000d',
+    'fmsei_0.1000d_0.2000d',
+    'fmsei_0.2000d_0.4000d',
+    'fmsei_0.4000d_0.8000d',
+    'fmsei_0.8000d_infd',
+    'fmse_0.0000d_0.0125d',
+    'fmse_0.0125d_0.0250d',
+    'fmse_0.0250d_0.0500d',
+    'fmse_0.0500d_0.1000d',
+    'fmse_0.1000d_0.2000d',
+    'fmse_0.2000d_0.4000d',
+    'fmse_0.4000d_0.8000d',
+    'fmse_0.8000d_infd'
 ]
 
-METRIC_NAMES = [n for n in LOSS_FUNCTION_NAMES if '_neigh1' not in n]
-METRIC_NAMES = [n for n in METRIC_NAMES if '_neigh3' not in n]
-METRIC_NAMES = [n for n in METRIC_NAMES if '_0.0125d_0.0250d' not in n]
-METRIC_NAMES = [n for n in METRIC_NAMES if '_0.0500d_0.1000d' not in n]
-METRIC_NAMES = [n for n in METRIC_NAMES if '_0.2000d_0.4000d' not in n]
-
+LOSS_FUNCTION_NAMES = ALL_FUNCTION_NAMES[:80]
+METRIC_NAMES = [n for n in ALL_FUNCTION_NAMES if 'brier_' in n or 'fss_' in n]
 print(len(METRIC_NAMES))
 
 OPTION_DICT = {

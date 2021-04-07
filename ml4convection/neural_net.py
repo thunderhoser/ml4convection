@@ -6,8 +6,10 @@ import copy
 import random
 import pickle
 import numpy
+numpy.random.seed(6695)
 import keras
 import tensorflow
+tensorflow.random.set_seed(6695)
 import tensorflow.keras as tf_keras
 
 THIS_DIRECTORY_NAME = os.path.dirname(os.path.realpath(
