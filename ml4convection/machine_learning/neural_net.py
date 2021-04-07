@@ -785,7 +785,7 @@ def metric_params_to_name(
     if max_resolution_deg >= MAX_RESOLUTION_DEG:
         max_resolution_deg = numpy.inf
 
-    return '{0:s}_band_{1:.10f}deg_{2:.10f}deg'.format(
+    return '{0:s}_{1:.4f}d_{2:.4f}d'.format(
         score_name, min_resolution_deg, max_resolution_deg
     )
 
@@ -822,17 +822,16 @@ def metric_name_to_params(metric_name):
             MAX_RESOLUTION_KEY: None
         }
 
-    assert len(metric_name_parts) == 4
-    assert metric_name_parts[1] == 'band'
+    assert len(metric_name_parts) == 3
 
-    assert metric_name_parts[2].endswith('deg')
+    assert metric_name_parts[1].endswith('d')
     min_resolution_deg = float(
-        metric_name_parts[2].replace('deg', '')
+        metric_name_parts[1].replace('d', '')
     )
 
-    assert metric_name_parts[3].endswith('deg')
+    assert metric_name_parts[2].endswith('d')
     max_resolution_deg = float(
-        metric_name_parts[3].replace('deg', '')
+        metric_name_parts[2].replace('d', '')
     )
 
     error_checking.assert_is_geq(min_resolution_deg, 0.)
