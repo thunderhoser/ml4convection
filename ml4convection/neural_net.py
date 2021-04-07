@@ -1868,8 +1868,8 @@ def train_model(
     )
     checkpoint_object = keras.callbacks.ModelCheckpoint(
         filepath=model_file_name, monitor='val_loss', verbose=1,
-        save_best_only=do_early_stopping, save_weights_only=False, mode='min',
-        period=1
+        save_best_only=not save_every_epoch, save_weights_only=False,
+        mode='min', period=1
     )
     list_of_callback_objects = [history_object, checkpoint_object]
 
