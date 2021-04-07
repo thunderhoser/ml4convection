@@ -32,7 +32,7 @@ PARTIAL_MASK_FILE_NAME = (
     'radar_mask_100km_omit-north_partial.nc'
 ).format(HOME_DIR_NAME)
 
-METRIC_NAMES = [
+LOSS_FUNCTION_NAMES = [
     'brier_neigh0', 'brier_neigh1', 'brier_neigh2', 'brier_neigh3',
     'brier_neigh4', 'brier_neigh6', 'brier_neigh8', 'brier_neigh12',
     'brier_band_0.0000000000deg_0.0125000000deg',
@@ -109,7 +109,29 @@ METRIC_NAMES = [
     'freqmse_band_0.8000000000deg_infdeg'
 ]
 
-LOSS_FUNCTION_NAMES = METRIC_NAMES[:80]
+METRIC_NAMES = [
+    'brier_neigh0', 'brier_neigh1', 'brier_neigh2', 'brier_neigh3',
+    'brier_band_0.0000000000deg_0.0125000000deg',
+    'brier_band_0.8000000000deg_infdeg',
+    'fss_neigh0', 'fss_neigh1', 'fss_neigh2', 'fss_neigh3',
+    'fss_band_0.0000000000deg_0.0125000000deg',
+    'fss_band_0.8000000000deg_infdeg',
+    'csi_neigh0', 'csi_neigh1', 'csi_neigh2', 'csi_neigh3',
+    'csi_band_0.0000000000deg_0.0125000000deg',
+    'csi_band_0.8000000000deg_infdeg',
+    'iou_neigh0', 'iou_neigh1', 'iou_neigh2', 'iou_neigh3',
+    'iou_band_0.0000000000deg_0.0125000000deg',
+    'iou_band_0.8000000000deg_infdeg',
+    'dice_neigh0', 'dice_neigh1', 'dice_neigh2', 'dice_neigh3',
+    'dice_band_0.0000000000deg_0.0125000000deg',
+    'dice_band_0.8000000000deg_infdeg',
+    'freqmsereal_band_0.0000000000deg_0.0125000000deg',
+    'freqmsereal_band_0.8000000000deg_infdeg',
+    'freqmseimag_band_0.0000000000deg_0.0125000000deg',
+    'freqmseimag_band_0.8000000000deg_infdeg',
+    'freqmse_band_0.0000000000deg_0.0125000000deg',
+    'freqmse_band_0.8000000000deg_infdeg'
+]
 
 OPTION_DICT = {
     u_net_architecture.INPUT_DIMENSIONS_KEY:
