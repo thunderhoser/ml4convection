@@ -110,8 +110,9 @@ ALL_FUNCTION_NAMES = [
 ]
 
 LOSS_FUNCTION_NAMES = ALL_FUNCTION_NAMES[:80]
-METRIC_NAMES = [n for n in ALL_FUNCTION_NAMES if 'brier_' in n or 'fss_' in n]
-print(len(METRIC_NAMES))
+
+# METRIC_NAMES = [n for n in ALL_FUNCTION_NAMES if 'brier_' in n or 'fss_' in n]
+METRIC_NAMES = ['fss_neigh1']
 
 OPTION_DICT = {
     u_net_architecture.INPUT_DIMENSIONS_KEY:
