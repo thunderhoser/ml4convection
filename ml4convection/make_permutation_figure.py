@@ -15,6 +15,7 @@ sys.path.append(os.path.normpath(os.path.join(THIS_DIRECTORY_NAME, '..')))
 
 import file_system_utils
 import gg_permutation
+import gg_plotting_utils
 import permutation_plotting
 import imagemagick_utils
 import permutation
@@ -156,6 +157,7 @@ def _run(forward_file_name, backwards_file_name, num_predictors_to_plot,
     )
     axes_object.set_title('Single-pass forward')
     axes_object.set_xlabel('')
+    gg_plotting_utils.label_axes(axes_object=axes_object, label_string='(a)')
 
     this_file_name = '{0:s}/single_pass_forward.jpg'.format(output_dir_name)
     panel_file_names = [this_file_name]
@@ -179,6 +181,7 @@ def _run(forward_file_name, backwards_file_name, num_predictors_to_plot,
     axes_object.set_title('Multi-pass forward')
     axes_object.set_xlabel('')
     axes_object.set_ylabel('')
+    gg_plotting_utils.label_axes(axes_object=axes_object, label_string='(b)')
 
     this_file_name = '{0:s}/multi_pass_forward.jpg'.format(output_dir_name)
     panel_file_names.append(this_file_name)
@@ -201,6 +204,7 @@ def _run(forward_file_name, backwards_file_name, num_predictors_to_plot,
     )
     axes_object.set_title('Single-pass backward')
     axes_object.set_xlabel('1 - FSS')
+    gg_plotting_utils.label_axes(axes_object=axes_object, label_string='(c)')
 
     this_file_name = '{0:s}/single_pass_backward.jpg'.format(output_dir_name)
     panel_file_names.append(this_file_name)
@@ -224,6 +228,7 @@ def _run(forward_file_name, backwards_file_name, num_predictors_to_plot,
     axes_object.set_title('Multi-pass backward')
     axes_object.set_xlabel('1 - FSS')
     axes_object.set_ylabel('')
+    gg_plotting_utils.label_axes(axes_object=axes_object, label_string='(d)')
 
     this_file_name = '{0:s}/multi_pass_backward.jpg'.format(output_dir_name)
     panel_file_names.append(this_file_name)
