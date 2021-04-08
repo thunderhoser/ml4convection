@@ -3,7 +3,6 @@
 import os
 import sys
 import copy
-import random
 import pickle
 import numpy
 numpy.random.seed(6695)
@@ -1506,7 +1505,9 @@ def generator_full_grid(option_dict):
             ' are available.'
         )
 
-    random.shuffle(valid_date_strings)
+    valid_date_strings = numpy.array(valid_date_strings)
+    numpy.random.shuffle(valid_date_strings)
+    valid_date_strings = valid_date_strings.tolist()
     date_index = 0
 
     while True:
