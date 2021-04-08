@@ -162,7 +162,8 @@ def _plot_predictors(brightness_temp_matrix_kelvins, band_numbers,
                 cbar_orientation_string = None
 
             colour_bar_object = satellite_plotting.plot_2d_grid_xy(
-                brightness_temp_matrix_kelvins=brightness_temp_matrix_kelvins,
+                brightness_temp_matrix_kelvins=
+                brightness_temp_matrix_kelvins[..., j, k],
                 axes_object=axes_object_matrix[j, k],
                 cbar_orientation_string=cbar_orientation_string,
                 font_size=FONT_SIZE
