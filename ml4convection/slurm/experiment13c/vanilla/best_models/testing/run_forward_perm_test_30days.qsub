@@ -1,0 +1,57 @@
+#!/bin/tcsh
+
+#SBATCH --job-name="run_forward_perm_test_30days"
+#SBATCH --partition="fge"
+#SBATCH --account="rda-ghpcs"
+#SBATCH --qos="batch"
+#SBATCH --ntasks=1
+#SBATCH --nodes=1
+#SBATCH --cpus-per-task=1
+#SBATCH --mem=160G
+##SBATCH --nodes=1
+##SBATCH --ntasks=1
+##SBATCH --cpus-per-task=1
+##SBATCH --ntasks-per-node=1
+#SBATCH --time=30:00:00
+#SBATCH --array=1
+#SBATCH --exclude=h28n12
+##SBATCH --exclude=h31n03,h28n12
+##SBATCH --exclude=h29n01,h26n05,h28n06,h29n07,h30n03,h30n15
+#SBATCH --mail-type=BEGIN,END,FAIL
+#SBATCH --mail-user=ryan.lagerquist@noaa.gov
+#SBATCH --output=run_forward_perm_test_30days_%A_%a.out
+
+module load cuda/10.1
+source /scratch2/BMC/gsd-hpcs/Jebb.Q.Stewart/conda3.7/etc/profile.d/conda.csh
+conda activate base
+
+set CODE_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_standalone/ml4convection"
+set TOP_MODEL_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_models/experiment13c/vanilla"
+set TOP_PREDICTOR_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_project/predictors/quality_controlled/partial_grids"
+set TOP_TARGET_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_project/targets/new_echo_classification/no_tracking/omit_north_radar/partial_grids"
+
+set BATCH_SIZES=(60)
+set L2_WEIGHTS=(0.0000031623)
+set LAG_TIME_STRINGS_DASHED=("0-1200-2400")
+
+set batch_size=${BATCH_SIZES[$SLURM_ARRAY_TASK_ID]}
+set l2_weight=${L2_WEIGHTS[$SLURM_ARRAY_TASK_ID]}
+set lag_time_string_dashed=${LAG_TIME_STRINGS_DASHED[$SLURM_ARRAY_TASK_ID]}
+
+set batch_size_string=`printf "%02d" $batch_size`
+set l2_weight_string=`printf "%.10f" $l2_weight`
+
+set model_dir_name="${TOP_MODEL_DIR_NAME}/batch-size=${batch_size_string}_l2-weight=${l2_weight_string}_lag-times-sec=${lag_time_string_dashed}"
+set model_file_name="${model_dir_name}/model.h5"
+set output_file_name="${model_dir_name}/testing/partial_grids/permutation_test_forward_30days.p"
+
+python3 -u "${CODE_DIR_NAME}/run_permutation.py" \
+--input_model_file_name="${model_file_name}" \
+--input_predictor_dir_name="${TOP_PREDICTOR_DIR_NAME}" \
+--input_target_dir_name="${TOP_TARGET_DIR_NAME}" \
+--valid_date_strings "20180101" "20180113" "20180125" "20180206" "20180218" "20180302" "20180314" "20180326" "20180407" "20180419" "20180501" "20180513" "20180525" "20180606" "20180618" "20180630" "20180712" "20180724" "20180805" "20180817" "20180829" "20180910" "20180922" "20181004" "20181016" "20181028" "20181109" "20181121" "20181203" "20181215" \
+--num_bootstrap_reps=1000 \
+--matching_distance_px=4 \
+--square_fss_filter=1 \
+--run_backwards_test=0 \
+--output_file_name="${output_file_name}"
