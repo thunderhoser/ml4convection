@@ -1,2 +1,3 @@
 include ml4convection/io/*.LUT
 include ml4convection/io/borders.nc
+include ml4convection/scripts/radar_mask_100km_omit-north_partial.nc

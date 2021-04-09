@@ -422,7 +422,7 @@ def _run(top_satellite_dir_name, top_reflectivity_dir_name,
 
     panel_file_names[-1] = _plot_radar_one_time(
         reflectivity_dict=reflectivity_dict,
-        echo_classifn_dict=echo_classifn_dict, mask_dict=mask_dict,
+        echo_classifn_dict=echo_classifn_dict, mask_dict=None,
         example_index=0, border_latitudes_deg_n=border_latitudes_deg_n,
         border_longitudes_deg_e=border_longitudes_deg_e,
         letter_label=letter_label, output_dir_name=output_dir_name
