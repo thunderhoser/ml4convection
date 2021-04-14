@@ -15,6 +15,7 @@ from ml4convection.utils import general_utils
 from ml4convection.utils import fourier_utils
 from ml4convection.machine_learning import neural_net
 
+# EPSILON = numpy.finfo(float).eps
 GRID_SPACING_DEG = 0.0125
 
 TIME_DIM = 'valid_time_unix_sec'
@@ -37,6 +38,11 @@ NEIGH_OBS_ORIENTED_TP_KEY = 'neigh_obs_oriented_true_positives'
 NEIGH_FALSE_POSITIVES_KEY = 'neigh_false_positives'
 NEIGH_FALSE_NEGATIVES_KEY = 'neigh_false_negatives'
 
+FREQ_SSE_REAL_KEY = 'freq_space_sse_real'
+FREQ_SSE_IMAGINARY_KEY = 'freq_space_sse_imaginary'
+FREQ_SSE_TOTAL_KEY = 'freq_space_sse_total'
+FREQ_SSE_NUM_WEIGHTS_KEY = 'freq_space_sse_num_weights'
+
 FOURIER_BRIER_SSE_KEY = 'fourier_brier_sse'
 FOURIER_BRIER_NUM_VALS_KEY = 'fourier_brier_num_values'
 FOURIER_FSS_ACTUAL_SSE_KEY = 'fourier_fss_actual_sse'
@@ -47,6 +53,21 @@ FOURIER_DICE_INTERSECTION_KEY = 'fourier_dice_intersection'
 FOURIER_DICE_NUM_PIX_KEY = 'fourier_dice_num_pixels'
 FOURIER_CSI_NUMERATOR_KEY = 'fourier_csi_numerator'
 FOURIER_CSI_DENOMINATOR_KEY = 'fourier_csi_denominator'
+
+NEIGH_BRIER_SCORE_KEY = 'neigh_brier_score'
+NEIGH_FSS_KEY = 'neigh_fss'
+NEIGH_IOU_KEY = 'neigh_iou'
+NEIGH_DICE_COEFF_KEY = 'neigh_dice_coeff'
+NEIGH_CSI_KEY = 'neigh_csi'
+
+FREQ_MSE_REAL_KEY = 'freq_space_mse_real'
+FREQ_MSE_IMAGINARY_KEY = 'freq_space_mse_imaginary'
+FREQ_MSE_TOTAL_KEY = 'freq_space_mse_total'
+FOURIER_BRIER_SCORE_KEY = 'fourier_brier_score'
+FOURIER_FSS_KEY = 'fourier_fss'
+FOURIER_IOU_KEY = 'fourier_iou'
+FOURIER_DICE_COEFF_KEY = 'fourier_dice_coeff'
+FOURIER_CSI_KEY = 'fourier_csi'
 
 
 def _apply_max_filter(input_matrix, half_width_px):
@@ -117,6 +138,7 @@ def _apply_fourier_filter(orig_data_matrix, filter_matrix):
     :param filter_matrix: M-by-N numpy array of filter weights for Fourier
         coefficients.
     :return: filtered_data_matrix: M-by-N numpy array of filtered spatial data.
+    :return: fourier_weight_matrix: M-by-N numpy array of complex weights.
     """
 
     orig_data_tensor = tensorflow.constant(
@@ -135,7 +157,42 @@ def _apply_fourier_filter(orig_data_matrix, filter_matrix):
 
     filtered_data_tensor = tensorflow.signal.ifft2d(fourier_weight_tensor)
     filtered_data_tensor = tensorflow.math.real(filtered_data_tensor)
-    return K.eval(filtered_data_tensor)[0, ...]
+    return K.eval(filtered_data_tensor)[0, ...], fourier_weight_matrix
+
+
+def _get_freq_mse_components_one_time(
+        actual_weight_matrix, predicted_weight_matrix):
+    """Computes components of frequency-space MSE for one time step.
+
+    M = number of rows in grid
+    N = number of columns in grid
+
+    :param actual_weight_matrix: M-by-N numpy array of complex Fourier weights
+        for target values.
+    :param predicted_weight_matrix: M-by-N numpy array of complex Fourier
+        weights for predicted probabilities.
+    :return: real_part_sse: Sum of squared errors (SSE) for real part of Fourier
+        weights.
+    :return: imaginary_part_sse: SSE for imaginary part.
+    :return: total_sse: SSE for total (real and imaginary).
+    :return: num_weights: Number of weights used to compute each SSE.
+    """
+
+    real_part_sse = numpy.sum(
+        (numpy.real(actual_weight_matrix) -
+         numpy.real(predicted_weight_matrix)) ** 2
+    )
+    imaginary_part_sse = numpy.sum(
+        (numpy.imag(actual_weight_matrix) -
+         numpy.imag(predicted_weight_matrix)) ** 2
+    )
+    total_sse = numpy.sum(
+        numpy.abs(actual_weight_matrix - predicted_weight_matrix) ** 2
+    )
+
+    return (
+        real_part_sse, imaginary_part_sse, total_sse, actual_weight_matrix.size
+    )
 
 
 def _get_brier_components_one_time(
@@ -504,6 +561,10 @@ def get_basic_scores(
         this_array = numpy.full((num_times, num_fourier_bands), numpy.nan)
 
         new_dict = {
+            FREQ_SSE_REAL_KEY: (these_dim, this_array + 0),
+            FREQ_SSE_IMAGINARY_KEY: (these_dim, this_array + 0),
+            FREQ_SSE_TOTAL_KEY: (these_dim, this_array + 0),
+            FREQ_SSE_NUM_WEIGHTS_KEY: (these_dim, this_array + 0),
             FOURIER_BRIER_SSE_KEY: (these_dim, this_array + 0),
             FOURIER_BRIER_NUM_VALS_KEY: (these_dim, this_array + 0.),
             FOURIER_FSS_ACTUAL_SSE_KEY: (these_dim, this_array + 0.),
@@ -643,24 +704,40 @@ def get_basic_scores(
             tapered_target_matrix = tapered_target_matrix.astype(float)
 
             for k in range(num_fourier_bands):
-                this_filtered_prob_matrix = _apply_fourier_filter(
+                (
+                    this_filtered_prob_matrix, this_predicted_weight_matrix
+                ) = _apply_fourier_filter(
                     orig_data_matrix=
                     tapered_prob_matrix * blackman_window_matrix[k, ...],
                     filter_matrix=butterworth_filter_matrix[k, ...]
                 )
+
                 this_filtered_prob_matrix = fourier_utils.untaper_spatial_data(
                     this_filtered_prob_matrix
                 )
 
-                this_filtered_target_matrix = _apply_fourier_filter(
+                (
+                    this_filtered_target_matrix, this_actual_weight_matrix
+                ) = _apply_fourier_filter(
                     orig_data_matrix=
                     tapered_target_matrix * blackman_window_matrix[k, ...],
                     filter_matrix=butterworth_filter_matrix[k, ...]
                 )
+
                 this_filtered_target_matrix = (
                     fourier_utils.untaper_spatial_data(
                         this_filtered_target_matrix
                     )
+                )
+
+                (
+                    b[FREQ_SSE_REAL_KEY].values[i, k],
+                    b[FREQ_SSE_IMAGINARY_KEY].values[i, k],
+                    b[FREQ_SSE_TOTAL_KEY].values[i, k],
+                    b[FREQ_SSE_NUM_WEIGHTS_KEY].values[i, k]
+                ) = _get_freq_mse_components_one_time(
+                    actual_weight_matrix=this_actual_weight_matrix,
+                    predicted_weight_matrix=this_predicted_weight_matrix
                 )
 
                 (
@@ -716,26 +793,157 @@ def get_basic_scores(
     return basic_score_table_xarray
 
 
-def write_basic_score_file(basic_score_table_xarray, netcdf_file_name):
-    """Writes basic scores to NetCDF file.
+def get_advanced_scores(basic_score_table_xarray):
+    """Computes advanced scores.
 
     :param basic_score_table_xarray: xarray table created by `get_basic_scores`.
+    :return: advanced_score_table_xarray: xarray table with advanced scores
+        (variable and dimension names should make the table self-explanatory).
+    """
+
+    metadata_dict = dict()
+
+    for this_key in basic_score_table_xarray.coords:
+        if this_key == TIME_DIM:
+            continue
+
+        metadata_dict[this_key] = (
+            basic_score_table_xarray.coords[this_key].values
+        )
+
+    if NEIGH_DISTANCE_DIM in metadata_dict:
+        num_neigh_distances = len(metadata_dict[NEIGH_DISTANCE_DIM])
+    else:
+        num_neigh_distances = 0
+
+    if MIN_RESOLUTION_DIM in metadata_dict:
+        num_fourier_bands = len(metadata_dict[MIN_RESOLUTION_DIM])
+    else:
+        num_fourier_bands = 0
+
+    main_data_dict = dict()
+
+    if num_neigh_distances > 0:
+        these_dim = (NEIGH_DISTANCE_DIM,)
+        this_array = numpy.full(num_neigh_distances, numpy.nan)
+
+        new_dict = {
+            NEIGH_BRIER_SCORE_KEY: (these_dim, this_array + 0.),
+            NEIGH_FSS_KEY: (these_dim, this_array + 0.),
+            NEIGH_IOU_KEY: (these_dim, this_array + 0.),
+            NEIGH_DICE_COEFF_KEY: (these_dim, this_array + 0.),
+            NEIGH_CSI_KEY: (these_dim, this_array + 0.)
+        }
+        main_data_dict.update(new_dict)
+
+    if num_fourier_bands > 0:
+        these_dim = (MIN_RESOLUTION_DIM,)
+        this_array = numpy.full(num_fourier_bands, numpy.nan)
+
+        new_dict = {
+            FREQ_MSE_REAL_KEY: (these_dim, this_array + 0.),
+            FREQ_MSE_IMAGINARY_KEY: (these_dim, this_array + 0.),
+            FREQ_MSE_TOTAL_KEY: (these_dim, this_array + 0.),
+            FOURIER_BRIER_SCORE_KEY: (these_dim, this_array + 0.),
+            FOURIER_FSS_KEY: (these_dim, this_array + 0.),
+            FOURIER_IOU_KEY: (these_dim, this_array + 0.),
+            FOURIER_DICE_COEFF_KEY: (these_dim, this_array + 0.),
+            FOURIER_CSI_KEY: (these_dim, this_array + 0.)
+        }
+        main_data_dict.update(new_dict)
+
+    advanced_score_table_xarray = xarray.Dataset(
+        data_vars=main_data_dict, coords=metadata_dict
+    )
+    a = advanced_score_table_xarray
+    b = basic_score_table_xarray
+
+    if num_neigh_distances > 0:
+        numerators = numpy.sum(b[NEIGH_BRIER_SSE_KEY].values, axis=0)
+        denominators = numpy.sum(b[NEIGH_BRIER_NUM_VALS_KEY].values, axis=0)
+        a[NEIGH_BRIER_SCORE_KEY].values = numerators / denominators
+
+        numerators = numpy.sum(b[NEIGH_FSS_ACTUAL_SSE_KEY].values, axis=0)
+        denominators = numpy.sum(b[NEIGH_FSS_REFERENCE_SSE_KEY].values, axis=0)
+        a[NEIGH_FSS_KEY].values = 1. - numerators / denominators
+
+        numerators = numpy.sum(b[NEIGH_IOU_INTERSECTION_KEY].values, axis=0)
+        denominators = numpy.sum(b[NEIGH_IOU_UNION_KEY].values, axis=0)
+        a[NEIGH_IOU_KEY].values = numerators / denominators
+
+        numerators = numpy.sum(b[NEIGH_DICE_INTERSECTION_KEY].values, axis=0)
+        denominators = numpy.sum(b[NEIGH_DICE_NUM_PIX_KEY].values, axis=0)
+        a[NEIGH_DICE_COEFF_KEY].values = numerators / denominators
+
+        a_values = numpy.sum(b[NEIGH_OBS_ORIENTED_TP_KEY].values, axis=0)
+        c_values = numpy.sum(b[NEIGH_FALSE_NEGATIVES_KEY].values, axis=0)
+        pod_values = a_values / (a_values + c_values)
+
+        a_values = numpy.sum(b[NEIGH_PRED_ORIENTED_TP_KEY].values, axis=0)
+        b_values = numpy.sum(b[NEIGH_FALSE_POSITIVES_KEY].values, axis=0)
+        success_ratios = a_values / (a_values + b_values)
+
+        a[NEIGH_CSI_KEY].values = numpy.power(
+            pod_values ** -1 + success_ratios ** -1 - 1,
+            -1.
+        )
+
+    if num_fourier_bands > 0:
+        numerators = numpy.sum(b[FREQ_SSE_REAL_KEY].values, axis=0)
+        denominators = numpy.sum(b[FREQ_SSE_NUM_WEIGHTS_KEY].values, axis=0)
+        a[FREQ_MSE_REAL_KEY].values = numerators / denominators
+
+        numerators = numpy.sum(b[FREQ_SSE_IMAGINARY_KEY].values, axis=0)
+        a[FREQ_MSE_IMAGINARY_KEY].values = numerators / denominators
+
+        numerators = numpy.sum(b[FREQ_SSE_TOTAL_KEY].values, axis=0)
+        a[FREQ_MSE_TOTAL_KEY].values = numerators / denominators
+
+        numerators = numpy.sum(b[FOURIER_BRIER_SSE_KEY].values, axis=0)
+        denominators = numpy.sum(b[FOURIER_BRIER_NUM_VALS_KEY].values, axis=0)
+        a[FOURIER_BRIER_SCORE_KEY].values = numerators / denominators
+
+        numerators = numpy.sum(b[FOURIER_FSS_ACTUAL_SSE_KEY].values, axis=0)
+        denominators = numpy.sum(b[FOURIER_FSS_REFERENCE_SSE_KEY].values, axis=0)
+        a[FOURIER_FSS_KEY].values = 1. - numerators / denominators
+
+        numerators = numpy.sum(b[FOURIER_IOU_INTERSECTION_KEY].values, axis=0)
+        denominators = numpy.sum(b[FOURIER_IOU_UNION_KEY].values, axis=0)
+        a[FOURIER_IOU_KEY].values = numerators / denominators
+
+        numerators = numpy.sum(b[FOURIER_DICE_INTERSECTION_KEY].values, axis=0)
+        denominators = numpy.sum(b[FOURIER_DICE_NUM_PIX_KEY].values, axis=0)
+        a[FOURIER_DICE_COEFF_KEY].values = numerators / denominators
+
+        numerators = numpy.sum(b[FOURIER_CSI_NUMERATOR_KEY].values, axis=0)
+        denominators = numpy.sum(b[FOURIER_CSI_DENOMINATOR_KEY].values, axis=0)
+        a[FOURIER_CSI_KEY].values = numerators / denominators
+
+    advanced_score_table_xarray = a
+    return advanced_score_table_xarray
+
+
+def write_scores(score_table_xarray, netcdf_file_name):
+    """Writes basic or advanced scores to NetCDF file.
+
+    :param score_table_xarray: xarray table created by `get_basic_scores` or
+        `get_advanced_scores`.
     :param netcdf_file_name: Path to output file.
     """
 
     file_system_utils.mkdir_recursive_if_necessary(file_name=netcdf_file_name)
 
-    basic_score_table_xarray.to_netcdf(
+    score_table_xarray.to_netcdf(
         path=netcdf_file_name, mode='w', format='NETCDF3_64BIT'
     )
 
 
-def read_basic_score_file(netcdf_file_name):
-    """Reads basic scores from NetCDF file.
+def read_scores(netcdf_file_name):
+    """Reads basic or advanced scores from NetCDF file.
 
     :param netcdf_file_name: Path to input file.
-    :return: basic_score_table_xarray: xarray table created by
-        `get_basic_scores`.
+    :return: score_table_xarray: xarray table created by `get_basic_scores` or
+        `get_advanced_scores`.
     """
 
     error_checking.assert_file_exists(netcdf_file_name)

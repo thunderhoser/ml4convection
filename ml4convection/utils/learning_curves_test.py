@@ -2,9 +2,12 @@
 
 import unittest
 import numpy
+import xarray
 from ml4convection.utils import learning_curves
 
 TOLERANCE = 1e-6
+
+# The following constants are used to test basic scores.
 NEIGH_DISTANCE_PX = 2.
 
 ACTUAL_TARGET_MATRIX = numpy.array([
@@ -130,6 +133,203 @@ NEIGH_NUM_OBS_ORIENTED_TP = 16.
 NEIGH_NUM_FALSE_NEGATIVES = 0.
 NEIGH_NUM_PRED_ORIENTED_TP = 9.3
 NEIGH_NUM_FALSE_POSITIVES = 8.1
+
+# The following constants are used to test advanced scores.
+# METADATA_DICT = {
+#     learning_curves.NEIGH_DISTANCE_DIM: numpy.array([0, 1, numpy.sqrt(2), 2]),
+#     learning_curves.MIN_RESOLUTION_DIM: numpy.array([0, 0.1, 0.2, 0.4, 0.8]),
+#     learning_curves.MAX_RESOLUTION_DIM:
+#         numpy.array([0.1, 0.2, 0.4, 0.8, numpy.inf])
+# }
+
+METADATA_DICT = {
+    learning_curves.NEIGH_DISTANCE_DIM: numpy.array([0, 1, numpy.sqrt(2), 2, 4])
+}
+
+NUM_NEIGH_DISTANCES = len(METADATA_DICT[learning_curves.NEIGH_DISTANCE_DIM])
+# NUM_FOURIER_BANDS = len(METADATA_DICT[learning_curves.MIN_RESOLUTION_DIM])
+NUM_TIMES = 2
+
+THESE_DIM = (learning_curves.TIME_DIM, learning_curves.NEIGH_DISTANCE_DIM)
+THIS_ARRAY = numpy.full((NUM_TIMES, NUM_NEIGH_DISTANCES), numpy.nan)
+MAIN_DATA_DICT = {
+    learning_curves.NEIGH_BRIER_SSE_KEY: (THESE_DIM, THIS_ARRAY + 0),
+    learning_curves.NEIGH_BRIER_NUM_VALS_KEY: (THESE_DIM, THIS_ARRAY + 0.),
+    learning_curves.NEIGH_FSS_ACTUAL_SSE_KEY: (THESE_DIM, THIS_ARRAY + 0.),
+    learning_curves.NEIGH_FSS_REFERENCE_SSE_KEY: (THESE_DIM, THIS_ARRAY + 0.),
+    learning_curves.NEIGH_IOU_INTERSECTION_KEY: (THESE_DIM, THIS_ARRAY + 0.),
+    learning_curves.NEIGH_IOU_UNION_KEY: (THESE_DIM, THIS_ARRAY + 0.),
+    learning_curves.NEIGH_DICE_INTERSECTION_KEY: (THESE_DIM, THIS_ARRAY + 0.),
+    learning_curves.NEIGH_DICE_NUM_PIX_KEY: (THESE_DIM, THIS_ARRAY + 0.),
+    learning_curves.NEIGH_PRED_ORIENTED_TP_KEY: (THESE_DIM, THIS_ARRAY + 0.),
+    learning_curves.NEIGH_OBS_ORIENTED_TP_KEY: (THESE_DIM, THIS_ARRAY + 0.),
+    learning_curves.NEIGH_FALSE_POSITIVES_KEY: (THESE_DIM, THIS_ARRAY + 0.),
+    learning_curves.NEIGH_FALSE_NEGATIVES_KEY: (THESE_DIM, THIS_ARRAY + 0.)
+}
+
+# THESE_DIM = (learning_curves.TIME_DIM, learning_curves.MIN_RESOLUTION_DIM)
+# THIS_ARRAY = numpy.full((NUM_TIMES, NUM_FOURIER_BANDS), numpy.nan)
+# NEW_DICT = {
+#     learning_curves.FREQ_SSE_REAL_KEY: (THESE_DIM, THIS_ARRAY + 0),
+#     learning_curves.FREQ_SSE_IMAGINARY_KEY: (THESE_DIM, THIS_ARRAY + 0),
+#     learning_curves.FREQ_SSE_TOTAL_KEY: (THESE_DIM, THIS_ARRAY + 0),
+#     learning_curves.FREQ_SSE_NUM_WEIGHTS_KEY: (THESE_DIM, THIS_ARRAY + 0),
+#     learning_curves.FOURIER_BRIER_SSE_KEY: (THESE_DIM, THIS_ARRAY + 0),
+#     learning_curves.FOURIER_BRIER_NUM_VALS_KEY: (THESE_DIM, THIS_ARRAY + 0.),
+#     learning_curves.FOURIER_FSS_ACTUAL_SSE_KEY: (THESE_DIM, THIS_ARRAY + 0.),
+#     learning_curves.FOURIER_FSS_REFERENCE_SSE_KEY: (THESE_DIM, THIS_ARRAY + 0.),
+#     learning_curves.FOURIER_IOU_INTERSECTION_KEY: (THESE_DIM, THIS_ARRAY + 0.),
+#     learning_curves.FOURIER_IOU_UNION_KEY: (THESE_DIM, THIS_ARRAY + 0.),
+#     learning_curves.FOURIER_DICE_INTERSECTION_KEY: (THESE_DIM, THIS_ARRAY + 0.),
+#     learning_curves.FOURIER_DICE_NUM_PIX_KEY: (THESE_DIM, THIS_ARRAY + 0.),
+#     learning_curves.FOURIER_CSI_NUMERATOR_KEY: (THESE_DIM, THIS_ARRAY + 0.),
+#     learning_curves.FOURIER_CSI_DENOMINATOR_KEY: (THESE_DIM, THIS_ARRAY + 0.)
+# }
+# MAIN_DATA_DICT.update(NEW_DICT)
+
+BASIC_SCORE_TABLE_XARRAY = xarray.Dataset(
+    data_vars=MAIN_DATA_DICT, coords=METADATA_DICT
+)
+B = BASIC_SCORE_TABLE_XARRAY
+
+B[learning_curves.NEIGH_BRIER_SSE_KEY].values = numpy.array([
+    [1, 2, 3, 4, 5],
+    [6, 7, 8, 9, 10]
+], dtype=float)
+
+B[learning_curves.NEIGH_BRIER_NUM_VALS_KEY].values = numpy.array([
+    [100, 100, 100, 100, 100],
+    [200, 200, 200, 200, 200]
+], dtype=float)
+
+B[learning_curves.NEIGH_FSS_ACTUAL_SSE_KEY].values = numpy.array([
+    [1, 2, 3, 4, 5],
+    [6, 7, 8, 9, 10]
+], dtype=float)
+
+B[learning_curves.NEIGH_FSS_REFERENCE_SSE_KEY].values = numpy.array([
+    [100, 100, 100, 100, 100],
+    [200, 200, 200, 200, 200]
+], dtype=float)
+
+B[learning_curves.NEIGH_IOU_INTERSECTION_KEY].values = numpy.array([
+    [10, 20, 30, 40, 50],
+    [6, 7, 8, 9, 10]
+], dtype=float)
+
+B[learning_curves.NEIGH_IOU_UNION_KEY].values = numpy.array([
+    [10, 20, 30, 40, 50],
+    [60, 70, 80, 90, 100]
+], dtype=float)
+
+B[learning_curves.NEIGH_DICE_INTERSECTION_KEY].values = numpy.array([
+    [5, 10, 15, 20, 25],
+    [25, 20, 15, 10, 5]
+], dtype=float)
+
+B[learning_curves.NEIGH_DICE_NUM_PIX_KEY].values = numpy.array([
+    [50, 100, 50, 100, 50],
+    [100, 50, 100, 50, 100]
+], dtype=float)
+
+B[learning_curves.NEIGH_PRED_ORIENTED_TP_KEY].values = numpy.array([
+    [0, 1, 2, 3, 4],
+    [0, 2, 4, 6, 8]
+], dtype=float)
+
+B[learning_curves.NEIGH_OBS_ORIENTED_TP_KEY].values = numpy.array([
+    [4, 4, 4, 4, 4],
+    [8, 8, 8, 8, 8]
+], dtype=float)
+
+B[learning_curves.NEIGH_FALSE_POSITIVES_KEY].values = numpy.array([
+    [20, 30, 40, 30, 20],
+    [10, 10, 10, 10, 10]
+], dtype=float)
+
+B[learning_curves.NEIGH_FALSE_NEGATIVES_KEY].values = numpy.array([
+    [15, 10, 15, 10, 20],
+    [25, 20, 25, 10, 10]
+], dtype=float)
+
+BASIC_SCORE_TABLE_XARRAY = B
+
+THESE_DIM = (learning_curves.NEIGH_DISTANCE_DIM,)
+THIS_ARRAY = numpy.full(NUM_NEIGH_DISTANCES, numpy.nan)
+MAIN_DATA_DICT = {
+    learning_curves.NEIGH_BRIER_SCORE_KEY: (THESE_DIM, THIS_ARRAY + 0.),
+    learning_curves.NEIGH_FSS_KEY: (THESE_DIM, THIS_ARRAY + 0.),
+    learning_curves.NEIGH_IOU_KEY: (THESE_DIM, THIS_ARRAY + 0.),
+    learning_curves.NEIGH_DICE_COEFF_KEY: (THESE_DIM, THIS_ARRAY + 0.),
+    learning_curves.NEIGH_CSI_KEY: (THESE_DIM, THIS_ARRAY + 0.)
+}
+
+# THESE_DIM = (learning_curves.MIN_RESOLUTION_DIM,)
+# THIS_ARRAY = numpy.full(NUM_FOURIER_BANDS, numpy.nan)
+# NEW_DICT = {
+#     learning_curves.FREQ_MSE_REAL_KEY: (THESE_DIM, THIS_ARRAY + 0.),
+#     learning_curves.FREQ_MSE_IMAGINARY_KEY: (THESE_DIM, THIS_ARRAY + 0.),
+#     learning_curves.FREQ_MSE_TOTAL_KEY: (THESE_DIM, THIS_ARRAY + 0.),
+#     learning_curves.FOURIER_BRIER_SCORE_KEY: (THESE_DIM, THIS_ARRAY + 0.),
+#     learning_curves.FOURIER_FSS_KEY: (THESE_DIM, THIS_ARRAY + 0.),
+#     learning_curves.FOURIER_IOU_KEY: (THESE_DIM, THIS_ARRAY + 0.),
+#     learning_curves.FOURIER_DICE_COEFF_KEY: (THESE_DIM, THIS_ARRAY + 0.),
+#     learning_curves.FOURIER_CSI_KEY: (THESE_DIM, THIS_ARRAY + 0.)
+# }
+# MAIN_DATA_DICT.update(NEW_DICT)
+
+ADVANCED_SCORE_TABLE_XARRAY = xarray.Dataset(
+    data_vars=MAIN_DATA_DICT, coords=METADATA_DICT
+)
+A = ADVANCED_SCORE_TABLE_XARRAY
+
+A[learning_curves.NEIGH_BRIER_SCORE_KEY].values = (1. / 300) * numpy.array(
+    [7, 9, 11, 13, 15], dtype=float
+)
+A[learning_curves.NEIGH_FSS_KEY].values = 1. - (1. / 300) * numpy.array(
+    [7, 9, 11, 13, 15], dtype=float
+)
+A[learning_curves.NEIGH_IOU_KEY].values = numpy.array(
+    [16. / 70, 27. / 90, 38. / 110, 49. / 130, 60. / 150], dtype=float
+)
+A[learning_curves.NEIGH_DICE_COEFF_KEY].values = numpy.array([
+    0.2, 0.2, 0.2, 0.2, 0.2
+])
+
+POD_VALUES = numpy.array([35, 30, 40, 20, 30], dtype=float)
+POD_VALUES = 12. / (12 + POD_VALUES)
+SUCCESS_RATIOS = numpy.array(
+    [0, 3. / 43, 6. / 56, 9. / 49, 12. / 42], dtype=float
+)
+A[learning_curves.NEIGH_CSI_KEY].values = (
+    (POD_VALUES ** -1 + SUCCESS_RATIOS ** -1 - 1) ** -1
+)
+
+ADVANCED_SCORE_TABLE_XARRAY = A
+
+
+def _compare_advanced_score_tables(first_table, second_table):
+    """Compares two xarray tables with advanced scores.
+
+    :param first_table: First table.
+    :param second_table: Second table.
+    :return: are_tables_equal: Boolean flag.
+    """
+
+    keys_to_compare = [
+        learning_curves.NEIGH_BRIER_SCORE_KEY, learning_curves.NEIGH_FSS_KEY,
+        learning_curves.NEIGH_IOU_KEY, learning_curves.NEIGH_DICE_COEFF_KEY,
+        learning_curves.NEIGH_CSI_KEY
+    ]
+
+    for this_key in keys_to_compare:
+        if not numpy.allclose(
+                first_table[this_key].values, second_table[this_key].values,
+                atol=TOLERANCE, equal_nan=True
+        ):
+            return False
+
+    return True
 
 
 class LearningCurvesTests(unittest.TestCase):
@@ -352,6 +552,17 @@ class LearningCurvesTests(unittest.TestCase):
         ))
         self.assertTrue(numpy.isclose(
             this_num_false_negatives, NEIGH_NUM_FALSE_NEGATIVES, atol=TOLERANCE
+        ))
+
+    def test_get_advanced_scores(self):
+        """Ensures correct output from get_advanced_scores."""
+
+        this_score_table_xarray = learning_curves.get_advanced_scores(
+            BASIC_SCORE_TABLE_XARRAY
+        )
+
+        self.assertTrue(_compare_advanced_score_tables(
+            this_score_table_xarray, ADVANCED_SCORE_TABLE_XARRAY
         ))
 
 
