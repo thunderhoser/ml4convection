@@ -5,7 +5,6 @@ from ml4convection.utils import learning_curves
 from ml4convection.utils import radar_utils
 
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
-
 NUM_RADARS = len(radar_utils.RADAR_LATITUDES_DEG_N)
 
 INPUT_DIR_ARG_NAME = 'input_basic_score_dir_name'
