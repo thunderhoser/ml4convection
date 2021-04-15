@@ -617,6 +617,13 @@ def get_basic_scores(
             )
 
         for i in range(num_times):
+            print((
+                'Computing neighbourhood-based scores for {0:d}th of {1:d} time'
+                ' steps...'
+            ).format(
+                i + 1, num_times
+            ))
+
             this_prob_matrix = (
                 prediction_dict[prediction_io.PROBABILITY_MATRIX_KEY][i, ...]
                 + 0.
@@ -708,6 +715,13 @@ def get_basic_scores(
             )
 
         for i in range(num_times):
+            print((
+                'Computing Fourier-based scores for {0:d}th of {1:d} time '
+                'steps...'
+            ).format(
+                i + 1, num_times
+            ))
+
             tapered_prob_matrix = fourier_utils.taper_spatial_data(
                 prediction_dict[prediction_io.PROBABILITY_MATRIX_KEY][i, ...]
             )
