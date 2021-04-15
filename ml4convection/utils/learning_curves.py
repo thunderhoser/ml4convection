@@ -1,5 +1,6 @@
 """Learning curves (simple model evaluation)."""
 
+import os
 import copy
 import numpy
 import xarray
@@ -8,6 +9,7 @@ from keras import backend as K
 from scipy.signal import convolve2d
 from scipy.ndimage import maximum_filter
 from scipy.ndimage.morphology import binary_dilation, binary_erosion
+from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
 from ml4convection.io import prediction_io
@@ -15,8 +17,12 @@ from ml4convection.utils import general_utils
 from ml4convection.utils import fourier_utils
 from ml4convection.machine_learning import neural_net
 
+# TODO(thunderhoser): This module contains some duplicated code from
+# evaluation.py.
+
 # EPSILON = numpy.finfo(float).eps
 GRID_SPACING_DEG = 0.0125
+DATE_FORMAT = '%Y%m%d'
 
 TIME_DIM = 'valid_time_unix_sec'
 MIN_RESOLUTION_DIM = 'min_fourier_resolution_deg'
@@ -793,6 +799,29 @@ def get_basic_scores(
     return basic_score_table_xarray
 
 
+def concat_basic_score_tables(basic_score_tables_xarray):
+    """Concatenates many tables along time dimension.
+
+    :param basic_score_tables_xarray: 1-D list of xarray tables in format
+        returned by `get_basic_scores`.
+    :return: basic_score_table_xarray: Single xarray table, containing data from
+        all input tables.
+    """
+
+    model_file_names = [
+        t.attrs[MODEL_FILE_KEY] for t in basic_score_tables_xarray
+    ]
+    unique_model_file_names = numpy.unique(numpy.array(model_file_names))
+    assert len(unique_model_file_names) == 1
+
+    non_empty_tables = [
+        b for b in basic_score_tables_xarray
+        if len(b.coords[TIME_DIM].values) > 0
+    ]
+
+    return xarray.concat(objs=non_empty_tables, dim=TIME_DIM)
+
+
 def get_advanced_scores(basic_score_table_xarray):
     """Computes advanced scores.
 
@@ -921,6 +950,119 @@ def get_advanced_scores(basic_score_table_xarray):
 
     advanced_score_table_xarray = a
     return advanced_score_table_xarray
+
+
+def find_basic_score_file(top_directory_name, valid_date_string,
+                          radar_number=None, raise_error_if_missing=True):
+    """Finds NetCDF file with basic scores.
+
+    :param top_directory_name: Name of top-level directory where file is
+        expected.
+    :param valid_date_string: Valid date (format "yyyymmdd").
+    :param radar_number: Radar number (non-negative integer).  If you are
+        looking for data on the full grid, leave this alone.
+    :param raise_error_if_missing: Boolean flag.  If file is missing and
+        `raise_error_if_missing == True`, will throw error.  If file is missing
+        and `raise_error_if_missing == False`, will return *expected* file path.
+    :return: basic_score_file_name: File path.
+    :raises: ValueError: if file is missing
+        and `raise_error_if_missing == True`.
+    """
+
+    error_checking.assert_is_string(top_directory_name)
+    _ = time_conversion.string_to_unix_sec(valid_date_string, DATE_FORMAT)
+    error_checking.assert_is_boolean(raise_error_if_missing)
+
+    if radar_number is not None:
+        error_checking.assert_is_integer(radar_number)
+        error_checking.assert_is_geq(radar_number, 0)
+
+    basic_score_file_name = (
+        '{0:s}/{1:s}/basic_scores_{2:s}{3:s}.nc'
+    ).format(
+        top_directory_name, valid_date_string[:4], valid_date_string,
+        '' if radar_number is None else '_radar{0:d}'.format(radar_number)
+    )
+
+    if os.path.isfile(basic_score_file_name) or not raise_error_if_missing:
+        return basic_score_file_name
+
+    error_string = 'Cannot find file.  Expected at: "{0:s}"'.format(
+        basic_score_file_name
+    )
+    raise ValueError(error_string)
+
+
+def basic_file_name_to_date(basic_score_file_name):
+    """Parses date from name of basic-score file.
+
+    :param basic_score_file_name: Path to evaluation file (see
+        `find_basic_score_file` for naming convention).
+    :return: valid_date_string: Valid date (format "yyyymmdd").
+    """
+
+    error_checking.assert_is_string(basic_score_file_name)
+    pathless_file_name = os.path.split(basic_score_file_name)[-1]
+    extensionless_file_name = os.path.splitext(pathless_file_name)[0]
+
+    valid_date_string = extensionless_file_name.split('_')[2]
+    _ = time_conversion.string_to_unix_sec(valid_date_string, DATE_FORMAT)
+
+    return valid_date_string
+
+
+def find_many_basic_score_files(
+        top_directory_name, first_date_string, last_date_string,
+        radar_number=None, raise_error_if_all_missing=True,
+        raise_error_if_any_missing=False, test_mode=False):
+    """Finds many NetCDF files with basic scores.
+
+    :param top_directory_name: See doc for `find_basic_score_file`.
+    :param first_date_string: First valid date (format "yyyymmdd").
+    :param last_date_string: Last valid date (format "yyyymmdd").
+    :param radar_number: See doc for `find_basic_score_file`.
+    :param raise_error_if_any_missing: Boolean flag.  If any file is missing and
+        `raise_error_if_any_missing == True`, will throw error.
+    :param raise_error_if_all_missing: Boolean flag.  If all files are missing
+        and `raise_error_if_all_missing == True`, will throw error.
+    :param test_mode: Leave this alone.
+    :return: basic_score_file_names: 1-D list of file paths.  This list does
+        *not* contain expected paths to non-existent files.
+    :raises: ValueError: if all files are missing and
+        `raise_error_if_all_missing == True`.
+    """
+
+    error_checking.assert_is_boolean(raise_error_if_any_missing)
+    error_checking.assert_is_boolean(raise_error_if_all_missing)
+    error_checking.assert_is_boolean(test_mode)
+
+    valid_date_strings = time_conversion.get_spc_dates_in_range(
+        first_date_string, last_date_string
+    )
+
+    basic_score_file_names = []
+
+    for this_date_string in valid_date_strings:
+        this_file_name = find_basic_score_file(
+            top_directory_name=top_directory_name,
+            valid_date_string=this_date_string,
+            radar_number=radar_number,
+            raise_error_if_missing=raise_error_if_any_missing
+        )
+
+        if test_mode or os.path.isfile(this_file_name):
+            basic_score_file_names.append(this_file_name)
+
+    if raise_error_if_all_missing and len(basic_score_file_names) == 0:
+        error_string = (
+            'Cannot find any file in directory "{0:s}" from dates {1:s} to '
+            '{2:s}.'
+        ).format(
+            top_directory_name, first_date_string, last_date_string
+        )
+        raise ValueError(error_string)
+
+    return basic_score_file_names
 
 
 def write_scores(score_table_xarray, netcdf_file_name):
