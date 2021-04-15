@@ -420,7 +420,8 @@ def _get_neigh_csi_components_one_time(
     """
 
     filtered_target_matrix = _apply_max_filter(
-        input_matrix=actual_target_matrix, half_width_px=matching_distance_px
+        input_matrix=actual_target_matrix.astype(float),
+        half_width_px=matching_distance_px
     )
     filtered_prob_matrix = _apply_max_filter(
         input_matrix=probability_matrix, half_width_px=matching_distance_px
@@ -616,7 +617,6 @@ def get_basic_scores(
             this_target_matrix = (
                 prediction_dict[prediction_io.TARGET_MATRIX_KEY][i, ...] + 0
             )
-            this_target_matrix = this_target_matrix.astype(float)
 
             for k in range(num_neigh_distances):
                 (

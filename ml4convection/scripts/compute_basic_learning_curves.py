@@ -117,7 +117,7 @@ def _run(top_prediction_dir_name, valid_date_strings, neigh_distances_px,
             f for f in prediction_file_names if os.path.isfile(f)
         ]
         valid_date_strings = [
-            learning_curves.basic_file_name_to_date(f)
+            prediction_io.file_name_to_date(f)
             for f in prediction_file_names
         ]
 
