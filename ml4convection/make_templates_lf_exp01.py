@@ -166,7 +166,7 @@ def _run():
             mask_matrix=partial_mask_matrix, metric_names=METRIC_NAMES
         )
 
-        this_model_file_name = '{0:s}/model_{1:s}.h5'.format(
+        this_model_file_name = '{0:s}/{1:s}/model.h5'.format(
             OUTPUT_DIR_NAME, LOSS_FUNCTION_NAMES[i].replace('_', '-')
         )
 
