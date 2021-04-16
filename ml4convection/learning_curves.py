@@ -471,6 +471,7 @@ def _find_eval_mask(prediction_dict):
     """
 
     model_file_name = prediction_dict[prediction_io.MODEL_FILE_KEY]
+    neural_net.read_model(model_file_name)
     metafile_name = neural_net.find_metafile(
         model_file_name=model_file_name, raise_error_if_missing=True
     )
