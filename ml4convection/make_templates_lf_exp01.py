@@ -146,10 +146,6 @@ def _run():
         radar_io.MASK_MATRIX_KEY
     ]
 
-    file_system_utils.mkdir_recursive_if_necessary(
-        directory_name=OUTPUT_DIR_NAME
-    )
-
     num_loss_functions = len(LOSS_FUNCTION_NAMES)
 
     for i in range(num_loss_functions):
@@ -168,6 +164,9 @@ def _run():
 
         this_model_file_name = '{0:s}/{1:s}/model.h5'.format(
             OUTPUT_DIR_NAME, LOSS_FUNCTION_NAMES[i].replace('_', '-')
+        )
+        file_system_utils.mkdir_recursive_if_necessary(
+            file_name=this_model_file_name
         )
 
         print('Writing model to: "{0:s}"...'.format(this_model_file_name))
