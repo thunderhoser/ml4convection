@@ -161,6 +161,8 @@ def _run():
             use_as_loss_function=True
         )[0][0]
 
+        print(this_loss_function)
+
         this_model_object = u_net_architecture.create_model(
             option_dict=OPTION_DICT, loss_function=this_loss_function,
             mask_matrix=partial_mask_matrix, metric_names=METRIC_NAMES
