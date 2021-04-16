@@ -1946,6 +1946,8 @@ def read_model(hdf5_file_name, for_mirrored_training=False):
     metadata_dict = read_metafile(metafile_name)
     mask_matrix = metadata_dict[MASK_MATRIX_KEY]
     loss_function_name = metadata_dict[LOSS_FUNCTION_KEY]
+
+    # TODO(thunderhoser): Remove.
     print(loss_function_name)
     metric_names = metadata_dict[METRIC_NAMES_KEY]
 
@@ -1973,6 +1975,8 @@ def read_model(hdf5_file_name, for_mirrored_training=False):
             )
 
         custom_object_dict['loss'] = loss_function
+
+        # TODO(thunderhoser): Remove.
         print(loss_function)
         print('\n\n\n\n\n\n\nLOSS FUNCTION\n\n\n\n\n\n\n')
 
