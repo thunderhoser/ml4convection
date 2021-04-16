@@ -1070,8 +1070,6 @@ def get_metrics(metric_names, mask_matrix, use_as_loss_function):
 
     for this_metric_name in metric_names:
         this_param_dict = metric_name_to_params(this_metric_name)
-        print(this_param_dict)
-        print('\n\n\n\n\n\n\n***********************\n\n\n\n\n\n\n\n')
 
         # if (
         #         this_param_dict[HALF_WINDOW_SIZE_KEY] is None
@@ -1974,6 +1972,8 @@ def read_model(hdf5_file_name, for_mirrored_training=False):
             )
 
         custom_object_dict['loss'] = loss_function
+        print(loss_function)
+        print('\n\n\n\n\n\n\nLOSS FUNCTION\n\n\n\n\n\n\n')
 
     model_object = tf_keras.models.load_model(
         hdf5_file_name, custom_objects=custom_object_dict, compile=False
