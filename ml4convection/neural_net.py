@@ -1070,6 +1070,8 @@ def get_metrics(metric_names, mask_matrix, use_as_loss_function):
 
     for this_metric_name in metric_names:
         this_param_dict = metric_name_to_params(this_metric_name)
+        print(this_param_dict)
+        print('\n\n\n\n\n\n\n***********************\n\n\n\n\n\n\n\n')
 
         # if (
         #         this_param_dict[HALF_WINDOW_SIZE_KEY] is None
