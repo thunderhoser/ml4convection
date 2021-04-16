@@ -34,11 +34,8 @@ set LOSS_FUNCTION_NAMES=("brier-neigh0" "brier-neigh1" "brier-neigh2" "brier-nei
 
 set loss_function_name=${LOSS_FUNCTION_NAMES[$SLURM_ARRAY_TASK_ID]}
 set top_model_dir_name="${TOP_MODEL_DIR_NAME}/${loss_function_name}"
-set model_file_names={${top_model_dir_name}/model*.h5}
-
-set model_file_name=${model_file_names[$#model_file_names]}
-set model_dir_name=`echo $model_file_name | rev | cut -c 4- | rev`
-set prediction_dir_name="${model_dir_name}/validation/partial_grids"
+set prediction_dir_names={${top_model_dir_name}/model*/validation/partial_grids}
+set prediction_dir_name=${prediction_dir_names[$#prediction_dir_names]}
 
 set j=1
 
