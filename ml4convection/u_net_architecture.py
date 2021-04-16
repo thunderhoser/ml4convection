@@ -444,10 +444,6 @@ def create_model(option_dict, loss_function, mask_matrix, metric_names):
         this_matrix = numpy.expand_dims(
             mask_matrix.astype(float), axis=(0, -1)
         )
-
-        print(this_matrix.shape)
-        print(numpy.sum(this_matrix))
-
         skip_layer_by_level[0] = keras.layers.Multiply()([
             this_matrix, skip_layer_by_level[0]
         ])
