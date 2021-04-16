@@ -187,7 +187,7 @@ def _plot_predictions_one_example(
         prediction_dict[prediction_io.PROBABILITY_MATRIX_KEY][i, ...]
     )
     print(valid_time_string)
-    print(numpy.sum(probability_matrix > 1e-6))
+    print(numpy.sum(probability_matrix > 0.01))
 
     if plot_deterministic:
         prediction_matrix = (
