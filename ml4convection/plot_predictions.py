@@ -383,7 +383,7 @@ def _run(top_prediction_dir_name, first_date_string, last_date_string,
 
     colour_map_object, colour_norm_object = (
         prediction_plotting.get_prob_colour_scheme(
-            max_probability=max_prob_in_colour_bar, make_lowest_prob_grey=False
+            max_probability=max_prob_in_colour_bar, make_lowest_prob_grey=True
         )
     )
 
