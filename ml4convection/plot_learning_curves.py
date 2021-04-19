@@ -43,6 +43,8 @@ FIGURE_HEIGHT_INCHES = 15
 FIGURE_RESOLUTION_DPI = 300
 
 FONT_SIZE = 30
+LEGEND_FONT_SIZE = 24
+
 pyplot.rc('font', size=FONT_SIZE)
 pyplot.rc('axes', titlesize=FONT_SIZE)
 pyplot.rc('axes', labelsize=FONT_SIZE)
@@ -121,25 +123,34 @@ def _plot_one_learning_curve(score_matrix, epoch_indices, legend_strings,
             markerfacecolor=LINE_COLOURS[j], markeredgecolor=LINE_COLOURS[j]
         )[0]
 
-    if is_positively_oriented:
+    if is_dice_coeff:
         axes_object.legend(
-            legend_handles, legend_strings, loc='upper left',
-            bbox_to_anchor=(0, 1), fancybox=True, shadow=True, ncol=2
-        )
-    else:
-        axes_object.legend(
-            legend_handles, legend_strings, loc='upper right',
-            bbox_to_anchor=(1, 1), fancybox=True, shadow=True, ncol=2
+            legend_handles, legend_strings, loc='lower right',
+            bbox_to_anchor=(1, 0), fancybox=True, shadow=True, ncol=2,
+            fontsize=LEGEND_FONT_SIZE
         )
 
-    if is_dice_coeff:
         max_value = axes_object.get_ylim()[1]
         min_value = numpy.percentile(score_matrix, 1.)
         axes_object.set_ylim(min_value, max_value)
-    elif not is_positively_oriented:
+
+    elif is_positively_oriented:
+        axes_object.legend(
+            legend_handles, legend_strings, loc='upper left',
+            bbox_to_anchor=(0, 1), fancybox=True, shadow=True, ncol=2,
+            fontsize=LEGEND_FONT_SIZE
+        )
+
         min_value = axes_object.get_ylim()[0]
-        max_value = numpy.percentile(score_matrix, 99.)
+        max_value = numpy.percentile(score_matrix, 97.5)
         axes_object.set_ylim(min_value, max_value)
+
+    else:
+        axes_object.legend(
+            legend_handles, legend_strings, loc='upper right',
+            bbox_to_anchor=(1, 1), fancybox=True, shadow=True, ncol=2,
+            fontsize=LEGEND_FONT_SIZE
+        )
 
     axes_object.set_xlabel('Epoch')
 
@@ -261,7 +272,7 @@ def _run(top_model_dir_name, output_dir_name):
         ].values
 
         neigh_distances_deg = GRID_SPACING_DEG * neigh_distances_px
-        legend_strings = ['{0:.4f}'.format(d) for d in neigh_distances_deg]
+        legend_strings = ['{0:.3g}'.format(d) for d in neigh_distances_deg]
         legend_strings = [s + r'$^{\circ}$' for s in legend_strings]
 
         # Plot Brier score.
@@ -394,7 +405,7 @@ def _run(top_model_dir_name, output_dir_name):
     max_resolutions_deg[max_resolutions_deg > LARGE_RESOLUTION_DEG] = numpy.inf
 
     legend_strings = [
-        '[{0:.4f}, {1:.4f}]'.format(a, b)
+        '[{0:.3g}, {1:.3g}]'.format(a, b)
         for a, b in zip(min_resolutions_deg, max_resolutions_deg)
     ]
     legend_strings = [s.replace('inf]', r'$\infty$)') for s in legend_strings]
