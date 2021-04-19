@@ -140,17 +140,16 @@ def _plot_one_learning_curve(score_matrix, epoch_indices, legend_strings,
             bbox_to_anchor=(0, 1), fancybox=True, shadow=True, ncol=2,
             fontsize=LEGEND_FONT_SIZE
         )
-
-        min_value = axes_object.get_ylim()[0]
-        max_value = numpy.percentile(score_matrix, 97.5)
-        axes_object.set_ylim(min_value, max_value)
-
     else:
         axes_object.legend(
             legend_handles, legend_strings, loc='upper right',
             bbox_to_anchor=(1, 1), fancybox=True, shadow=True, ncol=2,
             fontsize=LEGEND_FONT_SIZE
         )
+
+        min_value = axes_object.get_ylim()[0]
+        max_value = numpy.percentile(score_matrix, 97.5)
+        axes_object.set_ylim(min_value, max_value)
 
     axes_object.set_xlabel('Epoch')
 
