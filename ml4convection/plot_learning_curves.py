@@ -285,6 +285,7 @@ def _run(top_model_dir_name, output_dir_name):
             legend_strings=legend_strings, is_positively_oriented=False,
             is_dice_coeff=False
         )
+        axes_object.set_ylim(bottom=0.)
         axes_object.set_ylabel('Brier score')
         axes_object.set_title('Neighbourhood-based Brier score')
 
@@ -307,6 +308,7 @@ def _run(top_model_dir_name, output_dir_name):
             legend_strings=legend_strings, is_positively_oriented=True,
             is_dice_coeff=False
         )
+        axes_object.set_ylim(bottom=0.)
         axes_object.set_ylabel('FSS')
         axes_object.set_title('Neighbourhood-based fractions skill score (FSS)')
 
@@ -329,6 +331,7 @@ def _run(top_model_dir_name, output_dir_name):
             legend_strings=legend_strings, is_positively_oriented=True,
             is_dice_coeff=False
         )
+        axes_object.set_ylim(bottom=0.)
         axes_object.set_ylabel('IOU')
         axes_object.set_title(
             'Neighbourhood-based intersection over union (IOU)'
@@ -353,6 +356,7 @@ def _run(top_model_dir_name, output_dir_name):
             legend_strings=legend_strings, is_positively_oriented=True,
             is_dice_coeff=True
         )
+        axes_object.set_ylim(top=1.)
         axes_object.set_ylabel('Dice coefficient')
         axes_object.set_title(
             'Neighbourhood-based Dice coefficient'
@@ -377,6 +381,7 @@ def _run(top_model_dir_name, output_dir_name):
             legend_strings=legend_strings, is_positively_oriented=True,
             is_dice_coeff=False
         )
+        axes_object.set_ylim(bottom=0.)
         axes_object.set_ylabel('CSI')
         axes_object.set_title(
             'Neighbourhood-based critical success index (CSI)'
@@ -421,6 +426,7 @@ def _run(top_model_dir_name, output_dir_name):
         legend_strings=legend_strings, is_positively_oriented=False,
         is_dice_coeff=False
     )
+    axes_object.set_ylim(bottom=0.)
     axes_object.set_ylabel('Brier score')
     axes_object.set_title('Fourier-based Brier score')
 
@@ -443,6 +449,7 @@ def _run(top_model_dir_name, output_dir_name):
         legend_strings=legend_strings, is_positively_oriented=True,
         is_dice_coeff=False
     )
+    axes_object.set_ylim(bottom=0.)
     axes_object.set_ylabel('FSS')
     axes_object.set_title('Fourier-based fractions skill score (FSS)')
 
@@ -465,6 +472,7 @@ def _run(top_model_dir_name, output_dir_name):
         legend_strings=legend_strings, is_positively_oriented=True,
         is_dice_coeff=False
     )
+    axes_object.set_ylim(bottom=0.)
     axes_object.set_ylabel('IOU')
     axes_object.set_title('Fourier-based intersection over union (IOU)')
 
@@ -487,6 +495,7 @@ def _run(top_model_dir_name, output_dir_name):
         legend_strings=legend_strings, is_positively_oriented=True,
         is_dice_coeff=True
     )
+    axes_object.set_ylim(top=1.)
     axes_object.set_ylabel('Dice coefficient')
     axes_object.set_title('Fourier-based Dice coefficient')
 
@@ -509,6 +518,7 @@ def _run(top_model_dir_name, output_dir_name):
         legend_strings=legend_strings, is_positively_oriented=True,
         is_dice_coeff=False
     )
+    axes_object.set_ylim(bottom=0.)
     axes_object.set_ylabel('CSI')
     axes_object.set_title('Fourier-based critical success index (CSI)')
 
@@ -531,6 +541,7 @@ def _run(top_model_dir_name, output_dir_name):
         legend_strings=legend_strings, is_positively_oriented=False,
         is_dice_coeff=False
     )
+    axes_object.set_ylim(bottom=0.)
     axes_object.set_ylabel('MSE')
     axes_object.set_title('MSE for real part of Fourier spectrum')
 
@@ -553,6 +564,7 @@ def _run(top_model_dir_name, output_dir_name):
         legend_strings=legend_strings, is_positively_oriented=False,
         is_dice_coeff=False
     )
+    axes_object.set_ylim(bottom=0.)
     axes_object.set_ylabel('MSE')
     axes_object.set_title('MSE for imaginary part of Fourier spectrum')
 
@@ -575,6 +587,7 @@ def _run(top_model_dir_name, output_dir_name):
         legend_strings=legend_strings, is_positively_oriented=False,
         is_dice_coeff=False
     )
+    axes_object.set_ylim(bottom=0.)
     axes_object.set_ylabel('MSE')
     axes_object.set_title('MSE for total Fourier spectrum')
 
