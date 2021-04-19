@@ -193,10 +193,10 @@ def _run(top_model_dir_name, output_dir_name):
             )
             assert num_fourier_bands <= MAX_LINES_PER_GRAPH
 
-        assert (
-            a[-1].attrs[learning_curves.MODEL_FILE_KEY] ==
-            a[0].attrs[learning_curves.MODEL_FILE_KEY]
-        )
+        # assert (
+        #     a[-1].attrs[learning_curves.MODEL_FILE_KEY] ==
+        #     a[0].attrs[learning_curves.MODEL_FILE_KEY]
+        # )
 
         if learning_curves.NEIGH_DISTANCE_DIM in a[0].coords:
             assert numpy.allclose(
