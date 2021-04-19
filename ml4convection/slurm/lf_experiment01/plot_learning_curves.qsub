@@ -1,0 +1,51 @@
+#!/bin/tcsh
+
+#SBATCH --job-name="plot_learning_curves"
+#SBATCH --partition="fge"
+#SBATCH --account="rda-ghpcs"
+#SBATCH --qos="batch"
+#SBATCH --ntasks=1
+#SBATCH --nodes=1
+#SBATCH --cpus-per-task=1
+#SBATCH --mem=64G
+##SBATCH --nodes=1
+##SBATCH --ntasks=1
+##SBATCH --cpus-per-task=1
+##SBATCH --ntasks-per-node=1
+#SBATCH --time=24:00:00
+#SBATCH --array=1-80
+#SBATCH --exclude=h28n12
+##SBATCH --exclude=h31n03,h28n12
+##SBATCH --exclude=h29n01,h26n05,h28n06,h29n07,h30n03,h30n15
+#SBATCH --mail-type=BEGIN,END,FAIL
+#SBATCH --mail-user=ryan.lagerquist@noaa.gov
+#SBATCH --output=plot_learning_curves_%A_%a.out
+
+module load cuda/10.1
+source /scratch2/BMC/gsd-hpcs/Jebb.Q.Stewart/conda3.7/etc/profile.d/conda.csh
+conda activate base
+
+set CODE_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_standalone/ml4convection"
+set TOP_MODEL_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_models/lf_experiment01"
+set TOP_PREDICTOR_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_project/predictors/quality_controlled/partial_grids"
+set TOP_TARGET_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_project/targets/new_echo_classification/no_tracking/omit_north_radar/partial_grids"
+
+set LOSS_FUNCTION_NAMES=("brier-neigh0" "brier-neigh1" "brier-neigh2" "brier-neigh3" "brier-neigh4" "brier-neigh6" "brier-neigh8" "brier-neigh12" "brier-0.0000d-0.0125d" "brier-0.0125d-0.0250d" "brier-0.0250d-0.0500d" "brier-0.0500d-0.1000d" "brier-0.1000d-0.2000d" "brier-0.2000d-0.4000d" "brier-0.4000d-0.8000d" "brier-0.8000d-infd" "fss-neigh0" "fss-neigh1" "fss-neigh2" "fss-neigh3" "fss-neigh4" "fss-neigh6" "fss-neigh8" "fss-neigh12" "fss-0.0000d-0.0125d" "fss-0.0125d-0.0250d" "fss-0.0250d-0.0500d" "fss-0.0500d-0.1000d" "fss-0.1000d-0.2000d" "fss-0.2000d-0.4000d" "fss-0.4000d-0.8000d" "fss-0.8000d-infd" "csi-neigh0" "csi-neigh1" "csi-neigh2" "csi-neigh3" "csi-neigh4" "csi-neigh6" "csi-neigh8" "csi-neigh12" "csi-0.0000d-0.0125d" "csi-0.0125d-0.0250d" "csi-0.0250d-0.0500d" "csi-0.0500d-0.1000d" "csi-0.1000d-0.2000d" "csi-0.2000d-0.4000d" "csi-0.4000d-0.8000d" "csi-0.8000d-infd" "iou-neigh0" "iou-neigh1" "iou-neigh2" "iou-neigh3" "iou-neigh4" "iou-neigh6" "iou-neigh8" "iou-neigh12" "iou-0.0000d-0.0125d" "iou-0.0125d-0.0250d" "iou-0.0250d-0.0500d" "iou-0.0500d-0.1000d" "iou-0.1000d-0.2000d" "iou-0.2000d-0.4000d" "iou-0.4000d-0.8000d" "iou-0.8000d-infd" "dice-neigh0" "dice-neigh1" "dice-neigh2" "dice-neigh3" "dice-neigh4" "dice-neigh6" "dice-neigh8" "dice-neigh12" "dice-0.0000d-0.0125d" "dice-0.0125d-0.0250d" "dice-0.0250d-0.0500d" "dice-0.0500d-0.1000d" "dice-0.1000d-0.2000d" "dice-0.2000d-0.4000d" "dice-0.4000d-0.8000d" "dice-0.8000d-infd")
+
+set loss_function_name=${LOSS_FUNCTION_NAMES[$SLURM_ARRAY_TASK_ID]}
+set top_model_dir_name="${TOP_MODEL_DIR_NAME}/${loss_function_name}"
+set model_file_names={${top_model_dir_name}/model*.h5}
+
+set i=1
+
+while ($i <= ${#model_file_names})
+    set model_file_name=${model_file_names[$i]}
+    set top_model_dir_name=`echo $model_file_name | rev | cut -c 4- | rev`
+    set output_dir_name="${top_model_dir_name}/validation/partial_grids/learning_curves/advanced_scores"
+    
+    python3 -u "${CODE_DIR_NAME}/plot_learning_curves.py" \
+    --input_top_model_dir_name="${top_model_dir_name}" \
+    --output_dir_name="${output_dir_name}"
+
+    @ i = $i + 2
+end
