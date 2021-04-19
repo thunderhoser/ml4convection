@@ -262,7 +262,7 @@ def _run(top_model_dir_name, output_dir_name):
 
         neigh_distances_deg = GRID_SPACING_DEG * neigh_distances_px
         legend_strings = ['{0:.4f}'.format(d) for d in neigh_distances_deg]
-        legend_strings = [s + r'$^{\circ$}' for s in legend_strings]
+        legend_strings = [s + r'$^{\circ}$' for s in legend_strings]
 
         # Plot Brier score.
         brier_score_matrix = numpy.vstack([
@@ -398,7 +398,7 @@ def _run(top_model_dir_name, output_dir_name):
         for a, b in zip(min_resolutions_deg, max_resolutions_deg)
     ]
     legend_strings = [s.replace('inf]', r'$\infty$)') for s in legend_strings]
-    legend_strings = [s + r'$^{\circ$}' for s in legend_strings]
+    legend_strings = [s + r'$^{\circ}$' for s in legend_strings]
 
     # Plot Brier score.
     brier_score_matrix = numpy.vstack([
