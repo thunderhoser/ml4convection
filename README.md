@@ -69,3 +69,88 @@ More details on the input arguments are provided below.
  - `last_training_date_string` is a string containing the last date in the training period, in the format `yyyymmdd`.
  - `first_validn_date_string` is the same as `first_training_date_string` but for validation data.
  - `last_validn_date_string` is the same as `last_training_date_string` but for validation data.
+ - `normalize` is a Boolean flag (0 or 1), determining whether or not predictors will be normalized to *z*-scores.  Please always make this 1.
+ - `uniformize` is a Boolean flag (0 or 1), determining whether or not predictors will be uniformized before normalization.  Please always make this 1.
+ - `add_coords` is a Boolean flag (0 or 1), determining whether or not latitude-longitude coordinates will be used as predictors.  Please always make this 0.
+ - `num_examples_per_batch` is the number of examples per training or validation batch.  Based on hyperparameter experiments presented in the *Monthly Weather Review* paper, I suggest making this 60.
+ - `max_examples_per_day_in_batch` is the maximum number of examples in a given batch that can come from the same day.  The smaller you make this, the less temporal autocorrelation there will be in each batch.  However, smaller numbers also increase the training time, because they increase the number of daily files from which data must be read.
+ - `use_partial_grids` is a Boolean flag (0 or 1), determining whether the model will be trained on the full Himawari-8 grid or partial radar-centered grids.  Please always make this 1.
+ - `omit_north_radar` is a Boolean flag (0 or 1), determining whether or not the northernmost radar in Taiwan will be omitted from training.  Please always make this 1.
+ - `num_epochs` is the number of training epochs.  I suggest making this 1000, as early stopping always occurs before 1000 epochs.
+ - `num_training_batches_per_epoch` is the number of training batches per epoch.  I suggest making this 64 (so that 64 training batches per epoch are used to update model weights), but you might find a better value.
+ - `num_validn_batches_per_epoch` is the number of validation batches per epoch.  I suggest making this 32 (so that 32 validation batches per epoch are used to compute metrics other than the loss function).
+ - `plateau_lr_multiplier` is a floating-point value ranging from 0 to 1 (non-inclusive).  During training, if the validation loss has not improved over the last 10 epochs (*i.e.*, validation performance has reached a "plateau"), the learning rate will be multiplied by this value.
+
+# Applying the trained U-net
+
+Once you have trained the U-net, you can apply it to make predictions on new data.  This is called the "inference phase," as opposed to the "training phase".  You can do this with the script `apply_neural_net.py` in the directory `ml4convection/scripts`.  Below is an example of how you would call `apply_neural_net.py` from a Unix terminal.
+
+```
+python apply_neural_net.py \
+    --input_model_file_name="file with trained model" \
+    --input_predictor_dir_name="your directory name here" \
+    --input_target_dir_name="your directory name here" \
+    --apply_to_full_grids=[0 or 1] \
+    --overlap_size_px=90 \
+    --first_valid_date_string="date in format yyyymmdd" \
+    --last_valid_date_string="date in format yyyymmdd" \
+    --output_dir_name="your directory name here" \
+```
+
+More details on the input arguments are provided below.
+
+ - `input_model_file_name` is a string, containing the full path to the trained model.  This file will be read by `neural_net.read_model`.
+ - `input_predictor_dir_name` is a string, naming the directory with predictor files.  Files therein will be found by `example_io.find_predictor_file` and read by `example_io.read_predictor_file`, as for the input arguments `training_predictor_dir_name` and `validn_predictor_dir_name` to `train_neural_net.py`.
+ - `input_target_dir_name` is a string, naming the directory with target files.  Files therein will be found by `example_io.find_target_file` and read by `example_io.read_target_file`, as for the input arguments `training_target_dir_name` and `validn_target_dir_name` to `train_neural_net.py`.
+ - `apply_to_full_grids` is a Boolean flag (0 or 1), determining whether the model will be applied to full or partial grids.  If the model was trained on full grids, `apply_to_full_grids` will be ignored and the model will be applied to full grids regardless.  Thus, `apply_to_full_grids` is used only if the model was trained on partial (radar-centered) grids.
+ - `overlap_size_px` is an integer, determining the overlap size (in pixels) between adjacent partial grids.  This argument is used only if the model was trained on partial grids and `apply_to_full_grids` is 1.  I suggest making `overlap_size_px` 90.
+ - `first_valid_date_string` and `last_valid_date_string` are the first and last days in the inference period.  In other words, the model will be used to make the predictions for all days from `first_valid_date_string` to `last_valid_date_string`.
+ - `output_dir_name` is a string, naming the output directory.  Predictions will be saved here.
+
+# Plotting predictions and inputs (radar/satellite data)
+
+Once you have run `apply_neural_net.py` to make predictions, you can plot the predictions with the script `plot_predictions.py` in the directory `ml4convection/scripts`.  Below is an example of how you would call `plot_predictions.py` from a Unix terminal.
+
+```
+python plot_predictions.py \
+    --input_prediction_dir_name="your directory name here" \
+    --first_date_string="date in format yyyymmdd" \
+    --last_date_string="date in format yyyymmdd" \
+    --use_partial_grids=[0 or 1] \
+    --smoothing_radius_px=2 \
+    --daily_times_seconds 0 7200 14400 21600 28800 36000 43200 50400 57600 64800 72000 79200 \
+    --plot_deterministic=0 \
+    --probability_threshold=-1 \
+    --output_dir_name="your directory name here" \
+```
+
+More details on the input arguments are provided below.
+
+ - `input_prediction_dir_name` is a string, naming the directory with prediction files.  Files therein will be found by `prediction_io.find_file` and read by `prediction_io.read_file`, where `prediction_io.py` is in the directory `ml4convection/io`.  `prediction_io.find_file` will only look for files named like `[input_prediction_dir_name]/[yyyy]/predictions_[yyyymmdd]_radar[k].nc` and `[input_prediction_dir_name]/[yyyy]/predictions_[yyyymmdd]_radar[k].nc.gz`, where `[yyyy]` is the 4-digit year; `[yyyymmdd]` is the date; and `[k]` is the radar number, ranging from 1-3.  An example of a good file name, assuming the top-level directory is `foo`, is `foo/2016/predictions_20160101_radar1.nc`.
+ - `first_date_string` and `first_date_string` are the first and last days to plot.  In other words, the model will be used to plot predictions for all days from `first_date_string` to `last_valid_date_string`.
+ - `use_partial_grids` is a Boolean flag (0 or 1), indicating whether you want to plot predictions on the full Himawari-8 grid or partial (radar-centered) grids.  If `use_partial_grids` is 1, `plot_predictions.py` will plot partial grids centered on every radar (but in separate plots, so you will get one plot per time step per radar).
+ - `smoothing_radius_px`, used for full-grid predictions (if `use_partial_grids` is 0), is the *e*-folding radius for Gaussian smoothing (pixels).  Each probability field will be filtered by this amount before plotting.  Smoothing is useful for full-grid predictions created from a model trained on partial grids.  In this case the full-grid predictions are created by sliding the partial grid to various "windows" inside the full grid, and sometimes there is a sharp cutoff at the boundary between two adjacent windows.
+ - `daily_times_seconds` is a list of daily times at which to plot predictions.  The data are available at 10-minute (600-second) time steps, but you may not want to plot the predictions every 10 minutes.  In the above code example, the list of times provided will force the script to plot predictions at {0000, 0200, 0400, 0600, 0800, 1000, 1200, 1400, 1600, 1800, 2000, 2200} UTC every day.
+ - `plot_deterministic` is a Boolean flag (0 or 1), indicating whether you want to plot deterministic (binary) or probabilistic predictions.
+ - `probability_threshold` is the probability threshold (ranging from 0 to 1) used to convert probabilistic to binary predictions.  This argument is ignored if `plot_deterministic` is 0, which is why I make it -1 in the above code example.
+ - `output_dir_name` is a string, naming the output directory.  Plots will be saved here as JPEG images.
+
+If you want to just plot satellite data, use the script `plot_satellite.py` in the directory `ml4convection/scripts`.  Below is an example of how you would call `plot_satellite.py` from a Unix terminal.
+
+```
+python plot_satellite.py \
+    --input_satellite_dir_name="your directory name here" \
+    --first_date_string="date in format yyyymmdd" \
+    --last_date_string="date in format yyyymmdd" \
+    --band_numbers 8 9 10 11 13 14 16 \
+    --daily_times_seconds 0 7200 14400 21600 28800 36000 43200 50400 57600 64800 72000 79200 \
+    --output_dir_name="your directory name here" \
+```
+
+More details on the input arguments are provided below.
+
+ - `input_satellite_dir_name` is a string, naming the directory with prediction files.  Files therein will be found by `satellite_io.find_file` and read by `satellite_io.read_file`, where `satellite_io.py` is in the directory `ml4convection/io`.  `satellite_io.find_file` will only look for files named like `[input_satellite_dir_name]/[yyyy]/satellite_[yyyymmdd].nc` and `[input_satellite_dir_name]/[yyyy]/satellite_[yyyymmdd].nc.gz`, where `[yyyy]` is the 4-digit year and `[yyyymmdd]` is the date.  An example of a good file name, assuming the top-level directory is `foo`, is `foo/2016/satellite_20160101.nc`.
+ - `first_date_string` and `first_date_string` are the first and last days to plot.  In other words, the model will be used to plot brightness-temperature maps for all days from `first_date_string` to `last_valid_date_string`.
+ - `band_numbers` is a list of band numbers to plot.  `plot_satellite.py` will create one image per time step per band.
+ - `daily_times_seconds` is a list of daily times at which to plot brightness-temperature maps, same as the input for `plot_predictions.py`.
+ - `output_dir_name` is a string, naming the output directory.  Plots will be saved here as JPEG images.
