@@ -52,3 +52,20 @@ python train_neural_net.py \
     --num_validn_batches_per_epoch=32 \
     --plateau_lr_multiplier=0.6
 ```
+
+More details on the input arguments are provided below.
+
+ - `training_predictor_dir_name` is a string, naming the directory with predictor files (containing brightness-temperature maps).  Files therein will be found by `example_io.find_predictor_file` and read by `example_io.read_predictor_file`, where `example_io.py` is in the directory `ml4convection/io`.  `example_io.find_predictor_file` will only look for files named like `[training_predictor_dir_name]/[yyyy]/predictors_[yyyymmdd]_radar[k].nc` and `[training_predictor_dir_name]/[yyyy]/predictors_[yyyymmdd]_radar[k].nc.gz`, where `[yyyy]` is the 4-digit year; `[yyyymmdd]` is the date; and `[k]` is the radar number, ranging from 1-3.  An example of a good file name, assuming the top-level directory is `foo`, is `foo/2016/predictors_20160101_radar1.nc`.
+ - `training_target_dir_name` is a string, naming the directory with target files (containing labels, which are binary convection masks, containing 0 or 1 at each grid point).  Files therein will be found by `example_io.find_target_file` and read by `example_io.read_target_file`.  `example_io.find_target_file` will only look for files named like `[training_target_dir_name]/[yyyy]/targets_[yyyymmdd]_radar[k].nc` and `[training_target_dir_name]/[yyyy]/targets_[yyyymmdd]_radar[k].nc.gz`.
+ - `validn_predictor_dir_name` is the same as `training_predictor_dir_name` but for validation data.
+ - `validn_target_dir_name` is the same as `training_target_dir_name` but for validation data.
+ - `input_model_file_name` is a string, containing the full path to the untrained but set-up model.  This file will be read by `neural_net.read_model`, where `neural_net.py` is in the directory `ml4convection/machine_learning`.
+ - `output_model_dir_name` is a string, naming the output directory.  The trained model will be saved here.
+ - `band_numbers` is a list of band numbers to use in the predictors.  I suggest using all bands (8, 9, 10, 11, 13, 14, 16).
+ - `lead_time_seconds` is the lead time in seconds.
+ - `lag_times_seconds` is a list of lag times for the predictors.
+ - `include_time_dimension` is a Boolean flag (0 or 1), determining whether or not the spectral bands and lag times will be represented on separate axes.  For vanilla U-nets, always make this 0; for temporal U-nets and U-net++ models, always make this 1.
+ - `first_training_date_string` is a string containing the first date in the training period, in the format `yyyymmdd`.
+ - `last_training_date_string` is a string containing the last date in the training period, in the format `yyyymmdd`.
+ - `first_validn_date_string` is the same as `first_training_date_string` but for validation data.
+ - `last_validn_date_string` is the same as `last_training_date_string` but for validation data.
