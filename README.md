@@ -127,7 +127,7 @@ python plot_predictions.py \
 More details on the input arguments are provided below.
 
  - `input_prediction_dir_name` is a string, naming the directory with prediction files.  Files therein will be found by `prediction_io.find_file` and read by `prediction_io.read_file`, where `prediction_io.py` is in the directory `ml4convection/io`.  `prediction_io.find_file` will only look for files named like `[input_prediction_dir_name]/[yyyy]/predictions_[yyyymmdd]_radar[k].nc` and `[input_prediction_dir_name]/[yyyy]/predictions_[yyyymmdd]_radar[k].nc.gz`, where `[yyyy]` is the 4-digit year; `[yyyymmdd]` is the date; and `[k]` is the radar number, ranging from 1-3.  An example of a good file name, assuming the top-level directory is `foo`, is `foo/2016/predictions_20160101_radar1.nc`.
- - `first_date_string` and `first_date_string` are the first and last days to plot.  In other words, the model will be used to plot predictions for all days from `first_date_string` to `last_valid_date_string`.
+ - `first_date_string` and `last_date_string` are the first and last days to plot.  In other words, the model will be used to plot predictions for all days from `first_date_string` to `last_date_string`.
  - `use_partial_grids` is a Boolean flag (0 or 1), indicating whether you want to plot predictions on the full Himawari-8 grid or partial (radar-centered) grids.  If `use_partial_grids` is 1, `plot_predictions.py` will plot partial grids centered on every radar (but in separate plots, so you will get one plot per time step per radar).
  - `smoothing_radius_px`, used for full-grid predictions (if `use_partial_grids` is 0), is the *e*-folding radius for Gaussian smoothing (pixels).  Each probability field will be filtered by this amount before plotting.  Smoothing is useful for full-grid predictions created from a model trained on partial grids.  In this case the full-grid predictions are created by sliding the partial grid to various "windows" inside the full grid, and sometimes there is a sharp cutoff at the boundary between two adjacent windows.
  - `daily_times_seconds` is a list of daily times at which to plot predictions.  The data are available at 10-minute (600-second) time steps, but you may not want to plot the predictions every 10 minutes.  In the above code example, the list of times provided will force the script to plot predictions at {0000, 0200, 0400, 0600, 0800, 1000, 1200, 1400, 1600, 1800, 2000, 2200} UTC every day.
@@ -150,7 +150,39 @@ python plot_satellite.py \
 More details on the input arguments are provided below.
 
  - `input_satellite_dir_name` is a string, naming the directory with prediction files.  Files therein will be found by `satellite_io.find_file` and read by `satellite_io.read_file`, where `satellite_io.py` is in the directory `ml4convection/io`.  `satellite_io.find_file` will only look for files named like `[input_satellite_dir_name]/[yyyy]/satellite_[yyyymmdd].nc` and `[input_satellite_dir_name]/[yyyy]/satellite_[yyyymmdd].nc.gz`, where `[yyyy]` is the 4-digit year and `[yyyymmdd]` is the date.  An example of a good file name, assuming the top-level directory is `foo`, is `foo/2016/satellite_20160101.nc`.
- - `first_date_string` and `first_date_string` are the first and last days to plot.  In other words, the model will be used to plot brightness-temperature maps for all days from `first_date_string` to `last_valid_date_string`.
+ - `first_date_string` and `last_date_string` are the first and last days to plot.  In other words, the model will be used to plot brightness-temperature maps for all days from `first_date_string` to `last_date_string`.
  - `band_numbers` is a list of band numbers to plot.  `plot_satellite.py` will create one image per time step per band.
  - `daily_times_seconds` is a list of daily times at which to plot brightness-temperature maps, same as the input for `plot_predictions.py`.
  - `output_dir_name` is a string, naming the output directory.  Plots will be saved here as JPEG images.
+
+If you want to just plot radar data, use the script `plot_radar.py` in the directory `ml4convection/scripts`.  Below is an example of how you would call `plot_radar.py` from a Unix terminal.
+
+```
+python plot_radar.py \
+    --input_reflectivity_dir_name="your directory name here" \
+    --input_echo_classifn_dir_name="your directory name here" \
+    --first_date_string="date in format yyyymmdd" \
+    --last_date_string="date in format yyyymmdd" \
+    --plot_all_heights=[0 or 1] \
+    --daily_times_seconds 0 7200 14400 21600 28800 36000 43200 50400 57600 64800 72000 79200 \
+    --expand_to_satellite_grid=[0 or 1] \
+    --output_dir_name="your directory name here" \
+```
+
+More details on the input arguments are provided below.
+
+ - `input_reflectivity_dir_name` is a string, naming the directory with reflectivity files.  Files therein will be found by `radar_io.find_file` and read by `radar_io.read_reflectivity_file`, where `radar_io.py` is in the directory `ml4convection/io`.  `radar_io.find_file` will only look for files named like `[input_reflectivity_dir_name]/[yyyy]/reflectivity_[yyyymmdd].nc` and `[input_reflectivity_dir_name]/[yyyy]/reflectivity_[yyyymmdd].nc.gz`, where `[yyyy]` is the 4-digit year and `[yyyymmdd]` is the date.  An example of a good file name, assuming the top-level directory is `foo`, is `foo/2016/reflectivity_20160101.nc`.
+ - `input_echo_classifn_dir_name` is a string, naming the directory with echo-classification files.  If you specify this input argument, then `plot_radar.py` will plot black dots on top of the reflectivity map, one for each convective grid point.  If you leave this input argument alone, echo classification will not be plotted.  Files in `input_echo_classifn_dir_name` will be found by `radar_io.find_file` and read by `radar_io.read_echo_classifn_file`.  `radar_io.find_file` will only look for files named like `[input_echo_classifn_dir_name]/[yyyy]/echo_classification_[yyyymmdd].nc` and `[input_echo_classifn_dir_name]/[yyyy]/echo_classification_[yyyymmdd].nc.gz`, where `[yyyy]` is the 4-digit year and `[yyyymmdd]` is the date.  An example of a good file name, assuming the top-level directory is `foo`, is `foo/2016/echo_classification_20160101.nc`.
+ - `first_date_string` and `last_date_string` are the first and last days to plot.  In other words, the model will be used to plot reflectivity maps for all days from `first_date_string` to `last_date_string`.
+ - `plot_all_heights` is a Boolean flag (0 or 1).  If 1, the script will plot reflectivity at all heights, thus producing one plot per time step per height.  If 0, the script will plot composite (column-maximum) reflectivity, thus producing one plot per time step.
+ - `daily_times_seconds` is a list of daily times at which to plot reflectivity maps, same as the input for `plot_predictions.py`.
+ - `expand_to_satellite_grid` is a Boolean flag (0 or 1).  If 1, the script will plot reflectivity on the Himawari-8 grid, which is slightly larger than the radar grid.  In this case values around the edge of the grid will all be 0 dBZ.
+ - `output_dir_name` is a string, naming the output directory.  Plots will be saved here as JPEG images.
+
+# Evaluating the trained U-net
+
+## Computing "basic" evaluation scores (one file per day)
+
+Evaluation scripts are split into those that compute "basic" scores and those that compute "advanced" scores.  Basic scores are written to one file per day, whereas advanced scores are written to one file for a whole time period (*e.g.*, the validation period, which is Jan 1 2017 - Dec 24 2017 in the *Monthly Weather Review* paper).  For any time period *T*, basic scores can be aggregated over *T* to compute advanced scores.  This documentation does not list all the basic and advanced scores (there are many), but below is an example:
+
+ - The fractions skill score (FSS) is an advanced score, defined as 1 - SSE / SSE_{ref}
