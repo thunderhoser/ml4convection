@@ -185,4 +185,4 @@ More details on the input arguments are provided below.
 
 Evaluation scripts are split into those that compute "basic" scores and those that compute "advanced" scores.  Basic scores are written to one file per day, whereas advanced scores are written to one file for a whole time period (*e.g.*, the validation period, which is Jan 1 2017 - Dec 24 2017 in the *Monthly Weather Review* paper).  For any time period *T*, basic scores can be aggregated over *T* to compute advanced scores.  This documentation does not list all the basic and advanced scores (there are many), but below is an example:
 
- - The fractions skill score (FSS) is an advanced score, defined as 1 - SSE / SSE_{ref}
+ - The fractions skill score (FSS) is an advanced score, defined as 1 - SSE / SSE<sub>ref</sub>
