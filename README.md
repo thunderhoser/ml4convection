@@ -24,53 +24,30 @@ Each script will set up the model (`model_object`) and print the model's archite
 
 Once you have set up a U-net, you can train the U-net, using the script `train_neural_net.py` in the directory `ml4convection/scripts`.  Below is an example of how you would call `train_neural_net.py` from a Unix terminal.  For some input arguments I have suggested a default (where I include an actual value), and for some I have not.  In this case, the lead time is 3600 seconds (60 minutes) and the lag times are 0 and 1200 and 2400 seconds (0 and 20 and 40 minutes).  Thus, if the forecast issue time is 1200 UTC, the valid time will be 1300 UTC, while the predictors (brightness-temperature maps) will come from 1120 and 1140 and 1200 UTC.
 
-```
-`python train_neural_net.py \
+````python train_neural_net.py \
     --training_predictor_dir_name="your directory name here" \
     --training_target_dir_name="your directory name here" \
     --validn_predictor_dir_name="your directory name here" \
-    
-        --validn_target_dir_name="your directory name here" \
-    
-        --input_model_file_name="file with untrained, but set-up, model" \
-    
-        --output_model_dir_name="where you want trained model to be saved" \
-    
-        --band_numbers 8 9 10 11 13 14 16 \
-    
-        --lead_time_seconds=3600 \
-    
-        --lag_times_seconds 0 1200 2400 \
-    
-        --include_time_dimension=0 \
-    
-        --first_training_date_string="20160101" \
-    
-        --last_training_date_string="20161224" \
-    
-        --first_validn_date_string="20170101" \
-    
-        --last_validn_date_string="20171224" \
-    
-        --normalize=1 \
-    
-        --uniformize=1 \
-    
-        --add_coords=0 \
-    
-        --num_examples_per_batch=60 \
-    
-        --max_examples_per_day_in_batch=8 \
-    
-        --use_partial_grids=1 \
-    
-        --omit_north_radar=1 \
-    
-        --num_epochs=1000 \
-    
-        --num_training_batches_per_epoch=64 \
-    
-        --num_validn_batches_per_epoch=32 \
-    
-        --plateau_lr_multiplier=0.6
+    --validn_target_dir_name="your directory name here" \
+    --input_model_file_name="file with untrained, but set-up, model" \
+    --output_model_dir_name="where you want trained model to be saved" \
+    --band_numbers 8 9 10 11 13 14 16 \
+    --lead_time_seconds=3600 \
+    --lag_times_seconds 0 1200 2400 \
+    --include_time_dimension=0 \
+    --first_training_date_string="20160101" \
+    --last_training_date_string="20161224" \
+    --first_validn_date_string="20170101" \
+    --last_validn_date_string="20171224" \
+    --normalize=1 \
+    --uniformize=1 \
+    --add_coords=0 \
+    --num_examples_per_batch=60 \
+    --max_examples_per_day_in_batch=8 \
+    --use_partial_grids=1 \
+    --omit_north_radar=1 \
+    --num_epochs=1000 \
+    --num_training_batches_per_epoch=64 \
+    --num_validn_batches_per_epoch=32 \
+    --plateau_lr_multiplier=0.6
 ```
