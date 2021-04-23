@@ -26,29 +26,52 @@ Once you have set up a U-net, you can train the U-net, using the script `train_n
 
 `python train_neural_net.py \`
 
-
     `    --training_predictor_dir_name="your directory name here" \`
+    
     `    --training_target_dir_name="your directory name here" \`
+    
     `    --validn_predictor_dir_name="your directory name here" \`
+    
     `    --validn_target_dir_name="your directory name here" \`
+    
     `    --input_model_file_name="file with untrained, but set-up, model" \`
+    
     `    --output_model_dir_name="where you want trained model to be saved" \`
+    
     `    --band_numbers 8 9 10 11 13 14 16 \`
+    
     `    --lead_time_seconds=3600 \`
+    
     `    --lag_times_seconds 0 1200 2400 \`
+    
     `    --include_time_dimension=0 \`
+    
     `    --first_training_date_string="20160101" \`
+    
     `    --last_training_date_string="20161224" \`
+    
     `    --first_validn_date_string="20170101" \`
+    
     `    --last_validn_date_string="20171224" \`
+    
     `    --normalize=1 \`
+    
     `    --uniformize=1 \`
+    
     `    --add_coords=0 \`
+    
     `    --num_examples_per_batch=60 \`
+    
     `    --max_examples_per_day_in_batch=8 \`
+    
     `    --use_partial_grids=1 \`
+    
     `    --omit_north_radar=1 \`
+    
     `    --num_epochs=1000 \`
+    
     `    --num_training_batches_per_epoch=64 \`
+    
     `    --num_validn_batches_per_epoch=32 \`
+    
     `    --plateau_lr_multiplier=0.6`
