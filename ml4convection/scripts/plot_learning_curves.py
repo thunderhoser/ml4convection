@@ -14,6 +14,7 @@ TOLERANCE = 1e-6
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 
 GRID_SPACING_DEG = 0.0125
+LARGE_RESOLUTION_DEG = 1e6
 NUM_RADARS = len(radar_utils.RADAR_LATITUDES_DEG_N)
 
 ORANGE_COLOUR = numpy.array([217, 95, 2], dtype=float) / 255
@@ -34,6 +35,8 @@ FIGURE_HEIGHT_INCHES = 15
 FIGURE_RESOLUTION_DPI = 300
 
 FONT_SIZE = 30
+LEGEND_FONT_SIZE = 24
+
 pyplot.rc('font', size=FONT_SIZE)
 pyplot.rc('axes', titlesize=FONT_SIZE)
 pyplot.rc('axes', labelsize=FONT_SIZE)
@@ -79,7 +82,7 @@ def _input_file_name_to_epoch(input_file_name):
 
 
 def _plot_one_learning_curve(score_matrix, epoch_indices, legend_strings,
-                             is_positively_oriented):
+                             is_positively_oriented, is_dice_coeff):
     """Plots one learning curve.
 
     E = number of epochs
@@ -90,6 +93,7 @@ def _plot_one_learning_curve(score_matrix, epoch_indices, legend_strings,
     :param epoch_indices: length-E numpy array of epoch indices.
     :param legend_strings: length-C list of legend strings.
     :param is_positively_oriented: Boolean flag.
+    :param is_dice_coeff: Boolean flag.
     :return: figure_object: Figure handle (instance of
         `matplotlib.figure.Figure`).
     :return: axes_object: Axes handle (instance of
@@ -106,23 +110,45 @@ def _plot_one_learning_curve(score_matrix, epoch_indices, legend_strings,
     for j in range(num_configs):
         legend_handles[j] = axes_object.plot(
             epoch_indices, score_matrix[:, j], color=LINE_COLOURS[j],
-            linewidth=LINE_WIDTH, marker=MARKER_TYPE, markersize=MARKER_SIZE,
-            markeredgewidth=0, markerfacecolor=LINE_COLOURS[j],
-            markeredgecolor=LINE_COLOURS[j]
+            linestyle=LINE_STYLES[j], linewidth=LINE_WIDTH,
+            marker=MARKER_TYPE, markersize=MARKER_SIZE, markeredgewidth=0,
+            markerfacecolor=LINE_COLOURS[j], markeredgecolor=LINE_COLOURS[j]
         )[0]
 
-    if is_positively_oriented:
+    if is_dice_coeff:
+        axes_object.legend(
+            legend_handles, legend_strings, loc='lower right',
+            bbox_to_anchor=(1, 0), fancybox=True, shadow=True, ncol=2,
+            fontsize=LEGEND_FONT_SIZE
+        )
+
+        max_value = axes_object.get_ylim()[1]
+        min_value = numpy.percentile(score_matrix, 1.)
+        axes_object.set_ylim(min_value, max_value)
+
+    elif is_positively_oriented:
         axes_object.legend(
             legend_handles, legend_strings, loc='upper left',
-            bbox_to_anchor=(0, 0), fancybox=True, shadow=True, ncol=2
+            bbox_to_anchor=(0, 1), fancybox=True, shadow=True, ncol=2,
+            fontsize=LEGEND_FONT_SIZE
         )
     else:
         axes_object.legend(
             legend_handles, legend_strings, loc='upper right',
-            bbox_to_anchor=(1, 0), fancybox=True, shadow=True, ncol=2
+            bbox_to_anchor=(1, 1), fancybox=True, shadow=True, ncol=2,
+            fontsize=LEGEND_FONT_SIZE
         )
 
+        min_value = axes_object.get_ylim()[0]
+        max_value = numpy.percentile(score_matrix, 97.5)
+        axes_object.set_ylim(min_value, max_value)
+
     axes_object.set_xlabel('Epoch')
+
+    x_tick_values = axes_object.get_xticks()
+    x_tick_labels = ['{0:d}'.format(int(numpy.round(v))) for v in x_tick_values]
+    axes_object.set_xticks(x_tick_values)
+    axes_object.set_xticklabels(x_tick_labels)
 
     return figure_object, axes_object
 
@@ -185,10 +211,10 @@ def _run(top_model_dir_name, output_dir_name):
             )
             assert num_fourier_bands <= MAX_LINES_PER_GRAPH
 
-        assert (
-            a[-1].attrs[learning_curves.MODEL_FILE_KEY] ==
-            a[0].attrs[learning_curves.MODEL_FILE_KEY]
-        )
+        # assert (
+        #     a[-1].attrs[learning_curves.MODEL_FILE_KEY] ==
+        #     a[0].attrs[learning_curves.MODEL_FILE_KEY]
+        # )
 
         if learning_curves.NEIGH_DISTANCE_DIM in a[0].coords:
             assert numpy.allclose(
@@ -237,7 +263,8 @@ def _run(top_model_dir_name, output_dir_name):
         ].values
 
         neigh_distances_deg = GRID_SPACING_DEG * neigh_distances_px
-        legend_strings = ['{0:.4f}'.format(d) for d in neigh_distances_deg]
+        legend_strings = ['{0:.3g}'.format(d) for d in neigh_distances_deg]
+        legend_strings = [s + r'$^{\circ}$' for s in legend_strings]
 
         # Plot Brier score.
         brier_score_matrix = numpy.vstack([
@@ -247,8 +274,10 @@ def _run(top_model_dir_name, output_dir_name):
 
         figure_object, axes_object = _plot_one_learning_curve(
             score_matrix=brier_score_matrix, epoch_indices=epoch_indices,
-            legend_strings=legend_strings, is_positively_oriented=False
+            legend_strings=legend_strings, is_positively_oriented=False,
+            is_dice_coeff=False
         )
+        axes_object.set_ylim(bottom=0.)
         axes_object.set_ylabel('Brier score')
         axes_object.set_title('Neighbourhood-based Brier score')
 
@@ -268,8 +297,10 @@ def _run(top_model_dir_name, output_dir_name):
 
         figure_object, axes_object = _plot_one_learning_curve(
             score_matrix=fss_matrix, epoch_indices=epoch_indices,
-            legend_strings=legend_strings, is_positively_oriented=True
+            legend_strings=legend_strings, is_positively_oriented=True,
+            is_dice_coeff=False
         )
+        axes_object.set_ylim(bottom=0.)
         axes_object.set_ylabel('FSS')
         axes_object.set_title('Neighbourhood-based fractions skill score (FSS)')
 
@@ -289,8 +320,10 @@ def _run(top_model_dir_name, output_dir_name):
 
         figure_object, axes_object = _plot_one_learning_curve(
             score_matrix=iou_matrix, epoch_indices=epoch_indices,
-            legend_strings=legend_strings, is_positively_oriented=True
+            legend_strings=legend_strings, is_positively_oriented=True,
+            is_dice_coeff=False
         )
+        axes_object.set_ylim(bottom=0.)
         axes_object.set_ylabel('IOU')
         axes_object.set_title(
             'Neighbourhood-based intersection over union (IOU)'
@@ -312,8 +345,10 @@ def _run(top_model_dir_name, output_dir_name):
 
         figure_object, axes_object = _plot_one_learning_curve(
             score_matrix=dice_coeff_matrix, epoch_indices=epoch_indices,
-            legend_strings=legend_strings, is_positively_oriented=True
+            legend_strings=legend_strings, is_positively_oriented=True,
+            is_dice_coeff=True
         )
+        axes_object.set_ylim(top=1.)
         axes_object.set_ylabel('Dice coefficient')
         axes_object.set_title(
             'Neighbourhood-based Dice coefficient'
@@ -335,8 +370,10 @@ def _run(top_model_dir_name, output_dir_name):
 
         figure_object, axes_object = _plot_one_learning_curve(
             score_matrix=csi_matrix, epoch_indices=epoch_indices,
-            legend_strings=legend_strings, is_positively_oriented=True
+            legend_strings=legend_strings, is_positively_oriented=True,
+            is_dice_coeff=False
         )
+        axes_object.set_ylim(bottom=0.)
         axes_object.set_ylabel('CSI')
         axes_object.set_title(
             'Neighbourhood-based critical success index (CSI)'
@@ -361,11 +398,14 @@ def _run(top_model_dir_name, output_dir_name):
         learning_curves.MAX_RESOLUTION_DIM
     ].values
 
+    max_resolutions_deg[max_resolutions_deg > LARGE_RESOLUTION_DEG] = numpy.inf
+
     legend_strings = [
-        '[{0:.4f}, {1:.4f}] deg'.format(a, b)
+        '[{0:.3g}, {1:.3g}]'.format(a, b)
         for a, b in zip(min_resolutions_deg, max_resolutions_deg)
     ]
     legend_strings = [s.replace('inf]', r'$\infty$)') for s in legend_strings]
+    legend_strings = [s + r'$^{\circ}$' for s in legend_strings]
 
     # Plot Brier score.
     brier_score_matrix = numpy.vstack([
@@ -375,8 +415,10 @@ def _run(top_model_dir_name, output_dir_name):
 
     figure_object, axes_object = _plot_one_learning_curve(
         score_matrix=brier_score_matrix, epoch_indices=epoch_indices,
-        legend_strings=legend_strings, is_positively_oriented=False
+        legend_strings=legend_strings, is_positively_oriented=False,
+        is_dice_coeff=False
     )
+    axes_object.set_ylim(bottom=0.)
     axes_object.set_ylabel('Brier score')
     axes_object.set_title('Fourier-based Brier score')
 
@@ -396,8 +438,10 @@ def _run(top_model_dir_name, output_dir_name):
 
     figure_object, axes_object = _plot_one_learning_curve(
         score_matrix=fss_matrix, epoch_indices=epoch_indices,
-        legend_strings=legend_strings, is_positively_oriented=True
+        legend_strings=legend_strings, is_positively_oriented=True,
+        is_dice_coeff=False
     )
+    axes_object.set_ylim(bottom=0.)
     axes_object.set_ylabel('FSS')
     axes_object.set_title('Fourier-based fractions skill score (FSS)')
 
@@ -417,8 +461,10 @@ def _run(top_model_dir_name, output_dir_name):
 
     figure_object, axes_object = _plot_one_learning_curve(
         score_matrix=iou_matrix, epoch_indices=epoch_indices,
-        legend_strings=legend_strings, is_positively_oriented=True
+        legend_strings=legend_strings, is_positively_oriented=True,
+        is_dice_coeff=False
     )
+    axes_object.set_ylim(bottom=0.)
     axes_object.set_ylabel('IOU')
     axes_object.set_title('Fourier-based intersection over union (IOU)')
 
@@ -438,8 +484,10 @@ def _run(top_model_dir_name, output_dir_name):
 
     figure_object, axes_object = _plot_one_learning_curve(
         score_matrix=dice_coeff_matrix, epoch_indices=epoch_indices,
-        legend_strings=legend_strings, is_positively_oriented=True
+        legend_strings=legend_strings, is_positively_oriented=True,
+        is_dice_coeff=True
     )
+    axes_object.set_ylim(top=1.)
     axes_object.set_ylabel('Dice coefficient')
     axes_object.set_title('Fourier-based Dice coefficient')
 
@@ -459,8 +507,10 @@ def _run(top_model_dir_name, output_dir_name):
 
     figure_object, axes_object = _plot_one_learning_curve(
         score_matrix=csi_matrix, epoch_indices=epoch_indices,
-        legend_strings=legend_strings, is_positively_oriented=True
+        legend_strings=legend_strings, is_positively_oriented=True,
+        is_dice_coeff=False
     )
+    axes_object.set_ylim(bottom=0.)
     axes_object.set_ylabel('CSI')
     axes_object.set_title('Fourier-based critical success index (CSI)')
 
@@ -480,8 +530,10 @@ def _run(top_model_dir_name, output_dir_name):
 
     figure_object, axes_object = _plot_one_learning_curve(
         score_matrix=freq_mse_matrix_real, epoch_indices=epoch_indices,
-        legend_strings=legend_strings, is_positively_oriented=False
+        legend_strings=legend_strings, is_positively_oriented=False,
+        is_dice_coeff=False
     )
+    axes_object.set_ylim(bottom=0.)
     axes_object.set_ylabel('MSE')
     axes_object.set_title('MSE for real part of Fourier spectrum')
 
@@ -501,8 +553,10 @@ def _run(top_model_dir_name, output_dir_name):
 
     figure_object, axes_object = _plot_one_learning_curve(
         score_matrix=freq_mse_matrix_imag, epoch_indices=epoch_indices,
-        legend_strings=legend_strings, is_positively_oriented=False
+        legend_strings=legend_strings, is_positively_oriented=False,
+        is_dice_coeff=False
     )
+    axes_object.set_ylim(bottom=0.)
     axes_object.set_ylabel('MSE')
     axes_object.set_title('MSE for imaginary part of Fourier spectrum')
 
@@ -522,8 +576,10 @@ def _run(top_model_dir_name, output_dir_name):
 
     figure_object, axes_object = _plot_one_learning_curve(
         score_matrix=freq_mse_matrix_total, epoch_indices=epoch_indices,
-        legend_strings=legend_strings, is_positively_oriented=False
+        legend_strings=legend_strings, is_positively_oriented=False,
+        is_dice_coeff=False
     )
+    axes_object.set_ylim(bottom=0.)
     axes_object.set_ylabel('MSE')
     axes_object.set_title('MSE for total Fourier spectrum')
 
