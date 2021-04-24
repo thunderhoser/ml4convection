@@ -215,4 +215,28 @@ More details on the input arguments are provided below.
  - `matching_distances_px` is a list of neighbourhood distances (pixels) for evaluation.  Basic scores will be computed for each neighbourhood distance, and one set of files will be written for each neighbourhood distance.
  - `num_prob_thresholds` is the number of probability thresholds at which to compute scores based on binary (rather than probabilistic) forecasts.  These thresholds will be equally spaced from 0.0 to 1.0.  If you instead want to specify probability thresholds, make `num_prob_thresholds` -1 and use the argument `prob_thresholds`.
  - `prob_thresholds` is a list of probability thresholds (between 0.0 and 1.0) at which to compute scores based on binary (rather than probabilistic) forecasts.   you instead want equally spaced thresholds from 0.0 to 1.0, make `prob_thresholds` -1 and use the argument `num_prob_thresholds`.
-  `output_dir_name` is a string, naming the output directory.  Basic scores will be saved here as NetCDF files.
+ - `output_dir_name` is a string, naming the output directory.  Basic scores will be saved here as NetCDF files.
+
+If you want to compute basic gridded scores (one set of scores for each grid point), use the script `compute_basic_scores_gridded.py` in the directory `ml4convection/scripts`.  Below is an example of how you would call `compute_basic_scores_gridded.py` from a Unix terminal.
+
+```
+python compute_basic_scores_gridded.py \
+    --input_prediction_dir_name="your directory name here" \
+    --first_date_string="date in format yyyymmdd" \
+    --last_date_string="date in format yyyymmdd" \
+    --smoothing_radius_px=2 \
+    --matching_distances_px 1 2 3 4 \
+    --climo_file_names "climatology/climo_neigh-distance-px=1.p" "climatology/climo_neigh-distance-px=2.p" "climatology/climo_neigh-distance-px=3.p" "climatology/climo_neigh-distance-px=4.p" \
+    --prob_thresholds -1 \
+    --output_dir_name="your directory name here" \
+```
+
+More details on the input arguments are provided below.
+
+ - `input_prediction_dir_name` is the same as for `compute_basic_scores_ungridded.py`.
+ - `first_date_string` and `last_date_string` are the same as for `compute_basic_scores_ungridded.py`.
+ - `smoothing_radius_px` is the same as for `compute_basic_scores_ungridded.py`.
+ - `matching_distances_px` is the same as for `compute_basic_scores_ungridded.py`.
+ - `climo_file_names` is a list of paths to climatology files, one for each matching distance.  Each file will be read by `climatology_io.read_file`, where `climatology_io.py` is in the directory `ml4convection/io`.  Each file specifies the climatology (*i.e.*, convection frequency in the training data at each pixel), which is ultimately used to compute the Brier skill score at each pixel.  The climatology is different for each matching distance, because a matching distance (radius) of *N* pixels turns each convective label (one pixel) into *πr*<super>2</super> labels (pixels).  The climatology depends on the matching distance and training period, which is why I have not included climatology files in this package.
+ - `prob_thresholds` is the same as for `compute_basic_scores_ungridded.py`.
+ - `output_dir_name` is the same as for `compute_basic_scores_ungridded.py`.
