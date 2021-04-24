@@ -254,7 +254,7 @@ def _run(experiment_dir_name):
 
             print(display_string)
 
-    print(SEPARATOR_STRING)
+        print(SEPARATOR_STRING)
 
 
 if __name__ == '__main__':
