@@ -307,3 +307,29 @@ More details on the input arguments are provided below.
  - `best_prob_threshold` is the optimal probability threshold, which will be marked with a star in the performance diagram.  If you have not yet chosen the optimal threshold and want it to be determined "on the fly," make this argument -1.
  - `confidence_level` is the confidence level for plotting uncertainty.  This argument will be only if `input_advanced_score_file_name` contains bootstrapped scores.  For example, if the file contains scores for 1000 bootstrap replicates and `confidence_level` is 0.95, the 95% confidence interval will be plotted (ranging from the 2.5<super>th</super> to 97.5<super>th</super> percentile over all bootstrap replicates).
  - `output_dir_name` is a string, naming the output directory.  Plots will be saved here as JPEG files.
+
+If you want to plot gridded scores (one set of scores per grid point), use the script `plot_gridded_evaluation.py` in the directory `ml4convection/scripts`.  `plot_gridded_evaluation.py` plots a gridded map for each of the following scores: Brier score, Brier skill score, fractions skill score, label climatology (event frequency in the training data, which isn't an evaluation score), model climatology (mean forecast probability, which also isn't an evaluation score), probability of detection, success ratio, frequency bias, and critical success index.  Below is an example of how you would call `plot_gridded_evaluation.py` from a Unix terminal.
+
+```
+python plot_gridded_evaluation.py \
+    --input_advanced_score_file_name="your file name here" \
+    --probability_threshold=[float] \
+    --output_dir_name="your directory name here" \
+```
+
+More details on the input arguments are provided below.
+
+ - `input_advanced_score_file_name` is a string, giving the full path to the file with advanced gridded scores.  This file will be read by `evaluation.read_advanced_score_file`.
+ - `probability_threshold` is the probability threshold for binary forecasts.  This is required for plotting probability of detection (POD), success ratio, frequency bias, and critical success index (CSI), which are scores based on binary forecasts.
+ - `output_dir_name` is a string, naming the output directory.  Plots will be saved here as JPEG files.
+
+If you want to plot ungridded scores separated by month and hour, use the script `plot_evaluation_by_time.py` in the directory `ml4convection/scripts`.  `plot_evaluation_by_time.py` creates a monthly attributes diagram, hourly attributes diagram, monthly performance diagram, and hourly performance diagram.  `plot_evaluation_by_time.py` also plots fractions skill score (FSS), CSI, and frequency bias as a function of month and hour.  Thus, `plot_evaluation_by_time.py` plots 6 figures.  Below is an example of how you would call `plot_evaluation_by_time.py` from a Unix terminal.
+
+```
+python plot_evaluation_by_time.py \
+    --input_dir_name="your directory name here" \
+    --probability_threshold=[float] \
+    --confidence_level=0.95 \
+    --output_dir_name="your directory name here" \
+```
+
