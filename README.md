@@ -185,4 +185,34 @@ More details on the input arguments are provided below.
 
 Evaluation scripts are split into those that compute "basic" scores and those that compute "advanced" scores.  Basic scores are written to one file per day, whereas advanced scores are written to one file for a whole time period (*e.g.*, the validation period, which is Jan 1 2017 - Dec 24 2017 in the *Monthly Weather Review* paper).  For any time period *T*, basic scores can be aggregated over *T* to compute advanced scores.  This documentation does not list all the basic and advanced scores (there are many), but below is an example:
 
- - The fractions skill score (FSS) is an advanced score, defined as 1 - SSE / SSE<sub>ref</sub>
+ - The fractions skill score (FSS) is an advanced score, defined as 1 - SSE / SSE<sub>ref</sub>.
+ - SSE (the actual sum of squared errors) and SSE<sub>ref</sub> (the reference sum of squared errors) are basic scores, each with one value per time step.
+ - To compute the FSS for a period *T*, SSE and SSE<sub>ref</sub> are summed over *T* and then the following equation is applied: FSS = 1 - SSE / SSE<sub>ref</sub>.
+
+If you want to compute basic ungridded scores (averaged over the whole domain), use the script `compute_basic_scores_ungridded.py` in the directory `ml4convection/scripts`.  Below is an example of how you would call `compute_basic_scores_ungridded.py` from a Unix terminal.
+
+```
+python compute_basic_scores_ungridded.py \
+    --input_prediction_dir_name="your directory name here" \
+    --first_date_string="date in format yyyymmdd" \
+    --last_date_string="date in format yyyymmdd" \
+    --time_interval_steps=[integer] \
+    --use_partial_grids=[0 or 1] \
+    --smoothing_radius_px=2 \
+    --matching_distances_px 1 2 3 4 \
+    --num_prob_thresholds=21 \
+    --prob_thresholds -1 \
+    --output_dir_name="your directory name here" \
+```
+
+More details on the input arguments are provided below.
+
+ - `input_prediction_dir_name` is a string, naming the directory with prediction files.  Files therein will be found by `prediction_io.find_file` and read by `prediction_io.read_file`, as for the input argument to `plot_predictions.py`.
+ - `first_date_string` and `last_date_string` are the first and last days for which to compute scores.  In other words, the script will compute basic scores for all days from `first_date_string` to `last_date_string`.
+ - `time_interval_steps` is used to reduce computing time.  If you want to compute scores for every *k*<super>th</super> time step, make `time_interval_steps` be *k*.
+ - `use_partial_grids` is a Boolean flag (0 or 1), indicating whether you want to compute scores for predictions on the Himawari-8 grid or partial (radar-centered) grids.
+ - `smoothing_radius_px`, used for full-grid predictions (if `use_partial_grids` is 0), is the *e*-folding radius for Gaussian smoothing (pixels).  Each probability field will be filtered by this amount before computing scores.  I suggest making this 2.
+ - `matching_distances_px` is a list of neighbourhood distances (pixels) for evaluation.  Basic scores will be computed for each neighbourhood distance, and one set of files will be written for each neighbourhood distance.
+ - `num_prob_thresholds` is the number of probability thresholds at which to compute scores based on binary (rather than probabilistic) forecasts.  These thresholds will be equally spaced from 0.0 to 1.0.  If you instead want to specify probability thresholds, make `num_prob_thresholds` -1 and use the argument `prob_thresholds`.
+ - `prob_thresholds` is a list of probability thresholds (between 0.0 and 1.0) at which to compute scores based on binary (rather than probabilistic) forecasts.   you instead want equally spaced thresholds from 0.0 to 1.0, make `prob_thresholds` -1 and use the argument `num_prob_thresholds`.
+  `output_dir_name` is a string, naming the output directory.  Basic scores will be saved here as NetCDF files.
