@@ -185,4 +185,151 @@ More details on the input arguments are provided below.
 
 Evaluation scripts are split into those that compute "basic" scores and those that compute "advanced" scores.  Basic scores are written to one file per day, whereas advanced scores are written to one file for a whole time period (*e.g.*, the validation period, which is Jan 1 2017 - Dec 24 2017 in the *Monthly Weather Review* paper).  For any time period *T*, basic scores can be aggregated over *T* to compute advanced scores.  This documentation does not list all the basic and advanced scores (there are many), but below is an example:
 
- - The fractions skill score (FSS) is an advanced score, defined as 1 - SSE / SSE<sub>ref</sub>
+ - The fractions skill score (FSS) is an advanced score, defined as 1 - SSE / SSE<sub>ref</sub>.
+ - SSE (the actual sum of squared errors) and SSE<sub>ref</sub> (the reference sum of squared errors) are basic scores, each with one value per time step.
+ - To compute the FSS for a period *T*, SSE and SSE<sub>ref</sub> are summed over *T* and then the following equation is applied: FSS = 1 - SSE / SSE<sub>ref</sub>.
+
+If you want to compute basic ungridded scores (averaged over the whole domain), use the script `compute_basic_scores_ungridded.py` in the directory `ml4convection/scripts`.  Below is an example of how you would call `compute_basic_scores_ungridded.py` from a Unix terminal.
+
+```
+python compute_basic_scores_ungridded.py \
+    --input_prediction_dir_name="your directory name here" \
+    --first_date_string="date in format yyyymmdd" \
+    --last_date_string="date in format yyyymmdd" \
+    --time_interval_steps=[integer] \
+    --use_partial_grids=[0 or 1] \
+    --smoothing_radius_px=2 \
+    --matching_distances_px 1 2 3 4 \
+    --num_prob_thresholds=21 \
+    --prob_thresholds -1 \
+    --output_dir_name="your directory name here" \
+```
+
+More details on the input arguments are provided below.
+
+ - `input_prediction_dir_name` is a string, naming the directory with prediction files.  Files therein will be found by `prediction_io.find_file` and read by `prediction_io.read_file`, as for the input argument to `plot_predictions.py`.
+ - `first_date_string` and `last_date_string` are the first and last days for which to compute scores.  In other words, the script will compute basic scores for all days from `first_date_string` to `last_date_string`.
+ - `time_interval_steps` is used to reduce computing time.  If you want to compute scores for every *k*<super>th</super> time step, make `time_interval_steps` be *k*.
+ - `use_partial_grids` is a Boolean flag (0 or 1), indicating whether you want to compute scores for predictions on the Himawari-8 grid or partial (radar-centered) grids.
+ - `smoothing_radius_px`, used for full-grid predictions (if `use_partial_grids` is 0), is the *e*-folding radius for Gaussian smoothing (pixels).  Each probability field will be filtered by this amount before computing scores.  I suggest making this 2.
+ - `matching_distances_px` is a list of neighbourhood distances (pixels) for evaluation.  Basic scores will be computed for each neighbourhood distance, and one set of files will be written for each neighbourhood distance.
+ - `num_prob_thresholds` is the number of probability thresholds at which to compute scores based on binary (rather than probabilistic) forecasts.  These thresholds will be equally spaced from 0.0 to 1.0.  If you instead want to specify probability thresholds, make `num_prob_thresholds` -1 and use the argument `prob_thresholds`.
+ - `prob_thresholds` is a list of probability thresholds (between 0.0 and 1.0) at which to compute scores based on binary (rather than probabilistic) forecasts.   you instead want equally spaced thresholds from 0.0 to 1.0, make `prob_thresholds` -1 and use the argument `num_prob_thresholds`.
+ - `output_dir_name` is a string, naming the output directory.  Basic scores will be saved here as NetCDF files.
+
+If you want to compute basic gridded scores (one set of scores for each grid point), use the script `compute_basic_scores_gridded.py` in the directory `ml4convection/scripts`.  Below is an example of how you would call `compute_basic_scores_gridded.py` from a Unix terminal.
+
+```
+python compute_basic_scores_gridded.py \
+    --input_prediction_dir_name="your directory name here" \
+    --first_date_string="date in format yyyymmdd" \
+    --last_date_string="date in format yyyymmdd" \
+    --smoothing_radius_px=2 \
+    --matching_distances_px 1 2 3 4 \
+    --climo_file_names "climatology/climo_neigh-distance-px=1.p" "climatology/climo_neigh-distance-px=2.p" "climatology/climo_neigh-distance-px=3.p" "climatology/climo_neigh-distance-px=4.p" \
+    --prob_thresholds -1 \
+    --output_dir_name="your directory name here" \
+```
+
+More details on the input arguments are provided below.
+
+ - `input_prediction_dir_name` is the same as for `compute_basic_scores_ungridded.py`.
+ - `first_date_string` and `last_date_string` are the same as for `compute_basic_scores_ungridded.py`.
+ - `smoothing_radius_px` is the same as for `compute_basic_scores_ungridded.py`.
+ - `matching_distances_px` is the same as for `compute_basic_scores_ungridded.py`.
+ - `climo_file_names` is a list of paths to climatology files, one for each matching distance.  Each file will be read by `climatology_io.read_file`, where `climatology_io.py` is in the directory `ml4convection/io`.  Each file specifies the climatology (*i.e.*, convection frequency in the training data at each pixel), which is ultimately used to compute the Brier skill score at each pixel.  The climatology is different for each matching distance, because a matching distance (radius) of *N* pixels turns each convective label (one pixel) into *πr*<super>2</super> labels (pixels).  The climatology depends on the matching distance and training period, which is why I have not included climatology files in this package.
+ - `prob_thresholds` is the same as for `compute_basic_scores_ungridded.py`.
+ - `output_dir_name` is the same as for `compute_basic_scores_ungridded.py`.
+
+## Computing "advanced" evaluation scores (one file per period)
+
+If you want to compute advanced ungridded scores (averaged over the whole domain), use the script `compute_advanced_scores_ungridded.py` in the directory `ml4convection/scripts`.  Below is an example of how you would call `compute_advanced_scores_ungridded.py` from a Unix terminal.
+
+```
+python compute_advanced_scores_ungridded.py \
+    --input_basic_score_dir_name="your directory name here" \
+    --first_date_string="date in format yyyymmdd" \
+    --last_date_string="date in format yyyymmdd" \
+    --num_bootstrap_reps=[integer] \
+    --use_partial_grids=[0 or 1] \
+    --desired_month=[integer] \
+    --split_by_hour=[0 or 1] \
+    --input_climo_file_name="your file name here" \
+    --output_dir_name="your directory name here" \
+```
+
+More details on the input arguments are provided below.
+
+ - `input_basic_score_dir_name` is a string, naming the directory with basic ungridded scores.  Files therein will be found by `evaluation.find_basic_score_file` and read by `evaluation.read_basic_score_file`, where `evaluation.py` is in the directory `ml4convection/utils`.  `evaluation.find_basic_score_file` will only look for files named like `[input_basic_score_dir_name]/[yyyy]/basic_scores_gridded=0_[yyyymmdd].nc` (if `use_partial_grids` is 0) or `[input_basic_score_dir_name]/[yyyy]/basic_scores_gridded=0_[yyyymmdd]_radar[k].nc` (if `use_partial_grids` is 1), where `[yyyy]` is the 4-digit year; `[yyyymmdd]` is the date; and `[k]` is the radar number, an integer from 1-3.  An example of a good file name, assuming the top-level directory is `foo`, is `foo/2016/basic_scores_gridded=0_20160101.nc` or `foo/2016/basic_scores_gridded=0_20160101_radar1.nc`.
+ - `first_date_string` and `last_date_string` are the first and last days for which to aggregate basic scores into advanced scores.  In other words, the script will compute advanced scores for all days from `first_date_string` to `last_date_string`.
+ - `num_bootstrap_reps` is the number of replicates (sometimes called "iterations") for bootstrapping, used to compute uncertainty.  If you do not want to boostrap, make `num_bootstrap_reps` 1.
+ - `use_partial_grids` is a Boolean flag (0 or 1), indicating whether you want to compute scores for predictions on the Himawari-8 grid or partial (radar-centered) grids.
+ - `desired_month` is an integer from 1 to 12, indicating the month for which you want compute advanced scores.  If you want to include all months, make this -1.
+ - `split_by_hour` is a Boolean flag (0 or 1), indicating whether or not you want to compute one set of advanced scores for each hour of the day (0000-0059 UTC, 0100-0159 UTC, etc.).
+ - `input_climo_file_name` is the path to the climatology file.  For more details on this (admittedly weird) input argument, see the documentation above for the input argument `climo_file_names` to the script `compute_basic_scores_gridded.py`.
+ - `output_dir_name` is a string, naming the output directory.  Advanced scores will be saved here as NetCDF files.
+
+If you want to compute advanced gridded scores (one set of scores for each grid point), use the script `compute_advanced_scores_gridded.py` in the directory `ml4convection/scripts`.  Below is an example of how you would call `compute_advanced_scores_gridded.py` from a Unix terminal.
+
+```
+python compute_advanced_scores_gridded.py \
+    --input_basic_score_dir_name="your directory name here" \
+    --first_date_string="date in format yyyymmdd" \
+    --last_date_string="date in format yyyymmdd" \
+    --num_subgrids_per_dim=3 \
+    --output_dir_name="your directory name here" \
+```
+
+More details on the input arguments are provided below.
+
+ - `input_basic_score_dir_name` is a string, naming the directory with basic gridded scores.  Files therein will be found by `evaluation.find_basic_score_file` and read by `evaluation.read_basic_score_file`.  `evaluation.find_basic_score_file` will only look for files named like `[input_basic_score_dir_name]/[yyyy]/basic_scores_gridded=1_[yyyymmdd].nc` (if `use_partial_grids` is 0) or `[input_basic_score_dir_name]/[yyyy]/basic_scores_gridded=1_[yyyymmdd]_radar[k].nc` (if `use_partial_grids` is 1), where `[yyyy]` is the 4-digit year; `[yyyymmdd]` is the date; and `[k]` is the radar number, an integer from 1-3.  An example of a good file name, assuming the top-level directory is `foo`, is `foo/2016/basic_scores_gridded=1_20160101.nc` or `foo/2016/basic_scores_gridded=1_20160101_radar1.nc`.
+ - `first_date_string` and `last_date_string` are the same as for `compute_advanced_scores_ungridded.py`.
+ - `num_subgrids_per_dim` (an integer) is the number of subgrids per spatial dimension.  For example, `num_subgrids_per_dim` is 3, the script will use 3 * 3 = 9 subgrids.  It will aggregate basic scores for one subgrid at a time.  Although this input argument is weird, it **greatly** reduces the memory requirements.
+ - `output_dir_name` is the same as for `compute_advanced_scores_ungridded.py`.
+
+## Plotting evaluation scores
+
+ml4convection contains plotting code only for advanced evaluation scores (aggregated over a time period), not for basic scores (one set of scores per time step).
+
+If you want to plot ungridded scores (averaged over the whole domain) with no separation by month or hour, use the script `plot_evaluation.py` in the directory `ml4convection/scripts`.  `plot_evaluation.py` creates an attributes diagram (evaluating probabilistic forecasts) and a performance diagram (evaluating binary forecasts at various probability thresholds).  Below is an example of how you would call `plot_evaluation.py` from a Unix terminal.
+
+```
+python plot_evaluation.py \
+    --input_advanced_score_file_name="your file name here" \
+    --best_prob_threshold=[float] \
+    --confidence_level=0.95 \
+    --output_dir_name="your directory name here" \
+```
+
+More details on the input arguments are provided below.
+
+ - `input_advanced_score_file_name` is a string, giving the full path to the file with advanced ungridded scores.  This file will be read by `evaluation.read_advanced_score_file`, where `evaluation.py` is in the directory `ml4convection/utils`.
+ - `best_prob_threshold` is the optimal probability threshold, which will be marked with a star in the performance diagram.  If you have not yet chosen the optimal threshold and want it to be determined "on the fly," make this argument -1.
+ - `confidence_level` is the confidence level for plotting uncertainty.  This argument will be only if `input_advanced_score_file_name` contains bootstrapped scores.  For example, if the file contains scores for 1000 bootstrap replicates and `confidence_level` is 0.95, the 95% confidence interval will be plotted (ranging from the 2.5<super>th</super> to 97.5<super>th</super> percentile over all bootstrap replicates).
+ - `output_dir_name` is a string, naming the output directory.  Plots will be saved here as JPEG files.
+
+If you want to plot gridded scores (one set of scores per grid point), use the script `plot_gridded_evaluation.py` in the directory `ml4convection/scripts`.  `plot_gridded_evaluation.py` plots a gridded map for each of the following scores: Brier score, Brier skill score, fractions skill score, label climatology (event frequency in the training data, which isn't an evaluation score), model climatology (mean forecast probability, which also isn't an evaluation score), probability of detection, success ratio, frequency bias, and critical success index.  Below is an example of how you would call `plot_gridded_evaluation.py` from a Unix terminal.
+
+```
+python plot_gridded_evaluation.py \
+    --input_advanced_score_file_name="your file name here" \
+    --probability_threshold=[float] \
+    --output_dir_name="your directory name here" \
+```
+
+More details on the input arguments are provided below.
+
+ - `input_advanced_score_file_name` is a string, giving the full path to the file with advanced gridded scores.  This file will be read by `evaluation.read_advanced_score_file`.
+ - `probability_threshold` is the probability threshold for binary forecasts.  This is required for plotting probability of detection (POD), success ratio, frequency bias, and critical success index (CSI), which are scores based on binary forecasts.
+ - `output_dir_name` is a string, naming the output directory.  Plots will be saved here as JPEG files.
+
+If you want to plot ungridded scores separated by month and hour, use the script `plot_evaluation_by_time.py` in the directory `ml4convection/scripts`.  `plot_evaluation_by_time.py` creates a monthly attributes diagram, hourly attributes diagram, monthly performance diagram, and hourly performance diagram.  `plot_evaluation_by_time.py` also plots fractions skill score (FSS), CSI, and frequency bias as a function of month and hour.  Thus, `plot_evaluation_by_time.py` plots 6 figures.  Below is an example of how you would call `plot_evaluation_by_time.py` from a Unix terminal.
+
+```
+python plot_evaluation_by_time.py \
+    --input_dir_name="your directory name here" \
+    --probability_threshold=[float] \
+    --confidence_level=0.95 \
+    --output_dir_name="your directory name here" \
+```
+
