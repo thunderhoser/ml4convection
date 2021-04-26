@@ -333,3 +333,9 @@ python plot_evaluation_by_time.py \
     --output_dir_name="your directory name here" \
 ```
 
+More details on the input arguments are provided below.
+
+ - `input_dir_name` is a string, naming the directory with advanced ungridded scores separated by month and hour.  Files therein will be found by `evaluation.find_advanced_score_file` and read by `evaluation.read_advanced_score_file`.  `evaluation.find_advanced_score_file` will only look for files named like `[input_dir_name]/advanced_scores_month=[mm]_gridded=0.p` and `[input_dir_name]/advanced_scores_hour=[hh]_gridded=0.p`, where `[mm]` is the 2-digit month and `[hh]` is the 2-digit hour.  An example of a good file name, assuming the directory is `foo`, is `foo/advanced_scores_month=03_gridded=0.p` or `foo/advanced_scores_hour=12_gridded=0.p`.
+ - `probability_threshold` is the probability threshold for binary forecasts.  This is required for plotting CSI and frequency bias versus hour and month.
+ - `confidence_level` is the confidence level for plotting uncertainty.  This argument will be used only if files in `input_dir_name` contain bootstrapped scores.  For example, if the files contain scores for 1000 bootstrap replicates and `confidence_level` is 0.95, the 95% confidence interval will be plotted (ranging from the 2.5<super>th</super> to 97.5<super>th</super> percentile over all bootstrap replicates).
+ - `output_dir_name` is a string, naming the output directory.  Plots will be saved here as JPEG files.
