@@ -238,15 +238,28 @@ def _run(experiment_dir_name):
             sort_indices = numpy.argsort(-1 * score_matrix[:, j])
 
         for i, k in enumerate(sort_indices):
-            display_string = (
-                '{0:d}th-best {1:s} = {2:.3g} (loss function {3:s})'
-            ).format(
-                i + 1, score_keys[j], score_matrix[k, j], LOSS_FUNCTION_NAMES[k]
-            )
+            if numpy.isnan(neigh_distances_px[j]):
+                display_string = (
+                    '{0:d}th-best {1:s} from {2:.4f} to {3:.4f} deg = {4:.3g} '
+                    '(loss function {5:s})'
+                ).format(
+                    i + 1, score_keys[j],
+                    fourier_min_resolutions_deg[j],
+                    fourier_max_resolutions_deg[j],
+                    score_matrix[k, j], LOSS_FUNCTION_NAMES[k]
+                )
+            else:
+                display_string = (
+                    '{0:d}th-best {1:d}-pixel {2:s} = {3:.3g} '
+                    '(loss function {4:s})'
+                ).format(
+                    i + 1, int(numpy.round(neigh_distances_px[j])),
+                    score_keys[j], score_matrix[k, j], LOSS_FUNCTION_NAMES[k]
+                )
 
             print(display_string)
 
-    print(SEPARATOR_STRING)
+        print(SEPARATOR_STRING)
 
 
 if __name__ == '__main__':

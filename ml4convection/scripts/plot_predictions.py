@@ -356,6 +356,9 @@ def _run(top_prediction_dir_name, first_date_string, last_date_string,
     :param output_dir_name: Same.
     """
 
+    if smoothing_radius_px <= 0:
+        smoothing_radius_px = None
+
     border_latitudes_deg_n, border_longitudes_deg_e = border_io.read_file()
 
     file_system_utils.mkdir_recursive_if_necessary(
@@ -380,9 +383,6 @@ def _run(top_prediction_dir_name, first_date_string, last_date_string,
     )
 
     if not use_partial_grids:
-        if smoothing_radius_px <= 0:
-            smoothing_radius_px = None
-
         prediction_file_names = prediction_io.find_many_files(
             top_directory_name=top_prediction_dir_name,
             first_date_string=first_date_string,
@@ -452,6 +452,7 @@ def _run(top_prediction_dir_name, first_date_string, last_date_string,
                 border_latitudes_deg_n=border_latitudes_deg_n,
                 border_longitudes_deg_e=border_longitudes_deg_e,
                 use_partial_grids=use_partial_grids,
+                smoothing_radius_px=smoothing_radius_px,
                 plot_deterministic=plot_deterministic,
                 probability_threshold=probability_threshold,
                 colour_map_object=colour_map_object,
