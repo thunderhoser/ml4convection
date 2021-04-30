@@ -4,6 +4,7 @@ import numpy
 import keras
 from gewittergefahr.gg_utils import error_checking
 from gewittergefahr.deep_learning import architecture_utils
+from gewittergefahr.deep_learning import upconvnet
 from ml4convection.machine_learning import neural_net
 from ml4convection.machine_learning import coord_conv
 
@@ -22,6 +23,7 @@ L1_WEIGHT_KEY = 'l1_weight'
 L2_WEIGHT_KEY = 'l2_weight'
 USE_BATCH_NORM_KEY = 'use_batch_normalization'
 USE_COORD_CONV_KEY = 'use_coord_conv'
+SMOOTHING_RADIUS_KEY = 'smoothing_radius_px'
 
 DEFAULT_ARCHITECTURE_OPTION_DICT = {
     NUM_LEVELS_KEY: 7,
@@ -39,7 +41,8 @@ DEFAULT_ARCHITECTURE_OPTION_DICT = {
     L1_WEIGHT_KEY: 0.,
     L2_WEIGHT_KEY: 0.001,
     USE_BATCH_NORM_KEY: True,
-    USE_COORD_CONV_KEY: False
+    USE_COORD_CONV_KEY: False,
+    SMOOTHING_RADIUS_KEY: None
 }
 
 
@@ -80,6 +83,9 @@ def _check_architecture_args(option_dict):
         batch normalization after each inner (non-output) layer.
     option_dict['use_coord_conv']: Boolean flag.  If True, will use coord-conv
         in each convolutional layer.
+    option_dict['smoothing_radius_px']: e-folding radius (pixels) for Gaussian
+        smoother for predictions.  If you do not want to smooth predictions,
+        make this None.
 
     :return: option_dict: Same as input, except defaults may have been added.
     """
@@ -143,6 +149,9 @@ def _check_architecture_args(option_dict):
     error_checking.assert_is_boolean(option_dict[USE_BATCH_NORM_KEY])
     error_checking.assert_is_boolean(option_dict[USE_COORD_CONV_KEY])
 
+    if option_dict[SMOOTHING_RADIUS_KEY] is not None:
+        error_checking.assert_is_greater(option_dict[SMOOTHING_RADIUS_KEY], 0.)
+
     return option_dict
 
 
@@ -188,6 +197,7 @@ def create_model(option_dict, loss_function, mask_matrix, metric_names):
     l2_weight = option_dict[L2_WEIGHT_KEY]
     use_batch_normalization = option_dict[USE_BATCH_NORM_KEY]
     use_coord_conv = option_dict[USE_COORD_CONV_KEY]
+    smoothing_radius_px = option_dict[SMOOTHING_RADIUS_KEY]
 
     input_layer_object = keras.layers.Input(
         shape=tuple(input_dimensions.tolist())
@@ -431,6 +441,26 @@ def create_model(option_dict, loss_function, mask_matrix, metric_names):
         alpha_for_relu=output_activ_function_alpha,
         alpha_for_elu=output_activ_function_alpha
     )(skip_layer_by_level[0])
+
+    if smoothing_radius_px is not None:
+        half_window_size_px = int(numpy.ceil(smoothing_radius_px * 2))
+        window_size_px = 2 * half_window_size_px + 1
+
+        weight_matrix = upconvnet.create_smoothing_filter(
+            num_channels=1, smoothing_radius_px=smoothing_radius_px,
+            num_half_filter_rows=half_window_size_px,
+            num_half_filter_columns=half_window_size_px
+        )
+
+        bias_vector = numpy.full(1, 0.)
+
+        skip_layer_by_level[0] = keras.layers.Conv2D(
+            filters=1, kernel_size=(window_size_px, window_size_px),
+            strides=(1, 1), padding='same', data_format='channels_last',
+            dilation_rate=(1, 1), activation=None, use_bias=True,
+            kernel_initializer='glorot_uniform', bias_initializer='zeros',
+            trainable=False, weights=[weight_matrix, bias_vector]
+        )(skip_layer_by_level[0])
 
     if mask_matrix is not None:
         this_matrix = numpy.expand_dims(
