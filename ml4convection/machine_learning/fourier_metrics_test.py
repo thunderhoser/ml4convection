@@ -21,7 +21,8 @@ FREQUENCY_COEFF_MATRIX = numpy.full((30, 36), 1.)
 BRIER_SCORE = custom_metrics_test.BRIER_SCORE_NEIGH0
 CSI_VALUE = custom_metrics_test.CSI_NEIGH0
 FREQUENCY_BIAS = 41.6 / (40 + SMALL_NUMBER)
-IOU_VALUE = custom_metrics_test.IOU_NEIGH0
+POSITIVE_IOU_VALUE = custom_metrics_test.POSITIVE_IOU_NEIGH0
+ALL_CLASS_IOU_VALUE = custom_metrics_test.ALL_CLASS_IOU_NEIGH0
 DICE_COEFF = custom_metrics_test.DICE_COEFF_NEIGH0
 
 ACTUAL_MSE = numpy.mean(
@@ -104,7 +105,23 @@ class FourierMetricsTests(unittest.TestCase):
         )
         this_iou = K.eval(this_function(TARGET_TENSOR, PREDICTION_TENSOR))
 
-        self.assertTrue(numpy.isclose(this_iou, IOU_VALUE, atol=TOLERANCE))
+        self.assertTrue(numpy.isclose(
+            this_iou, POSITIVE_IOU_VALUE, atol=TOLERANCE
+        ))
+
+    def test_all_class_iou(self):
+        """Ensures correct output from all_class_iou()."""
+
+        this_function = fourier_metrics.all_class_iou(
+            spatial_coeff_matrix=SPATIAL_COEFF_MATRIX,
+            frequency_coeff_matrix=FREQUENCY_COEFF_MATRIX,
+            mask_matrix=MASK_MATRIX, use_as_loss_function=False
+        )
+        this_iou = K.eval(this_function(TARGET_TENSOR, PREDICTION_TENSOR))
+
+        self.assertTrue(numpy.isclose(
+            this_iou, ALL_CLASS_IOU_VALUE, atol=TOLERANCE
+        ))
 
     def test_dice_coeff(self):
         """Ensures correct output from dice_coeff()."""
@@ -131,6 +148,7 @@ class FourierMetricsTests(unittest.TestCase):
             fourier_metrics.FREQUENCY_BIAS_NAME + '_foo',
             fourier_metrics.FSS_NAME + '_foo',
             fourier_metrics.IOU_NAME + '_foo',
+            fourier_metrics.ALL_CLASS_IOU_NAME + '_foo',
             fourier_metrics.DICE_COEFF_NAME + '_foo',
             fourier_metrics.REAL_FREQ_MSE_NAME + '_foo',
             fourier_metrics.IMAGINARY_FREQ_MSE_NAME + '_foo',
@@ -164,7 +182,11 @@ class FourierMetricsTests(unittest.TestCase):
         ))
         self.assertTrue(numpy.isclose(
             K.eval(metrics_dict[fourier_metrics.IOU_NAME + '_foo']),
-            IOU_VALUE, atol=TOLERANCE
+            POSITIVE_IOU_VALUE, atol=TOLERANCE
+        ))
+        self.assertTrue(numpy.isclose(
+            K.eval(metrics_dict[fourier_metrics.ALL_CLASS_IOU_NAME + '_foo']),
+            ALL_CLASS_IOU_VALUE, atol=TOLERANCE
         ))
         self.assertTrue(numpy.isclose(
             K.eval(metrics_dict[fourier_metrics.DICE_COEFF_NAME + '_foo']),

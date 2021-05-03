@@ -347,6 +347,85 @@ def iou(half_window_size_px, mask_matrix, use_as_loss_function=False,
     return iou_function
 
 
+def all_class_iou(half_window_size_px, mask_matrix, use_as_loss_function=False,
+                  function_name=None, test_mode=False):
+    """Creates function to compute all-class intersection over union (IOU).
+
+    :param half_window_size_px: See doc for `_apply_max_filter`.
+    :param mask_matrix: See doc for `pod`.
+    :param use_as_loss_function: Boolean flag.  If True (False), will use CSI as
+        loss function (metric).
+    :param function_name: Function name (string).
+    :param test_mode: Leave this alone.
+    :return: iou_function: Function (defined below).
+    """
+
+    error_checking.assert_is_boolean(use_as_loss_function)
+
+    eroded_mask_matrix = _check_input_args(
+        half_window_size_px=half_window_size_px, mask_matrix=mask_matrix,
+        function_name=function_name, test_mode=test_mode
+    )
+    # eroded_mask_tensor = K.variable(eroded_mask_matrix)
+
+    def all_class_iou_function(target_tensor, prediction_tensor):
+        """Computes all-class IOU.
+
+        :param target_tensor: Tensor of target (actual) values.
+        :param prediction_tensor: Tensor of predicted values.
+        :return: iou_value: All-class IOU.
+        """
+
+        filtered_target_tensor = _apply_max_filter(
+            input_tensor=target_tensor,
+            half_window_size_px=half_window_size_px
+        )
+
+        masked_target_tensor = eroded_mask_matrix * filtered_target_tensor
+        masked_prediction_tensor = eroded_mask_matrix * prediction_tensor
+        positive_intersection_tensor = K.sum(
+            masked_target_tensor[..., 0] * masked_prediction_tensor[..., 0],
+            axis=(1, 2)
+        )
+        positive_union_tensor = (
+            K.sum(masked_target_tensor[..., 0], axis=(1, 2)) +
+            K.sum(masked_prediction_tensor[..., 0], axis=(1, 2)) -
+            positive_intersection_tensor
+        )
+
+        masked_target_tensor = (
+            eroded_mask_matrix * (1. - filtered_target_tensor)
+        )
+        masked_prediction_tensor = eroded_mask_matrix * (1. - prediction_tensor)
+        negative_intersection_tensor = K.sum(
+            masked_target_tensor[..., 0] * masked_prediction_tensor[..., 0],
+            axis=(1, 2)
+        )
+        negative_union_tensor = (
+            K.sum(masked_target_tensor[..., 0], axis=(1, 2)) +
+            K.sum(masked_prediction_tensor[..., 0], axis=(1, 2)) -
+            negative_intersection_tensor
+        )
+
+        positive_iou = K.mean(
+            positive_intersection_tensor / (positive_union_tensor + K.epsilon())
+        )
+        negative_iou = K.mean(
+            negative_intersection_tensor / (negative_union_tensor + K.epsilon())
+        )
+        iou_value = (positive_iou + negative_iou) / 2
+
+        if use_as_loss_function:
+            return 1. - iou_value
+
+        return iou_value
+
+    if function_name is not None:
+        all_class_iou_function.__name__ = function_name
+
+    return all_class_iou_function
+
+
 def dice_coeff(half_window_size_px, mask_matrix, use_as_loss_function=False,
                function_name=None, test_mode=False):
     """Creates function to compute Dice coefficient.

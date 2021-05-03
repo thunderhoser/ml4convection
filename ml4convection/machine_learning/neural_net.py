@@ -30,14 +30,16 @@ BRIER_SCORE_NAME = fourier_metrics.BRIER_SCORE_NAME
 CSI_NAME = fourier_metrics.CSI_NAME
 FREQUENCY_BIAS_NAME = fourier_metrics.FREQUENCY_BIAS_NAME
 IOU_NAME = fourier_metrics.IOU_NAME
+ALL_CLASS_IOU_NAME = fourier_metrics.ALL_CLASS_IOU_NAME
 DICE_COEFF_NAME = fourier_metrics.DICE_COEFF_NAME
 REAL_FREQ_MSE_NAME = fourier_metrics.REAL_FREQ_MSE_NAME
 IMAGINARY_FREQ_MSE_NAME = fourier_metrics.IMAGINARY_FREQ_MSE_NAME
 FREQ_MSE_NAME = fourier_metrics.FREQ_MSE_NAME
 
 VALID_SCORE_NAMES = [
-    FSS_NAME, BRIER_SCORE_NAME, CSI_NAME, FREQUENCY_BIAS_NAME, IOU_NAME,
-    DICE_COEFF_NAME, REAL_FREQ_MSE_NAME, IMAGINARY_FREQ_MSE_NAME, FREQ_MSE_NAME
+    FSS_NAME, BRIER_SCORE_NAME, CSI_NAME, FREQUENCY_BIAS_NAME,
+    IOU_NAME, ALL_CLASS_IOU_NAME, DICE_COEFF_NAME,
+    REAL_FREQ_MSE_NAME, IMAGINARY_FREQ_MSE_NAME, FREQ_MSE_NAME
 ]
 
 SCORE_NAME_KEY = 'score_name'
@@ -1121,6 +1123,14 @@ def get_metrics(metric_names, mask_matrix, use_as_loss_function):
                     use_as_loss_function=use_as_loss_function,
                     function_name=this_metric_name
                 )
+            elif this_param_dict[SCORE_NAME_KEY] == ALL_CLASS_IOU_NAME:
+                this_function = fourier_metrics.all_class_iou(
+                    spatial_coeff_matrix=this_spatial_coeff_matrix,
+                    frequency_coeff_matrix=this_frequency_coeff_matrix,
+                    mask_matrix=mask_matrix,
+                    use_as_loss_function=use_as_loss_function,
+                    function_name=this_metric_name
+                )
             elif this_param_dict[SCORE_NAME_KEY] == DICE_COEFF_NAME:
                 this_function = fourier_metrics.dice_coeff(
                     spatial_coeff_matrix=this_spatial_coeff_matrix,
@@ -1174,6 +1184,13 @@ def get_metrics(metric_names, mask_matrix, use_as_loss_function):
                 )
             elif this_param_dict[SCORE_NAME_KEY] == IOU_NAME:
                 this_function = custom_metrics.iou(
+                    half_window_size_px=this_param_dict[HALF_WINDOW_SIZE_KEY],
+                    mask_matrix=mask_matrix,
+                    use_as_loss_function=use_as_loss_function,
+                    function_name=this_metric_name
+                )
+            elif this_param_dict[SCORE_NAME_KEY] == ALL_CLASS_IOU_NAME:
+                this_function = custom_metrics.all_class_iou(
                     half_window_size_px=this_param_dict[HALF_WINDOW_SIZE_KEY],
                     mask_matrix=mask_matrix,
                     use_as_loss_function=use_as_loss_function,

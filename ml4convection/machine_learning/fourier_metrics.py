@@ -17,14 +17,16 @@ BRIER_SCORE_NAME = 'brier'
 CSI_NAME = 'csi'
 FREQUENCY_BIAS_NAME = 'bias'
 IOU_NAME = 'iou'
+ALL_CLASS_IOU_NAME = 'all-class-iou'
 DICE_COEFF_NAME = 'dice'
 REAL_FREQ_MSE_NAME = 'fmser'
 IMAGINARY_FREQ_MSE_NAME = 'fmsei'
 FREQ_MSE_NAME = 'fmse'
 
 VALID_SCORE_NAMES = [
-    FSS_NAME, BRIER_SCORE_NAME, CSI_NAME, FREQUENCY_BIAS_NAME, IOU_NAME,
-    DICE_COEFF_NAME, REAL_FREQ_MSE_NAME, IMAGINARY_FREQ_MSE_NAME, FREQ_MSE_NAME
+    FSS_NAME, BRIER_SCORE_NAME, CSI_NAME, FREQUENCY_BIAS_NAME,
+    IOU_NAME, ALL_CLASS_IOU_NAME, DICE_COEFF_NAME,
+    REAL_FREQ_MSE_NAME, IMAGINARY_FREQ_MSE_NAME, FREQ_MSE_NAME
 ]
 
 
@@ -283,6 +285,46 @@ def _get_iou(target_tensor, prediction_tensor, mask_matrix):
     return K.mean(
         intersection_tensor / (union_tensor + K.epsilon())
     )
+
+
+def _get_all_class_iou(target_tensor, prediction_tensor, mask_matrix):
+    """Computes all-class intersection over union (IOU).
+
+    :param target_tensor: See doc for `_get_brier_score`.
+    :param prediction_tensor: Same.
+    :param mask_matrix: Same.
+    :return: all_class_iou: All-class IOU.
+    """
+
+    masked_target_tensor = mask_matrix * target_tensor
+    masked_prediction_tensor = mask_matrix * prediction_tensor
+    positive_intersection_tensor = K.sum(
+        masked_target_tensor * masked_prediction_tensor, axis=(1, 2)
+    )
+    positive_union_tensor = (
+        K.sum(masked_target_tensor, axis=(1, 2)) +
+        K.sum(masked_prediction_tensor, axis=(1, 2)) -
+        positive_intersection_tensor
+    )
+
+    masked_target_tensor = mask_matrix * (1. - target_tensor)
+    masked_prediction_tensor = mask_matrix * (1. - prediction_tensor)
+    negative_intersection_tensor = K.sum(
+        masked_target_tensor * masked_prediction_tensor, axis=(1, 2)
+    )
+    negative_union_tensor = (
+        K.sum(masked_target_tensor, axis=(1, 2)) +
+        K.sum(masked_prediction_tensor, axis=(1, 2)) -
+        negative_intersection_tensor
+    )
+
+    positive_iou = K.mean(
+        positive_intersection_tensor / (positive_union_tensor + K.epsilon())
+    )
+    negative_iou = K.mean(
+        negative_intersection_tensor / (negative_union_tensor + K.epsilon())
+    )
+    return (positive_iou + negative_iou) / 2
 
 
 def _get_dice_coeff(target_tensor, prediction_tensor, mask_matrix):
@@ -624,6 +666,64 @@ def iou(spatial_coeff_matrix, frequency_coeff_matrix, mask_matrix,
     return iou_function
 
 
+def all_class_iou(spatial_coeff_matrix, frequency_coeff_matrix, mask_matrix,
+                  use_as_loss_function, function_name=None):
+    """Creates function to compute all-class IOU at a given scale.
+
+    :param spatial_coeff_matrix: See doc for `_check_input_args`.
+    :param frequency_coeff_matrix: Same.
+    :param mask_matrix: Same.
+    :param use_as_loss_function: Boolean flag.  If True, will return 1 - IOU, to
+        use as negatively oriented loss function.
+    :param function_name: See doc for `_check_input_args`.
+    :return: all_class_iou_function: Function (defined below).
+    """
+
+    error_checking.assert_is_boolean(use_as_loss_function)
+
+    argument_dict = _check_input_args(
+        spatial_coeff_matrix=spatial_coeff_matrix,
+        frequency_coeff_matrix=frequency_coeff_matrix,
+        mask_matrix=mask_matrix, function_name=function_name
+    )
+
+    spatial_coeff_matrix = argument_dict[SPATIAL_COEFFS_KEY]
+    frequency_coeff_matrix = argument_dict[FREQUENCY_COEFFS_KEY]
+    mask_matrix = argument_dict[MASK_KEY]
+    orig_num_rows = argument_dict[ORIG_NUM_ROWS_KEY]
+    orig_num_columns = argument_dict[ORIG_NUM_COLUMNS_KEY]
+
+    def all_class_iou_function(target_tensor, prediction_tensor):
+        """Computes all-class intersection over union (IOU) at a given scale.
+
+        :param target_tensor: Tensor of target (actual) values.
+        :param prediction_tensor: Tensor of predicted values.
+        :return: iou_value: All-class IOU (scalar).
+        """
+
+        target_tensor, prediction_tensor = _filter_fields(
+            target_tensor=target_tensor, prediction_tensor=prediction_tensor,
+            spatial_coeff_matrix=spatial_coeff_matrix,
+            frequency_coeff_matrix=frequency_coeff_matrix,
+            orig_num_rows=orig_num_rows, orig_num_columns=orig_num_columns
+        )[:2]
+
+        iou_value = _get_all_class_iou(
+            target_tensor=target_tensor, prediction_tensor=prediction_tensor,
+            mask_matrix=mask_matrix
+        )
+
+        if use_as_loss_function:
+            return 1. - iou_value
+
+        return iou_value
+
+    if function_name is not None:
+        all_class_iou_function.__name__ = function_name
+
+    return all_class_iou_function
+
+
 def dice_coeff(
         spatial_coeff_matrix, frequency_coeff_matrix, mask_matrix,
         use_as_loss_function, function_name=None):
@@ -762,6 +862,12 @@ def metrics(spatial_coeff_matrix, frequency_coeff_matrix, mask_matrix,
                 )
             elif score_names[i] == IOU_NAME:
                 metrics_dict[metric_names[i]] = _get_iou(
+                    target_tensor=target_tensor,
+                    prediction_tensor=prediction_tensor,
+                    mask_matrix=mask_matrix
+                )
+            elif score_names[i] == ALL_CLASS_IOU_NAME:
+                metrics_dict[metric_names[i]] = _get_all_class_iou(
                     target_tensor=target_tensor,
                     prediction_tensor=prediction_tensor,
                     mask_matrix=mask_matrix

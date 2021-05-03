@@ -153,8 +153,11 @@ FILTERED_PREDICTION_MATRIX_NEIGH1 = numpy.stack(
 POD_NEIGH0 = 0.
 SUCCESS_RATIO_NEIGH0 = 0.
 FREQUENCY_BIAS_NEIGH0 = 0.
-IOU_NEIGH0 = 0.
+POSITIVE_IOU_NEIGH0 = 0.
 BRIER_SCORE_NEIGH0 = (30.36 + 34.36) / 232
+
+NEGATIVE_IOU_NEIGH0 = 0.5 * (77.2 + 73.2) / (116 + SMALL_NUMBER)
+ALL_CLASS_IOU_NEIGH0 = 0.5 * (NEGATIVE_IOU_NEIGH0 + POSITIVE_IOU_NEIGH0)
 
 THIS_POD_TERM = (SMALL_NUMBER + POD_NEIGH0) ** -1
 THIS_SUCCESS_RATIO_TERM = (SMALL_NUMBER + SUCCESS_RATIO_NEIGH0) ** -1
@@ -174,9 +177,19 @@ THIS_POD_TERM = (SMALL_NUMBER + POD_NEIGH1) ** -1
 THIS_SUCCESS_RATIO_TERM = (SMALL_NUMBER + SUCCESS_RATIO_NEIGH1) ** -1
 CSI_NEIGH1 = (THIS_POD_TERM + THIS_SUCCESS_RATIO_TERM - 1) ** -1
 
-IOU_NEIGH1_EXAMPLE1 = 4. / (49.6 + SMALL_NUMBER)
-IOU_NEIGH1_EXAMPLE2 = 2.4 / (59.2 + SMALL_NUMBER)
-IOU_NEIGH1 = numpy.mean([IOU_NEIGH1_EXAMPLE1, IOU_NEIGH1_EXAMPLE2])
+POSITIVE_IOU_NEIGH1_EXAMPLE1 = 4. / (49.6 + SMALL_NUMBER)
+POSITIVE_IOU_NEIGH1_EXAMPLE2 = 2.4 / (59.2 + SMALL_NUMBER)
+POSITIVE_IOU_NEIGH1 = numpy.mean([
+    POSITIVE_IOU_NEIGH1_EXAMPLE1, POSITIVE_IOU_NEIGH1_EXAMPLE2
+])
+
+NEGATIVE_IOU_NEIGH1_EXAMPLE1 = 54.4 / (100 + SMALL_NUMBER)
+NEGATIVE_IOU_NEIGH1_EXAMPLE2 = 44.8 / (101.6 + SMALL_NUMBER)
+NEGATIVE_IOU_NEIGH1 = numpy.mean([
+    NEGATIVE_IOU_NEIGH1_EXAMPLE1, NEGATIVE_IOU_NEIGH1_EXAMPLE2
+])
+
+ALL_CLASS_IOU_NEIGH1 = 0.5 * (NEGATIVE_IOU_NEIGH1 + POSITIVE_IOU_NEIGH1)
 
 DICE_COEFF_NEIGH1_EXAMPLE1 = 58.4 / 104
 DICE_COEFF_NEIGH1_EXAMPLE2 = (2.4 + 44.8) / 104
@@ -419,7 +432,9 @@ class CustomMetricsTests(unittest.TestCase):
         )
         this_iou = K.eval(this_function(TARGET_TENSOR, PREDICTION_TENSOR))
 
-        self.assertTrue(numpy.isclose(this_iou, IOU_NEIGH0, atol=TOLERANCE))
+        self.assertTrue(numpy.isclose(
+            this_iou, POSITIVE_IOU_NEIGH0, atol=TOLERANCE
+        ))
 
     def test_iou_neigh1(self):
         """Ensures correct output from iou().
@@ -432,7 +447,43 @@ class CustomMetricsTests(unittest.TestCase):
         )
         this_iou = K.eval(this_function(TARGET_TENSOR, PREDICTION_TENSOR))
 
-        self.assertTrue(numpy.isclose(this_iou, IOU_NEIGH1, atol=TOLERANCE))
+        self.assertTrue(numpy.isclose(
+            this_iou, POSITIVE_IOU_NEIGH1, atol=TOLERANCE
+        ))
+
+    def test_all_class_iou_neigh0(self):
+        """Ensures correct output from all_class_iou().
+
+        In this case, half-window size = 0 pixels.
+        """
+
+        this_function = custom_metrics.all_class_iou(
+            half_window_size_px=0, mask_matrix=MASK_MATRIX, test_mode=True
+        )
+        this_all_class_iou = K.eval(
+            this_function(TARGET_TENSOR, PREDICTION_TENSOR)
+        )
+
+        self.assertTrue(numpy.isclose(
+            this_all_class_iou, ALL_CLASS_IOU_NEIGH0, atol=TOLERANCE
+        ))
+
+    def test_all_class_iou_neigh1(self):
+        """Ensures correct output from all_class_iou().
+
+        In this case, half-window size = 1 pixel.
+        """
+
+        this_function = custom_metrics.all_class_iou(
+            half_window_size_px=1, mask_matrix=MASK_MATRIX, test_mode=True
+        )
+        this_all_class_iou = K.eval(
+            this_function(TARGET_TENSOR, PREDICTION_TENSOR)
+        )
+
+        self.assertTrue(numpy.isclose(
+            this_all_class_iou, ALL_CLASS_IOU_NEIGH1, atol=TOLERANCE
+        ))
 
     def test_brier_score_neigh0(self):
         """Ensures correct output from brier_score().
