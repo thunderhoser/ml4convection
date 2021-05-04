@@ -4,6 +4,7 @@ import os
 import sys
 import numpy
 import keras
+from keras import backend as K
 
 THIS_DIRECTORY_NAME = os.path.dirname(os.path.realpath(
     os.path.join(os.getcwd(), os.path.expanduser(__file__))
@@ -161,6 +162,31 @@ def _check_architecture_args(option_dict):
         error_checking.assert_is_greater(option_dict[SMOOTHING_RADIUS_KEY], 0.)
 
     return option_dict
+
+
+def _make_smoothing_function(weight_matrix):
+    """Returns function that applies smoother.
+
+    M = number of rows in smoothing window
+    N = number of columns in smoothing window
+
+    :param weight_matrix: M-by-N numpy array of smoothing weights.
+    :return: smoothing_function: Function handle (see below).
+    """
+
+    def smoothing_function(orig_tensor):
+        """Smooths tensor.
+
+        :param orig_tensor: Keras tensor before smoothing.
+        :return: smoothed_tensor: Keras tensor after smoothing.
+        """
+
+        return K.conv2d(
+            x=orig_tensor, kernel=weight_matrix,
+            padding='same', strides=(1, 1), data_format='channels_last'
+        )
+
+    return smoothing_function
 
 
 def create_model(option_dict, loss_function, mask_matrix, metric_names):
@@ -452,22 +478,14 @@ def create_model(option_dict, loss_function, mask_matrix, metric_names):
 
     if smoothing_radius_px is not None:
         half_window_size_px = int(numpy.ceil(smoothing_radius_px * 2))
-        window_size_px = 2 * half_window_size_px + 1
-
         weight_matrix = upconvnet.create_smoothing_filter(
             num_channels=1, smoothing_radius_px=smoothing_radius_px,
             num_half_filter_rows=half_window_size_px,
             num_half_filter_columns=half_window_size_px
         )
 
-        bias_vector = numpy.full(1, 0.)
-
-        skip_layer_by_level[0] = keras.layers.Conv2D(
-            filters=1, kernel_size=(window_size_px, window_size_px),
-            strides=(1, 1), padding='same', data_format='channels_last',
-            dilation_rate=(1, 1), activation=None, use_bias=True,
-            kernel_initializer='glorot_uniform', bias_initializer='zeros',
-            trainable=False, weights=[weight_matrix, bias_vector]
+        skip_layer_by_level[0] = keras.layers.Lambda(
+            _make_smoothing_function(weight_matrix), name='smoothing'
         )(skip_layer_by_level[0])
 
     if mask_matrix is not None:
