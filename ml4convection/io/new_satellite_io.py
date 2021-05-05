@@ -194,7 +194,7 @@ def find_file(
     error_checking.assert_is_boolean(raise_error_if_missing)
 
     satellite_file_name = '{0:s}/{1:s}/{2:s}/{3:s}{4:s}_{5:s}.nc'.format(
-        top_directory_name, cyclone_id_string[4:], cyclone_id_string,
+        top_directory_name, cyclone_id_string[:4], cyclone_id_string,
         cyclone_id_string[4:], cyclone_id_string[2:4],
         time_conversion.unix_sec_to_string(
             valid_time_unix_sec, TIME_FORMAT_IN_FILE_NAMES
@@ -232,7 +232,7 @@ def find_files_one_cyclone(top_directory_name, cyclone_id_string,
     file_pattern = (
         '{0:s}/{1:s}/{2:s}/{3:s}{4:s}_{5:s}{6:s}{7:s}{8:s}M.nc'
     ).format(
-        top_directory_name, cyclone_id_string[4:], cyclone_id_string,
+        top_directory_name, cyclone_id_string[:4], cyclone_id_string,
         cyclone_id_string[4:], cyclone_id_string[2:4],
         YEAR_REGEX, JULIAN_DAY_REGEX, HOUR_REGEX, MINUTE_REGEX
     )
@@ -268,8 +268,8 @@ def find_cyclones_one_year(top_directory_name, year,
     error_checking.assert_is_integer(year)
     error_checking.assert_is_boolean(raise_error_if_all_missing)
 
-    directory_pattern = '{0:s}/{1:04d}/{2:04d}[A-Z][A-Z][0-9][0-9]'.format(
-        top_directory_name, year, year
+    directory_pattern = '{0:s}/{1:04d}/{1:04d}[A-Z][A-Z][0-9][0-9]'.format(
+        top_directory_name, year
     )
     directory_names = glob.glob(directory_pattern)
     cyclone_id_strings = []
