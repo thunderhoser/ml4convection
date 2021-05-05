@@ -2,7 +2,6 @@
 
 import numpy
 import matplotlib
-
 matplotlib.use('agg')
 import matplotlib.colors
 from matplotlib import pyplot
@@ -15,7 +14,7 @@ DEFAULT_MAX_TEMP_KELVINS = 310.
 DEFAULT_CUTOFF_TEMP_KELVINS = 240.
 
 
-def _get_colour_scheme(
+def get_colour_scheme(
         min_temp_kelvins=DEFAULT_MIN_TEMP_KELVINS,
         max_temp_kelvins=DEFAULT_MAX_TEMP_KELVINS,
         cutoff_temp_kelvins=DEFAULT_CUTOFF_TEMP_KELVINS):
@@ -62,19 +61,28 @@ def _get_colour_scheme(
     return colour_map_object, colour_norm_object
 
 
-def _add_colour_bar(
+def add_colour_bar(
         brightness_temp_matrix_kelvins, axes_object, colour_map_object,
         colour_norm_object, orientation_string, font_size):
     """Adds colour bar to plot.
 
     :param brightness_temp_matrix_kelvins: See doc for `plot_2d_grid_latlng`.
     :param axes_object: Same.
-    :param colour_map_object: See doc for `_get_colour_scheme`.
+    :param colour_map_object: See doc for `get_colour_scheme`.
     :param colour_norm_object: Same.
     :param orientation_string: Orientation ("vertical" or "horizontal").
     :param font_size: Font size for labels on colour bar.
     :return: colour_bar_object: See doc for `plot_2d_grid_latlng`.
     """
+
+    error_checking.assert_is_numpy_array(
+        brightness_temp_matrix_kelvins, num_dimensions=2
+    )
+    error_checking.assert_is_geq_numpy_array(
+        brightness_temp_matrix_kelvins, 0, allow_nan=True
+    )
+    error_checking.assert_is_string(orientation_string)
+    error_checking.assert_is_greater(font_size, 0)
 
     if orientation_string == 'horizontal' and font_size > 30:
         padding = 0.15
@@ -148,7 +156,7 @@ def plot_2d_grid_latlng(
         numpy.isnan(edge_temp_matrix_kelvins), edge_temp_matrix_kelvins
     )
 
-    colour_map_object, colour_norm_object = _get_colour_scheme()
+    colour_map_object, colour_norm_object = get_colour_scheme()
 
     if hasattr(colour_norm_object, 'boundaries'):
         min_colour_value = colour_norm_object.boundaries[0]
@@ -167,7 +175,7 @@ def plot_2d_grid_latlng(
     if cbar_orientation_string is None:
         return None
 
-    return _add_colour_bar(
+    return add_colour_bar(
         brightness_temp_matrix_kelvins=brightness_temp_matrix_kelvins,
         axes_object=axes_object, colour_map_object=colour_map_object,
         colour_norm_object=colour_norm_object,
@@ -212,7 +220,7 @@ def plot_2d_grid_xy(
         numpy.isnan(edge_temp_matrix_kelvins), edge_temp_matrix_kelvins
     )
 
-    colour_map_object, colour_norm_object = _get_colour_scheme()
+    colour_map_object, colour_norm_object = get_colour_scheme()
 
     if hasattr(colour_norm_object, 'boundaries'):
         min_colour_value = colour_norm_object.boundaries[0]
@@ -231,7 +239,7 @@ def plot_2d_grid_xy(
     if cbar_orientation_string is None:
         return None
 
-    return _add_colour_bar(
+    return add_colour_bar(
         brightness_temp_matrix_kelvins=brightness_temp_matrix_kelvins,
         axes_object=axes_object, colour_map_object=colour_map_object,
         colour_norm_object=colour_norm_object,
