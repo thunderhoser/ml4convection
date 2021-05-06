@@ -1,0 +1,64 @@
+#!/bin/tcsh
+
+#SBATCH --job-name="apply_neural_nets"
+#SBATCH --partition="fge"
+#SBATCH --account="rda-ghpcs"
+#SBATCH --qos="batch"
+#SBATCH --ntasks=1
+#SBATCH --nodes=1
+#SBATCH --cpus-per-task=1
+#SBATCH --mem=64G
+##SBATCH --nodes=1
+##SBATCH --ntasks=1
+##SBATCH --cpus-per-task=1
+##SBATCH --ntasks-per-node=1
+#SBATCH --time=30:00:00
+#SBATCH --array=1-48
+#SBATCH --exclude=h28n12
+##SBATCH --exclude=h31n03,h28n12
+##SBATCH --exclude=h29n01,h26n05,h28n06,h29n07,h30n03,h30n15
+#SBATCH --mail-type=BEGIN,END,FAIL
+#SBATCH --mail-user=ryan.lagerquist@noaa.gov
+#SBATCH --output=apply_neural_nets_%A_%a.out
+
+module load cuda/10.1
+source /scratch2/BMC/gsd-hpcs/Jebb.Q.Stewart/conda3.7/etc/profile.d/conda.csh
+conda activate base
+
+set CODE_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_standalone/ml4convection"
+set TOP_MODEL_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_models/lf_experiment02"
+set TOP_PREDICTOR_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_project/predictors/quality_controlled/partial_grids"
+set TOP_TARGET_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_project/targets/new_echo_classification/no_tracking/omit_north_radar/partial_grids"
+
+set VALID_DATE_STRINGS=("20170101" "20170202" "20170303" "20170404" "20170505" "20170606" "20170707" "20170808" "20170909" "20171010" "20171111" "20171212")
+
+set LOSS_FUNCTION_NAMES=("brier-0.0000d-0.0125d" "brier-0.0125d-0.0250d" "brier-0.0250d-0.0500d" "brier-0.0500d-0.1000d" "brier-0.1000d-0.2000d" "brier-0.2000d-0.4000d" "brier-0.4000d-0.8000d" "brier-0.8000d-infd" "fss-0.0000d-0.0125d" "fss-0.0125d-0.0250d" "fss-0.0250d-0.0500d" "fss-0.0500d-0.1000d" "fss-0.1000d-0.2000d" "fss-0.2000d-0.4000d" "fss-0.4000d-0.8000d" "fss-0.8000d-infd" "csi-0.0000d-0.0125d" "csi-0.0125d-0.0250d" "csi-0.0250d-0.0500d" "csi-0.0500d-0.1000d" "csi-0.1000d-0.2000d" "csi-0.2000d-0.4000d" "csi-0.4000d-0.8000d" "csi-0.8000d-infd" "all-class-iou-neigh0" "all-class-iou-neigh1" "all-class-iou-neigh2" "all-class-iou-neigh3" "all-class-iou-neigh4" "all-class-iou-neigh6" "all-class-iou-neigh8" "all-class-iou-neigh12" "all-class-iou-0.0000d-0.0125d" "all-class-iou-0.0125d-0.0250d" "all-class-iou-0.0250d-0.0500d" "all-class-iou-0.0500d-0.1000d" "all-class-iou-0.1000d-0.2000d" "all-class-iou-0.2000d-0.4000d" "all-class-iou-0.4000d-0.8000d" "all-class-iou-0.8000d-infd" "dice-0.0000d-0.0125d" "dice-0.0125d-0.0250d" "dice-0.0250d-0.0500d" "dice-0.0500d-0.1000d" "dice-0.1000d-0.2000d" "dice-0.2000d-0.4000d" "dice-0.4000d-0.8000d" "dice-0.8000d-infd")
+
+set loss_function_name=${LOSS_FUNCTION_NAMES[$SLURM_ARRAY_TASK_ID]}
+set top_model_dir_name="${TOP_MODEL_DIR_NAME}/${loss_function_name}"
+set model_file_names={${top_model_dir_name}/model*.h5}
+
+set i=1
+
+while ($i <= ${#model_file_names})
+    set model_file_name=${model_file_names[$i]}
+    set model_dir_name=`echo $model_file_name | rev | cut -c 4- | rev`
+    set prediction_dir_name="${model_dir_name}/validation/partial_grids"
+    
+    set j=1
+    
+    while ($j <= ${#VALID_DATE_STRINGS})
+        python3 -u "${CODE_DIR_NAME}/apply_neural_net.py" \
+        --input_model_file_name="${model_file_name}" \
+        --input_predictor_dir_name="${TOP_PREDICTOR_DIR_NAME}" \
+        --input_target_dir_name="${TOP_TARGET_DIR_NAME}" \
+        --apply_to_full_grids=0 \
+        --first_valid_date_string="${VALID_DATE_STRINGS[$j]}" \
+        --last_valid_date_string="${VALID_DATE_STRINGS[$j]}" \
+        --output_dir_name="${prediction_dir_name}"
+        
+        @ j = $j + 1
+    end
+
+    @ i = $i + 2
+end
