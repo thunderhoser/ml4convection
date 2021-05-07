@@ -184,7 +184,7 @@ def _apply_to_partial_grids_one_day(
         )
         for k in range(4)
     ]
-    
+
     if all([os.path.isfile(f) for f in output_file_names]):
         return
 
@@ -224,6 +224,7 @@ def _apply_to_partial_grids_one_day(
             [0, 50, 75, 90, 95, 96, 97, 98, 99, 100], dtype=float
         )
         print(numpy.percentile(forecast_probability_matrix, these_percentiles))
+        print(numpy.percentile(forecast_probability_matrix[1:-1, 1:-1], these_percentiles))
 
         print('Writing predictions to: "{0:s}"...'.format(output_file_name))
         prediction_io.write_file(
