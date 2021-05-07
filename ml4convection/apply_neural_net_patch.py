@@ -112,16 +112,6 @@ def _apply_to_full_grid_one_day(
     :param top_output_dir_name: Same.
     """
 
-    output_file_name = prediction_io.find_file(
-        top_directory_name=top_output_dir_name,
-        valid_date_string=valid_date_string,
-        radar_number=None, prefer_zipped=True, allow_other_format=False,
-        raise_error_if_missing=False
-    )
-
-    if os.path.isfile(output_file_name):
-        return
-
     option_dict = copy.deepcopy(base_option_dict)
     option_dict[neural_net.VALID_DATE_KEY] = valid_date_string
 
@@ -185,6 +175,19 @@ def _apply_to_partial_grids_one_day(
     :param top_output_dir_name: Same.
     """
 
+    output_file_names = [
+        prediction_io.find_file(
+            top_directory_name=top_output_dir_name,
+            valid_date_string=valid_date_string,
+            radar_number=k, prefer_zipped=False, allow_other_format=False,
+            raise_error_if_missing=False
+        )
+        for k in range(4)
+    ]
+    
+    if all([os.path.isfile(f) for f in output_file_names]):
+        return
+
     option_dict = copy.deepcopy(base_option_dict)
     option_dict[neural_net.VALID_DATE_KEY] = valid_date_string
 
@@ -201,6 +204,16 @@ def _apply_to_partial_grids_one_day(
         if len(list(data_dicts[k].keys())) == 0:
             continue
 
+        output_file_name = prediction_io.find_file(
+            top_directory_name=top_output_dir_name,
+            valid_date_string=valid_date_string,
+            radar_number=k, prefer_zipped=False, allow_other_format=False,
+            raise_error_if_missing=False
+        )
+
+        if os.path.isfile(output_file_name):
+            continue
+
         forecast_probability_matrix = neural_net.apply_model_full_grid(
             model_object=model_object,
             predictor_matrix=data_dicts[k][neural_net.PREDICTOR_MATRIX_KEY],
@@ -208,16 +221,9 @@ def _apply_to_partial_grids_one_day(
         )
 
         these_percentiles = numpy.array(
-            [50, 75, 90, 95, 96, 97, 98, 99, 100], dtype=float
+            [0, 50, 75, 90, 95, 96, 97, 98, 99, 100], dtype=float
         )
         print(numpy.percentile(forecast_probability_matrix, these_percentiles))
-
-        output_file_name = prediction_io.find_file(
-            top_directory_name=top_output_dir_name,
-            valid_date_string=valid_date_string,
-            radar_number=k, prefer_zipped=False, allow_other_format=False,
-            raise_error_if_missing=False
-        )
 
         print('Writing predictions to: "{0:s}"...'.format(output_file_name))
         prediction_io.write_file(
@@ -281,8 +287,7 @@ def _run(model_file_name, top_predictor_dir_name, top_target_dir_name,
             training_option_dict[neural_net.NORMALIZE_FLAG_KEY],
         neural_net.UNIFORMIZE_FLAG_KEY:
             training_option_dict[neural_net.UNIFORMIZE_FLAG_KEY],
-        neural_net.ADD_COORDS_KEY:
-            training_option_dict[neural_net.ADD_COORDS_KEY]
+        neural_net.ADD_COORDS_KEY: False
     }
 
     valid_date_strings = time_conversion.get_spc_dates_in_range(
