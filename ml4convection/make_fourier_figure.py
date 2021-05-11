@@ -18,6 +18,7 @@ THIS_DIRECTORY_NAME = os.path.dirname(os.path.realpath(
 sys.path.append(os.path.normpath(os.path.join(THIS_DIRECTORY_NAME, '..')))
 
 import time_conversion
+import file_system_utils
 import gg_plotting_utils
 import imagemagick_utils
 import border_io
@@ -246,6 +247,10 @@ def _run(top_prediction_dir_name, valid_time_string, radar_number,
     :param max_resolution_deg: Same.
     :param output_dir_name: Same.
     """
+
+    file_system_utils.mkdir_recursive_if_necessary(
+        directory_name=output_dir_name
+    )
 
     if max_resolution_deg >= LARGE_NUMBER:
         max_resolution_deg = numpy.inf
