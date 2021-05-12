@@ -11,6 +11,7 @@ from matplotlib import pyplot
 import tensorflow
 from keras import backend as K
 from gewittergefahr.gg_utils import time_conversion
+from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.plotting import plotting_utils as gg_plotting_utils
 from gewittergefahr.plotting import imagemagick_utils
 from ml4convection.io import border_io
@@ -33,6 +34,11 @@ BUTTERWORTH_COLOUR_NORM_OBJECT = pyplot.Normalize(vmin=0., vmax=1.)
 CONVERT_EXE_NAME = '/usr/bin/convert'
 TITLE_FONT_SIZE = 200
 TITLE_FONT_NAME = 'DejaVu-Sans-Bold'
+
+TARGET_CONTOUR_LEVELS = numpy.array([
+    0.01, 0.05, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1
+])
+TARGET_COLOUR_MAP_OBJECT = pyplot.get_cmap('Greys')
 
 MAX_COLOUR_PERCENTILE = 99.5
 FIGURE_WIDTH_INCHES = 15
@@ -57,6 +63,7 @@ pyplot.rc('figure', titlesize=FONT_SIZE)
 PREDICTION_DIR_ARG_NAME = 'input_prediction_dir_name'
 VALID_TIME_ARG_NAME = 'valid_time_string'
 RADAR_NUMBER_ARG_NAME = 'radar_number'
+PLOT_TARGETS_ARG_NAME = 'plot_targets'
 MIN_RESOLUTION_ARG_NAME = 'min_resolution_deg'
 MAX_RESOLUTION_ARG_NAME = 'max_resolution_deg'
 OUTPUT_DIR_ARG_NAME = 'output_dir_name'
@@ -73,6 +80,7 @@ RADAR_NUMBER_HELP_STRING = (
     'Radar number (non-negative integer).  This script handles only partial '
     'grids.'
 )
+PLOT_TARGETS_HELP_STRING = 'Boolean flag.  If 1 (0), will (not) plot targets.'
 MIN_RESOLUTION_HELP_STRING = (
     'Minimum spatial resolution to allow through band-pass filter.'
 )
@@ -95,6 +103,10 @@ INPUT_ARG_PARSER.add_argument(
 INPUT_ARG_PARSER.add_argument(
     '--' + RADAR_NUMBER_ARG_NAME, type=int, required=True,
     help=RADAR_NUMBER_HELP_STRING
+)
+INPUT_ARG_PARSER.add_argument(
+    '--' + PLOT_TARGETS_ARG_NAME, type=int, required=False, default=0,
+    help=PLOT_TARGETS_HELP_STRING
 )
 INPUT_ARG_PARSER.add_argument(
     '--' + MIN_RESOLUTION_ARG_NAME, type=float, required=True,
@@ -226,7 +238,7 @@ def _plot_fourier_weights(
     pyplot.close(figure_object)
 
 
-def _run(top_prediction_dir_name, valid_time_string, radar_number,
+def _run(top_prediction_dir_name, valid_time_string, radar_number, plot_targets,
          min_resolution_deg, max_resolution_deg, output_dir_name):
     """Makes schematic to show Fourier decomposition.
 
@@ -235,10 +247,15 @@ def _run(top_prediction_dir_name, valid_time_string, radar_number,
     :param top_prediction_dir_name: See documentation at top of file.
     :param valid_time_string: Same.
     :param radar_number: Same.
+    :param plot_targets: Same.
     :param min_resolution_deg: Same.
     :param max_resolution_deg: Same.
     :param output_dir_name: Same.
     """
+
+    file_system_utils.mkdir_recursive_if_necessary(
+        directory_name=output_dir_name
+    )
 
     if max_resolution_deg >= LARGE_NUMBER:
         max_resolution_deg = numpy.inf
@@ -266,7 +283,9 @@ def _run(top_prediction_dir_name, valid_time_string, radar_number,
         desired_times_unix_sec=numpy.array([valid_time_unix_sec], dtype=int)
     )[0]
 
-    prediction_dict[prediction_io.TARGET_MATRIX_KEY][:] = 0
+    if not plot_targets:
+        prediction_dict[prediction_io.TARGET_MATRIX_KEY][:] = 0
+
     border_latitudes_deg_n, border_longitudes_deg_e = border_io.read_file()
 
     # Plot original predictions.
@@ -291,7 +310,7 @@ def _run(top_prediction_dir_name, valid_time_string, radar_number,
         colour_norm_object=prob_colour_norm_object,
         output_dir_name=output_dir_name,
         title_string='Original probability field', font_size=FONT_SIZE
-    )
+    )[0]
 
     new_file_name = '{0:s}/original_field.jpg'.format(output_dir_name)
     shutil.move(orig_file_name, new_file_name)
@@ -368,7 +387,7 @@ def _run(top_prediction_dir_name, valid_time_string, radar_number,
         colour_norm_object=prob_colour_norm_object,
         output_dir_name=output_dir_name,
         title_string='Tapered probability field', font_size=FONT_SIZE
-    )
+    )[0]
 
     new_file_name = '{0:s}/tapered_field.jpg'.format(output_dir_name)
     shutil.move(orig_file_name, new_file_name)
@@ -392,6 +411,11 @@ def _run(top_prediction_dir_name, valid_time_string, radar_number,
     probability_matrix = (
         prediction_dict[prediction_io.PROBABILITY_MATRIX_KEY][0, ...] + 0.
     )
+    target_matrix = (
+        prediction_dict[prediction_io.TARGET_MATRIX_KEY][0, ...].astype(float)
+    )
+    prediction_dict[prediction_io.TARGET_MATRIX_KEY][:] = 0
+
     bh_window_matrix = fourier_utils.apply_blackman_window(
         numpy.ones(probability_matrix.shape)
     )
@@ -413,7 +437,7 @@ def _run(top_prediction_dir_name, valid_time_string, radar_number,
         output_dir_name=output_dir_name,
         title_string='Blackman-Harris window', font_size=FONT_SIZE,
         cbar_extend_min=False
-    )
+    )[0]
 
     new_file_name = '{0:s}/blackman_harris_window.jpg'.format(output_dir_name)
     shutil.move(orig_file_name, new_file_name)
@@ -437,22 +461,45 @@ def _run(top_prediction_dir_name, valid_time_string, radar_number,
     prediction_dict[prediction_io.PROBABILITY_MATRIX_KEY][0, ...] = (
         fourier_utils.apply_blackman_window(probability_matrix)
     )
+    target_matrix = fourier_utils.apply_blackman_window(target_matrix)
 
-    orig_file_name = plot_predictions._plot_predictions_one_example(
-        prediction_dict=prediction_dict, example_index=0,
-        border_latitudes_deg_n=border_latitudes_deg_n,
-        border_longitudes_deg_e=border_longitudes_deg_e,
-        mask_matrix=mask_matrix,
-        plot_deterministic=False, probability_threshold=None,
-        colour_map_object=prob_colour_map_object,
-        colour_norm_object=prob_colour_norm_object,
-        output_dir_name=output_dir_name,
-        title_string='Windowed probability field', font_size=FONT_SIZE
+    orig_file_name, figure_object, axes_object = (
+        plot_predictions._plot_predictions_one_example(
+            prediction_dict=prediction_dict, example_index=0,
+            border_latitudes_deg_n=border_latitudes_deg_n,
+            border_longitudes_deg_e=border_longitudes_deg_e,
+            mask_matrix=mask_matrix,
+            plot_deterministic=False, probability_threshold=None,
+            colour_map_object=prob_colour_map_object,
+            colour_norm_object=prob_colour_norm_object,
+            output_dir_name=None,
+            title_string='Windowed probability field', font_size=FONT_SIZE
+        )
     )
 
-    new_file_name = '{0:s}/windowed_field.jpg'.format(output_dir_name)
-    shutil.move(orig_file_name, new_file_name)
-    panel_file_names[6] = new_file_name
+    if plot_targets:
+        target_contour_object = pyplot.contour(
+            prediction_dict[prediction_io.LONGITUDES_KEY],
+            prediction_dict[prediction_io.LATITUDES_KEY],
+            target_matrix, TARGET_CONTOUR_LEVELS,
+            cmap=TARGET_COLOUR_MAP_OBJECT,
+            vmin=numpy.min(TARGET_CONTOUR_LEVELS),
+            vmax=numpy.max(TARGET_CONTOUR_LEVELS),
+            linewidths=2, linestyles='solid', axes=axes_object, zorder=1e12
+        )
+        pyplot.clabel(
+            target_contour_object, inline=True, inline_spacing=10,
+            fmt='%.1g', fontsize=FONT_SIZE
+        )
+
+    panel_file_names[6] = '{0:s}/windowed_field.jpg'.format(output_dir_name)
+
+    print('Saving figure to file: "{0:s}"...'.format(panel_file_names[6]))
+    figure_object.savefig(
+        panel_file_names[6], dpi=FIGURE_RESOLUTION_DPI,
+        pad_inches=0, bbox_inches='tight'
+    )
+    pyplot.close(figure_object)
 
     letter_label = chr(ord(letter_label) + 1)
 
@@ -473,9 +520,14 @@ def _run(top_prediction_dir_name, valid_time_string, radar_number,
         prediction_dict[prediction_io.PROBABILITY_MATRIX_KEY],
         dtype=tensorflow.complex128
     )
-
     weight_tensor = tensorflow.signal.fft2d(probability_tensor)
     weight_matrix = K.eval(weight_tensor)[0, ...]
+
+    target_tensor = tensorflow.constant(
+        target_matrix, dtype=tensorflow.complex128
+    )
+    target_weight_tensor = tensorflow.signal.fft2d(target_tensor)
+    target_weight_matrix = K.eval(target_weight_tensor)[0, ...]
 
     # max_colour_value = numpy.percentile(
     #     numpy.absolute(numpy.real(weight_matrix)), MAX_COLOUR_PERCENTILE
@@ -560,13 +612,12 @@ def _run(top_prediction_dir_name, valid_time_string, radar_number,
         min_resolution_metres=min_resolution_deg,
         max_resolution_metres=max_resolution_deg
     )
-
-    # weight_matrix = fourier_utils.apply_butterworth_filter(
-    #     coefficient_matrix=numpy.ones(weight_matrix.shape), filter_order=4.,
-    #     grid_spacing_metres=GRID_SPACING_DEG,
-    #     min_resolution_metres=min_resolution_deg,
-    #     max_resolution_metres=max_resolution_deg
-    # )
+    target_weight_matrix = fourier_utils.apply_butterworth_filter(
+        coefficient_matrix=target_weight_matrix, filter_order=2.,
+        grid_spacing_metres=GRID_SPACING_DEG,
+        min_resolution_metres=min_resolution_deg,
+        max_resolution_metres=max_resolution_deg
+    )
 
     # max_colour_value = numpy.percentile(
     #     numpy.absolute(numpy.real(weight_matrix)), MAX_COLOUR_PERCENTILE
@@ -620,6 +671,19 @@ def _run(top_prediction_dir_name, valid_time_string, radar_number,
     probability_matrix = numpy.maximum(probability_matrix, 0.)
     probability_matrix = numpy.minimum(probability_matrix, 1.)
 
+    target_weight_tensor = tensorflow.constant(
+        target_weight_matrix, dtype=tensorflow.complex128
+    )
+    target_weight_tensor = tensorflow.expand_dims(target_weight_tensor, 0)
+
+    target_tensor = tensorflow.signal.ifft2d(target_weight_tensor)
+    target_tensor = tensorflow.math.real(target_tensor)
+    target_matrix = K.eval(target_tensor)[0, ...]
+
+    target_matrix = fourier_utils.untaper_spatial_data(target_matrix)
+    target_matrix = numpy.maximum(target_matrix, 0.)
+    target_matrix = numpy.minimum(target_matrix, 1.)
+
     prediction_dict[prediction_io.PROBABILITY_MATRIX_KEY] = numpy.expand_dims(
         probability_matrix, axis=0
     )
@@ -639,21 +703,43 @@ def _run(top_prediction_dir_name, valid_time_string, radar_number,
         orig_prediction_dict[prediction_io.LONGITUDES_KEY]
     )
 
-    orig_file_name = plot_predictions._plot_predictions_one_example(
-        prediction_dict=prediction_dict, example_index=0,
-        border_latitudes_deg_n=border_latitudes_deg_n,
-        border_longitudes_deg_e=border_longitudes_deg_e,
-        mask_matrix=mask_matrix,
-        plot_deterministic=False, probability_threshold=None,
-        colour_map_object=prob_colour_map_object,
-        colour_norm_object=prob_colour_norm_object,
-        output_dir_name=output_dir_name,
-        title_string='Filtered probability field', font_size=FONT_SIZE
+    orig_file_name, figure_object, axes_object = (
+        plot_predictions._plot_predictions_one_example(
+            prediction_dict=prediction_dict, example_index=0,
+            border_latitudes_deg_n=border_latitudes_deg_n,
+            border_longitudes_deg_e=border_longitudes_deg_e,
+            mask_matrix=mask_matrix,
+            plot_deterministic=False, probability_threshold=None,
+            colour_map_object=prob_colour_map_object,
+            colour_norm_object=prob_colour_norm_object,
+            output_dir_name=None,
+            title_string='Filtered probability field', font_size=FONT_SIZE
+        )
     )
 
-    new_file_name = '{0:s}/filtered_field.jpg'.format(output_dir_name)
-    shutil.move(orig_file_name, new_file_name)
-    panel_file_names[-1] = new_file_name
+    if plot_targets:
+        target_contour_object = pyplot.contour(
+            prediction_dict[prediction_io.LONGITUDES_KEY],
+            prediction_dict[prediction_io.LATITUDES_KEY],
+            target_matrix, TARGET_CONTOUR_LEVELS,
+            cmap=TARGET_COLOUR_MAP_OBJECT,
+            vmin=numpy.min(TARGET_CONTOUR_LEVELS),
+            vmax=numpy.max(TARGET_CONTOUR_LEVELS),
+            linewidths=2, linestyles='solid', axes=axes_object, zorder=1e12
+        )
+        pyplot.clabel(
+            target_contour_object, inline=True, inline_spacing=10,
+            fmt='%.1g', fontsize=FONT_SIZE
+        )
+
+    panel_file_names[-1] = '{0:s}/filtered_field.jpg'.format(output_dir_name)
+
+    print('Saving figure to file: "{0:s}"...'.format(panel_file_names[-1]))
+    figure_object.savefig(
+        panel_file_names[-1], dpi=FIGURE_RESOLUTION_DPI,
+        pad_inches=0, bbox_inches='tight'
+    )
+    pyplot.close(figure_object)
 
     letter_label = chr(ord(letter_label) + 1)
 
@@ -706,6 +792,7 @@ if __name__ == '__main__':
         ),
         valid_time_string=getattr(INPUT_ARG_OBJECT, VALID_TIME_ARG_NAME),
         radar_number=getattr(INPUT_ARG_OBJECT, RADAR_NUMBER_ARG_NAME),
+        plot_targets=bool(getattr(INPUT_ARG_OBJECT, PLOT_TARGETS_ARG_NAME)),
         min_resolution_deg=getattr(INPUT_ARG_OBJECT, MIN_RESOLUTION_ARG_NAME),
         max_resolution_deg=getattr(INPUT_ARG_OBJECT, MAX_RESOLUTION_ARG_NAME),
         output_dir_name=getattr(INPUT_ARG_OBJECT, OUTPUT_DIR_ARG_NAME)

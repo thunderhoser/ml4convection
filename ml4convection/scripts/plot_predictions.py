@@ -147,6 +147,8 @@ def _plot_predictions_one_example(
     :param font_size: Font size.
     :param cbar_extend_min: Boolean flag.
     :return: output_file_name: Path to output file.
+    :return: figure_object: Figure handle.
+    :return: axes_object: Axes handle.
     """
 
     latitudes_deg_n = prediction_dict[prediction_io.LATITUDES_KEY]
@@ -232,6 +234,9 @@ def _plot_predictions_one_example(
 
     axes_object.set_title(title_string, fontsize=font_size)
 
+    if output_dir_name is None:
+        return None, figure_object, axes_object
+
     output_file_name = '{0:s}/predictions_{1:s}.jpg'.format(
         output_dir_name, valid_time_string
     )
@@ -243,7 +248,7 @@ def _plot_predictions_one_example(
     )
     pyplot.close(figure_object)
 
-    return output_file_name
+    return output_file_name, None, None
 
 
 def _plot_predictions_one_day(
