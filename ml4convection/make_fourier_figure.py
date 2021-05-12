@@ -531,7 +531,7 @@ def _run(top_prediction_dir_name, valid_time_string, radar_number, plot_targets,
     weight_matrix = K.eval(weight_tensor)[0, ...]
 
     target_tensor = tensorflow.constant(
-        target_matrix, dtype=tensorflow.complex128
+        numpy.expand_dims(target_matrix, axis=0), dtype=tensorflow.complex128
     )
     target_weight_tensor = tensorflow.signal.fft2d(target_tensor)
     target_weight_matrix = K.eval(target_weight_tensor)[0, ...]
