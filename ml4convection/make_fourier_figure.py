@@ -494,9 +494,8 @@ def _run(top_prediction_dir_name, valid_time_string, radar_number, plot_targets,
             vmax=numpy.max(TARGET_CONTOUR_LEVELS),
             linewidths=2, linestyles='solid', zorder=1e12
         )
-        target_label_objects = axes_object.clabel(
-            target_contour_object, levels=TARGET_CONTOUR_LEVELS, inline=True,
-            fmt='%.1g', fontsize=FONT_SIZE
+        target_label_objects = pyplot.clabel(
+            target_contour_object, inline=True, fmt='%.2f', fontsize=FONT_SIZE
         )
 
         print('\n\n\n\n\n\n\nTARGET LABELS\n\n\n\n\n\n\n')
@@ -738,9 +737,8 @@ def _run(top_prediction_dir_name, valid_time_string, radar_number, plot_targets,
             vmax=numpy.max(TARGET_CONTOUR_LEVELS),
             linewidths=2, linestyles='solid', zorder=1e12
         )
-        target_label_objects = axes_object.clabel(
-            target_contour_object, levels=TARGET_CONTOUR_LEVELS, inline=True,
-            fmt='%.1g', fontsize=FONT_SIZE
+        target_label_objects = pyplot.clabel(
+            target_contour_object, inline=True, fmt='%.2f', fontsize=FONT_SIZE
         )
 
         print('\n\n\n\n\n\n\nTARGET LABELS\n\n\n\n\n\n\n')
