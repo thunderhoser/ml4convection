@@ -49,6 +49,7 @@ while ($j <= ${#VALID_TIME_STRINGS})
     --input_prediction_dir_name="${prediction_dir_name}" \
     --valid_time_string="${VALID_TIME_STRINGS[$j]}" \
     --radar_number=1 \
+    --plot_targets=1 \
     --min_resolution_deg=${min_resolution_deg} \
     --max_resolution_deg=${max_resolution_deg} \
     --output_dir_name="${prediction_dir_name}/fourier_figures/${VALID_TIME_STRINGS[$j]}"
