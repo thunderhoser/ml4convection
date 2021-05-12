@@ -494,15 +494,9 @@ def _run(top_prediction_dir_name, valid_time_string, radar_number, plot_targets,
             vmax=numpy.max(TARGET_CONTOUR_LEVELS),
             linewidths=2, linestyles='solid', zorder=1e12
         )
-        target_label_objects = pyplot.clabel(
-            target_contour_object, inline=True, fmt='%.2f', fontsize=FONT_SIZE
+        pyplot.clabel(
+            target_contour_object, inline=True, fmt='%.1g', fontsize=FONT_SIZE
         )
-
-        print('\n\n\n\n\n\n\nTARGET LABELS\n\n\n\n\n\n\n')
-        print(numpy.nanmin(target_matrix))
-        print(numpy.nanmax(target_matrix))
-        for this_object in target_label_objects:
-            print(this_object.text)
 
     panel_file_names[6] = '{0:s}/windowed_field.jpg'.format(output_dir_name)
 
@@ -739,15 +733,9 @@ def _run(top_prediction_dir_name, valid_time_string, radar_number, plot_targets,
             vmax=numpy.max(TARGET_CONTOUR_LEVELS),
             linewidths=2, linestyles='solid', zorder=1e12
         )
-        target_label_objects = pyplot.clabel(
-            target_contour_object, inline=True, fmt='%.2f', fontsize=FONT_SIZE
+        pyplot.clabel(
+            target_contour_object, inline=True, fmt='%.1g', fontsize=FONT_SIZE
         )
-
-        print('\n\n\n\n\n\n\nTARGET LABELS\n\n\n\n\n\n\n')
-        print(numpy.nanmin(target_matrix))
-        print(numpy.nanmax(target_matrix))
-        for this_object in target_label_objects:
-            print(this_object.text)
 
     panel_file_names[-1] = '{0:s}/filtered_field.jpg'.format(output_dir_name)
 
