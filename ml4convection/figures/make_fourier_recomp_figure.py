@@ -214,7 +214,7 @@ def _run(top_prediction_dir_name, valid_time_string, radar_number,
         colour_norm_object=prob_colour_norm_object,
         output_dir_name=output_dir_name,
         title_string='Original field', font_size=FONT_SIZE
-    )
+    )[0]
 
     new_file_name = '{0:s}/original_field.jpg'.format(output_dir_name)
     shutil.move(orig_file_name, new_file_name)
@@ -302,7 +302,7 @@ def _run(top_prediction_dir_name, valid_time_string, radar_number,
             colour_norm_object=prob_colour_norm_object,
             output_dir_name=output_dir_name,
             title_string=this_title_string, font_size=FONT_SIZE
-        )
+        )[0]
 
         new_file_name = '{0:s}/filtered_field{1:02d}.jpg'.format(
             output_dir_name, k + 1
@@ -349,7 +349,7 @@ def _run(top_prediction_dir_name, valid_time_string, radar_number,
         colour_norm_object=prob_colour_norm_object,
         output_dir_name=output_dir_name,
         title_string='Reconstructed field', font_size=FONT_SIZE
-    )
+    )[0]
 
     new_file_name = '{0:s}/reconstructed_field.jpg'.format(output_dir_name)
     shutil.move(orig_file_name, new_file_name)

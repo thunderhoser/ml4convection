@@ -38,7 +38,7 @@ TITLE_FONT_NAME = 'DejaVu-Sans-Bold'
 TARGET_CONTOUR_LEVELS = numpy.array([
     0.01, 0.05, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1
 ])
-TARGET_COLOUR_MAP_OBJECT = pyplot.get_cmap('Greys')
+TARGET_COLOUR_MAP_OBJECT = pyplot.get_cmap('gist_gray')
 
 MAX_COLOUR_PERCENTILE = 99.5
 FIGURE_WIDTH_INCHES = 15
@@ -478,14 +478,14 @@ def _run(top_prediction_dir_name, valid_time_string, radar_number, plot_targets,
     )
 
     if plot_targets:
-        target_contour_object = pyplot.contour(
+        target_contour_object = axes_object.contour(
             prediction_dict[prediction_io.LONGITUDES_KEY],
             prediction_dict[prediction_io.LATITUDES_KEY],
             target_matrix, TARGET_CONTOUR_LEVELS,
             cmap=TARGET_COLOUR_MAP_OBJECT,
             vmin=numpy.min(TARGET_CONTOUR_LEVELS),
-            vmax=numpy.max(TARGET_CONTOUR_LEVELS),
-            linewidths=2, linestyles='solid', axes=axes_object, zorder=1e12
+            vmax=2 * numpy.max(TARGET_CONTOUR_LEVELS),
+            linewidths=2, linestyles='solid', zorder=1e12
         )
         pyplot.clabel(
             target_contour_object, inline=True, inline_spacing=10,
@@ -524,7 +524,7 @@ def _run(top_prediction_dir_name, valid_time_string, radar_number, plot_targets,
     weight_matrix = K.eval(weight_tensor)[0, ...]
 
     target_tensor = tensorflow.constant(
-        target_matrix, dtype=tensorflow.complex128
+        numpy.expand_dims(target_matrix, axis=0), dtype=tensorflow.complex128
     )
     target_weight_tensor = tensorflow.signal.fft2d(target_tensor)
     target_weight_matrix = K.eval(target_weight_tensor)[0, ...]
@@ -718,14 +718,14 @@ def _run(top_prediction_dir_name, valid_time_string, radar_number, plot_targets,
     )
 
     if plot_targets:
-        target_contour_object = pyplot.contour(
+        target_contour_object = axes_object.contour(
             prediction_dict[prediction_io.LONGITUDES_KEY],
             prediction_dict[prediction_io.LATITUDES_KEY],
             target_matrix, TARGET_CONTOUR_LEVELS,
             cmap=TARGET_COLOUR_MAP_OBJECT,
             vmin=numpy.min(TARGET_CONTOUR_LEVELS),
-            vmax=numpy.max(TARGET_CONTOUR_LEVELS),
-            linewidths=2, linestyles='solid', axes=axes_object, zorder=1e12
+            vmax=2 * numpy.max(TARGET_CONTOUR_LEVELS),
+            linewidths=2, linestyles='solid', zorder=1e12
         )
         pyplot.clabel(
             target_contour_object, inline=True, inline_spacing=10,
