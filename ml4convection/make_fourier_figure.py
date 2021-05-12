@@ -45,7 +45,7 @@ TITLE_FONT_NAME = 'DejaVu-Sans-Bold'
 TARGET_CONTOUR_LEVELS = numpy.array([
     0.01, 0.05, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1
 ])
-TARGET_COLOUR_MAP_OBJECT = pyplot.get_cmap('gist_gray')
+TARGET_COLOUR_MAP_OBJECT = pyplot.get_cmap('spring')
 
 MAX_COLOUR_PERCENTILE = 99.5
 FIGURE_WIDTH_INCHES = 15
@@ -491,12 +491,13 @@ def _run(top_prediction_dir_name, valid_time_string, radar_number, plot_targets,
             target_matrix, TARGET_CONTOUR_LEVELS,
             cmap=TARGET_COLOUR_MAP_OBJECT,
             vmin=numpy.min(TARGET_CONTOUR_LEVELS),
-            vmax=2 * numpy.max(TARGET_CONTOUR_LEVELS),
+            vmax=numpy.max(TARGET_CONTOUR_LEVELS),
             linewidths=2, linestyles='solid', zorder=1e12
         )
+        print(target_contour_object)
         pyplot.clabel(
-            target_contour_object, inline=True, inline_spacing=10,
-            fmt='%.1g', fontsize=FONT_SIZE
+            target_contour_object, levels=TARGET_CONTOUR_LEVELS, inline=False,
+            inline_spacing=5, fmt='%.1g', fontsize=FONT_SIZE
         )
 
     panel_file_names[6] = '{0:s}/windowed_field.jpg'.format(output_dir_name)
@@ -731,12 +732,13 @@ def _run(top_prediction_dir_name, valid_time_string, radar_number, plot_targets,
             target_matrix, TARGET_CONTOUR_LEVELS,
             cmap=TARGET_COLOUR_MAP_OBJECT,
             vmin=numpy.min(TARGET_CONTOUR_LEVELS),
-            vmax=2 * numpy.max(TARGET_CONTOUR_LEVELS),
+            vmax=numpy.max(TARGET_CONTOUR_LEVELS),
             linewidths=2, linestyles='solid', zorder=1e12
         )
+        print(target_contour_object)
         pyplot.clabel(
-            target_contour_object, inline=True, inline_spacing=10,
-            fmt='%.1g', fontsize=FONT_SIZE
+            target_contour_object, levels=TARGET_CONTOUR_LEVELS, inline=False,
+            inline_spacing=5, fmt='%.1g', fontsize=FONT_SIZE
         )
 
     panel_file_names[-1] = '{0:s}/filtered_field.jpg'.format(output_dir_name)
