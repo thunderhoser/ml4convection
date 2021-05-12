@@ -255,6 +255,9 @@ def _run(top_prediction_dir_name, valid_time_string, radar_number,
     if max_resolution_deg >= LARGE_NUMBER:
         max_resolution_deg = numpy.inf
 
+    print('MIN RESOLUTION = {0:.6f} deg'.format(min_resolution_deg))
+    print('MAX RESOLUTION = {0:.6f} deg'.format(max_resolution_deg))
+
     valid_time_unix_sec = time_conversion.string_to_unix_sec(
         valid_time_string, TIME_FORMAT
     )
