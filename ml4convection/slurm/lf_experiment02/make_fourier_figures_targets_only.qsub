@@ -51,7 +51,7 @@ while ($j <= ${#VALID_TIME_STRINGS})
     --radar_number=1 \
     --min_resolution_deg=${min_resolution_deg} \
     --max_resolution_deg=${max_resolution_deg} \
-    --output_dir_name="${prediction_dir_name}/fourier_figures/${VALID_TIME_STRINGS[$j]}"
+    --output_dir_name="${prediction_dir_name}/fourier_figures_targets_only/${VALID_TIME_STRINGS[$j]}"
         
     @ j = $j + 1
 end
