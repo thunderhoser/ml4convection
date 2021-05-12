@@ -499,6 +499,7 @@ def _run(top_prediction_dir_name, valid_time_string, radar_number, plot_targets,
             fmt='%.1g', fontsize=FONT_SIZE
         )
 
+        print('\n\n\n\n\n\n\nTARGET LABELS\n\n\n\n\n\n\n')
         for this_object in target_label_objects:
             print(this_object.text)
 
@@ -742,6 +743,7 @@ def _run(top_prediction_dir_name, valid_time_string, radar_number, plot_targets,
             fmt='%.1g', fontsize=FONT_SIZE
         )
 
+        print('\n\n\n\n\n\n\nTARGET LABELS\n\n\n\n\n\n\n')
         for this_object in target_label_objects:
             print(this_object.text)
 
