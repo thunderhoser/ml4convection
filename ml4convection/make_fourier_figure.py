@@ -494,8 +494,7 @@ def _run(top_prediction_dir_name, valid_time_string, radar_number, plot_targets,
             vmax=numpy.max(TARGET_CONTOUR_LEVELS),
             linewidths=2, linestyles='solid', zorder=1e12
         )
-        print(target_contour_object)
-        pyplot.clabel(
+        axes_object.clabel(
             target_contour_object, levels=TARGET_CONTOUR_LEVELS, inline=False,
             inline_spacing=5, fmt='%.1g', fontsize=FONT_SIZE
         )
@@ -735,8 +734,7 @@ def _run(top_prediction_dir_name, valid_time_string, radar_number, plot_targets,
             vmax=numpy.max(TARGET_CONTOUR_LEVELS),
             linewidths=2, linestyles='solid', zorder=1e12
         )
-        print(target_contour_object)
-        pyplot.clabel(
+        axes_object.clabel(
             target_contour_object, levels=TARGET_CONTOUR_LEVELS, inline=False,
             inline_spacing=5, fmt='%.1g', fontsize=FONT_SIZE
         )
