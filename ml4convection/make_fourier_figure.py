@@ -499,6 +499,8 @@ def _run(top_prediction_dir_name, valid_time_string, radar_number, plot_targets,
         )
 
         print('\n\n\n\n\n\n\nTARGET LABELS\n\n\n\n\n\n\n')
+        print(numpy.nanmin(target_matrix))
+        print(numpy.nanmax(target_matrix))
         for this_object in target_label_objects:
             print(this_object.text)
 
@@ -742,6 +744,8 @@ def _run(top_prediction_dir_name, valid_time_string, radar_number, plot_targets,
         )
 
         print('\n\n\n\n\n\n\nTARGET LABELS\n\n\n\n\n\n\n')
+        print(numpy.nanmin(target_matrix))
+        print(numpy.nanmax(target_matrix))
         for this_object in target_label_objects:
             print(this_object.text)
 
