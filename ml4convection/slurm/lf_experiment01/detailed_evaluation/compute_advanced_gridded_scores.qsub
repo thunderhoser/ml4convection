@@ -1,0 +1,45 @@
+#!/bin/tcsh
+
+#SBATCH --job-name="compute_advanced_gridded_scores"
+#SBATCH --partition="fge"
+#SBATCH --account="rda-ghpcs"
+#SBATCH --qos="batch"
+#SBATCH --ntasks=1
+#SBATCH --nodes=1
+#SBATCH --cpus-per-task=1
+#SBATCH --mem=200G
+##SBATCH --nodes=1
+##SBATCH --ntasks=1
+##SBATCH --cpus-per-task=1
+##SBATCH --ntasks-per-node=1
+#SBATCH --time=24:00:00
+#SBATCH --array=1-4
+#SBATCH --exclude=h28n12
+##SBATCH --exclude=h31n03,h28n12
+##SBATCH --exclude=h29n01,h26n05,h28n06,h29n07,h30n03,h30n15
+#SBATCH --mail-type=BEGIN,END,FAIL
+#SBATCH --mail-user=ryan.lagerquist@noaa.gov
+#SBATCH --output=compute_advanced_gridded_scores_%A_%a.out
+
+module load cuda/10.1
+source /scratch2/BMC/gsd-hpcs/Jebb.Q.Stewart/conda3.7/etc/profile.d/conda.csh
+conda activate base
+
+set CODE_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_standalone/ml4convection"
+set TOP_MODEL_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_models/lf_experiment01"
+
+set LOSS_FUNCTION_NAMES=("csi-0.0000d-0.0125d" "csi-0.0250d-0.0500d" "csi-0.1000d-0.2000d" "csi-0.4000d-0.8000d")
+set loss_function_name=${LOSS_FUNCTION_NAMES[$SLURM_ARRAY_TASK_ID]}
+
+set top_model_dir_name="${TOP_MODEL_DIR_NAME}/${loss_function_name}"
+set model_file_names={${top_model_dir_name}/model*.h5}
+set model_file_name=${model_file_names[${#model_file_names}]}
+set model_dir_name=`echo $model_file_name | rev | cut -c 4- | rev`
+set evaluation_dir_name="${model_dir_name}/validation/full_grids/evaluation/matching_distance_px=4.000000"
+
+python3 -u "${CODE_DIR_NAME}/compute_advanced_scores_gridded.py" \
+--input_basic_score_dir_name="${evaluation_dir_name}" \
+--first_date_string="20170101" \
+--last_date_string="20171224" \
+--num_subgrids_per_dim=4 \
+--output_dir_name="${evaluation_dir_name}"
