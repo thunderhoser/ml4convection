@@ -29,7 +29,7 @@ set CODE_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_stan
 set TOP_TARGET_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_project/targets/new_echo_classification/no_tracking/omit_north_radar/full_grids"
 set TOP_MODEL_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_models/lf_experiment01"
 
-set LOSS_FUNCTION_NAMES=("csi-0.0000d-0.0125d" "csi-0.0250d-0.0500d" "csi-0.1000d-0.2000d" "csi-0.4000d-0.8000d")
+set LOSS_FUNCTION_NAMES=("csi-neigh0" "csi-neigh2" "csi-neigh4" "csi-neigh8")
 set loss_function_name=${LOSS_FUNCTION_NAMES[$SLURM_ARRAY_TASK_ID]}
 
 set top_model_dir_name="${TOP_MODEL_DIR_NAME}/${loss_function_name}"
