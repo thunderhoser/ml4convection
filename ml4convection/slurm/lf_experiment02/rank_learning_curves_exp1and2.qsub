@@ -30,4 +30,5 @@ set EXPERIMENT2_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convecti
 
 python3 -u "${CODE_DIR_NAME}/rank_learning_curves_exp1and2.py" \
 --input_experiment1_dir_name="${EXPERIMENT1_DIR_NAME}" \
---input_experiment2_dir_name="${EXPERIMENT2_DIR_NAME}"
+--input_experiment2_dir_name="${EXPERIMENT2_DIR_NAME}" \
+--output_dir_name="${EXPERIMENT2_DIR_NAME}/hyperparam_grids"
