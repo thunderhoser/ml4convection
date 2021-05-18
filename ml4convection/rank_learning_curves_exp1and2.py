@@ -267,6 +267,12 @@ def _plot_scores_on_grid(score_values, min_colour_value, max_colour_value,
 
     num_unique_scores = len(numpy.unique(neigh_score_names))
     num_unique_widths = len(numpy.unique(neigh_half_widths_px))
+    neigh_half_width_matrix_px = numpy.reshape(
+        neigh_half_widths_px, (num_unique_scores, num_unique_widths)
+    )
+    neigh_score_name_matrix = numpy.reshape(
+        neigh_score_names, (num_unique_scores, num_unique_widths)
+    )
     neigh_score_matrix = numpy.reshape(
         neigh_score_values, (num_unique_scores, num_unique_widths)
     )
@@ -289,11 +295,12 @@ def _plot_scores_on_grid(score_values, min_colour_value, max_colour_value,
         dtype=float
     )
 
-    x_tick_labels = ['{0:d}'.format(2 * w + 1) for w in neigh_half_widths_px]
-    y_tick_labels = ['{0:s}'.format(s) for s in neigh_score_names]
-
-    print(x_tick_labels)
-    print(y_tick_labels)
+    x_tick_labels = [
+        '{0:d}'.format(2 * w + 1) for w in neigh_half_width_matrix_px[0, :]
+    ]
+    y_tick_labels = [
+        '{0:s}'.format(s) for s in neigh_score_name_matrix[:, 0]
+    ]
 
     pyplot.xticks(x_tick_values, x_tick_labels)
     pyplot.yticks(y_tick_values, y_tick_labels)
@@ -331,6 +338,15 @@ def _plot_scores_on_grid(score_values, min_colour_value, max_colour_value,
 
     num_unique_scores = len(numpy.unique(fourier_score_names))
     num_unique_bands = len(numpy.unique(fourier_min_resolutions_deg))
+    fourier_min_res_matrix_deg = numpy.reshape(
+        fourier_min_resolutions_deg, (num_unique_scores, num_unique_bands)
+    )
+    fourier_max_res_matrix_deg = numpy.reshape(
+        fourier_max_resolutions_deg, (num_unique_scores, num_unique_bands)
+    )
+    fourier_score_name_matrix = numpy.reshape(
+        fourier_score_names, (num_unique_scores, num_unique_bands)
+    )
     fourier_score_matrix = numpy.reshape(
         fourier_score_values, (num_unique_scores, num_unique_bands)
     )
@@ -355,10 +371,10 @@ def _plot_scores_on_grid(score_values, min_colour_value, max_colour_value,
 
     x_tick_labels = [
         '[{0:.3g}, {1:.3g}]'.format(a, b) for a, b in
-        zip(fourier_min_resolutions_deg, fourier_max_resolutions_deg)
+        zip(fourier_min_res_matrix_deg[0, :], fourier_max_res_matrix_deg[0, :])
     ]
     x_tick_labels = [s.replace('inf]', r'$\infty$)') for s in x_tick_labels]
-    y_tick_labels = ['{0:s}'.format(s) for s in fourier_score_names]
+    y_tick_labels = ['{0:s}'.format(s) for s in fourier_score_name_matrix[:, 0]]
 
     print(x_tick_labels)
     print(y_tick_labels)
@@ -376,7 +392,7 @@ def _plot_scores_on_grid(score_values, min_colour_value, max_colour_value,
         colour_map_object=COLOUR_MAP_OBJECT,
         colour_norm_object=colour_norm_object,
         orientation_string='horizontal',
-        padding=0.125, extend_min=False, extend_max=False
+        padding=0.2, extend_min=False, extend_max=False
     )
 
     tick_values = colour_bar_object.get_ticks()
