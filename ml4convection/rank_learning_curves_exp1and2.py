@@ -291,8 +291,12 @@ def _plot_scores_on_grid(score_values, min_colour_value, max_colour_value,
 
     x_tick_labels = ['{0:d}'.format(2 * w + 1) for w in neigh_half_widths_px]
     y_tick_labels = ['{0:s}'.format(s) for s in neigh_score_names]
-    axes_object.set_xticks(x_tick_values, x_tick_labels)
-    axes_object.set_yticks(y_tick_values, y_tick_labels)
+
+    print(x_tick_labels)
+    print(y_tick_labels)
+
+    pyplot.xticks(x_tick_values, x_tick_labels)
+    pyplot.yticks(y_tick_values, y_tick_labels)
     axes_object.set_xlabel('Neighbourhood width for loss function (pixels)')
     axes_object.set_ylabel('Basic score for loss function')
     axes_object.set_title(title_string)
@@ -356,21 +360,29 @@ def _plot_scores_on_grid(score_values, min_colour_value, max_colour_value,
     x_tick_labels = [s.replace('inf]', r'$\infty$)') for s in x_tick_labels]
     y_tick_labels = ['{0:s}'.format(s) for s in fourier_score_names]
 
-    axes_object.set_xticks(x_tick_values, x_tick_labels)
-    axes_object.set_yticks(y_tick_values, y_tick_labels)
+    print(x_tick_labels)
+    print(y_tick_labels)
+
+    pyplot.xticks(x_tick_values, x_tick_labels, rotation=90.)
+    pyplot.yticks(y_tick_values, y_tick_labels)
     axes_object.set_xlabel('Fourier resolution band for loss function (deg)')
     axes_object.set_ylabel('Basic score for loss function')
-    axes_object.set_title(title_string)
 
     colour_norm_object = matplotlib.colors.Normalize(
         vmin=min_colour_value, vmax=max_colour_value, clip=False
     )
-    gg_plotting_utils.plot_colour_bar(
+    colour_bar_object = gg_plotting_utils.plot_colour_bar(
         axes_object_or_matrix=axes_object, data_matrix=fourier_score_matrix,
         colour_map_object=COLOUR_MAP_OBJECT,
         colour_norm_object=colour_norm_object,
-        orientation_string='horizontal', extend_min=False, extend_max=False
+        orientation_string='horizontal',
+        padding=0.125, extend_min=False, extend_max=False
     )
+
+    tick_values = colour_bar_object.get_ticks()
+    tick_strings = ['{0:.2g}'.format(v) for v in tick_values]
+    colour_bar_object.set_ticks(tick_values)
+    colour_bar_object.set_ticklabels(tick_strings)
 
     fourier_figure_file_name = '{0:s}_fourier{1:s}'.format(
         os.path.splitext(output_file_name)[0],
