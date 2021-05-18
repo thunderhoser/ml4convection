@@ -392,7 +392,7 @@ def _plot_scores_on_grid(score_values, min_colour_value, max_colour_value,
         colour_map_object=COLOUR_MAP_OBJECT,
         colour_norm_object=colour_norm_object,
         orientation_string='horizontal',
-        padding=0.2, extend_min=False, extend_max=False
+        padding=0.275, extend_min=False, extend_max=False
     )
 
     tick_values = colour_bar_object.get_ticks()
