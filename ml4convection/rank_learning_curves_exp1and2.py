@@ -600,7 +600,7 @@ def _run(experiment1_dir_name, experiment2_dir_name, output_dir_name):
         else:
             title_string = '{0:s}, {1:d}-by-{1:d}-pixel neigh'.format(
                 SCORE_KEY_TO_VERBOSE_DICT[score_keys[j]],
-                int(numpy.round(neigh_distances_px[j]))
+                2 * int(numpy.round(neigh_distances_px[j])) + 1
             )
             pathless_file_name = '{0:s}_neigh{1:02d}.jpg'.format(
                 score_keys[j],
