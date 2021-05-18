@@ -5,18 +5,40 @@ import sys
 import glob
 import argparse
 import numpy
+import matplotlib
+matplotlib.use('agg')
+import matplotlib.colors
+from matplotlib import pyplot
 
 THIS_DIRECTORY_NAME = os.path.dirname(os.path.realpath(
     os.path.join(os.getcwd(), os.path.expanduser(__file__))
 ))
 sys.path.append(os.path.normpath(os.path.join(THIS_DIRECTORY_NAME, '..')))
 
+import file_system_utils
+import gg_plotting_utils
+import imagemagick_utils
+import neural_net
 import learning_curves
 
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 
 TOLERANCE = 1e-6
 MAX_MAX_RESOLUTION_DEG = 1e9
+
+COLOUR_MAP_OBJECT = pyplot.get_cmap('cividis')
+FIGURE_WIDTH_INCHES = 15
+FIGURE_HEIGHT_INCHES = 15
+FIGURE_RESOLUTION_DPI = 300
+CONCAT_FIGURE_SIZE_PX = int(1e7)
+
+SCORE_NAME_TO_VERBOSE_DICT = {
+    neural_net.BRIER_SCORE_NAME: 'Brier',
+    neural_net.FSS_NAME: 'FSS',
+    neural_net.CSI_NAME: 'CSI',
+    neural_net.DICE_COEFF_NAME: 'Dice',
+    neural_net.ALL_CLASS_IOU_NAME: 'IOU'
+}
 
 EXP1_LOSS_FUNCTION_NAMES = [
     'brier_neigh0', 'brier_neigh1', 'brier_neigh2', 'brier_neigh3',
@@ -30,6 +52,10 @@ EXP1_LOSS_FUNCTION_NAMES = [
 ]
 
 EXP2_LOSS_FUNCTION_NAMES = [
+    'all-class-iou_neigh0', 'all-class-iou_neigh1',
+    'all-class-iou_neigh2', 'all-class-iou_neigh3',
+    'all-class-iou_neigh4', 'all-class-iou_neigh6',
+    'all-class-iou_neigh8', 'all-class-iou_neigh12',
     'brier_0.0000d_0.0125d', 'brier_0.0125d_0.0250d',
     'brier_0.0250d_0.0500d', 'brier_0.0500d_0.1000d',
     'brier_0.1000d_0.2000d', 'brier_0.2000d_0.4000d',
@@ -42,18 +68,14 @@ EXP2_LOSS_FUNCTION_NAMES = [
     'csi_0.0250d_0.0500d', 'csi_0.0500d_0.1000d',
     'csi_0.1000d_0.2000d', 'csi_0.2000d_0.4000d',
     'csi_0.4000d_0.8000d', 'csi_0.8000d_infd',
-    'all-class-iou_neigh0', 'all-class-iou_neigh1',
-    'all-class-iou_neigh2', 'all-class-iou_neigh3',
-    'all-class-iou_neigh4', 'all-class-iou_neigh6',
-    'all-class-iou_neigh8', 'all-class-iou_neigh12',
-    'all-class-iou_0.0000d_0.0125d', 'all-class-iou_0.0125d_0.0250d',
-    'all-class-iou_0.0250d_0.0500d', 'all-class-iou_0.0500d_0.1000d',
-    'all-class-iou_0.1000d_0.2000d', 'all-class-iou_0.2000d_0.4000d',
-    'all-class-iou_0.4000d_0.8000d', 'all-class-iou_0.8000d_infd',
     'dice_0.0000d_0.0125d', 'dice_0.0125d_0.0250d',
     'dice_0.0250d_0.0500d', 'dice_0.0500d_0.1000d',
     'dice_0.1000d_0.2000d', 'dice_0.2000d_0.4000d',
-    'dice_0.4000d_0.8000d', 'dice_0.8000d_infd'
+    'dice_0.4000d_0.8000d', 'dice_0.8000d_infd',
+    'all-class-iou_0.0000d_0.0125d', 'all-class-iou_0.0125d_0.0250d',
+    'all-class-iou_0.0250d_0.0500d', 'all-class-iou_0.0500d_0.1000d',
+    'all-class-iou_0.1000d_0.2000d', 'all-class-iou_0.2000d_0.4000d',
+    'all-class-iou_0.4000d_0.8000d', 'all-class-iou_0.8000d_infd'
 ]
 
 LOSS_FUNCTION_NAMES = EXP1_LOSS_FUNCTION_NAMES + EXP2_LOSS_FUNCTION_NAMES
@@ -83,8 +105,24 @@ NEGATIVELY_ORIENTED_KEYS = [
     learning_curves.FREQ_MSE_TOTAL_KEY
 ]
 
+SCORE_KEY_TO_VERBOSE_DICT = {
+    learning_curves.NEIGH_BRIER_SCORE_KEY: 'Brier score',
+    learning_curves.NEIGH_CSI_KEY: 'Crtiical success index (CSI)',
+    learning_curves.NEIGH_FSS_KEY: 'Fractions skill score (FSS)',
+    learning_curves.NEIGH_DICE_COEFF_KEY: 'Dice coefficient',
+    learning_curves.FOURIER_BRIER_SCORE_KEY: 'Brier score',
+    learning_curves.FOURIER_CSI_KEY: 'Crtiical success index (CSI)',
+    learning_curves.FOURIER_FSS_KEY: 'Fractions skill score (FSS)',
+    learning_curves.FOURIER_DICE_COEFF_KEY: 'Dice coefficient',
+    learning_curves.FREQ_MSE_REAL_KEY: 'MSE for real Fourier spectrum',
+    learning_curves.FREQ_MSE_IMAGINARY_KEY:
+        'MSE for imaginary Fourier spectrum',
+    learning_curves.FREQ_MSE_TOTAL_KEY: 'MSE for total Fourier spectrum'
+}
+
 EXPERIMENT1_DIR_ARG_NAME = 'input_experiment1_dir_name'
 EXPERIMENT2_DIR_ARG_NAME = 'input_experiment2_dir_name'
+OUTPUT_DIR_ARG_NAME = 'output_dir_name'
 
 EXPERIMENT1_DIR_HELP_STRING = (
     'Name of directory for Experiment 1, containing individual models in '
@@ -93,6 +131,9 @@ EXPERIMENT1_DIR_HELP_STRING = (
 EXPERIMENT2_DIR_HELP_STRING = (
     'Name of directory for Experiment 2, containing individual models in '
     'subdirectories.'
+)
+OUTPUT_DIR_HELP_STRING = (
+    'Name of output directory.  Figures will be saved here.'
 )
 
 INPUT_ARG_PARSER = argparse.ArgumentParser()
@@ -103,6 +144,10 @@ INPUT_ARG_PARSER.add_argument(
 INPUT_ARG_PARSER.add_argument(
     '--' + EXPERIMENT2_DIR_ARG_NAME, type=str, required=True,
     help=EXPERIMENT2_DIR_HELP_STRING
+)
+INPUT_ARG_PARSER.add_argument(
+    '--' + OUTPUT_DIR_ARG_NAME, type=str, required=True,
+    help=OUTPUT_DIR_HELP_STRING
 )
 
 
@@ -182,14 +227,194 @@ def _read_scores_one_model(
     return score_values
 
 
-def _run(experiment1_dir_name, experiment2_dir_name):
+def _plot_scores_on_grid(score_values, min_colour_value, max_colour_value,
+                         title_string, output_file_name):
+    """Plots values of one score on hyperparameter grid.
+
+    L = number of loss functions
+
+    :param score_values: length-L numpy array of values for the given score.
+    :param min_colour_value: Minimum value in colour bar.
+    :param max_colour_value: Max value in colour bar.
+    :param title_string: Figure title (will be printed above figure).
+    :param output_file_name: Path to output file.  Figure will be saved here.
+    """
+
+    param_dicts = [
+        neural_net.metric_name_to_params(n) for n in LOSS_FUNCTION_NAMES
+    ]
+
+    # Plot neighbourhood-based loss functions.
+    neigh_flags = numpy.array(
+        [d[neural_net.HALF_WINDOW_SIZE_KEY] is not None for d in param_dicts],
+        dtype=bool
+    )
+    neigh_indices = numpy.where(neigh_flags)[0]
+    neigh_param_dicts = [param_dicts[k] for k in neigh_indices]
+    neigh_score_values = score_values[neigh_indices]
+
+    neigh_half_widths_px = numpy.array([
+        d[neural_net.HALF_WINDOW_SIZE_KEY] for d in neigh_param_dicts
+    ])
+    neigh_half_widths_px = numpy.round(neigh_half_widths_px).astype(int)
+
+    neigh_score_names = [
+        d[neural_net.SCORE_NAME_KEY] for d in neigh_param_dicts
+    ]
+    neigh_score_names = numpy.array([
+        SCORE_NAME_TO_VERBOSE_DICT[n] for n in neigh_score_names
+    ])
+
+    num_unique_scores = len(numpy.unique(neigh_score_names))
+    num_unique_widths = len(numpy.unique(neigh_half_widths_px))
+    neigh_score_matrix = numpy.reshape(
+        neigh_score_values, (num_unique_scores, num_unique_widths)
+    )
+
+    figure_object, axes_object = pyplot.subplots(
+        1, 1, figsize=(FIGURE_WIDTH_INCHES, FIGURE_HEIGHT_INCHES)
+    )
+
+    axes_object.imshow(
+        neigh_score_matrix, cmap=COLOUR_MAP_OBJECT, origin='lower',
+        vmin=min_colour_value, vmax=max_colour_value
+    )
+
+    x_tick_values = numpy.linspace(
+        0, neigh_score_matrix.shape[1] - 1, num=neigh_score_matrix.shape[1],
+        dtype=float
+    )
+    y_tick_values = numpy.linspace(
+        0, neigh_score_matrix.shape[0] - 1, num=neigh_score_matrix.shape[0],
+        dtype=float
+    )
+
+    x_tick_labels = ['{0:d}'.format(2 * w + 1) for w in neigh_half_widths_px]
+    y_tick_labels = ['{0:s}'.format(s) for s in neigh_score_names]
+    axes_object.set_xticks(x_tick_values, x_tick_labels)
+    axes_object.set_yticks(y_tick_values, y_tick_labels)
+    axes_object.set_xlabel('Neighbourhood width for loss function (pixels)')
+    axes_object.set_ylabel('Basic score for loss function')
+    axes_object.set_title(title_string)
+
+    neigh_figure_file_name = '{0:s}_neigh{1:s}'.format(
+        os.path.splitext(output_file_name)[0],
+        os.path.splitext(output_file_name)[1]
+    )
+    figure_object.savefig(
+        neigh_figure_file_name, dpi=FIGURE_RESOLUTION_DPI,
+        pad_inches=0, bbox_inches='tight'
+    )
+    pyplot.close(figure_object)
+
+    # Plot Fourier-based loss functions.
+    fourier_indices = numpy.where(numpy.invert(neigh_flags))[0]
+    fourier_param_dicts = [param_dicts[k] for k in fourier_indices]
+    fourier_score_values = score_values[fourier_indices]
+
+    fourier_min_resolutions_deg = numpy.array([
+        d[neural_net.MIN_RESOLUTION_KEY] for d in fourier_param_dicts
+    ])
+    fourier_max_resolutions_deg = numpy.array([
+        d[neural_net.MAX_RESOLUTION_KEY] for d in fourier_param_dicts
+    ])
+    fourier_score_names = [
+        d[neural_net.SCORE_NAME_KEY] for d in fourier_param_dicts
+    ]
+    fourier_score_names = numpy.array([
+        SCORE_NAME_TO_VERBOSE_DICT[n] for n in fourier_score_names
+    ])
+
+    num_unique_scores = len(numpy.unique(fourier_score_names))
+    num_unique_bands = len(numpy.unique(fourier_min_resolutions_deg))
+    fourier_score_matrix = numpy.reshape(
+        fourier_score_values, (num_unique_scores, num_unique_bands)
+    )
+
+    figure_object, axes_object = pyplot.subplots(
+        1, 1, figsize=(FIGURE_WIDTH_INCHES, FIGURE_HEIGHT_INCHES)
+    )
+
+    axes_object.imshow(
+        fourier_score_matrix, cmap=COLOUR_MAP_OBJECT, origin='lower',
+        vmin=min_colour_value, vmax=max_colour_value
+    )
+
+    x_tick_values = numpy.linspace(
+        0, fourier_score_matrix.shape[1] - 1, num=fourier_score_matrix.shape[1],
+        dtype=float
+    )
+    y_tick_values = numpy.linspace(
+        0, fourier_score_matrix.shape[0] - 1, num=fourier_score_matrix.shape[0],
+        dtype=float
+    )
+
+    x_tick_labels = [
+        '[{0:.3g}, {1:.3g}]'.format(a, b) for a, b in
+        zip(fourier_min_resolutions_deg, fourier_max_resolutions_deg)
+    ]
+    x_tick_labels = [s.replace('inf]', r'$\infty$)') for s in x_tick_labels]
+    y_tick_labels = ['{0:s}'.format(s) for s in fourier_score_names]
+
+    axes_object.set_xticks(x_tick_values, x_tick_labels)
+    axes_object.set_yticks(y_tick_values, y_tick_labels)
+    axes_object.set_xlabel('Fourier resolution band for loss function (deg)')
+    axes_object.set_ylabel('Basic score for loss function')
+    axes_object.set_title(title_string)
+
+    colour_norm_object = matplotlib.colors.Normalize(
+        vmin=min_colour_value, vmax=max_colour_value, clip=False
+    )
+    gg_plotting_utils.plot_colour_bar(
+        axes_object_or_matrix=axes_object, data_matrix=fourier_score_matrix,
+        colour_map_object=COLOUR_MAP_OBJECT,
+        colour_norm_object=colour_norm_object,
+        orientation_string='horizontal', extend_min=False, extend_max=False
+    )
+
+    fourier_figure_file_name = '{0:s}_fourier{1:s}'.format(
+        os.path.splitext(output_file_name)[0],
+        os.path.splitext(output_file_name)[1]
+    )
+    figure_object.savefig(
+        fourier_figure_file_name, dpi=FIGURE_RESOLUTION_DPI,
+        pad_inches=0, bbox_inches='tight'
+    )
+    pyplot.close(figure_object)
+
+    # Concatenate the two figures.
+    print('Saving figure to: "{0:s}"...'.format(output_file_name))
+
+    imagemagick_utils.concatenate_images(
+        input_file_names=[neigh_figure_file_name, fourier_figure_file_name],
+        output_file_name=output_file_name,
+        num_panel_rows=2, num_panel_columns=1
+    )
+    os.remove(neigh_figure_file_name)
+    os.remove(fourier_figure_file_name)
+
+    imagemagick_utils.trim_whitespace(
+        input_file_name=output_file_name, output_file_name=output_file_name
+    )
+    imagemagick_utils.resize_image(
+        input_file_name=output_file_name, output_file_name=output_file_name,
+        output_size_pixels=CONCAT_FIGURE_SIZE_PX
+    )
+
+
+def _run(experiment1_dir_name, experiment2_dir_name, output_dir_name):
     """Ranks learning curves for Loss-function Experiments 1 and 2.
 
     This is effectively the main method.
 
     :param experiment1_dir_name: See documentation at top of file.
     :param experiment2_dir_name: Same.
+    :param output_dir_name: Same.
     """
+
+    file_system_utils.mkdir_recursive_if_necessary(
+        directory_name=output_dir_name
+    )
 
     neigh_score_key_matrix, neigh_distance_matrix_px = numpy.meshgrid(
         numpy.array(UNIQUE_NEIGH_SCORE_KEYS), UNIQUE_NEIGH_DISTANCES_PX
@@ -272,6 +497,39 @@ def _run(experiment1_dir_name, experiment2_dir_name):
 
         print(SEPARATOR_STRING)
 
+    for j in range(num_scores):
+        if numpy.isnan(neigh_distances_px[j]):
+            title_string = '{0:s}, band [{1:.3g}, {2:.3g}]'.format(
+                SCORE_KEY_TO_VERBOSE_DICT[score_keys[j]],
+                fourier_min_resolutions_deg[j],
+                fourier_max_resolutions_deg[j]
+            )
+            title_string = title_string.replace('inf]', r'$\infty$)')
+            title_string = title_string + r'$^{\circ}$'
+
+            pathless_file_name = '{0:s}_{1:.4f}d_{2:.4f}d.jpg'.format(
+                score_keys[j], fourier_min_resolutions_deg[j],
+                fourier_max_resolutions_deg[j]
+            )
+        else:
+            title_string = '{0:s}, {1:d}-by-{1:d}-pixel neigh'.format(
+                SCORE_KEY_TO_VERBOSE_DICT[score_keys[j]],
+                int(numpy.round(neigh_distances_px[j]))
+            )
+            pathless_file_name = '{0:s}_neigh{1:02d}.jpg'.format(
+                score_keys[j],
+                int(numpy.round(neigh_distances_px[j]))
+            )
+
+        _plot_scores_on_grid(
+            score_values=score_matrix[:, j],
+            min_colour_value=numpy.percentile(score_matrix[:, j], 1.),
+            max_colour_value=numpy.percentile(score_matrix[:, j], 99.),
+            title_string=title_string,
+            output_file_name=
+            '{0:s}/{1:s}'.format(output_dir_name, pathless_file_name)
+        )
+
 
 if __name__ == '__main__':
     INPUT_ARG_OBJECT = INPUT_ARG_PARSER.parse_args()
@@ -280,5 +538,8 @@ if __name__ == '__main__':
         experiment1_dir_name=getattr(
             INPUT_ARG_OBJECT, EXPERIMENT1_DIR_ARG_NAME
         ),
-        experiment2_dir_name=getattr(INPUT_ARG_OBJECT, EXPERIMENT2_DIR_ARG_NAME)
+        experiment2_dir_name=getattr(
+            INPUT_ARG_OBJECT, EXPERIMENT2_DIR_ARG_NAME
+        ),
+        output_dir_name=getattr(INPUT_ARG_OBJECT, OUTPUT_DIR_ARG_NAME)
     )
