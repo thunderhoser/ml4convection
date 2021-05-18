@@ -4,6 +4,7 @@ import os
 import sys
 import glob
 import argparse
+from PIL import Image
 import numpy
 import matplotlib
 matplotlib.use('agg')
@@ -376,29 +377,10 @@ def _plot_scores_on_grid(score_values, min_colour_value, max_colour_value,
     x_tick_labels = [s.replace('inf]', r'$\infty$)') for s in x_tick_labels]
     y_tick_labels = ['{0:s}'.format(s) for s in fourier_score_name_matrix[:, 0]]
 
-    print(x_tick_labels)
-    print(y_tick_labels)
-
     pyplot.xticks(x_tick_values, x_tick_labels, rotation=90.)
     pyplot.yticks(y_tick_values, y_tick_labels)
     axes_object.set_xlabel('Fourier resolution band for loss function (deg)')
     axes_object.set_ylabel('Basic score for loss function')
-
-    colour_norm_object = matplotlib.colors.Normalize(
-        vmin=min_colour_value, vmax=max_colour_value, clip=False
-    )
-    colour_bar_object = gg_plotting_utils.plot_colour_bar(
-        axes_object_or_matrix=axes_object, data_matrix=fourier_score_matrix,
-        colour_map_object=COLOUR_MAP_OBJECT,
-        colour_norm_object=colour_norm_object,
-        orientation_string='horizontal', fraction_of_axis_length=0.85,
-        padding=0.35, extend_min=False, extend_max=False
-    )
-
-    tick_values = colour_bar_object.get_ticks()
-    tick_strings = ['{0:.2g}'.format(v) for v in tick_values]
-    colour_bar_object.set_ticks(tick_values)
-    colour_bar_object.set_ticklabels(tick_strings)
 
     fourier_figure_file_name = '{0:s}_fourier{1:s}'.format(
         os.path.splitext(output_file_name)[0],
@@ -409,6 +391,18 @@ def _plot_scores_on_grid(score_values, min_colour_value, max_colour_value,
         pad_inches=0, bbox_inches='tight'
     )
     pyplot.close(figure_object)
+
+    colour_bar_file_name = '{0:s}_colour-bar{1:s}'.format(
+        os.path.splitext(output_file_name)[0],
+        os.path.splitext(output_file_name)[1]
+    )
+
+    _add_colour_bar(
+        figure_file_name=fourier_figure_file_name,
+        colour_map_object=COLOUR_MAP_OBJECT,
+        min_colour_value=min_colour_value, max_colour_value=max_colour_value,
+        colour_bar_file_name=colour_bar_file_name
+    )
 
     # Concatenate the two figures.
     print('Saving figure to: "{0:s}"...'.format(output_file_name))
@@ -427,6 +421,70 @@ def _plot_scores_on_grid(score_values, min_colour_value, max_colour_value,
     imagemagick_utils.resize_image(
         input_file_name=output_file_name, output_file_name=output_file_name,
         output_size_pixels=CONCAT_FIGURE_SIZE_PX
+    )
+
+
+def _add_colour_bar(
+        figure_file_name, colour_map_object, min_colour_value, max_colour_value,
+        colour_bar_file_name):
+    """Adds colour bar to saved image file.
+
+    :param figure_file_name: Path to saved image file.  Colour bar will be added
+        to this image.
+    :param colour_map_object: Colour scheme (instance of `matplotlib.pyplot.cm`
+        or similar).
+    :param min_colour_value: Minimum value in colour scheme.
+    :param max_colour_value: Max value in colour scheme.
+    :param colour_bar_file_name: Path to output file.  Image with colour bar
+        will be saved here.
+    """
+
+    this_image_matrix = Image.open(figure_file_name)
+    figure_width_px, figure_height_px = this_image_matrix.size
+    figure_width_inches = float(figure_width_px) / FIGURE_RESOLUTION_DPI
+    figure_height_inches = float(figure_height_px) / FIGURE_RESOLUTION_DPI
+
+    extra_figure_object, extra_axes_object = pyplot.subplots(
+        1, 1, figsize=(figure_width_inches, figure_height_inches)
+    )
+    extra_axes_object.axis('off')
+
+    colour_norm_object = matplotlib.colors.Normalize(
+        vmin=min_colour_value, vmax=max_colour_value, clip=False
+    )
+    dummy_values = numpy.array([min_colour_value, max_colour_value])
+
+    colour_bar_object = gg_plotting_utils.plot_colour_bar(
+        axes_object_or_matrix=extra_axes_object, data_matrix=dummy_values,
+        colour_map_object=colour_map_object,
+        colour_norm_object=colour_norm_object,
+        orientation_string='horizontal', extend_min=False, extend_max=False,
+        fraction_of_axis_length=1.25
+    )
+
+    tick_values = colour_bar_object.get_ticks()
+    tick_strings = ['{0:.2g}'.format(v) for v in tick_values]
+    colour_bar_object.set_ticks(tick_values)
+    colour_bar_object.set_ticklabels(tick_strings)
+
+    extra_figure_object.savefig(
+        colour_bar_file_name, dpi=FIGURE_RESOLUTION_DPI,
+        pad_inches=0, bbox_inches='tight'
+    )
+    pyplot.close(extra_figure_object)
+
+    print('Concatenating colour bar to: "{0:s}"...'.format(figure_file_name))
+
+    imagemagick_utils.concatenate_images(
+        input_file_names=[figure_file_name, colour_bar_file_name],
+        output_file_name=figure_file_name,
+        num_panel_rows=2, num_panel_columns=1,
+        extra_args_string='-gravity Center'
+    )
+
+    os.remove(colour_bar_file_name)
+    imagemagick_utils.trim_whitespace(
+        input_file_name=figure_file_name, output_file_name=figure_file_name
     )
 
 
