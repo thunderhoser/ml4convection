@@ -587,9 +587,11 @@ def _run(top_prediction_dir_names, model_descriptions_abbrev, valid_time_string,
             '{0:s}/predictions_{1:s}_radar.jpg'
         ).format(output_dir_name, valid_time_string)
 
-        print('Saving figure to file: "{0:s}"...'.format(panel_file_names[1]))
+        print('Saving figure to file: "{0:s}"...'.format(
+            panel_file_names[radar_panel_index]
+        ))
         figure_object.savefig(
-            panel_file_names[1], dpi=FIGURE_RESOLUTION_DPI,
+            panel_file_names[radar_panel_index], dpi=FIGURE_RESOLUTION_DPI,
             pad_inches=0, bbox_inches='tight'
         )
         pyplot.close(figure_object)
