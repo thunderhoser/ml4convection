@@ -2,6 +2,7 @@
 
 import unittest
 import numpy
+from ml4convection.machine_learning import neural_net
 from ml4convection.machine_learning import permutation
 
 TOLERANCE = 1e-6
@@ -9,6 +10,9 @@ TOLERANCE = 1e-6
 # The following constants are used to _permute_values and _depermute_values.
 PREDICTOR_MATRIX = numpy.random.uniform(low=0., high=1., size=(10, 205, 205, 7))
 CHANNEL_INDEX_TO_PERMUTE = 5
+DUMMY_DATA_OPTION_DICT = {
+    neural_net.INCLUDE_TIME_DIM_KEY: True
+}
 
 
 class PermutationTests(unittest.TestCase):
@@ -21,6 +25,7 @@ class PermutationTests(unittest.TestCase):
             permutation._permute_values(
                 predictor_matrix=PREDICTOR_MATRIX + 0.,
                 channel_index=CHANNEL_INDEX_TO_PERMUTE,
+                data_option_dict=DUMMY_DATA_OPTION_DICT,
                 permuted_example_indices=None
             )
         )
@@ -38,6 +43,7 @@ class PermutationTests(unittest.TestCase):
         newnew_predictor_matrix = permutation._permute_values(
             predictor_matrix=PREDICTOR_MATRIX + 0.,
             channel_index=CHANNEL_INDEX_TO_PERMUTE,
+            data_option_dict=DUMMY_DATA_OPTION_DICT,
             permuted_example_indices=permuted_example_indices
         )[0]
 
@@ -52,6 +58,7 @@ class PermutationTests(unittest.TestCase):
             permutation._permute_values(
                 predictor_matrix=PREDICTOR_MATRIX + 0.,
                 channel_index=CHANNEL_INDEX_TO_PERMUTE,
+                data_option_dict=DUMMY_DATA_OPTION_DICT,
                 permuted_example_indices=None
             )
         )
@@ -63,6 +70,7 @@ class PermutationTests(unittest.TestCase):
         new_predictor_matrix = permutation._depermute_values(
             predictor_matrix=new_predictor_matrix,
             channel_index=CHANNEL_INDEX_TO_PERMUTE,
+            data_option_dict=DUMMY_DATA_OPTION_DICT,
             permuted_example_indices=permuted_example_indices
         )
 

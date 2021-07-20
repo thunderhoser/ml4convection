@@ -807,7 +807,8 @@ BASIC_SCORE_TABLE_UNGRIDDED = xarray.Dataset(
 METADATA_DICT_ADVANCED_UNGRIDDED = {
     evaluation.PROBABILITY_THRESHOLD_DIM: PROB_THRESHOLDS,
     evaluation.RELIABILITY_BIN_DIM: RELIABILITY_BIN_INDICES,
-    evaluation.SINGLETON_DIM: numpy.array([0], dtype=int)
+    evaluation.SINGLETON_DIM: numpy.array([0], dtype=int),
+    evaluation.BOOTSTRAP_REPLICATE_DIM: numpy.array([0], dtype=int)
 }
 
 THIS_NUM_AO_TRUE_POS_MATRIX = numpy.sum(
@@ -852,30 +853,54 @@ THIS_BIAS_MATRIX = numpy.array([
     evaluation._get_frequency_bias(t) for t in THESE_CONTINGENCY_TABLES
 ])
 
-THESE_DIM = (evaluation.PROBABILITY_THRESHOLD_DIM,)
+THESE_DIM = (
+    evaluation.BOOTSTRAP_REPLICATE_DIM, evaluation.PROBABILITY_THRESHOLD_DIM
+)
 MAIN_DICT_ADVANCED_UNGRIDDED = {
-    evaluation.NUM_ACTUAL_ORIENTED_TP_KEY:
-        (THESE_DIM, THIS_NUM_AO_TRUE_POS_MATRIX + 0),
-    evaluation.NUM_PREDICTION_ORIENTED_TP_KEY:
-        (THESE_DIM, THIS_NUM_PO_TRUE_POS_MATRIX + 0),
-    evaluation.NUM_FALSE_POSITIVES_KEY:
-        (THESE_DIM, THIS_NUM_FALSE_POS_MATRIX + 0),
-    evaluation.NUM_FALSE_NEGATIVES_KEY:
-        (THESE_DIM, THIS_NUM_FALSE_NEG_MATRIX + 0),
-    evaluation.POD_KEY: (THESE_DIM, THIS_POD_MATRIX + 0.),
-    evaluation.SUCCESS_RATIO_KEY: (THESE_DIM, THIS_SUCCESS_RATIO_MATRIX + 0.),
-    evaluation.CSI_KEY: (THESE_DIM, THIS_CSI_MATRIX + 0.),
-    evaluation.FREQUENCY_BIAS_KEY: (THESE_DIM, THIS_BIAS_MATRIX + 0.)
+    evaluation.NUM_ACTUAL_ORIENTED_TP_KEY: (
+        THESE_DIM, numpy.expand_dims(THIS_NUM_AO_TRUE_POS_MATRIX, axis=0)
+    ),
+    evaluation.NUM_PREDICTION_ORIENTED_TP_KEY: (
+        THESE_DIM, numpy.expand_dims(THIS_NUM_PO_TRUE_POS_MATRIX, axis=0)
+    ),
+    evaluation.NUM_FALSE_POSITIVES_KEY: (
+        THESE_DIM, numpy.expand_dims(THIS_NUM_FALSE_POS_MATRIX, axis=0)
+    ),
+    evaluation.NUM_FALSE_NEGATIVES_KEY: (
+        THESE_DIM, numpy.expand_dims(THIS_NUM_FALSE_NEG_MATRIX, axis=0)
+    ),
+    evaluation.POD_KEY: (
+        THESE_DIM, numpy.expand_dims(THIS_POD_MATRIX, axis=0)
+    ),
+    evaluation.SUCCESS_RATIO_KEY: (
+        THESE_DIM, numpy.expand_dims(THIS_SUCCESS_RATIO_MATRIX, axis=0)
+    ),
+    evaluation.CSI_KEY: (
+        THESE_DIM, numpy.expand_dims(THIS_CSI_MATRIX, axis=0)
+    ),
+    evaluation.FREQUENCY_BIAS_KEY: (
+        THESE_DIM, numpy.expand_dims(THIS_BIAS_MATRIX, axis=0)
+    )
 }
+
+THESE_DIM = (evaluation.BOOTSTRAP_REPLICATE_DIM, evaluation.RELIABILITY_BIN_DIM)
+NEW_DICT = {
+    evaluation.BINNED_MEAN_PROBS_KEY: (
+        THESE_DIM,
+        numpy.expand_dims(MEAN_PROB_MATRIX_UNGRIDDED[0, ...], axis=0)
+    ),
+    evaluation.BINNED_EVENT_FREQS_KEY: (
+        THESE_DIM,
+        numpy.expand_dims(EVENT_FREQ_MATRIX_UNGRIDDED[0, ...], axis=0)
+    )
+}
+MAIN_DICT_ADVANCED_UNGRIDDED.update(NEW_DICT)
 
 THESE_DIM = (evaluation.RELIABILITY_BIN_DIM,)
 NEW_DICT = {
-    evaluation.BINNED_NUM_EXAMPLES_KEY:
-        (THESE_DIM, TOTAL_COUNT_MATRIX_UNGRIDDED[0, ...]),
-    evaluation.BINNED_MEAN_PROBS_KEY:
-        (THESE_DIM, MEAN_PROB_MATRIX_UNGRIDDED[0, ...]),
-    evaluation.BINNED_EVENT_FREQS_KEY:
-        (THESE_DIM, EVENT_FREQ_MATRIX_UNGRIDDED[0, ...])
+    evaluation.BINNED_NUM_EXAMPLES_KEY: (
+        THESE_DIM, TOTAL_COUNT_MATRIX_UNGRIDDED[0, ...]
+    ),
 }
 MAIN_DICT_ADVANCED_UNGRIDDED.update(NEW_DICT)
 
@@ -903,15 +928,31 @@ THIS_FSS = numpy.ravel(
 THIS_FSS_MATRIX = numpy.full(1, THIS_FSS)
 THIS_TRAINING_FREQ_MATRIX = numpy.full(1, TRAINING_EVENT_FREQUENCY)
 
+THESE_DIM = (evaluation.BOOTSTRAP_REPLICATE_DIM, evaluation.SINGLETON_DIM)
+NEW_DICT = {
+    evaluation.BRIER_SCORE_KEY: (
+        THESE_DIM, numpy.expand_dims(THIS_BRIER_SCORE_MATRIX, axis=0)
+    ),
+    evaluation.BRIER_SKILL_SCORE_KEY: (
+        THESE_DIM, numpy.expand_dims(THIS_BSS_MATRIX, axis=0)
+    ),
+    evaluation.RELIABILITY_KEY: (
+        THESE_DIM, numpy.expand_dims(THIS_RELIABILITY_MATRIX, axis=0)
+    ),
+    evaluation.RESOLUTION_KEY: (
+        THESE_DIM, numpy.expand_dims(THIS_RESOLUTION_MATRIX, axis=0)
+    ),
+    evaluation.FSS_KEY: (
+        THESE_DIM, numpy.expand_dims(THIS_FSS_MATRIX, axis=0)
+    )
+}
+MAIN_DICT_ADVANCED_UNGRIDDED.update(NEW_DICT)
+
 THESE_DIM = (evaluation.SINGLETON_DIM,)
 NEW_DICT = {
-    evaluation.BRIER_SCORE_KEY: (THESE_DIM, THIS_BRIER_SCORE_MATRIX + 0.),
-    evaluation.BRIER_SKILL_SCORE_KEY: (THESE_DIM, THIS_BSS_MATRIX + 0.),
-    evaluation.RELIABILITY_KEY: (THESE_DIM, THIS_RELIABILITY_MATRIX + 0.),
-    evaluation.RESOLUTION_KEY: (THESE_DIM, THIS_RESOLUTION_MATRIX + 0.),
-    evaluation.FSS_KEY: (THESE_DIM, THIS_FSS_MATRIX + 0.),
-    evaluation.TRAINING_EVENT_FREQ_KEY:
-        (THESE_DIM, THIS_TRAINING_FREQ_MATRIX + 0.)
+    evaluation.TRAINING_EVENT_FREQ_KEY: (
+        THESE_DIM, THIS_TRAINING_FREQ_MATRIX + 0.
+    )
 }
 MAIN_DICT_ADVANCED_UNGRIDDED.update(NEW_DICT)
 
@@ -1707,7 +1748,8 @@ class EvaluationTests(unittest.TestCase):
 
         this_score_table_xarray = evaluation.get_advanced_scores_ungridded(
             basic_score_table_xarray=BASIC_SCORE_TABLE_UNGRIDDED,
-            training_event_frequency=TRAINING_EVENT_FREQUENCY
+            training_event_frequency=TRAINING_EVENT_FREQUENCY,
+            num_bootstrap_reps=1
         )
 
         self.assertTrue(_compare_advanced_score_tables(
