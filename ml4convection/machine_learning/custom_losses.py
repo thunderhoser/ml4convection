@@ -1,6 +1,8 @@
 """Custom loss functions for Keras models."""
 
 import copy
+
+import keras.losses
 import numpy
 from tensorflow.keras import backend as K
 from gewittergefahr.gg_utils import error_checking
@@ -135,6 +137,54 @@ def fractions_skill_score(
             return actual_mse / reference_mse
 
         return 1. - actual_mse / reference_mse
+
+    if function_name is not None:
+        loss.__name__ = function_name
+
+    return loss
+
+
+def cross_entropy(mask_matrix, function_name=None):
+    """Cross-entropy.
+
+    M = number of rows in grid
+    N = number of columns in grid
+
+    :param mask_matrix: M-by-N numpy array of Boolean flags.  Grid cells marked
+        "False" are masked out and not used to compute the loss.
+    :param function_name: Function name (string).
+    :return: loss: Loss function (defined below).
+    """
+
+    error_checking.assert_is_boolean_numpy_array(mask_matrix)
+    error_checking.assert_is_numpy_array(mask_matrix, num_dimensions=2)
+
+    if function_name is not None:
+        error_checking.assert_is_string(function_name)
+
+    mask_matrix_4d = copy.deepcopy(mask_matrix)
+    mask_matrix_4d = numpy.expand_dims(
+        mask_matrix_4d.astype(float), axis=(0, -1)
+    )
+
+    def loss(target_tensor, prediction_tensor):
+        """Computes loss (cross-entropy).
+
+        :param target_tensor: Tensor of target (actual) values.
+        :param prediction_tensor: Tensor of predicted values.
+        :return: loss: Fractions skill score.
+        """
+
+        filtered_target_tensor = target_tensor * mask_matrix_4d
+        filtered_prediction_tensor = prediction_tensor * mask_matrix_4d
+
+        xentropy_tensor = (
+            filtered_target_tensor * _log2(filtered_prediction_tensor) +
+            (1. - filtered_target_tensor) *
+            _log2(1. - filtered_prediction_tensor)
+        )
+
+        return -K.mean(xentropy_tensor)
 
     if function_name is not None:
         loss.__name__ = function_name

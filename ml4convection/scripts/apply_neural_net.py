@@ -191,7 +191,7 @@ def _apply_to_partial_grids_one_day(
         )
 
         these_percentiles = numpy.array(
-            [50, 75, 90, 95, 96, 97, 98, 99, 100], dtype=float
+            [0, 50, 75, 90, 95, 96, 97, 98, 99, 100], dtype=float
         )
         print(numpy.percentile(forecast_probability_matrix, these_percentiles))
 

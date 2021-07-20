@@ -160,8 +160,16 @@ PREDICTION_MATRIX_FOR_XENTROPY = numpy.array([
     0, 1, 0.5, 1, 1, 0.5, 0, 1, 0.5, 0.5
 ])
 
+MASK_MATRIX_FOR_ENTROPY = numpy.full(
+    TARGET_MATRIX_FOR_XENTROPY.shape, True, dtype=bool
+)
+MASK_MATRIX_FOR_ENTROPY = numpy.expand_dims(MASK_MATRIX_FOR_ENTROPY, axis=0)
+
 TARGET_TENSOR_FOR_XENTROPY = tensorflow.constant(
     TARGET_MATRIX_FOR_XENTROPY, dtype=tensorflow.float32
+)
+TARGET_TENSOR_FOR_XENTROPY = tensorflow.expand_dims(
+    TARGET_TENSOR_FOR_XENTROPY, 0
 )
 TARGET_TENSOR_FOR_XENTROPY = tensorflow.expand_dims(
     TARGET_TENSOR_FOR_XENTROPY, 0
@@ -172,6 +180,9 @@ TARGET_TENSOR_FOR_XENTROPY = tensorflow.expand_dims(
 
 PREDICTION_TENSOR_FOR_XENTROPY = tensorflow.constant(
     PREDICTION_MATRIX_FOR_XENTROPY, dtype=tensorflow.float32
+)
+PREDICTION_TENSOR_FOR_XENTROPY = tensorflow.expand_dims(
+    PREDICTION_TENSOR_FOR_XENTROPY, 0
 )
 PREDICTION_TENSOR_FOR_XENTROPY = tensorflow.expand_dims(
     PREDICTION_TENSOR_FOR_XENTROPY, 0
@@ -295,6 +306,23 @@ class CustomLossesTests(unittest.TestCase):
 
         self.assertTrue(numpy.isclose(
             this_xentropy, SECOND_XENTROPY, atol=TOLERANCE
+        ))
+
+    def test_cross_entropy_size0(self):
+        """Ensures correct output from cross_entropy.
+
+        In this case, half-window size is 0 grid cells (window is 1 x 1).
+        """
+
+        this_loss_function = custom_losses.cross_entropy(
+            mask_matrix=MASK_MATRIX_FOR_ENTROPY
+        )
+        this_xentropy = K.eval(this_loss_function(
+            TARGET_TENSOR_FOR_XENTROPY, PREDICTION_TENSOR_FOR_XENTROPY
+        ))
+
+        self.assertTrue(numpy.isclose(
+            this_xentropy, FIRST_XENTROPY, atol=TOLERANCE
         ))
 
 
