@@ -224,18 +224,21 @@ def _run(experiment_dir_name, matching_distance_px, output_dir_name):
 
                 aupd_matrix[i, j, k] = (
                     gg_model_eval.get_area_under_perf_diagram(
-                        pod_by_threshold=t[evaluation.POD_KEY].values,
-                        success_ratio_by_threshold=
-                        t[evaluation.SUCCESS_RATIO_KEY].values
+                        pod_by_threshold=numpy.mean(
+                            t[evaluation.POD_KEY].values, axis=0
+                        ),
+                        success_ratio_by_threshold=numpy.mean(
+                            t[evaluation.SUCCESS_RATIO_KEY].values, axis=0
+                        )
                     )
                 )
 
                 max_csi_matrix[i, j, k] = numpy.nanmax(
-                    t[evaluation.CSI_KEY].values
+                    numpy.mean(t[evaluation.CSI_KEY].values, axis=0)
                 )
-                fss_matrix[i, j, k] = t[evaluation.FSS_KEY].values[0]
-                bss_matrix[i, j, k] = (
-                    t[evaluation.BRIER_SKILL_SCORE_KEY].values[0]
+                fss_matrix[i, j, k] = numpy.mean(t[evaluation.FSS_KEY].values)
+                bss_matrix[i, j, k] = numpy.mean(
+                    t[evaluation.BRIER_SKILL_SCORE_KEY].values
                 )
 
     print(SEPARATOR_STRING)
