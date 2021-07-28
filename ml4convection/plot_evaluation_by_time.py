@@ -155,6 +155,9 @@ def _plot_performance_diagrams(score_tables_xarray, confidence_level):
                 label_string[0].upper(), label_string[1:]
             )
 
+        print(these_success_ratios)
+        print(these_pod)
+
         real_indices = numpy.where(numpy.invert(numpy.logical_or(
             numpy.isnan(these_success_ratios), numpy.isnan(these_pod)
         )))[0]
