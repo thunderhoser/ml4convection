@@ -13,7 +13,8 @@ import file_system_utils
 import imagemagick_utils
 
 CONVERT_EXE_NAME = '/usr/bin/convert'
-TITLE_FONT_SIZE = 200
+PANEL_LETTER_FONT_SIZE = 200
+MODEL_DESCRIPTION_FONT_SIZE = 300
 TITLE_FONT_NAME = 'DejaVu-Sans-Bold'
 
 PANEL_SIZE_PX = int(5e6)
@@ -54,22 +55,28 @@ INPUT_ARG_PARSER.add_argument(
 
 def _overlay_text(
         image_file_name, x_offset_from_left_px, y_offset_from_top_px,
-        text_string):
+        text_string, font_size, use_north_gravity):
     """Overlays text on image.
 
     :param image_file_name: Path to image file.
     :param x_offset_from_left_px: Left-relative x-coordinate (pixels).
     :param y_offset_from_top_px: Top-relative y-coordinate (pixels).
     :param text_string: String to overlay.
+    :param font_size: Font size.
+    :param use_north_gravity: Boolean flag.
     :raises: ValueError: if ImageMagick command (which is ultimately a Unix
         command) fails.
     """
 
-    command_string = (
-        '"{0:s}" "{1:s}" -pointsize {2:d} -font "{3:s}" '
-        '-fill "rgb(0, 0, 0)" -annotate {4:+d}{5:+d} "{6:s}" "{1:s}"'
+    command_string = '"{0:s}" "{1:s}"'.format(CONVERT_EXE_NAME, image_file_name)
+    if use_north_gravity:
+        command_string += ' -gravity North'
+
+    command_string += (
+        ' -pointsize {0:d} -font "{1:s}" '
+        '-fill "rgb(0, 0, 0)" -annotate {2:+d}{3:+d} "{4:s}" "{5:s}"'
     ).format(
-        CONVERT_EXE_NAME, image_file_name, TITLE_FONT_SIZE, TITLE_FONT_NAME,
+        font_size, TITLE_FONT_NAME,
         x_offset_from_left_px, y_offset_from_top_px, text_string
     )
 
@@ -149,7 +156,8 @@ def _run(input_dir_names, model_description_strings, output_dir_name):
             _overlay_text(
                 image_file_name=resized_panel_file_names[k],
                 x_offset_from_left_px=0, y_offset_from_top_px=225,
-                text_string='({0:s})'.format(letter_label)
+                text_string='({0:s})'.format(letter_label),
+                font_size=PANEL_LETTER_FONT_SIZE, use_north_gravity=False
             )
 
             if i == 0:
@@ -161,7 +169,9 @@ def _run(input_dir_names, model_description_strings, output_dir_name):
                 _overlay_text(
                     image_file_name=resized_panel_file_names[k],
                     x_offset_from_left_px=0, y_offset_from_top_px=250,
-                    text_string=model_description_strings[j]
+                    text_string=model_description_strings[j],
+                    font_size=MODEL_DESCRIPTION_FONT_SIZE,
+                    use_north_gravity=True
                 )
 
             imagemagick_utils.trim_whitespace(
