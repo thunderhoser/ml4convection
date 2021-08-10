@@ -307,21 +307,22 @@ def _run(lead_times_minutes, u_net_eval_file_names, persistence_eval_file_names,
     error_checking.assert_is_less_than(confidence_level, 1.)
     file_system_utils.mkdir_recursive_if_necessary(file_name=output_file_name)
 
+    if numpy.any(lead_times_minutes == 0):
+        zero_index = numpy.where(lead_times_minutes == 0)[0][0]
+        persistence_eval_file_names.insert(zero_index, None)
+
+        persistence_prob_thresholds = persistence_prob_thresholds.tolist()
+        persistence_prob_thresholds.insert(zero_index, numpy.nan)
+        persistence_prob_thresholds = numpy.array(persistence_prob_thresholds)
+
     sort_indices = numpy.argsort(lead_times_minutes)
     lead_times_minutes = lead_times_minutes[sort_indices]
     u_net_eval_file_names = [u_net_eval_file_names[k] for k in sort_indices]
     persistence_eval_file_names = [
-        persistence_eval_file_names[k] if lead_times_minutes[k] > 0 else None
-        for k in sort_indices
+        persistence_eval_file_names[k] for k in sort_indices
     ]
     u_net_prob_thresholds = u_net_prob_thresholds[sort_indices]
-    persistence_prob_thresholds = [
-        persistence_prob_thresholds[k] if lead_times_minutes[k] > 0
-        else numpy.nan
-        for k in sort_indices
-    ]
-
-    persistence_prob_thresholds = numpy.array(persistence_prob_thresholds)
+    persistence_prob_thresholds = persistence_prob_thresholds[sort_indices]
 
     # Do actual stuff.
     u_net_csi_matrix = None
