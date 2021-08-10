@@ -1,6 +1,6 @@
 #!/bin/tcsh
 
-#SBATCH --job-name="make_eval_figures_gridded_60min"
+#SBATCH --job-name="make_eval_figures_gridded_30min"
 #SBATCH --partition="fge"
 #SBATCH --account="rda-ghpcs"
 #SBATCH --qos="batch"
@@ -18,32 +18,28 @@
 ##SBATCH --exclude=h29n01,h26n05,h28n06,h29n07,h30n03,h30n15
 #SBATCH --mail-type=BEGIN,END,FAIL
 #SBATCH --mail-user=ryan.lagerquist@noaa.gov
-#SBATCH --output=make_eval_figures_gridded_60min_%A.out
+#SBATCH --output=make_eval_figures_gridded_30min_%A.out
 
 module load cuda/10.1
 source /scratch2/BMC/gsd-hpcs/Jebb.Q.Stewart/conda3.7/etc/profile.d/conda.csh
 conda activate base
 
 set CODE_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_standalone/ml4convection"
-set TOP_U_NET_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_models/experiment13c/vanilla"
-set TOP_PERSISTENCE_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_models/experiment13c/persistence_model"
-set TOP_OUTPUT_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_project/journal_paper/60minute_models/gridded_comparison"
+set TOP_U_NET_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_models/experiment13b"
+set TOP_PERSISTENCE_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_models/experiment13b/persistence_model"
+set TOP_OUTPUT_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_project/journal_paper/30minute_models/gridded_comparison"
 
-set BATCH_SIZES=(60)
 set L2_WEIGHTS=(0.0000031623)
-set LAG_TIME_STRINGS_DASHED=("0-1200-2400")
+set LAG_TIME_STRINGS_DASHED=("0-1200-2400-3600")
 
-set batch_size=${BATCH_SIZES[1]}
 set l2_weight=${L2_WEIGHTS[1]}
 set lag_time_string_dashed=${LAG_TIME_STRINGS_DASHED[1]}
-
-set batch_size_string=`printf "%02d" $batch_size`
 set l2_weight_string=`printf "%.10f" $l2_weight`
 
-set u_net_dir_name="${TOP_U_NET_DIR_NAME}/batch-size=${batch_size_string}_l2-weight=${l2_weight_string}_lag-times-sec=${lag_time_string_dashed}"
+set u_net_dir_name="${TOP_U_NET_DIR_NAME}/l2-weight=${l2_weight_string}_lag-times-sec=${lag_time_string_dashed}"
 set u_net_eval_dir_name="${u_net_dir_name}/testing/full_grids/evaluation/matching_distance_px=4.000000/advanced_scores_gridded=1"
 set persistence_eval_dir_name="${TOP_PERSISTENCE_DIR_NAME}/testing/smooth4/evaluation/matching_distance_px=4.000000/advanced_scores_gridded=1"
-set output_dir_name="${TOP_OUTPUT_DIR_NAME}/batch-size=${batch_size_string}_l2-weight=${l2_weight_string}_lag-times-sec=${lag_time_string_dashed}"
+set output_dir_name="${TOP_OUTPUT_DIR_NAME}/l2-weight=${l2_weight_string}_lag-times-sec=${lag_time_string_dashed}"
 
 python3 -u "${CODE_DIR_NAME}/make_eval_figure_gridded_comparison.py" \
 --input_dir_names "${u_net_eval_dir_name}" "${persistence_eval_dir_name}" \
