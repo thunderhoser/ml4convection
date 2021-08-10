@@ -14,7 +14,7 @@ import imagemagick_utils
 
 CONVERT_EXE_NAME = '/usr/bin/convert'
 PANEL_LETTER_FONT_SIZE = 200
-MODEL_DESCRIPTION_FONT_SIZE = 300
+MODEL_DESCRIPTION_FONT_SIZE = 350
 TITLE_FONT_NAME = 'DejaVu-Sans-Bold'
 
 PANEL_SIZE_PX = int(5e6)
@@ -169,7 +169,7 @@ def _run(input_dir_names, model_description_strings, output_dir_name):
                 )
                 _overlay_text(
                     image_file_name=resized_panel_file_names[k],
-                    x_offset_from_left_px=0, y_offset_from_top_px=250,
+                    x_offset_from_left_px=0, y_offset_from_top_px=150,
                     text_string=model_description_strings[j],
                     font_size=MODEL_DESCRIPTION_FONT_SIZE,
                     use_north_gravity=True
