@@ -77,7 +77,8 @@ def _overlay_text(
         '-fill "rgb(0, 0, 0)" -annotate {2:+d}{3:+d} "{4:s}" "{5:s}"'
     ).format(
         font_size, TITLE_FONT_NAME,
-        x_offset_from_left_px, y_offset_from_top_px, text_string
+        x_offset_from_left_px, y_offset_from_top_px, text_string,
+        image_file_name
     )
 
     exit_code = os.system(command_string)
