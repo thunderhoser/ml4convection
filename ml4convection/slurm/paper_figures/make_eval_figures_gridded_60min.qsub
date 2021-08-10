@@ -12,14 +12,13 @@
 ##SBATCH --ntasks=1
 ##SBATCH --cpus-per-task=1
 ##SBATCH --ntasks-per-node=1
-#SBATCH --time=01:00:04
-#SBATCH --array=1-4
+#SBATCH --time=01:00:00
 #SBATCH --exclude=h28n12
 ##SBATCH --exclude=h31n03,h28n12
 ##SBATCH --exclude=h29n01,h26n05,h28n06,h29n07,h30n03,h30n15
 #SBATCH --mail-type=BEGIN,END,FAIL
 #SBATCH --mail-user=ryan.lagerquist@noaa.gov
-#SBATCH --output=make_eval_figures_gridded_%A_%a.out
+#SBATCH --output=make_eval_figures_gridded_%A.out
 
 module load cuda/10.1
 source /scratch2/BMC/gsd-hpcs/Jebb.Q.Stewart/conda3.7/etc/profile.d/conda.csh
@@ -30,13 +29,13 @@ set TOP_U_NET_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection
 set TOP_PERSISTENCE_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_models/experiment13c/persistence_model"
 set TOP_OUTPUT_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_project/journal_paper/60minute_models/gridded_comparison"
 
-set BATCH_SIZES=(60 60 60 60)
-set L2_WEIGHTS=(0.0000001000 0.0000010000 0.0000100000 0.0000031623)
-set LAG_TIME_STRINGS_DASHED=("0-1200" "0-1200" "0-1200-2400-3600" "0-1200-2400")
+set BATCH_SIZES=(60)
+set L2_WEIGHTS=(0.0000031623)
+set LAG_TIME_STRINGS_DASHED=("0-1200-2400")
 
-set batch_size=${BATCH_SIZES[$SLURM_ARRAY_TASK_ID]}
-set l2_weight=${L2_WEIGHTS[$SLURM_ARRAY_TASK_ID]}
-set lag_time_string_dashed=${LAG_TIME_STRINGS_DASHED[$SLURM_ARRAY_TASK_ID]}
+set batch_size=${BATCH_SIZES[1]}
+set l2_weight=${L2_WEIGHTS[1]}
+set lag_time_string_dashed=${LAG_TIME_STRINGS_DASHED[1]}
 
 set batch_size_string=`printf "%02d" $batch_size`
 set l2_weight_string=`printf "%.10f" $l2_weight`
