@@ -151,16 +151,20 @@ def _plot_performance_diagrams(score_tables_xarray, confidence_level):
             numpy.isnan(these_success_ratios), numpy.isnan(these_pod)
         )))[0]
 
-        interp_object = interp1d(
-            x=these_pod[real_indices], y=these_success_ratios[real_indices],
-            kind='linear', assume_sorted=False, bounds_error=False,
-            fill_value='extrapolate'
-        )
-
         label_y_coord = 1. - float(i) / (num_tables - 1)
 
         if label_y_coord > these_pod[real_indices][-1]:
-            label_x_coord = interp_object(label_y_coord)
+            if len(real_indices) > 1:
+                interp_object = interp1d(
+                    x=these_pod[real_indices],
+                    y=these_success_ratios[real_indices],
+                    kind='linear', assume_sorted=False, bounds_error=False,
+                    fill_value='extrapolate'
+                )
+                label_x_coord = interp_object(label_y_coord)
+            else:
+                label_y_coord = these_pod[real_indices][-1]
+                label_x_coord = these_success_ratios[real_indices][-1]
         else:
             label_y_coord = these_pod[real_indices][-1]
             label_x_coord = these_success_ratios[real_indices][-1]
@@ -239,16 +243,20 @@ def _plot_reliability_curves(score_tables_xarray, confidence_level):
             numpy.isnan(these_mean_probs), numpy.isnan(these_event_freqs)
         )))[0]
 
-        interp_object = interp1d(
-            x=these_mean_probs[real_indices], y=these_event_freqs[real_indices],
-            kind='linear', assume_sorted=True, bounds_error=False,
-            fill_value='extrapolate'
-        )
-
         label_x_coord = float(i) / (num_tables - 1)
 
         if label_x_coord < these_mean_probs[real_indices][-1]:
-            label_y_coord = interp_object(label_x_coord)
+            if len(real_indices) > 1:
+                interp_object = interp1d(
+                    x=these_mean_probs[real_indices],
+                    y=these_event_freqs[real_indices],
+                    kind='linear', assume_sorted=True, bounds_error=False,
+                    fill_value='extrapolate'
+                )
+                label_y_coord = interp_object(label_x_coord)
+            else:
+                label_x_coord = these_mean_probs[real_indices][-1]
+                label_y_coord = these_event_freqs[real_indices][-1]
         else:
             label_x_coord = these_mean_probs[real_indices][-1]
             label_y_coord = these_event_freqs[real_indices][-1]

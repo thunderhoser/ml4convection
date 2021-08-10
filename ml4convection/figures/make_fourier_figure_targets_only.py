@@ -63,7 +63,6 @@ pyplot.rc('figure', titlesize=FONT_SIZE)
 PREDICTION_DIR_ARG_NAME = 'input_prediction_dir_name'
 VALID_TIME_ARG_NAME = 'valid_time_string'
 RADAR_NUMBER_ARG_NAME = 'radar_number'
-PLOT_TARGETS_ARG_NAME = 'plot_targets'
 MIN_RESOLUTION_ARG_NAME = 'min_resolution_deg'
 MAX_RESOLUTION_ARG_NAME = 'max_resolution_deg'
 OUTPUT_DIR_ARG_NAME = 'output_dir_name'
@@ -80,7 +79,6 @@ RADAR_NUMBER_HELP_STRING = (
     'Radar number (non-negative integer).  This script handles only partial '
     'grids.'
 )
-PLOT_TARGETS_HELP_STRING = 'Boolean flag.  If 1 (0), will (not) plot targets.'
 MIN_RESOLUTION_HELP_STRING = (
     'Minimum spatial resolution to allow through band-pass filter.'
 )
@@ -103,10 +101,6 @@ INPUT_ARG_PARSER.add_argument(
 INPUT_ARG_PARSER.add_argument(
     '--' + RADAR_NUMBER_ARG_NAME, type=int, required=True,
     help=RADAR_NUMBER_HELP_STRING
-)
-INPUT_ARG_PARSER.add_argument(
-    '--' + PLOT_TARGETS_ARG_NAME, type=int, required=False, default=0,
-    help=PLOT_TARGETS_HELP_STRING
 )
 INPUT_ARG_PARSER.add_argument(
     '--' + MIN_RESOLUTION_ARG_NAME, type=float, required=True,
@@ -238,7 +232,7 @@ def _plot_fourier_weights(
     pyplot.close(figure_object)
 
 
-def _run(top_prediction_dir_name, valid_time_string, radar_number, plot_targets,
+def _run(top_prediction_dir_name, valid_time_string, radar_number,
          min_resolution_deg, max_resolution_deg, output_dir_name):
     """Makes schematic to show Fourier decomposition.
 
@@ -247,7 +241,6 @@ def _run(top_prediction_dir_name, valid_time_string, radar_number, plot_targets,
     :param top_prediction_dir_name: See documentation at top of file.
     :param valid_time_string: Same.
     :param radar_number: Same.
-    :param plot_targets: Same.
     :param min_resolution_deg: Same.
     :param max_resolution_deg: Same.
     :param output_dir_name: Same.
@@ -283,12 +276,14 @@ def _run(top_prediction_dir_name, valid_time_string, radar_number, plot_targets,
         desired_times_unix_sec=numpy.array([valid_time_unix_sec], dtype=int)
     )[0]
 
-    if not plot_targets:
-        prediction_dict[prediction_io.TARGET_MATRIX_KEY][:] = 0
-
     border_latitudes_deg_n, border_longitudes_deg_e = border_io.read_file()
 
     # Plot original predictions.
+    prediction_dict[prediction_io.PROBABILITY_MATRIX_KEY] = (
+        prediction_dict[prediction_io.TARGET_MATRIX_KEY].astype(float) + 0.
+    )
+    prediction_dict[prediction_io.TARGET_MATRIX_KEY][:] = 0
+
     mask_matrix = numpy.full(
         prediction_dict[prediction_io.TARGET_MATRIX_KEY].shape[1:],
         1, dtype=bool
@@ -476,20 +471,6 @@ def _run(top_prediction_dir_name, valid_time_string, radar_number, plot_targets,
             title_string='Windowed probability field', font_size=FONT_SIZE
         )
     )
-
-    if plot_targets:
-        target_contour_object = axes_object.contour(
-            prediction_dict[prediction_io.LONGITUDES_KEY],
-            prediction_dict[prediction_io.LATITUDES_KEY],
-            target_matrix, TARGET_CONTOUR_LEVELS,
-            cmap=TARGET_COLOUR_MAP_OBJECT,
-            vmin=numpy.min(TARGET_CONTOUR_LEVELS),
-            vmax=numpy.max(TARGET_CONTOUR_LEVELS),
-            linewidths=2, linestyles='solid', zorder=1e12
-        )
-        pyplot.clabel(
-            target_contour_object, inline=True, fmt='%.1g', fontsize=FONT_SIZE
-        )
 
     panel_file_names[6] = '{0:s}/windowed_field.jpg'.format(output_dir_name)
 
@@ -716,20 +697,6 @@ def _run(top_prediction_dir_name, valid_time_string, radar_number, plot_targets,
         )
     )
 
-    if plot_targets:
-        target_contour_object = axes_object.contour(
-            prediction_dict[prediction_io.LONGITUDES_KEY],
-            prediction_dict[prediction_io.LATITUDES_KEY],
-            target_matrix, TARGET_CONTOUR_LEVELS,
-            cmap=TARGET_COLOUR_MAP_OBJECT,
-            vmin=numpy.min(TARGET_CONTOUR_LEVELS),
-            vmax=numpy.max(TARGET_CONTOUR_LEVELS),
-            linewidths=2, linestyles='solid', zorder=1e12
-        )
-        pyplot.clabel(
-            target_contour_object, inline=True, fmt='%.1g', fontsize=FONT_SIZE
-        )
-
     panel_file_names[-1] = '{0:s}/filtered_field.jpg'.format(output_dir_name)
 
     print('Saving figure to file: "{0:s}"...'.format(panel_file_names[-1]))
@@ -790,7 +757,6 @@ if __name__ == '__main__':
         ),
         valid_time_string=getattr(INPUT_ARG_OBJECT, VALID_TIME_ARG_NAME),
         radar_number=getattr(INPUT_ARG_OBJECT, RADAR_NUMBER_ARG_NAME),
-        plot_targets=bool(getattr(INPUT_ARG_OBJECT, PLOT_TARGETS_ARG_NAME)),
         min_resolution_deg=getattr(INPUT_ARG_OBJECT, MIN_RESOLUTION_ARG_NAME),
         max_resolution_deg=getattr(INPUT_ARG_OBJECT, MAX_RESOLUTION_ARG_NAME),
         output_dir_name=getattr(INPUT_ARG_OBJECT, OUTPUT_DIR_ARG_NAME)

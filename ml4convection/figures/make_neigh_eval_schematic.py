@@ -48,6 +48,7 @@ COLOUR_NORM_OBJECT = matplotlib.colors.BoundaryNorm(
     boundaries=COLOUR_BOUNDS, ncolors=COLOUR_MAP_OBJECT.N
 )
 
+LABEL_FONT_SIZE = 75
 GRID_LINE_WIDTH = 2.
 GRID_LINE_COLOUR = numpy.full(3, 152. / 255)
 
@@ -132,6 +133,18 @@ def _plot_one_panel(
 
     y_forecast, x_forecast = numpy.where(mask_matrix == FORECAST_ENUM)
     y_actual, x_actual = numpy.where(mask_matrix == ACTUAL_ENUM)
+
+    axes_object.text(
+        x_actual - 0.5, y_actual + 0.5, 'A', color='k',
+        fontsize=LABEL_FONT_SIZE, fontweight='bold',
+        horizontalalignment='center', verticalalignment='center'
+    )
+
+    axes_object.text(
+        x_forecast - 0.5, y_forecast + 0.5, 'P', color='k',
+        fontsize=LABEL_FONT_SIZE, fontweight='bold',
+        horizontalalignment='center', verticalalignment='center'
+    )
 
     if actual_to_forecast:
         if use_square_neigh:

@@ -456,11 +456,14 @@ def _run(top_prediction_dir_names, model_descriptions_abbrev, valid_time_string,
     # Do actual stuff.
     border_latitudes_deg_n, border_longitudes_deg_e = border_io.read_file()
 
-    panel_letters = numpy.array([
+    panel_letters = [
         chr(ord('a') + k) for k in range(num_panels)
-    ])
+    ]
+    while len(panel_letters) < num_panel_rows * num_panel_columns:
+        panel_letters.append('')
+
     panel_letter_matrix = numpy.reshape(
-        panel_letters, (num_panel_rows, num_panel_columns),
+        numpy.array(panel_letters), (num_panel_rows, num_panel_columns),
         order='C' if row_major_flag else 'F'
     )
 
@@ -577,9 +580,11 @@ def _run(top_prediction_dir_names, model_descriptions_abbrev, valid_time_string,
             '{0:s}/predictions_{1:s}_radar.jpg'
         ).format(output_dir_name, valid_time_string)
 
-        print('Saving figure to file: "{0:s}"...'.format(panel_file_names[1]))
+        print('Saving figure to file: "{0:s}"...'.format(
+            panel_file_names[radar_panel_index]
+        ))
         figure_object.savefig(
-            panel_file_names[1], dpi=FIGURE_RESOLUTION_DPI,
+            panel_file_names[radar_panel_index], dpi=FIGURE_RESOLUTION_DPI,
             pad_inches=0, bbox_inches='tight'
         )
         pyplot.close(figure_object)

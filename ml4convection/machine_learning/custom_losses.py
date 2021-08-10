@@ -1,8 +1,6 @@
 """Custom loss functions for Keras models."""
 
 import copy
-
-import keras.losses
 import numpy
 from tensorflow.keras import backend as K
 from gewittergefahr.gg_utils import error_checking
