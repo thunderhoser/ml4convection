@@ -169,7 +169,7 @@ def _run(input_dir_names, model_description_strings, output_dir_name):
                 )
                 _overlay_text(
                     image_file_name=resized_panel_file_names[k],
-                    x_offset_from_left_px=0, y_offset_from_top_px=150,
+                    x_offset_from_left_px=0, y_offset_from_top_px=100,
                     text_string=model_description_strings[j],
                     font_size=MODEL_DESCRIPTION_FONT_SIZE,
                     use_north_gravity=True
