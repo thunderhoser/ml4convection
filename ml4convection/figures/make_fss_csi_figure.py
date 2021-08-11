@@ -18,10 +18,12 @@ MARKER_TYPE = 'o'
 MARKER_SIZE = 16
 LINE_WIDTH = 4
 
-U_NET_FSS_COLOUR = numpy.array([31, 120, 180], dtype=float) / 255
-PERSISTENCE_FSS_COLOUR = numpy.array([166, 206, 227], dtype=float) / 255
-U_NET_CSI_COLOUR = numpy.array([51, 160, 44], dtype=float) / 255
-PERSISTENCE_CSI_COLOUR = numpy.array([178, 223, 138], dtype=float) / 255
+GRID_LINE_WIDTH = 1.
+GRID_LINE_COLOUR = numpy.full(3, 0.)
+
+FSS_COLOUR = numpy.array([27, 158, 119], dtype=float) / 255
+CSI_COLOUR = numpy.array([217, 95, 2], dtype=float) / 255
+BSS_COLOUR = numpy.array([117, 112, 179], dtype=float) / 255
 POLYGON_OPACITY = 0.5
 
 FIGURE_WIDTH_INCHES = 15
@@ -93,8 +95,8 @@ INPUT_ARG_PARSER.add_argument(
 
 def _plot_figure(
         lead_times_minutes, u_net_csi_matrix, u_net_fss_matrix,
-        persistence_csi_matrix, persistence_fss_matrix, confidence_level,
-        output_file_name):
+        u_net_bss_matrix, persistence_csi_matrix, persistence_fss_matrix,
+        persistence_bss_matrix, confidence_level, output_file_name):
     """Plots figure showing CSI and FSS vs. lead time.
 
     T = number of lead times
@@ -103,8 +105,10 @@ def _plot_figure(
     :param lead_times_minutes: length-T numpy array of lead times.
     :param u_net_csi_matrix: T-by-B numpy array of CSI values.
     :param u_net_fss_matrix: T-by-B numpy array of FSS values.
+    :param u_net_bss_matrix: T-by-B numpy array of BSS values.
     :param persistence_csi_matrix: T-by-B numpy array of CSI values.
     :param persistence_fss_matrix: T-by-B numpy array of FSS values.
+    :param persistence_bss_matrix: T-by-B numpy array of BSS values.
     :param confidence_level: See documentation at top of file.
     :param output_file_name: Same.
     """
@@ -114,12 +118,12 @@ def _plot_figure(
         1, 1, figsize=(FIGURE_WIDTH_INCHES, FIGURE_HEIGHT_INCHES)
     )
 
-    # Plot FSS.
+    # Plot U-net FSS.
     this_handle = axes_object.plot(
         lead_times_minutes, numpy.mean(u_net_fss_matrix, axis=1),
-        color=U_NET_FSS_COLOUR, linewidth=LINE_WIDTH, marker=MARKER_TYPE,
-        markersize=MARKER_SIZE, markeredgewidth=0,
-        markerfacecolor=U_NET_FSS_COLOUR, markeredgecolor=U_NET_FSS_COLOUR
+        color=FSS_COLOUR, linewidth=LINE_WIDTH, linestyle='solid',
+        marker=MARKER_TYPE, markersize=MARKER_SIZE, markeredgewidth=0,
+        markerfacecolor=FSS_COLOUR, markeredgecolor=FSS_COLOUR
     )[0]
 
     legend_handles = [this_handle]
@@ -138,50 +142,18 @@ def _plot_figure(
             confidence_level=confidence_level, same_order=False
         )
 
-        polygon_colour = matplotlib.colors.to_rgba(
-            U_NET_FSS_COLOUR, POLYGON_OPACITY
-        )
+        polygon_colour = matplotlib.colors.to_rgba(FSS_COLOUR, POLYGON_OPACITY)
         patch_object = matplotlib.patches.Polygon(
             polygon_coord_matrix, lw=0, ec=polygon_colour, fc=polygon_colour
         )
         axes_object.add_patch(patch_object)
 
-    this_handle = axes_object.plot(
-        lead_times_minutes, numpy.mean(persistence_fss_matrix, axis=1),
-        color=PERSISTENCE_FSS_COLOUR, linewidth=LINE_WIDTH, marker=MARKER_TYPE,
-        markersize=MARKER_SIZE, markeredgewidth=0,
-        markerfacecolor=PERSISTENCE_FSS_COLOUR,
-        markeredgecolor=PERSISTENCE_FSS_COLOUR
-    )[0]
-
-    legend_handles.append(this_handle)
-    legend_strings.append('Persistence-model FSS')
-
-    if num_bootstrap_reps > 1:
-        x_value_matrix = numpy.expand_dims(lead_times_minutes, axis=-1)
-        x_value_matrix = numpy.repeat(
-            x_value_matrix, axis=-1, repeats=num_bootstrap_reps
-        )
-        polygon_coord_matrix = eval_plotting.confidence_interval_to_polygon(
-            x_value_matrix=numpy.transpose(x_value_matrix),
-            y_value_matrix=numpy.transpose(persistence_fss_matrix),
-            confidence_level=confidence_level, same_order=False
-        )
-
-        polygon_colour = matplotlib.colors.to_rgba(
-            PERSISTENCE_FSS_COLOUR, POLYGON_OPACITY
-        )
-        patch_object = matplotlib.patches.Polygon(
-            polygon_coord_matrix, lw=0, ec=polygon_colour, fc=polygon_colour
-        )
-        axes_object.add_patch(patch_object)
-
-    # Plot CSI.
+    # Plot U-net CSI.
     this_handle = axes_object.plot(
         lead_times_minutes, numpy.mean(u_net_csi_matrix, axis=1),
-        color=U_NET_CSI_COLOUR, linewidth=LINE_WIDTH, marker=MARKER_TYPE,
-        markersize=MARKER_SIZE, markeredgewidth=0,
-        markerfacecolor=U_NET_CSI_COLOUR, markeredgecolor=U_NET_CSI_COLOUR
+        color=CSI_COLOUR, linewidth=LINE_WIDTH, linestyle='solid',
+        marker=MARKER_TYPE, markersize=MARKER_SIZE, markeredgewidth=0,
+        markerfacecolor=CSI_COLOUR, markeredgecolor=CSI_COLOUR
     )[0]
 
     legend_handles.append(this_handle)
@@ -198,24 +170,78 @@ def _plot_figure(
             confidence_level=confidence_level, same_order=False
         )
 
-        polygon_colour = matplotlib.colors.to_rgba(
-            U_NET_CSI_COLOUR, POLYGON_OPACITY
-        )
+        polygon_colour = matplotlib.colors.to_rgba(CSI_COLOUR, POLYGON_OPACITY)
         patch_object = matplotlib.patches.Polygon(
             polygon_coord_matrix, lw=0, ec=polygon_colour, fc=polygon_colour
         )
         axes_object.add_patch(patch_object)
 
+    # Plot U-net BSS.
     this_handle = axes_object.plot(
-        lead_times_minutes, numpy.mean(persistence_csi_matrix, axis=1),
-        color=PERSISTENCE_CSI_COLOUR, linewidth=LINE_WIDTH, marker=MARKER_TYPE,
-        markersize=MARKER_SIZE, markeredgewidth=0,
-        markerfacecolor=PERSISTENCE_CSI_COLOUR,
-        markeredgecolor=PERSISTENCE_CSI_COLOUR
+        lead_times_minutes, numpy.mean(u_net_bss_matrix, axis=1),
+        color=BSS_COLOUR, linewidth=LINE_WIDTH, linestyle='solid',
+        marker=MARKER_TYPE, markersize=MARKER_SIZE, markeredgewidth=0,
+        markerfacecolor=BSS_COLOUR, markeredgecolor=BSS_COLOUR
     )[0]
 
     legend_handles.append(this_handle)
-    legend_strings.append('Persistence-model CSI')
+    legend_strings.append('U-net BSS')
+
+    if num_bootstrap_reps > 1:
+        x_value_matrix = numpy.expand_dims(lead_times_minutes, axis=-1)
+        x_value_matrix = numpy.repeat(
+            x_value_matrix, axis=-1, repeats=num_bootstrap_reps
+        )
+        polygon_coord_matrix = eval_plotting.confidence_interval_to_polygon(
+            x_value_matrix=numpy.transpose(x_value_matrix),
+            y_value_matrix=numpy.transpose(u_net_bss_matrix),
+            confidence_level=confidence_level, same_order=False
+        )
+
+        polygon_colour = matplotlib.colors.to_rgba(BSS_COLOUR, POLYGON_OPACITY)
+        patch_object = matplotlib.patches.Polygon(
+            polygon_coord_matrix, lw=0, ec=polygon_colour, fc=polygon_colour
+        )
+        axes_object.add_patch(patch_object)
+
+    # Plot persistence-model FSS.
+    this_handle = axes_object.plot(
+        lead_times_minutes, numpy.mean(persistence_fss_matrix, axis=1),
+        color=FSS_COLOUR, linewidth=LINE_WIDTH, linestyle='dashed',
+        marker=MARKER_TYPE, markersize=MARKER_SIZE, markeredgewidth=0,
+        markerfacecolor=FSS_COLOUR, markeredgecolor=FSS_COLOUR
+    )[0]
+
+    legend_handles.append(this_handle)
+    legend_strings.append('Persistence FSS')
+
+    if num_bootstrap_reps > 1:
+        x_value_matrix = numpy.expand_dims(lead_times_minutes, axis=-1)
+        x_value_matrix = numpy.repeat(
+            x_value_matrix, axis=-1, repeats=num_bootstrap_reps
+        )
+        polygon_coord_matrix = eval_plotting.confidence_interval_to_polygon(
+            x_value_matrix=numpy.transpose(x_value_matrix),
+            y_value_matrix=numpy.transpose(persistence_fss_matrix),
+            confidence_level=confidence_level, same_order=False
+        )
+
+        polygon_colour = matplotlib.colors.to_rgba(FSS_COLOUR, POLYGON_OPACITY)
+        patch_object = matplotlib.patches.Polygon(
+            polygon_coord_matrix, lw=0, ec=polygon_colour, fc=polygon_colour
+        )
+        axes_object.add_patch(patch_object)
+
+    # Plot persistence-model CSI.
+    this_handle = axes_object.plot(
+        lead_times_minutes, numpy.mean(persistence_csi_matrix, axis=1),
+        color=CSI_COLOUR, linewidth=LINE_WIDTH, linestyle='dashed',
+        marker=MARKER_TYPE, markersize=MARKER_SIZE, markeredgewidth=0,
+        markerfacecolor=CSI_COLOUR, markeredgecolor=CSI_COLOUR
+    )[0]
+
+    legend_handles.append(this_handle)
+    legend_strings.append('Persistence CSI')
 
     if num_bootstrap_reps > 1:
         x_value_matrix = numpy.expand_dims(lead_times_minutes, axis=-1)
@@ -228,13 +254,47 @@ def _plot_figure(
             confidence_level=confidence_level, same_order=False
         )
 
-        polygon_colour = matplotlib.colors.to_rgba(
-            PERSISTENCE_CSI_COLOUR, POLYGON_OPACITY
-        )
+        polygon_colour = matplotlib.colors.to_rgba(CSI_COLOUR, POLYGON_OPACITY)
         patch_object = matplotlib.patches.Polygon(
             polygon_coord_matrix, lw=0, ec=polygon_colour, fc=polygon_colour
         )
         axes_object.add_patch(patch_object)
+
+    # Plot persistence-model BSS.
+    this_handle = axes_object.plot(
+        lead_times_minutes, numpy.mean(persistence_bss_matrix, axis=1),
+        color=BSS_COLOUR, linewidth=LINE_WIDTH, linestyle='dashed',
+        marker=MARKER_TYPE, markersize=MARKER_SIZE, markeredgewidth=0,
+        markerfacecolor=BSS_COLOUR, markeredgecolor=BSS_COLOUR
+    )[0]
+
+    legend_handles.append(this_handle)
+    legend_strings.append('Persistence BSS')
+
+    if num_bootstrap_reps > 1:
+        x_value_matrix = numpy.expand_dims(lead_times_minutes, axis=-1)
+        x_value_matrix = numpy.repeat(
+            x_value_matrix, axis=-1, repeats=num_bootstrap_reps
+        )
+        polygon_coord_matrix = eval_plotting.confidence_interval_to_polygon(
+            x_value_matrix=numpy.transpose(x_value_matrix),
+            y_value_matrix=numpy.transpose(persistence_bss_matrix),
+            confidence_level=confidence_level, same_order=False
+        )
+
+        polygon_colour = matplotlib.colors.to_rgba(BSS_COLOUR, POLYGON_OPACITY)
+        patch_object = matplotlib.patches.Polygon(
+            polygon_coord_matrix, lw=0, ec=polygon_colour, fc=polygon_colour
+        )
+        axes_object.add_patch(patch_object)
+
+    axes_object.set_xticks(lead_times_minutes)
+    axes_object.set_xlabel('Lead time (minutes)')
+
+    axes_object.grid(
+        b=True, which='major', axis='y', linestyle='--',
+        linewidth=GRID_LINE_WIDTH, color=GRID_LINE_COLOUR
+    )
 
     axes_object.legend(
         legend_handles, legend_strings, loc='lower center',
@@ -299,27 +359,30 @@ def _run(lead_times_minutes, u_net_eval_file_names, persistence_eval_file_names,
     error_checking.assert_is_less_than(confidence_level, 1.)
     file_system_utils.mkdir_recursive_if_necessary(file_name=output_file_name)
 
+    if numpy.any(lead_times_minutes == 0):
+        zero_index = numpy.where(lead_times_minutes == 0)[0][0]
+        persistence_eval_file_names.insert(zero_index, None)
+
+        persistence_prob_thresholds = persistence_prob_thresholds.tolist()
+        persistence_prob_thresholds.insert(zero_index, numpy.nan)
+        persistence_prob_thresholds = numpy.array(persistence_prob_thresholds)
+
     sort_indices = numpy.argsort(lead_times_minutes)
     lead_times_minutes = lead_times_minutes[sort_indices]
     u_net_eval_file_names = [u_net_eval_file_names[k] for k in sort_indices]
     persistence_eval_file_names = [
-        persistence_eval_file_names[k] if lead_times_minutes[k] > 0 else None
-        for k in sort_indices
+        persistence_eval_file_names[k] for k in sort_indices
     ]
     u_net_prob_thresholds = u_net_prob_thresholds[sort_indices]
-    persistence_prob_thresholds = [
-        persistence_prob_thresholds[k] if lead_times_minutes[k] > 0
-        else numpy.nan
-        for k in sort_indices
-    ]
-
-    persistence_prob_thresholds = numpy.array(persistence_prob_thresholds)
+    persistence_prob_thresholds = persistence_prob_thresholds[sort_indices]
 
     # Do actual stuff.
     u_net_csi_matrix = None
     u_net_fss_matrix = None
+    u_net_bss_matrix = None
     persistence_csi_matrix = None
     persistence_fss_matrix = None
+    persistence_bss_matrix = None
 
     for i in range(num_lead_times):
         print('Reading data from: "{0:s}"...'.format(u_net_eval_file_names[i]))
@@ -340,13 +403,18 @@ def _run(lead_times_minutes, u_net_eval_file_names, persistence_eval_file_names,
 
             u_net_csi_matrix = numpy.full(these_dim, numpy.nan)
             u_net_fss_matrix = numpy.full(these_dim, numpy.nan)
+            u_net_bss_matrix = numpy.full(these_dim, numpy.nan)
             persistence_csi_matrix = numpy.full(these_dim, numpy.nan)
             persistence_fss_matrix = numpy.full(these_dim, numpy.nan)
+            persistence_bss_matrix = numpy.full(these_dim, numpy.nan)
 
         u_net_csi_matrix[i, :] = (
             et[evaluation.CSI_KEY].values[:, this_threshold_index]
         )
         u_net_fss_matrix[i, :] = et[evaluation.FSS_KEY].values[:, 0]
+        u_net_bss_matrix[i, :] = (
+            et[evaluation.BRIER_SKILL_SCORE_KEY].values[:, 0]
+        )
 
         if lead_times_minutes[i] == 0:
             continue
@@ -367,13 +435,18 @@ def _run(lead_times_minutes, u_net_eval_file_names, persistence_eval_file_names,
             et[evaluation.CSI_KEY].values[:, this_threshold_index]
         )
         persistence_fss_matrix[i, :] = et[evaluation.FSS_KEY].values[:, 0]
+        persistence_bss_matrix[i, :] = (
+            et[evaluation.BRIER_SKILL_SCORE_KEY].values[:, 0]
+        )
 
     _plot_figure(
         lead_times_minutes=lead_times_minutes,
         u_net_csi_matrix=u_net_csi_matrix,
         u_net_fss_matrix=u_net_fss_matrix,
+        u_net_bss_matrix=u_net_bss_matrix,
         persistence_csi_matrix=persistence_csi_matrix,
         persistence_fss_matrix=persistence_fss_matrix,
+        persistence_bss_matrix=persistence_bss_matrix,
         confidence_level=confidence_level,
         output_file_name=output_file_name
     )
