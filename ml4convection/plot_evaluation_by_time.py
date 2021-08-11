@@ -45,7 +45,7 @@ HISTOGRAM_FACE_COLOUR = numpy.full(3, 152. / 255)
 HISTOGRAM_FACE_COLOUR = matplotlib.colors.to_rgba(HISTOGRAM_FACE_COLOUR, 0.5)
 HISTOGRAM_EDGE_COLOUR = numpy.full(3, 152. / 255)
 
-LABEL_FONT_SIZE = 40
+LABEL_FONT_SIZE = 55
 LABEL_BOUNDING_BOX_DICT = {
     'alpha': 0.5, 'edgecolor': 'k', 'linewidth': 1
 }
@@ -131,15 +131,27 @@ def _plot_performance_diagrams(score_tables_xarray, confidence_level):
         these_success_ratios = numpy.nanmean(
             score_tables_xarray[i][evaluation.SUCCESS_RATIO_KEY].values, axis=0
         )
-        eval_plotting.plot_performance_diagram(
-            axes_object=axes_object,
-            pod_matrix=score_tables_xarray[i][evaluation.POD_KEY].values,
-            success_ratio_matrix=
-            score_tables_xarray[i][evaluation.SUCCESS_RATIO_KEY].values,
-            confidence_level=confidence_level,
-            line_colour=colour_matrix[i, ...],
-            plot_background=i == 0, plot_csi_in_grey=True
-        )
+
+        if confidence_level is None:
+            eval_plotting.plot_performance_diagram(
+                axes_object=axes_object,
+                pod_matrix=numpy.expand_dims(these_pod, axis=0),
+                success_ratio_matrix=
+                numpy.expand_dims(these_success_ratios, axis=0),
+                confidence_level=confidence_level,
+                line_colour=colour_matrix[i, ...],
+                plot_background=i == 0, plot_csi_in_grey=True
+            )
+        else:
+            eval_plotting.plot_performance_diagram(
+                axes_object=axes_object,
+                pod_matrix=score_tables_xarray[i][evaluation.POD_KEY].values,
+                success_ratio_matrix=
+                score_tables_xarray[i][evaluation.SUCCESS_RATIO_KEY].values,
+                confidence_level=confidence_level,
+                line_colour=colour_matrix[i, ...],
+                plot_background=i == 0, plot_csi_in_grey=True
+            )
 
         if num_tables == NUM_HOURS_PER_DAY:
             label_string = '{0:02d}'.format(i)
@@ -222,16 +234,30 @@ def _plot_reliability_curves(score_tables_xarray, confidence_level):
             score_tables_xarray[i][evaluation.BINNED_EVENT_FREQS_KEY].values,
             axis=0
         )
-        eval_plotting.plot_reliability_curve(
-            axes_object=axes_object,
-            mean_prediction_matrix=
-            score_tables_xarray[i][evaluation.BINNED_MEAN_PROBS_KEY].values,
-            mean_observation_matrix=
-            score_tables_xarray[i][evaluation.BINNED_EVENT_FREQS_KEY].values,
-            confidence_level=confidence_level,
-            min_value_to_plot=0., max_value_to_plot=1.,
-            line_colour=colour_matrix[i, ...], plot_background=i == 0
-        )
+
+        if confidence_level is None:
+            eval_plotting.plot_reliability_curve(
+                axes_object=axes_object,
+                mean_prediction_matrix=
+                numpy.expand_dims(these_mean_probs, axis=0),
+                mean_observation_matrix=
+                numpy.expand_dims(these_event_freqs, axis=0),
+                confidence_level=confidence_level,
+                min_value_to_plot=0., max_value_to_plot=1.,
+                line_colour=colour_matrix[i, ...], plot_background=i == 0
+            )
+        else:
+            eval_plotting.plot_reliability_curve(
+                axes_object=axes_object,
+                mean_prediction_matrix=
+                score_tables_xarray[i][evaluation.BINNED_MEAN_PROBS_KEY].values,
+                mean_observation_matrix=score_tables_xarray[i][
+                    evaluation.BINNED_EVENT_FREQS_KEY
+                ].values,
+                confidence_level=confidence_level,
+                min_value_to_plot=0., max_value_to_plot=1.,
+                line_colour=colour_matrix[i, ...], plot_background=i == 0
+            )
 
         if num_tables == NUM_HOURS_PER_DAY:
             label_string = '{0:02d}'.format(i)
@@ -571,7 +597,7 @@ def _run(input_dir_name, probability_threshold, confidence_level,
         # Plot hourly performance diagrams.
         figure_object, axes_object = _plot_performance_diagrams(
             score_tables_xarray=hourly_score_tables_xarray,
-            confidence_level=confidence_level
+            confidence_level=None
         )
         axes_object.set_title('Performance diagram by hour')
 
@@ -588,7 +614,7 @@ def _run(input_dir_name, probability_threshold, confidence_level,
         # Plot monthly performance diagrams.
         figure_object, axes_object = _plot_performance_diagrams(
             score_tables_xarray=monthly_score_tables_xarray,
-            confidence_level=confidence_level
+            confidence_level=None
         )
         axes_object.set_title('Performance diagram by month')
 
@@ -606,7 +632,7 @@ def _run(input_dir_name, probability_threshold, confidence_level,
         # Plot hourly reliability curves.
         figure_object, axes_object = _plot_reliability_curves(
             score_tables_xarray=hourly_score_tables_xarray,
-            confidence_level=confidence_level
+            confidence_level=None
         )
         axes_object.set_title('Reliability curve by hour')
 
@@ -624,7 +650,7 @@ def _run(input_dir_name, probability_threshold, confidence_level,
         # Plot monthly reliability curves.
         figure_object, axes_object = _plot_reliability_curves(
             score_tables_xarray=monthly_score_tables_xarray,
-            confidence_level=confidence_level
+            confidence_level=None
         )
         axes_object.set_title('Reliability curve by month')
 
