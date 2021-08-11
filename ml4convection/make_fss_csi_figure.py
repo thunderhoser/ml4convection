@@ -185,6 +185,8 @@ def _plot_figure(
         axes_object.add_patch(patch_object)
 
     # Plot U-net BSS.
+    print(numpy.mean(u_net_bss_matrix, axis=1))
+
     this_handle = axes_object.plot(
         lead_times_minutes, numpy.mean(u_net_bss_matrix, axis=1),
         color=BSS_COLOUR, linewidth=LINE_WIDTH, linestyle='solid',
