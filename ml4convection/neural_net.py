@@ -836,7 +836,8 @@ def metric_name_to_params(metric_name):
             SCORE_NAME_KEY: score_name,
             HALF_WINDOW_SIZE_KEY: half_window_size_px,
             MIN_RESOLUTION_KEY: None,
-            MAX_RESOLUTION_KEY: None
+            MAX_RESOLUTION_KEY: None,
+            'use_wavelets': use_wavelets
         }
 
     assert len(metric_name_parts) == 3 or len(metric_name_parts) == 4
