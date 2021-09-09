@@ -103,6 +103,8 @@ class DirWaveLayer2D(keras.layers.Layer):
 
         """
         self.bs, self.ox, self.oy, self.cn = batch.shape.as_list()
+        print(batch.shape.as_list())
+        print('\n\n\n***************************\n\n\n')
         if (self.bs is None) : self.bs = -1
         self.nx, self.ny = map(lambda x: math.ceil(x / 2), [self.ox, self.oy])
         self.qx, self.qy = map(lambda x: math.ceil(x / 2), [self.nx, self.ny])
