@@ -66,6 +66,9 @@ def _do_forward_transform(input_tensor, num_levels):
 
     dwt_object = WaveTFFactory().build('haar', dim=2)
     coeff_tensor_by_level = [None] * num_levels
+    print(input_tensor.shape)
+    print(tensorflow.shape(input_tensor))
+    print('\n\n\n*********\n\n\n')
 
     for k in range(num_levels):
         if k == 0:
