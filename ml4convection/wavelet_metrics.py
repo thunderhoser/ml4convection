@@ -52,22 +52,19 @@ def _check_score_name(score_name):
     raise ValueError(error_string)
 
 
-def _do_forward_transform(input_tensor):
+def _do_forward_transform(input_tensor, num_levels):
     """Does forward multi-level wavelet transform.
 
     K = number of levels in wavelet transform
 
     :param input_tensor: Input tensor, to which wavelet transform will be
         applied.
+    :param num_levels: K in the above discussion.
     :return: coeff_tensor_by_level: length-K list of tensors, each containing
         coefficients in format returned by WaveTF library.
     """
 
     dwt_object = WaveTFFactory().build('haar', dim=2)
-
-    num_levels = int(numpy.round(
-        numpy.log2(input_tensor.shape[1])
-    ))
     coeff_tensor_by_level = [None] * num_levels
 
     for k in range(num_levels):
@@ -174,7 +171,9 @@ def _filter_fields(
     target_tensor = K.spatial_2d_padding(
         target_tensor, padding=padding_arg, data_format='channels_last'
     )
-    coeff_tensor_by_level = _do_forward_transform(target_tensor)
+    coeff_tensor_by_level = _do_forward_transform(
+        input_tensor=target_tensor, num_levels=len(keep_mean_flags)
+    )
     coeff_tensor_by_level = _filter_wavelet_coeffs(
         coeff_tensor_by_level=coeff_tensor_by_level,
         keep_mean_flags=keep_mean_flags, keep_detail_flags=keep_detail_flags
@@ -188,7 +187,9 @@ def _filter_fields(
     prediction_tensor = K.spatial_2d_padding(
         prediction_tensor, padding=padding_arg, data_format='channels_last'
     )
-    coeff_tensor_by_level = _do_forward_transform(prediction_tensor)
+    coeff_tensor_by_level = _do_forward_transform(
+        input_tensor=prediction_tensor, num_levels=len(keep_mean_flags)
+    )
     coeff_tensor_by_level = _filter_wavelet_coeffs(
         coeff_tensor_by_level=coeff_tensor_by_level,
         keep_mean_flags=keep_mean_flags, keep_detail_flags=keep_detail_flags
