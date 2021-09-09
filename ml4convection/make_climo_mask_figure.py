@@ -398,21 +398,21 @@ def _run(climo_file_name, mask_file_name, output_dir_name):
     event_freq_matrix = pickle.load(climo_file_handle)
     climo_file_handle.close()
 
-    # climo_figure_file_name = '{0:s}/convection_frequency_climo.jpg'.format(
-    #     output_dir_name
-    # )
-    # _plot_climo(
-    #     event_freq_matrix=event_freq_matrix, mask_dict=mask_dict,
-    #     border_latitudes_deg_n=border_latitudes_deg_n,
-    #     border_longitudes_deg_e=border_longitudes_deg_e,
-    #     letter_label='a', output_file_name=climo_figure_file_name
-    # )
+    climo_figure_file_name = '{0:s}/convection_frequency_climo.jpg'.format(
+        output_dir_name
+    )
+    _plot_climo(
+        event_freq_matrix=event_freq_matrix, mask_dict=mask_dict,
+        border_latitudes_deg_n=border_latitudes_deg_n,
+        border_longitudes_deg_e=border_longitudes_deg_e,
+        letter_label='a', output_file_name=climo_figure_file_name
+    )
 
     mask_figure_file_name = '{0:s}/radar_mask.jpg'.format(output_dir_name)
     _plot_mask(
         mask_dict=mask_dict, border_latitudes_deg_n=border_latitudes_deg_n,
         border_longitudes_deg_e=border_longitudes_deg_e,
-        letter_label='a', output_file_name=mask_figure_file_name
+        letter_label='b', output_file_name=mask_figure_file_name
     )
 
     window_figure_file_name = '{0:s}/sliding_windows.jpg'.format(
@@ -421,20 +421,20 @@ def _run(climo_file_name, mask_file_name, output_dir_name):
     _plot_sliding_windows(
         border_latitudes_deg_n=border_latitudes_deg_n,
         border_longitudes_deg_e=border_longitudes_deg_e,
-        letter_label='b', output_file_name=window_figure_file_name
+        letter_label='c', output_file_name=window_figure_file_name
     )
 
     concat_figure_file_name = '{0:s}/climo_and_mask.jpg'.format(output_dir_name)
     print('Concatenating panels to: "{0:s}"...'.format(concat_figure_file_name))
 
     panel_file_names = [
-        mask_figure_file_name, window_figure_file_name
+        climo_figure_file_name, mask_figure_file_name, window_figure_file_name
     ]
 
     imagemagick_utils.concatenate_images(
         input_file_names=panel_file_names,
         output_file_name=concat_figure_file_name,
-        num_panel_rows=1, num_panel_columns=2
+        num_panel_rows=2, num_panel_columns=2
     )
     imagemagick_utils.trim_whitespace(
         input_file_name=concat_figure_file_name,
