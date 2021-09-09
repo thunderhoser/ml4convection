@@ -33,7 +33,7 @@ set VALIDN_PREDICTOR_DIR_NAME="${TRAINING_PREDICTOR_DIR_NAME}"
 set TRAINING_TARGET_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_project/targets/new_echo_classification/no_tracking/omit_north_radar/partial_grids"
 set VALIDN_TARGET_DIR_NAME="${TRAINING_TARGET_DIR_NAME}"
 
-set LOSS_FUNCTION_NAMES=("brier_0.1000d_0.2000d_wavelets1")
+set LOSS_FUNCTION_NAMES=("brier-0.1000d-0.2000d-wavelets1")
 set loss_function_name=${LOSS_FUNCTION_NAMES[$SLURM_ARRAY_TASK_ID]}
 
 set template_file_name="${TOP_TEMPLATE_DIR_NAME}/${loss_function_name}/model.h5"
