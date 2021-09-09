@@ -29,6 +29,7 @@ import fourier_utils
 import custom_losses
 import custom_metrics
 import fourier_metrics
+import wavelet_metrics
 
 TOLERANCE = 1e-6
 
@@ -762,7 +763,7 @@ def predictor_matrix_from_keras(predictor_matrix, num_lag_times):
 
 def metric_params_to_name(
         score_name, half_window_size_px=None, min_resolution_deg=None,
-        max_resolution_deg=None):
+        max_resolution_deg=None, use_wavelets=False):
     """Converts parameters for evaluation metric to name.
 
     If `half_window_size_px is not None`, will assume neighbourhood-based
@@ -777,8 +778,11 @@ def metric_params_to_name(
         band-pass filter.
     :param max_resolution_deg: Max resolution (degrees) allowed through
         band-pass filter.
+    :param use_wavelets: Never mind.
     :return: metric_name: Metric name (string).
     """
+
+    # TODO(thunderhoser): Fix input args.
 
     _check_score_name(score_name)
 
@@ -797,8 +801,8 @@ def metric_params_to_name(
     if max_resolution_deg >= MAX_RESOLUTION_DEG:
         max_resolution_deg = numpy.inf
 
-    return '{0:s}_{1:.4f}d_{2:.4f}d'.format(
-        score_name, min_resolution_deg, max_resolution_deg
+    return '{0:s}_{1:.4f}d_{2:.4f}d_wavelets{3:d}'.format(
+        score_name, min_resolution_deg, max_resolution_deg, int(use_wavelets)
     )
 
 
@@ -813,6 +817,7 @@ def metric_name_to_params(metric_name):
     param_dict['half_window_size_px']: Same.
     param_dict['min_resolution_deg']: Same.
     param_dict['max_resolution_deg']: Same.
+    param_dict['use_wavelets']: Same.
     """
 
     error_checking.assert_is_string(metric_name)
@@ -834,7 +839,7 @@ def metric_name_to_params(metric_name):
             MAX_RESOLUTION_KEY: None
         }
 
-    assert len(metric_name_parts) == 3
+    assert len(metric_name_parts) == 3 or len(metric_name_parts) == 4
 
     assert metric_name_parts[1].endswith('d')
     min_resolution_deg = float(
@@ -849,11 +854,17 @@ def metric_name_to_params(metric_name):
     error_checking.assert_is_geq(min_resolution_deg, 0.)
     error_checking.assert_is_greater(max_resolution_deg, min_resolution_deg)
 
+    if len(metric_name_parts) == 4:
+        use_wavelets = bool(int(metric_name_parts[-1][-1]))
+    else:
+        use_wavelets = False
+
     return {
         SCORE_NAME_KEY: score_name,
         HALF_WINDOW_SIZE_KEY: None,
         MIN_RESOLUTION_KEY: min_resolution_deg,
-        MAX_RESOLUTION_KEY: max_resolution_deg
+        MAX_RESOLUTION_KEY: max_resolution_deg,
+        'use_wavelets': use_wavelets
     }
 
 
@@ -1081,7 +1092,15 @@ def get_metrics(metric_names, mask_matrix, use_as_loss_function):
         # ):
         #     continue
 
-        if this_param_dict[HALF_WINDOW_SIZE_KEY] is None:
+        if this_param_dict['use_wavelets']:
+            this_function = wavelet_metrics.brier_score(
+                keep_mean_flags=numpy.array([1, 1, 1, 1, 1, 1, 0, 0], dtype=bool),
+                keep_detail_flags=numpy.array([0, 0, 0, 0, 0, 1, 1, 1], dtype=bool),
+                mask_matrix=mask_matrix,
+                use_as_loss_function=use_as_loss_function,
+                function_name=this_metric_name
+            )
+        elif this_param_dict[HALF_WINDOW_SIZE_KEY] is None:
             this_spatial_coeff_matrix = fourier_utils.apply_blackman_window(
                 numpy.full(fourier_dimensions, 1.)
             )
