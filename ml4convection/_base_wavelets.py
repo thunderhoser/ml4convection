@@ -106,7 +106,7 @@ class DirWaveLayer2D(keras.layers.Layer):
         self.ox = 256
         self.oy = 256
         self.cn = 1
-        if (self.bs is None) : self.bs = -1
+        if (self.bs is None) : self.bs = 60
         self.nx, self.ny = map(lambda x: math.ceil(x / 2), [self.ox, self.oy])
         self.qx, self.qy = map(lambda x: math.ceil(x / 2), [self.nx, self.ny])
         return self.kernel_function(batch)
@@ -144,7 +144,7 @@ class InvWaveLayer2D(keras.layers.Layer):
         self.ox = 256
         self.oy = 256
         self.cn = 1
-        if (self.bs is None) : self.bs = -1
+        if (self.bs is None) : self.bs = 60
         self.cn = self.cn // 4
         self.ox = self.nx * 2
         self.oy = self.ny * 2
