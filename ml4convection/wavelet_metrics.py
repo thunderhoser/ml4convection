@@ -170,11 +170,9 @@ def _filter_fields(
         (START_PADDING_PX, END_PADDING_PX)
     )
 
-    print(target_tensor.shape)
     target_tensor = K.spatial_2d_padding(
         target_tensor, padding=padding_arg, data_format='channels_last'
     )
-    print(target_tensor.shape)
     coeff_tensor_by_level = _do_forward_transform(
         input_tensor=target_tensor, num_levels=len(keep_mean_flags)
     )
