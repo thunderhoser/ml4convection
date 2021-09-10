@@ -130,7 +130,7 @@ def _filter_wavelet_coeffs(coeff_tensor_by_level, keep_mean_flags,
             ))
 
             this_coeff_tensor = inverse_dwt_object.call(
-                coeff_tensor_by_level[k], bs=60, cn=1,
+                coeff_tensor_by_level[k], bs=60, cn=4,
                 nx=this_num_rows, ny=this_num_rows
             )
 
@@ -155,7 +155,7 @@ def _filter_wavelet_coeffs(coeff_tensor_by_level, keep_mean_flags,
         ))
 
         this_coeff_tensor = inverse_dwt_object.call(
-            coeff_tensor_by_level[k], bs=60, cn=1,
+            coeff_tensor_by_level[k], bs=60, cn=4,
             nx=this_num_rows, ny=this_num_rows
         )
 
@@ -208,7 +208,7 @@ def _filter_fields(
 
     inverse_dwt_object = WaveTFFactory().build('haar', dim=2, inverse=True)
     target_tensor = inverse_dwt_object.call(
-        coeff_tensor_by_level[0], bs=60, cn=1, nx=128, ny=128
+        coeff_tensor_by_level[0], bs=60, cn=4, nx=128, ny=128
     )
     target_tensor = K.maximum(target_tensor, 0.)
     target_tensor = K.minimum(target_tensor, 1.)
@@ -225,7 +225,7 @@ def _filter_fields(
     )
 
     prediction_tensor = inverse_dwt_object.call(
-        coeff_tensor_by_level[0], bs=60, cn=1, nx=128, ny=128
+        coeff_tensor_by_level[0], bs=60, cn=4, nx=128, ny=128
     )
     prediction_tensor = K.maximum(prediction_tensor, 0.)
     prediction_tensor = K.minimum(prediction_tensor, 1.)
