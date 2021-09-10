@@ -145,9 +145,9 @@ class InvWaveLayer2D(keras.layers.Layer):
         """
         self.bs, self.nx, self.ny, self.cn = batch.shape.as_list()
 
-        if self.ox is None:
-            self.ox = 256
-            self.oy = 256
+        if self.nx is None:
+            self.nx = 256
+            self.ny = 256
             self.cn = 1
 
         if (self.bs is None) : self.bs = 60
