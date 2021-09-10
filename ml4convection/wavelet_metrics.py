@@ -201,6 +201,13 @@ def _filter_fields(
     target_tensor = K.spatial_2d_padding(
         target_tensor, padding=padding_arg, data_format='channels_last'
     )
+    print(target_tensor.shape)
+    target_matrix = K.eval(target_tensor)
+    print(target_matrix.shape)
+    target_tensor = tensorflow.constant(target_matrix, dtype=tensorflow.float64)
+    print(target_tensor.shape)
+    print('\n\n\n**********************\n\n\n')
+
     coeff_tensor_by_level = _do_forward_transform(
         input_tensor=target_tensor, num_levels=len(keep_mean_flags)
     )
