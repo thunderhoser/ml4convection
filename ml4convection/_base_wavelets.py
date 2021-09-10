@@ -106,6 +106,7 @@ class DirWaveLayer2D(keras.layers.Layer):
         self.bs, self.ox, self.oy, self.cn = batch.shape.as_list()
 
         if self.ox is None:
+            print(tf.shape(batch))
             self.bs, self.ox, self.oy, self.cn = tf.shape(batch).as_list()
             if self.ox is not None:
                 print('\n\n\nSUCCESS\n\n\n')
@@ -161,6 +162,7 @@ class InvWaveLayer2D(keras.layers.Layer):
         self.bs, self.nx, self.ny, self.cn = batch.shape.as_list()
 
         if self.nx is None:
+            print(tf.shape(batch))
             self.bs, self.nx, self.ny, self.cn = tf.shape(batch).as_list()
             if self.nx is not None:
                 print('\n\n\nSUCCESS\n\n\n')
