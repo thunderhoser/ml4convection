@@ -73,6 +73,7 @@ def _do_forward_transform(input_tensor, num_levels):
         this_num_rows = int(numpy.round(
             float(256) / (2 ** k)
         ))
+        print('Level = {0:d} ... num rows = {1:d}'.format(k + 1, this_num_rows))
 
         if k == 0:
             coeff_tensor_by_level[k] = dwt_object.call(
@@ -128,6 +129,7 @@ def _filter_wavelet_coeffs(coeff_tensor_by_level, keep_mean_flags,
             this_num_rows = int(numpy.round(
                 float(256) / (2 ** (k + 1))
             ))
+            print('LEVEL = {0:d} ... num rows = {1:d}'.format(k + 1, this_num_rows))
 
             this_coeff_tensor = inverse_dwt_object.call(
                 coeff_tensor_by_level[k], bs=60, cn=4,
@@ -153,6 +155,7 @@ def _filter_wavelet_coeffs(coeff_tensor_by_level, keep_mean_flags,
         this_num_rows = int(numpy.round(
             float(256) / (2 ** (k + 1))
         ))
+        print('LEVEL = {0:d} ... num rows = {1:d}'.format(k + 1, this_num_rows))
 
         this_coeff_tensor = inverse_dwt_object.call(
             coeff_tensor_by_level[k], bs=60, cn=4,
@@ -198,6 +201,13 @@ def _filter_fields(
     target_tensor = K.spatial_2d_padding(
         target_tensor, padding=padding_arg, data_format='channels_last'
     )
+    print(target_tensor.shape)
+    target_matrix = K.eval(target_tensor)
+    print(target_matrix.shape)
+    target_tensor = tensorflow.constant(target_matrix, dtype=tensorflow.float64)
+    print(target_tensor.shape)
+    print('\n\n\n**********************\n\n\n')
+
     coeff_tensor_by_level = _do_forward_transform(
         input_tensor=target_tensor, num_levels=len(keep_mean_flags)
     )
