@@ -15,6 +15,7 @@
 import math
 import tensorflow as tf
 from tensorflow import keras
+from keras import backend as K
 
 ########################################################################
 # 1D wavelet
@@ -107,6 +108,8 @@ class DirWaveLayer2D(keras.layers.Layer):
 
         if self.ox is None:
             print(tf.shape(batch))
+            print(tf.shape(batch)[1])
+            print(K.eval(tf.shape(batch)))
             self.bs, self.ox, self.oy, self.cn = tf.shape(batch).as_list()
             if self.ox is not None:
                 print('\n\n\nSUCCESS\n\n\n')
@@ -163,6 +166,8 @@ class InvWaveLayer2D(keras.layers.Layer):
 
         if self.nx is None:
             print(tf.shape(batch))
+            print(tf.shape(batch)[1])
+            print(K.eval(tf.shape(batch)))
             self.bs, self.nx, self.ny, self.cn = tf.shape(batch).as_list()
             if self.nx is not None:
                 print('\n\n\nSUCCESS\n\n\n')
