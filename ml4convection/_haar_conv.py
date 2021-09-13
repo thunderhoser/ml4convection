@@ -169,6 +169,7 @@ class HaarWaveLayer2D(DirWaveLayer2D):
         ## s1: (b, c, ox, 2*ny)
         print(t1.shape)
         print(s1.shape)
+        print([self.bs*self.cn*self.ox, 2*self.ny, 1])
         print('\n\n\n**********\n\n\n')
         s1 = tf.reshape(s1, [self.bs*self.cn*self.ox, 2*self.ny, 1])
         ## s1: (b, c*ox, 2*ny, 1)
