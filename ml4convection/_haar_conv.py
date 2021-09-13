@@ -182,7 +182,13 @@ class HaarWaveLayer2D(DirWaveLayer2D):
             second_size = numpy.prod(numpy.array([self.bs*self.cn*self.ox, 2*self.ny, 1], dtype=int))
             print('First size = {0:d} ... second size = {1:d} ... equal? {2:s}'.format(first_size, second_size, 'YES' if first_size == second_size else 'NO'))
         print('\n\n\n**********\n\n\n')
-        s1 = tf.reshape(s1, [s1.shape[0]*self.cn*self.ox, 2*self.ny, 1])
+
+        try:
+            s1 = tf.reshape(s1, [self.bs*self.cn*self.ox, 2*self.ny, 1])
+        except:
+            self.bs = 8
+            s1 = tf.reshape(s1, [self.bs*self.cn*self.ox, 2*self.ny, 1])
+
         ## s1: (b, c*ox, 2*ny, 1)
         # build kernels and apply to rows
         k1l = tf.reshape(haar_ker[:,0], (2, 1, 1))
