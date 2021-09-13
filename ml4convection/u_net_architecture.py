@@ -502,7 +502,7 @@ def create_model(option_dict, loss_function, mask_matrix, metric_names):
 
     model_object.compile(
         loss=loss_function, optimizer=keras.optimizers.Adam(),
-        metrics=metric_function_list
+        metrics=metric_function_list, run_eagerly=True
     )
 
     model_object.summary()
