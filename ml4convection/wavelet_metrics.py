@@ -196,6 +196,11 @@ def _filter_fields(
         (START_PADDING_PX, END_PADDING_PX)
     )
 
+    prediction_tensor = K.spatial_2d_padding(
+        prediction_tensor, padding=padding_arg, data_format='channels_last'
+    )
+    print('SHAPE: {0:s}'.format(str(prediction_tensor.shape)))
+
     target_tensor = K.spatial_2d_padding(
         target_tensor, padding=padding_arg, data_format='channels_last'
     )
@@ -214,9 +219,9 @@ def _filter_fields(
     target_tensor = K.maximum(target_tensor, 0.)
     target_tensor = K.minimum(target_tensor, 1.)
 
-    prediction_tensor = K.spatial_2d_padding(
-        prediction_tensor, padding=padding_arg, data_format='channels_last'
-    )
+
+    
+
     coeff_tensor_by_level = _do_forward_transform(
         input_tensor=prediction_tensor, num_levels=len(keep_mean_flags)
     )
@@ -288,11 +293,6 @@ def brier_score(keep_mean_flags, keep_detail_flags, mask_matrix,
         :param prediction_tensor: Tensor of predicted values.
         :return: brier_score: Brier score (scalar).
         """
-
-        print('SHAPES\n\n\n')
-        print(target_tensor.shape)
-        print(prediction_tensor.shape)
-        print('********************\n\n\n')
 
         target_tensor, prediction_tensor = _filter_fields(
             target_tensor=target_tensor, prediction_tensor=prediction_tensor,
