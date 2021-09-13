@@ -14,6 +14,8 @@
 
 import math
 import tensorflow as tf
+tf.compat.v1.enable_eager_execution()
+tf.executing_eagerly()
 from tensorflow import keras
 from keras import backend as K
 
