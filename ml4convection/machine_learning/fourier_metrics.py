@@ -173,7 +173,39 @@ def _filter_fields(
     )
 
 
-def _get_brier_score(target_tensor, prediction_tensor, mask_matrix):
+def _get_frequency_domain_mse(
+        target_coeff_tensor, predicted_coeff_tensor, include_real,
+        include_imaginary):
+    """Computes mean squared error (MSE) in frequency domain.
+
+    :param target_coeff_tensor: See output doc for `_filter_fields`.
+    :param predicted_coeff_tensor: Same.
+    :param include_real: See input doc for `frequency_domain_mse`.
+    :param include_imaginary: Same.
+    """
+
+    error_checking.assert_is_boolean(include_real)
+    error_checking.assert_is_boolean(include_imaginary)
+    error_checking.assert_is_greater(
+        int(include_real) + int(include_imaginary), 0
+    )
+
+    if not include_imaginary:
+        target_coeff_tensor = tensorflow.math.real(target_coeff_tensor)
+        predicted_coeff_tensor = tensorflow.math.real(
+            predicted_coeff_tensor
+        )
+
+    if not include_real:
+        target_coeff_tensor = tensorflow.math.imag(target_coeff_tensor)
+        predicted_coeff_tensor = tensorflow.math.imag(
+            predicted_coeff_tensor
+        )
+
+    return K.mean(K.abs(target_coeff_tensor - predicted_coeff_tensor) ** 2)
+
+
+def get_brier_score(target_tensor, prediction_tensor, mask_matrix):
     """Computes Brier score.
 
     M = number of rows in spatial grid
@@ -197,10 +229,10 @@ def _get_brier_score(target_tensor, prediction_tensor, mask_matrix):
     return K.mean(squared_error_tensor / num_pixels_tensor)
 
 
-def _get_csi(target_tensor, prediction_tensor, mask_matrix):
+def get_csi(target_tensor, prediction_tensor, mask_matrix):
     """Computes critical success index.
 
-    :param target_tensor: See doc for `_get_brier_score`.
+    :param target_tensor: See doc for `get_brier_score`.
     :param prediction_tensor: Same.
     :param mask_matrix: Same.
     :return: csi: Critical success index (scalar).
@@ -224,10 +256,10 @@ def _get_csi(target_tensor, prediction_tensor, mask_matrix):
     return num_true_positives / denominator
 
 
-def _get_frequency_bias(target_tensor, prediction_tensor, mask_matrix):
+def get_frequency_bias(target_tensor, prediction_tensor, mask_matrix):
     """Computes frequency bias.
 
-    :param target_tensor: See doc for `_get_brier_score`.
+    :param target_tensor: See doc for `get_brier_score`.
     :param prediction_tensor: Same.
     :param mask_matrix: Same.
     :return: frequency_bias: Frequency bias (scalar).
@@ -239,10 +271,10 @@ def _get_frequency_bias(target_tensor, prediction_tensor, mask_matrix):
     return numerator / denominator
 
 
-def _get_pixelwise_fss(target_tensor, prediction_tensor, mask_matrix):
+def get_pixelwise_fss(target_tensor, prediction_tensor, mask_matrix):
     """Computes pixelwise fractions skill score (FSS).
 
-    :param target_tensor: See doc for `_get_brier_score`.
+    :param target_tensor: See doc for `get_brier_score`.
     :param prediction_tensor: Same.
     :param mask_matrix: Same.
     :return: pixelwise_fss: Pixelwise FSS (scalar).
@@ -261,10 +293,10 @@ def _get_pixelwise_fss(target_tensor, prediction_tensor, mask_matrix):
     return 1. - actual_mse / reference_mse
 
 
-def _get_iou(target_tensor, prediction_tensor, mask_matrix):
+def get_iou(target_tensor, prediction_tensor, mask_matrix):
     """Computes intersection over union.
 
-    :param target_tensor: See doc for `_get_brier_score`.
+    :param target_tensor: See doc for `get_brier_score`.
     :param prediction_tensor: Same.
     :param mask_matrix: Same.
     :return: iou: Intersection over union (scalar).
@@ -287,10 +319,10 @@ def _get_iou(target_tensor, prediction_tensor, mask_matrix):
     )
 
 
-def _get_all_class_iou(target_tensor, prediction_tensor, mask_matrix):
+def get_all_class_iou(target_tensor, prediction_tensor, mask_matrix):
     """Computes all-class intersection over union (IOU).
 
-    :param target_tensor: See doc for `_get_brier_score`.
+    :param target_tensor: See doc for `get_brier_score`.
     :param prediction_tensor: Same.
     :param mask_matrix: Same.
     :return: all_class_iou: All-class IOU.
@@ -327,10 +359,10 @@ def _get_all_class_iou(target_tensor, prediction_tensor, mask_matrix):
     return (positive_iou + negative_iou) / 2
 
 
-def _get_dice_coeff(target_tensor, prediction_tensor, mask_matrix):
+def get_dice_coeff(target_tensor, prediction_tensor, mask_matrix):
     """Computes Dice coefficient.
 
-    :param target_tensor: See doc for `_get_brier_score`.
+    :param target_tensor: See doc for `get_brier_score`.
     :param prediction_tensor: Same.
     :param mask_matrix: Same.
     :return: dice_coeff: Dice coefficient (scalar).
@@ -355,38 +387,6 @@ def _get_dice_coeff(target_tensor, prediction_tensor, mask_matrix):
         (positive_intersection_tensor + negative_intersection_tensor) /
         num_pixels_tensor
     )
-
-
-def _get_frequency_domain_mse(
-        target_coeff_tensor, predicted_coeff_tensor, include_real,
-        include_imaginary):
-    """Computes mean squared error (MSE) in frequency domain.
-
-    :param target_coeff_tensor: See output doc for `_filter_fields`.
-    :param predicted_coeff_tensor: Same.
-    :param include_real: See input doc for `frequency_domain_mse`.
-    :param include_imaginary: Same.
-    """
-
-    error_checking.assert_is_boolean(include_real)
-    error_checking.assert_is_boolean(include_imaginary)
-    error_checking.assert_is_greater(
-        int(include_real) + int(include_imaginary), 0
-    )
-
-    if not include_imaginary:
-        target_coeff_tensor = tensorflow.math.real(target_coeff_tensor)
-        predicted_coeff_tensor = tensorflow.math.real(
-            predicted_coeff_tensor
-        )
-
-    if not include_real:
-        target_coeff_tensor = tensorflow.math.imag(target_coeff_tensor)
-        predicted_coeff_tensor = tensorflow.math.imag(
-            predicted_coeff_tensor
-        )
-
-    return K.mean(K.abs(target_coeff_tensor - predicted_coeff_tensor) ** 2)
 
 
 def brier_score(
@@ -432,7 +432,7 @@ def brier_score(
             orig_num_rows=orig_num_rows, orig_num_columns=orig_num_columns
         )[:2]
 
-        return _get_brier_score(
+        return get_brier_score(
             target_tensor=target_tensor, prediction_tensor=prediction_tensor,
             mask_matrix=mask_matrix
         )
@@ -485,7 +485,7 @@ def csi(spatial_coeff_matrix, frequency_coeff_matrix, mask_matrix,
             orig_num_rows=orig_num_rows, orig_num_columns=orig_num_columns
         )[:2]
 
-        csi_value = _get_csi(
+        csi_value = get_csi(
             target_tensor=target_tensor, prediction_tensor=prediction_tensor,
             mask_matrix=mask_matrix
         )
@@ -539,7 +539,7 @@ def frequency_bias(spatial_coeff_matrix, frequency_coeff_matrix, mask_matrix,
             orig_num_rows=orig_num_rows, orig_num_columns=orig_num_columns
         )[:2]
 
-        return _get_frequency_bias(
+        return get_frequency_bias(
             target_tensor=target_tensor, prediction_tensor=prediction_tensor,
             mask_matrix=mask_matrix
         )
@@ -592,7 +592,7 @@ def pixelwise_fss(spatial_coeff_matrix, frequency_coeff_matrix, mask_matrix,
             orig_num_rows=orig_num_rows, orig_num_columns=orig_num_columns
         )[:2]
 
-        fss_value = _get_pixelwise_fss(
+        fss_value = get_pixelwise_fss(
             target_tensor=target_tensor, prediction_tensor=prediction_tensor,
             mask_matrix=mask_matrix
         )
@@ -650,7 +650,7 @@ def iou(spatial_coeff_matrix, frequency_coeff_matrix, mask_matrix,
             orig_num_rows=orig_num_rows, orig_num_columns=orig_num_columns
         )[:2]
 
-        iou_value = _get_iou(
+        iou_value = get_iou(
             target_tensor=target_tensor, prediction_tensor=prediction_tensor,
             mask_matrix=mask_matrix
         )
@@ -708,7 +708,7 @@ def all_class_iou(spatial_coeff_matrix, frequency_coeff_matrix, mask_matrix,
             orig_num_rows=orig_num_rows, orig_num_columns=orig_num_columns
         )[:2]
 
-        iou_value = _get_all_class_iou(
+        iou_value = get_all_class_iou(
             target_tensor=target_tensor, prediction_tensor=prediction_tensor,
             mask_matrix=mask_matrix
         )
@@ -767,7 +767,7 @@ def dice_coeff(
             orig_num_rows=orig_num_rows, orig_num_columns=orig_num_columns
         )[:2]
 
-        dice_value = _get_dice_coeff(
+        dice_value = get_dice_coeff(
             target_tensor=target_tensor, prediction_tensor=prediction_tensor,
             mask_matrix=mask_matrix
         )
@@ -837,43 +837,43 @@ def metrics(spatial_coeff_matrix, frequency_coeff_matrix, mask_matrix,
 
         for i in range(len(metric_names)):
             if score_names[i] == BRIER_SCORE_NAME:
-                metrics_dict[metric_names[i]] = _get_brier_score(
+                metrics_dict[metric_names[i]] = get_brier_score(
                     target_tensor=target_tensor,
                     prediction_tensor=prediction_tensor,
                     mask_matrix=mask_matrix
                 )
             elif score_names[i] == CSI_NAME:
-                metrics_dict[metric_names[i]] = _get_csi(
+                metrics_dict[metric_names[i]] = get_csi(
                     target_tensor=target_tensor,
                     prediction_tensor=prediction_tensor,
                     mask_matrix=mask_matrix
                 )
             elif score_names[i] == FREQUENCY_BIAS_NAME:
-                metrics_dict[metric_names[i]] = _get_frequency_bias(
+                metrics_dict[metric_names[i]] = get_frequency_bias(
                     target_tensor=target_tensor,
                     prediction_tensor=prediction_tensor,
                     mask_matrix=mask_matrix
                 )
             elif score_names[i] == FSS_NAME:
-                metrics_dict[metric_names[i]] = _get_pixelwise_fss(
+                metrics_dict[metric_names[i]] = get_pixelwise_fss(
                     target_tensor=target_tensor,
                     prediction_tensor=prediction_tensor,
                     mask_matrix=mask_matrix
                 )
             elif score_names[i] == IOU_NAME:
-                metrics_dict[metric_names[i]] = _get_iou(
+                metrics_dict[metric_names[i]] = get_iou(
                     target_tensor=target_tensor,
                     prediction_tensor=prediction_tensor,
                     mask_matrix=mask_matrix
                 )
             elif score_names[i] == ALL_CLASS_IOU_NAME:
-                metrics_dict[metric_names[i]] = _get_all_class_iou(
+                metrics_dict[metric_names[i]] = get_all_class_iou(
                     target_tensor=target_tensor,
                     prediction_tensor=prediction_tensor,
                     mask_matrix=mask_matrix
                 )
             elif score_names[i] == DICE_COEFF_NAME:
-                metrics_dict[metric_names[i]] = _get_dice_coeff(
+                metrics_dict[metric_names[i]] = get_dice_coeff(
                     target_tensor=target_tensor,
                     prediction_tensor=prediction_tensor,
                     mask_matrix=mask_matrix
