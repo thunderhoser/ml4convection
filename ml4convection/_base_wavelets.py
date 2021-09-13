@@ -104,24 +104,13 @@ class DirWaveLayer2D(keras.layers.Layer):
 
         """
 
-        self.bs, self.ox, self.oy, self.cn = batch.shape.as_list()
-
-        if self.ox is None:
-            print(tf.executing_eagerly())
-            print(tf.shape(batch))
-            print(tf.shape(batch)[1])
-            print(K.eval(tf.shape(batch)))
-            self.bs, self.ox, self.oy, self.cn = tf.shape(batch).as_list()
-            if self.ox is not None:
-                print('\n\n\nSUCCESS\n\n\n')
-
-        # if bs is None:
-        #     self.bs, self.ox, self.oy, self.cn = batch.shape.as_list()
-        # else:
-        #     self.bs = bs
-        #     self.ox = ox
-        #     self.oy = oy
-        #     self.cn = cn
+        if bs is None:
+            self.bs, self.ox, self.oy, self.cn = batch.shape.as_list()
+        else:
+            self.bs = bs
+            self.ox = ox
+            self.oy = oy
+            self.cn = cn
 
         if self.ox is None:
             self.ox = 256
@@ -163,23 +152,13 @@ class InvWaveLayer2D(keras.layers.Layer):
 
         """
 
-        self.bs, self.nx, self.ny, self.cn = batch.shape.as_list()
-
-        if self.nx is None:
-            print(tf.shape(batch))
-            print(tf.shape(batch)[1])
-            print(K.eval(tf.shape(batch)))
-            self.bs, self.nx, self.ny, self.cn = tf.shape(batch).as_list()
-            if self.nx is not None:
-                print('\n\n\nSUCCESS\n\n\n')
-
-        # if bs is None:
-        #     self.bs, self.nx, self.ny, self.cn = batch.shape.as_list()
-        # else:
-        #     self.bs = bs
-        #     self.nx = nx
-        #     self.ny = ny
-        #     self.cn = cn
+        if bs is None:
+            self.bs, self.nx, self.ny, self.cn = batch.shape.as_list()
+        else:
+            self.bs = bs
+            self.nx = nx
+            self.ny = ny
+            self.cn = cn
 
         if self.nx is None:
             self.nx = 256

@@ -6,7 +6,7 @@ import argparse
 import numpy
 numpy.random.seed(6695)
 import tensorflow
-tensorflow.compat.v1.enable_eager_execution()
+# tensorflow.compat.v1.enable_eager_execution()
 tensorflow.random.set_seed(6695)
 
 THIS_DIRECTORY_NAME = os.path.dirname(os.path.realpath(
