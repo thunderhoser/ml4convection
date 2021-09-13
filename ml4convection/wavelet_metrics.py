@@ -74,14 +74,25 @@ def _do_forward_transform(input_tensor, num_levels):
         print('Level = {0:d} ... num rows = {1:d}'.format(k + 1, this_num_rows))
 
         if k == 0:
-            coeff_tensor_by_level[k] = dwt_object.call(
-                input_tensor, bs=60, cn=1, ox=this_num_rows, oy=this_num_rows
-            )
+            try:
+                coeff_tensor_by_level[k] = dwt_object.call(
+                    input_tensor, bs=60, cn=1, ox=this_num_rows, oy=this_num_rows
+                )
+            except:
+                coeff_tensor_by_level[k] = dwt_object.call(
+                    input_tensor, bs=8, cn=1, ox=this_num_rows, oy=this_num_rows
+                )
         else:
-            coeff_tensor_by_level[k] = dwt_object.call(
-                coeff_tensor_by_level[k - 1][..., :1],
-                bs=60, cn=1, ox=this_num_rows, oy=this_num_rows
-            )
+            try:
+                coeff_tensor_by_level[k] = dwt_object.call(
+                    coeff_tensor_by_level[k - 1][..., :1],
+                    bs=60, cn=1, ox=this_num_rows, oy=this_num_rows
+                )
+            except:
+                coeff_tensor_by_level[k] = dwt_object.call(
+                    coeff_tensor_by_level[k - 1][..., :1],
+                    bs=8, cn=1, ox=this_num_rows, oy=this_num_rows
+                )
 
     return coeff_tensor_by_level
 
@@ -129,10 +140,16 @@ def _filter_wavelet_coeffs(coeff_tensor_by_level, keep_mean_flags,
             ))
             print('LEVEL = {0:d} ... num rows = {1:d}'.format(k + 1, this_num_rows))
 
-            this_coeff_tensor = inverse_dwt_object.call(
-                coeff_tensor_by_level[k], bs=60, cn=4,
-                nx=this_num_rows, ny=this_num_rows
-            )
+            try:
+                this_coeff_tensor = inverse_dwt_object.call(
+                    coeff_tensor_by_level[k], bs=60, cn=4,
+                    nx=this_num_rows, ny=this_num_rows
+                )
+            except:
+                this_coeff_tensor = inverse_dwt_object.call(
+                    coeff_tensor_by_level[k], bs=8, cn=4,
+                    nx=this_num_rows, ny=this_num_rows
+                )
 
             coeff_tensor_by_level[k - 1] = tensorflow.concat([
                 this_coeff_tensor,
@@ -155,10 +172,16 @@ def _filter_wavelet_coeffs(coeff_tensor_by_level, keep_mean_flags,
         ))
         print('LEVEL = {0:d} ... num rows = {1:d}'.format(k + 1, this_num_rows))
 
-        this_coeff_tensor = inverse_dwt_object.call(
-            coeff_tensor_by_level[k], bs=60, cn=4,
-            nx=this_num_rows, ny=this_num_rows
-        )
+        try:
+            this_coeff_tensor = inverse_dwt_object.call(
+                coeff_tensor_by_level[k], bs=60, cn=4,
+                nx=this_num_rows, ny=this_num_rows
+            )
+        except:
+            this_coeff_tensor = inverse_dwt_object.call(
+                coeff_tensor_by_level[k], bs=8, cn=4,
+                nx=this_num_rows, ny=this_num_rows
+            )
 
         coeff_tensor_by_level[k - 1] = tensorflow.concat([
             this_coeff_tensor,
@@ -213,14 +236,21 @@ def _filter_fields(
     )
 
     inverse_dwt_object = WaveTFFactory().build('haar', dim=2, inverse=True)
-    target_tensor = inverse_dwt_object.call(
-        coeff_tensor_by_level[0], bs=60, cn=4, nx=128, ny=128
-    )
+
+    try:
+        target_tensor = inverse_dwt_object.call(
+            coeff_tensor_by_level[0], bs=60, cn=4, nx=128, ny=128
+        )
+    except:
+        target_tensor = inverse_dwt_object.call(
+            coeff_tensor_by_level[0], bs=8, cn=4, nx=128, ny=128
+        )
+
     target_tensor = K.maximum(target_tensor, 0.)
     target_tensor = K.minimum(target_tensor, 1.)
 
 
-    
+
 
     coeff_tensor_by_level = _do_forward_transform(
         input_tensor=prediction_tensor, num_levels=len(keep_mean_flags)
@@ -230,9 +260,15 @@ def _filter_fields(
         keep_mean_flags=keep_mean_flags, keep_detail_flags=keep_detail_flags
     )
 
-    prediction_tensor = inverse_dwt_object.call(
-        coeff_tensor_by_level[0], bs=60, cn=4, nx=128, ny=128
-    )
+    try:
+        prediction_tensor = inverse_dwt_object.call(
+            coeff_tensor_by_level[0], bs=60, cn=4, nx=128, ny=128
+        )
+    except:
+        prediction_tensor = inverse_dwt_object.call(
+            coeff_tensor_by_level[0], bs=8, cn=4, nx=128, ny=128
+        )
+
     prediction_tensor = K.maximum(prediction_tensor, 0.)
     prediction_tensor = K.minimum(prediction_tensor, 1.)
 
