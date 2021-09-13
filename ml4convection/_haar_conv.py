@@ -170,6 +170,11 @@ class HaarWaveLayer2D(DirWaveLayer2D):
         print(t1.shape)
         print(s1.shape)
         print([self.bs*self.cn*self.ox, 2*self.ny, 1])
+
+        import numpy
+        first_size = numpy.prod(numpy.array(s1.shape, dtype=int))
+        second_size = numpy.prod(numpy.array([self.bs*self.cn*self.ox, 2*self.ny, 1], dtype=int))
+        print('First size = {0:d} ... second size = {1:d} ... equal? {2:s}'.format(first_size, second_size, 'YES' if first_size == second_size else 'NO'))
         print('\n\n\n**********\n\n\n')
         s1 = tf.reshape(s1, [self.bs*self.cn*self.ox, 2*self.ny, 1])
         ## s1: (b, c*ox, 2*ny, 1)
