@@ -15,7 +15,6 @@
 import math
 import tensorflow as tf
 tf.compat.v1.enable_eager_execution()
-tf.executing_eagerly()
 from tensorflow import keras
 from keras import backend as K
 
@@ -109,6 +108,7 @@ class DirWaveLayer2D(keras.layers.Layer):
         self.bs, self.ox, self.oy, self.cn = batch.shape.as_list()
 
         if self.ox is None:
+            print(tf.executing_eagerly())
             print(tf.shape(batch))
             print(tf.shape(batch)[1])
             print(K.eval(tf.shape(batch)))
