@@ -289,6 +289,11 @@ def brier_score(keep_mean_flags, keep_detail_flags, mask_matrix,
         :return: brier_score: Brier score (scalar).
         """
 
+        print('SHAPES\n\n\n')
+        print(target_tensor.shape)
+        print(prediction_tensor.shape)
+        print('********************\n\n\n')
+
         target_tensor, prediction_tensor = _filter_fields(
             target_tensor=target_tensor, prediction_tensor=prediction_tensor,
             keep_mean_flags=keep_mean_flags, keep_detail_flags=keep_detail_flags
