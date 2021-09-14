@@ -16,7 +16,6 @@ import os
 import sys
 import math
 import tensorflow as tf
-from tensorflow import keras
 
 THIS_DIRECTORY_NAME = os.path.dirname(os.path.realpath(
     os.path.join(os.getcwd(), os.path.expanduser(__file__))
@@ -167,27 +166,10 @@ class HaarWaveLayer2D(DirWaveLayer2D):
         else :
             s1 = self.haar_1(t1)
         ## s1: (b, c, ox, 2*ny)
-        print(t1.shape)
-        print(s1.shape)
-        print([self.bs*self.cn*self.ox, 2*self.ny, 1])
-
-        import numpy
-
-        if s1.shape[1] is not None:
-            if s1.shape[0] is None:
-                first_size = self.bs * numpy.prod(numpy.array(s1.shape[1:], dtype=int))
-            else:
-                first_size = numpy.prod(numpy.array(s1.shape, dtype=int))
-
-            second_size = numpy.prod(numpy.array([self.bs*self.cn*self.ox, 2*self.ny, 1], dtype=int))
-            print('First size = {0:d} ... second size = {1:d} ... equal? {2:s}'.format(first_size, second_size, 'YES' if first_size == second_size else 'NO'))
-        print('\n\n\n**********\n\n\n')
-
-        if self.bs < 0:
-            s1 = tf.reshape(s1, [-1, 2*self.ny, 1])
-        else:
-            s1 = tf.reshape(s1, [self.bs*self.cn*self.ox, 2*self.ny, 1])
-
+        s1 = tf.reshape(
+            s1,
+            [max([self.bs*self.cn*self.ox, -1]), 2*self.ny, 1]
+        )
         ## s1: (b, c*ox, 2*ny, 1)
         # build kernels and apply to rows
         k1l = tf.reshape(haar_ker[:,0], (2, 1, 1))
@@ -204,12 +186,10 @@ class HaarWaveLayer2D(DirWaveLayer2D):
         else :
             s2 = self.haar_1(t2)
         ## s2: (b, c, ny, 2_y, 2*nx)
-
-        if self.bs < 0:
-            s2 = tf.reshape(s2, [-1, 2*self.nx, 1])
-        else:
-            s2 = tf.reshape(s2, [self.bs*self.cn*self.ny*2, 2*self.nx, 1])
-
+        s2 = tf.reshape(
+            s2,
+            [max([self.bs*self.cn*self.ny*2, -1]), 2*self.nx, 1]
+        )
         # out: (b, c*ny*2_y, 2*nx, 1)
         # build kernels and apply kernel to columns
         rl = tf.nn.conv1d(s2, k1l, stride=2, padding='VALID')
@@ -250,12 +230,10 @@ class InvHaarWaveLayer2D(InvWaveLayer2D):
         # out: (b, x, y, 2_y, 2_x, c)
         t1 = tf.transpose(t1, perm=[0, 5, 2, 3, 1, 4])
         # out: (b, c, y, 2_y, x, 2_x)
-
-        if self.bs < 0:
-            t1 = tf.reshape(t1, [-1, self.ox, 1])
-        else:
-            t1 = tf.reshape(t1, [self.bs*self.cn*self.oy, self.ox, 1])
-
+        t1 = tf.reshape(
+            t1,
+            [max([self.bs*self.cn*self.oy, -1]), self.ox, 1]
+        )
         # out: (b, c*oy, ox, 1)
         # apply kernel to x
         k1l = tf.reshape(haar_ker[:,0], (2, 1, 1))
@@ -266,12 +244,10 @@ class InvHaarWaveLayer2D(InvWaveLayer2D):
         s1 = tf.reshape(s1, [self.bs, self.cn, self.oy, self.ox])
         # out: (b, c, oy, ox)
         s1 = tf.transpose(s1, perm=[0, 1, 3, 2]) # out: (b, c, ox, oy)
-
-        if self.bs < 0:
-            s1 = tf.reshape(s1, [-1, self.oy, 1])
-        else:
-            s1 = tf.reshape(s1, [self.bs*self.cn*self.ox, self.oy, 1])
-
+        s1 = tf.reshape(
+            s1,
+            [max([self.bs*self.cn*self.ox, -1]), self.oy, 1]
+        )
         # out: (b, c*ox, oy, 1)
         # apply kernel to y
         rl = tf.nn.conv1d(s1, k1l, stride=2, padding='VALID')

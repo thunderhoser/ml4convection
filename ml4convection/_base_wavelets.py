@@ -15,7 +15,6 @@
 import math
 import tensorflow as tf
 from tensorflow import keras
-from keras import backend as K
 
 ########################################################################
 # 1D wavelet
@@ -93,7 +92,7 @@ class InvWaveLayer1D(keras.layers.Layer):
 class DirWaveLayer2D(keras.layers.Layer):
     """Abstract class with general methods for 2D wavelet transforms"""
     # in : (b, x, y, c) --> out: (b, nx, ny, 4*c)
-    def call(self, batch, bs=None, ox=None, oy=None, cn=None):
+    def call(self, batch, bs=-1, ox=None, oy=None, cn=None):
         """Call the direct 2D wavelet.
 
         :param batch: tensor of shape (batch_size, dim_x, dim_y, chans)
@@ -104,20 +103,11 @@ class DirWaveLayer2D(keras.layers.Layer):
 
         """
 
-        if ox is None:
-            self.bs, self.ox, self.oy, self.cn = batch.shape.as_list()
-        else:
-            self.bs = bs
-            self.ox = ox
-            self.oy = oy
-            self.cn = cn
+        self.bs = bs
+        self.ox = ox
+        self.oy = oy
+        self.cn = cn
 
-        if self.ox is None:
-            self.ox = 256
-            self.oy = 256
-            self.cn = 1
-
-        if (self.bs is None) : self.bs = -1
         self.nx, self.ny = map(lambda x: math.ceil(x / 2), [self.ox, self.oy])
         self.qx, self.qy = map(lambda x: math.ceil(x / 2), [self.nx, self.ny])
         return self.kernel_function(batch)
@@ -141,7 +131,7 @@ class DirWaveLayer2D(keras.layers.Layer):
 class InvWaveLayer2D(keras.layers.Layer):
     """Abstract class with general methods for 2D inverse wavelet transforms"""
     # in : (b, x, y, 4*c) --> out: (b, 2*x, 2*y, c)
-    def call(self, batch, bs=None, nx=None, ny=None, cn=None):
+    def call(self, batch, bs=-1, nx=None, ny=None, cn=None):
         """Call the inverse 2D wavelet
 
         :param batch: tensor of shape
@@ -152,20 +142,11 @@ class InvWaveLayer2D(keras.layers.Layer):
 
         """
 
-        if nx is None:
-            self.bs, self.nx, self.ny, self.cn = batch.shape.as_list()
-        else:
-            self.bs = bs
-            self.nx = nx
-            self.ny = ny
-            self.cn = cn
+        self.bs = bs
+        self.nx = nx
+        self.ny = ny
+        self.cn = cn
 
-        if self.nx is None:
-            self.nx = 256
-            self.ny = 256
-            self.cn = 1
-
-        if (self.bs is None) : self.bs = -1
         self.cn = self.cn // 4
         self.ox = self.nx * 2
         self.oy = self.ny * 2
