@@ -175,7 +175,8 @@ def _plot_performance_diagrams(score_tables_xarray, confidence_level):
         data_matrix=time_indices,
         colour_map_object=TEMPORAL_COLOUR_MAP_OBJECT,
         colour_norm_object=colour_norm_object,
-        orientation_string='horizontal', extend_min=False, extend_max=False,
+        orientation_string='horizontal', padding=0.15,
+        extend_min=False, extend_max=False,
         font_size=COLOUR_BAR_FONT_SIZE
     )
 
