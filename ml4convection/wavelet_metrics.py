@@ -115,6 +115,13 @@ def _check_input_args(min_resolution_deg, max_resolution_deg, mask_matrix,
     if function_name is not None:
         error_checking.assert_is_string(function_name)
 
+    print('keep_mean_flags: {0:s}'.format(
+        str(keep_mean_flags.astype(int))
+    ))
+    print('keep_detail_flags: {0:s}'.format(
+        str(keep_detail_flags.astype(int))
+    ))
+
     return mask_matrix, keep_mean_flags, keep_detail_flags
 
 
