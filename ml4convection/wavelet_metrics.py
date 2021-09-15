@@ -100,7 +100,7 @@ def _check_input_args(min_resolution_deg, max_resolution_deg, mask_matrix,
     this_index = -1 + numpy.searchsorted(
         a=detail_resolution_by_level_deg, v=min_resolution_deg, side='left'
     )
-    if this_index > 0:
+    if this_index >= 0:
         keep_detail_flags[:(this_index + 1)] = False
 
     padding_arg = (
