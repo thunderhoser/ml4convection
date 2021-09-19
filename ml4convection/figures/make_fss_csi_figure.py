@@ -120,7 +120,7 @@ def _plot_figure(
 
     # Plot U-net FSS.
     this_handle = axes_object.plot(
-        lead_times_minutes, numpy.mean(u_net_fss_matrix, axis=1),
+        lead_times_minutes, numpy.nanmean(u_net_fss_matrix, axis=1),
         color=FSS_COLOUR, linewidth=LINE_WIDTH, linestyle='solid',
         marker=MARKER_TYPE, markersize=MARKER_SIZE, markeredgewidth=0,
         markerfacecolor=FSS_COLOUR, markeredgecolor=FSS_COLOUR
@@ -150,7 +150,7 @@ def _plot_figure(
 
     # Plot U-net CSI.
     this_handle = axes_object.plot(
-        lead_times_minutes, numpy.mean(u_net_csi_matrix, axis=1),
+        lead_times_minutes, numpy.nanmean(u_net_csi_matrix, axis=1),
         color=CSI_COLOUR, linewidth=LINE_WIDTH, linestyle='solid',
         marker=MARKER_TYPE, markersize=MARKER_SIZE, markeredgewidth=0,
         markerfacecolor=CSI_COLOUR, markeredgecolor=CSI_COLOUR
@@ -178,7 +178,7 @@ def _plot_figure(
 
     # Plot U-net BSS.
     this_handle = axes_object.plot(
-        lead_times_minutes, numpy.mean(u_net_bss_matrix, axis=1),
+        lead_times_minutes, numpy.nanmean(u_net_bss_matrix, axis=1),
         color=BSS_COLOUR, linewidth=LINE_WIDTH, linestyle='solid',
         marker=MARKER_TYPE, markersize=MARKER_SIZE, markeredgewidth=0,
         markerfacecolor=BSS_COLOUR, markeredgecolor=BSS_COLOUR
@@ -206,7 +206,7 @@ def _plot_figure(
 
     # Plot persistence-model FSS.
     this_handle = axes_object.plot(
-        lead_times_minutes, numpy.mean(persistence_fss_matrix, axis=1),
+        lead_times_minutes, numpy.nanmean(persistence_fss_matrix, axis=1),
         color=FSS_COLOUR, linewidth=LINE_WIDTH, linestyle='dashed',
         marker=MARKER_TYPE, markersize=MARKER_SIZE, markeredgewidth=0,
         markerfacecolor=FSS_COLOUR, markeredgecolor=FSS_COLOUR
@@ -234,7 +234,7 @@ def _plot_figure(
 
     # Plot persistence-model CSI.
     this_handle = axes_object.plot(
-        lead_times_minutes, numpy.mean(persistence_csi_matrix, axis=1),
+        lead_times_minutes, numpy.nanmean(persistence_csi_matrix, axis=1),
         color=CSI_COLOUR, linewidth=LINE_WIDTH, linestyle='dashed',
         marker=MARKER_TYPE, markersize=MARKER_SIZE, markeredgewidth=0,
         markerfacecolor=CSI_COLOUR, markeredgecolor=CSI_COLOUR
@@ -262,7 +262,7 @@ def _plot_figure(
 
     # Plot persistence-model BSS.
     this_handle = axes_object.plot(
-        lead_times_minutes, numpy.mean(persistence_bss_matrix, axis=1),
+        lead_times_minutes, numpy.nanmean(persistence_bss_matrix, axis=1),
         color=BSS_COLOUR, linewidth=LINE_WIDTH, linestyle='dashed',
         marker=MARKER_TYPE, markersize=MARKER_SIZE, markeredgewidth=0,
         markerfacecolor=BSS_COLOUR, markeredgecolor=BSS_COLOUR
