@@ -30,6 +30,8 @@ def _run(training_predictor_dir_name, training_target_dir_name,
          first_training_date_string, last_training_date_string,
          first_validn_date_string, last_validn_date_string,
          normalize, uniformize, add_coords,
+         fourier_transform_targets, wavelet_transform_targets,
+         min_target_resolution_deg, max_target_resolution_deg,
          num_examples_per_batch, max_examples_per_day_in_batch,
          use_partial_grids, omit_north_radar, num_epochs,
          num_training_batches_per_epoch, num_validn_batches_per_epoch,
@@ -55,6 +57,10 @@ def _run(training_predictor_dir_name, training_target_dir_name,
     :param last_validn_date_string: Same.
     :param normalize: Same.
     :param add_coords: Same.
+    :param fourier_transform_targets: Same.
+    :param wavelet_transform_targets: Same.
+    :param min_target_resolution_deg: Same.
+    :param max_target_resolution_deg: Same.
     :param uniformize: Same.
     :param num_examples_per_batch: Same.
     :param max_examples_per_day_in_batch: Same.
@@ -80,7 +86,11 @@ def _run(training_predictor_dir_name, training_target_dir_name,
         neural_net.LAST_VALID_DATE_KEY: last_training_date_string,
         neural_net.NORMALIZE_FLAG_KEY: normalize,
         neural_net.UNIFORMIZE_FLAG_KEY: uniformize,
-        neural_net.ADD_COORDS_KEY: add_coords
+        neural_net.ADD_COORDS_KEY: add_coords,
+        neural_net.FOURIER_TRANSFORM_KEY: fourier_transform_targets,
+        neural_net.WAVELET_TRANSFORM_KEY: wavelet_transform_targets,
+        neural_net.MIN_TARGET_RESOLUTION_KEY: min_target_resolution_deg,
+        neural_net.MAX_TARGET_RESOLUTION_KEY: max_target_resolution_deg
     }
 
     validation_option_dict = {
@@ -177,6 +187,18 @@ if __name__ == '__main__':
         add_coords=bool(getattr(
             INPUT_ARG_OBJECT, training_args.ADD_COORDS_ARG_NAME
         )),
+        fourier_transform_targets=bool(getattr(
+            INPUT_ARG_OBJECT, training_args.FOURIER_TRANSFORM_ARG_NAME
+        )),
+        wavelet_transform_targets=bool(getattr(
+            INPUT_ARG_OBJECT, training_args.WAVELET_TRANSFORM_ARG_NAME
+        )),
+        min_target_resolution_deg=getattr(
+            INPUT_ARG_OBJECT, training_args.MIN_TARGET_RESOLUTION_ARG_NAME
+        ),
+        max_target_resolution_deg=getattr(
+            INPUT_ARG_OBJECT, training_args.MAX_TARGET_RESOLUTION_ARG_NAME
+        ),
         num_examples_per_batch=getattr(
             INPUT_ARG_OBJECT, training_args.BATCH_SIZE_ARG_NAME
         ),
