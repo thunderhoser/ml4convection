@@ -301,12 +301,12 @@ METRIC_NAMES = [
     neural_net.FSS_NAME + '_neigh0', neural_net.BRIER_SCORE_NAME + '_neigh1',
     neural_net.CSI_NAME + '_neigh2', neural_net.FREQUENCY_BIAS_NAME + '_neigh3',
     neural_net.IOU_NAME + '_neigh4', neural_net.DICE_COEFF_NAME + '_neigh5',
-    neural_net.FSS_NAME + '_0.0000d_0.5000d',
-    neural_net.BRIER_SCORE_NAME + '_0.1000d_0.5000d',
-    neural_net.CSI_NAME + '_0.1000d_infd',
-    neural_net.FREQUENCY_BIAS_NAME + '_0.0000d_0.5000d',
-    neural_net.IOU_NAME + '_0.1000d_0.5000d',
-    neural_net.DICE_COEFF_NAME + '_0.1000d_infd'
+    neural_net.FSS_NAME + '_0.0000d_0.5000d_wavelets0',
+    neural_net.BRIER_SCORE_NAME + '_0.1000d_0.5000d_wavelets0',
+    neural_net.CSI_NAME + '_0.1000d_infd_wavelets0',
+    neural_net.FREQUENCY_BIAS_NAME + '_0.0000d_0.5000d_wavelets0',
+    neural_net.IOU_NAME + '_0.1000d_0.5000d_wavelets0',
+    neural_net.DICE_COEFF_NAME + '_0.1000d_infd_wavelets0'
 ]
 
 MASK_MATRIX = numpy.random.random_integers(low=0, high=1, size=(13, 11))

@@ -130,7 +130,7 @@ def _run(gridded_eval_dir_names, ungridded_eval_dir_names,
         for j in range(num_scores):
             this_file_name = '{0:s}/{1:s}'.format(
                 gridded_eval_dir_names[i] if j == num_scores - 1
-                else ungridded_eval_dir_names[j],
+                else ungridded_eval_dir_names[i],
                 pathless_panel_file_names[j]
             )
             panel_file_names.append(this_file_name)
