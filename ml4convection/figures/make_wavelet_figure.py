@@ -7,7 +7,6 @@ import numpy
 import matplotlib
 matplotlib.use('agg')
 from matplotlib import pyplot
-import tensorflow
 from keras import backend as K
 from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import file_system_utils
@@ -15,6 +14,7 @@ from gewittergefahr.plotting import plotting_utils as gg_plotting_utils
 from gewittergefahr.plotting import imagemagick_utils
 from ml4convection.io import border_io
 from ml4convection.io import prediction_io
+from ml4convection.utils import wavelet_utils
 from ml4convection.plotting import prediction_plotting
 from ml4convection.scripts import plot_predictions
 from wavetf import WaveTFFactory
@@ -24,16 +24,13 @@ TIME_FORMAT = '%Y-%m-%d-%H%M'
 DATE_FORMAT = prediction_io.DATE_FORMAT
 
 GRID_SPACING_DEG = 0.0125
-START_PADDING_PX = 26
-END_PADDING_PX = 25
-
-COEFF_COLOUR_MAP_OBJECT = pyplot.get_cmap('seismic')
 
 CONVERT_EXE_NAME = '/usr/bin/convert'
 TITLE_FONT_SIZE = 200
 TITLE_FONT_NAME = 'DejaVu-Sans-Bold'
 
 MAX_COLOUR_PERCENTILE = 99.
+COEFF_COLOUR_MAP_OBJECT = pyplot.get_cmap('seismic')
 FIGURE_WIDTH_INCHES = 15
 FIGURE_HEIGHT_INCHES = 15
 FIGURE_RESOLUTION_DPI = 300
@@ -107,316 +104,6 @@ INPUT_ARG_PARSER.add_argument(
     '--' + OUTPUT_DIR_ARG_NAME, type=str, required=True,
     help=OUTPUT_DIR_HELP_STRING
 )
-
-
-def _taper_spatial_data(prediction_dict):
-    """Tapers spatial data via zero-padding.
-
-    :param prediction_dict: Dictionary in format returned by
-        `prediction_io.read_file`.
-    :return: prediction_dict: Same but after tapering.
-    """
-
-    padding_arg = (
-        (START_PADDING_PX, END_PADDING_PX),
-        (START_PADDING_PX, END_PADDING_PX)
-    )
-    probability_matrix = numpy.pad(
-        prediction_dict[prediction_io.PROBABILITY_MATRIX_KEY][0, ...],
-        pad_width=padding_arg, mode='constant', constant_values=0.
-    )
-    prediction_dict[prediction_io.PROBABILITY_MATRIX_KEY] = numpy.expand_dims(
-        probability_matrix, axis=0
-    )
-
-    target_matrix = numpy.pad(
-        prediction_dict[prediction_io.TARGET_MATRIX_KEY][0, ...].astype(float),
-        pad_width=padding_arg, mode='constant', constant_values=0.
-    )
-    target_matrix = numpy.expand_dims(target_matrix, axis=0)
-    prediction_dict[prediction_io.TARGET_MATRIX_KEY] = (
-        numpy.round(target_matrix).astype(int)
-    )
-
-    latitudes_deg_n = prediction_dict[prediction_io.LATITUDES_KEY]
-    latitude_spacing_deg = numpy.diff(latitudes_deg_n[:2])[0]
-    start_latitudes_deg_n = (
-        latitudes_deg_n[:START_PADDING_PX] -
-        START_PADDING_PX * latitude_spacing_deg
-    )
-    end_latitudes_deg_n = (
-        latitudes_deg_n[-END_PADDING_PX:] +
-        END_PADDING_PX * latitude_spacing_deg
-    )
-    latitudes_deg_n = numpy.concatenate((
-        start_latitudes_deg_n, latitudes_deg_n, end_latitudes_deg_n
-    ))
-    prediction_dict[prediction_io.LATITUDES_KEY] = latitudes_deg_n
-
-    longitudes_deg_e = prediction_dict[prediction_io.LONGITUDES_KEY]
-    longitude_spacing_deg = numpy.diff(longitudes_deg_e[:2])[0]
-    start_longitudes_deg_e = (
-        longitudes_deg_e[:START_PADDING_PX] -
-        START_PADDING_PX * longitude_spacing_deg
-    )
-    end_longitudes_deg_e = (
-        longitudes_deg_e[-END_PADDING_PX:] +
-        END_PADDING_PX * longitude_spacing_deg
-    )
-    longitudes_deg_e = numpy.concatenate((
-        start_longitudes_deg_e, longitudes_deg_e, end_longitudes_deg_e
-    ))
-    prediction_dict[prediction_io.LONGITUDES_KEY] = longitudes_deg_e
-
-    return prediction_dict
-
-
-def _untaper_spatial_data(prediction_dict):
-    """Removes zero-padding from spatial data.
-
-    This method is the inverse of `_taper_spatial_data`.
-
-    :param prediction_dict: Dictionary in format returned by
-        `prediction_io.read_file`.
-    :return: prediction_dict: Same but after removing zero-padding.
-    """
-
-    probability_matrix = (
-        prediction_dict[prediction_io.PROBABILITY_MATRIX_KEY][0, ...]
-    )
-    probability_matrix = probability_matrix[
-        START_PADDING_PX:-END_PADDING_PX,
-        START_PADDING_PX:-END_PADDING_PX
-    ]
-    probability_matrix = numpy.maximum(probability_matrix, 0.)
-    probability_matrix = numpy.minimum(probability_matrix, 1.)
-    prediction_dict[prediction_io.PROBABILITY_MATRIX_KEY] = numpy.expand_dims(
-        probability_matrix, axis=0
-    )
-
-    prediction_dict[prediction_io.TARGET_MATRIX_KEY] = numpy.full(
-        prediction_dict[prediction_io.PROBABILITY_MATRIX_KEY].shape,
-        0, dtype=int
-    )
-    prediction_dict[prediction_io.LATITUDES_KEY] = (
-        prediction_dict[prediction_io.LATITUDES_KEY][
-            START_PADDING_PX:-END_PADDING_PX
-        ]
-    )
-    prediction_dict[prediction_io.LONGITUDES_KEY] = (
-        prediction_dict[prediction_io.LONGITUDES_KEY][
-            START_PADDING_PX:-END_PADDING_PX
-        ]
-    )
-
-    return prediction_dict
-
-
-def _do_forward_transform(prediction_dict):
-    """Does forward multi-level wavelet transform.
-
-    K = number of levels in wavelet transform
-
-    :param prediction_dict: Dictionary in format returned by
-        `prediction_io.read_file`.
-    :return: coeff_tensor_by_level: length-K list of tensors, each containing
-        coefficients in format returned by WaveTF library.
-    """
-
-    probability_matrix = (
-        prediction_dict[prediction_io.PROBABILITY_MATRIX_KEY][0, ...]
-    )
-    probability_tensor = tensorflow.constant(
-        probability_matrix, dtype=tensorflow.float64
-    )
-    probability_tensor = tensorflow.expand_dims(probability_tensor, axis=0)
-    probability_tensor = tensorflow.expand_dims(probability_tensor, axis=-1)
-
-    dwt_object = WaveTFFactory().build('haar', dim=2)
-
-    num_levels = int(numpy.round(numpy.log2(probability_matrix.shape[0])))
-    coeff_tensor_by_level = [None] * num_levels
-
-    for k in range(num_levels):
-        if k == 0:
-            coeff_tensor_by_level[k] = dwt_object.call(probability_tensor)
-        else:
-            coeff_tensor_by_level[k] = dwt_object.call(
-                coeff_tensor_by_level[k - 1][..., :1]
-            )
-
-    return coeff_tensor_by_level
-
-
-def _filter_wavelet_coeffs(coeff_tensor_by_level, min_resolution_deg,
-                           max_resolution_deg):
-    """Filters wavelet coeffs (zeroes out coeffs at undesired wavelengths).
-
-    :param coeff_tensor_by_level: See documentation for `_do_forward_transform`.
-    :param min_resolution_deg: See documentation at top of file.
-    :param max_resolution_deg: Same.
-    :return: coeff_tensor_by_level: Same as input but maybe with more zeros.
-    """
-
-    inverse_dwt_object = WaveTFFactory().build('haar', dim=2, inverse=True)
-
-    num_grid_rows = 2 * K.eval(coeff_tensor_by_level[0]).shape[1]
-    num_levels = int(numpy.round(
-        numpy.log2(num_grid_rows)
-    ))
-
-    level_indices = numpy.linspace(0, num_levels - 1, num=num_levels, dtype=int)
-    detail_resolution_by_level_deg = GRID_SPACING_DEG * (2 ** level_indices)
-    mean_resolution_by_level_deg = GRID_SPACING_DEG * (2 ** (level_indices + 1))
-
-    max_index = numpy.searchsorted(
-        a=mean_resolution_by_level_deg, v=max_resolution_deg, side='right'
-    )
-    min_index = -1 + numpy.searchsorted(
-        a=detail_resolution_by_level_deg, v=min_resolution_deg, side='left'
-    )
-
-    if max_index < num_levels:
-        k = num_levels - 1
-
-        while k >= max_index:
-            print((
-                'Zeroing out low-frequency coefficients at level '
-                '{0:d} of {1:d} (resolutions = {2:.4f} and {3:.4f} deg)...'
-            ).format(
-                k + 1, num_levels,
-                mean_resolution_by_level_deg[k],
-                detail_resolution_by_level_deg[k]
-            ))
-
-            coeff_tensor_by_level[k] = tensorflow.concat([
-                tensorflow.zeros_like(coeff_tensor_by_level[k][..., :1]),
-                coeff_tensor_by_level[k][..., 1:]
-            ], axis=-1)
-
-            k -= 1
-
-        k = max_index + 0
-
-        while k > 0 and k > min_index:
-            print((
-                'Reconstructing low-frequency coefficients at level '
-                '{0:d} of {1:d} (resolutions = {2:.4f} and {3:.4f} deg)...'
-            ).format(
-                k, num_levels,
-                mean_resolution_by_level_deg[k - 1],
-                detail_resolution_by_level_deg[k - 1]
-            ))
-
-            coeff_tensor_by_level[k - 1] = tensorflow.concat([
-                inverse_dwt_object.call(coeff_tensor_by_level[k]),
-                coeff_tensor_by_level[k - 1][..., 1:]
-            ], axis=-1)
-
-            k -= 1
-
-    if min_index > 0:
-        print((
-            'Zeroing out high-frequency coefficients at level '
-            '{0:d} of {1:d} (resolutions = {2:.4f} and {3:.4f} deg)...'
-        ).format(
-            min_index + 1, num_levels,
-            mean_resolution_by_level_deg[min_index],
-            detail_resolution_by_level_deg[min_index]
-        ))
-
-        coeff_tensor_by_level[min_index] = tensorflow.concat([
-            coeff_tensor_by_level[min_index][..., :1],
-            tensorflow.zeros_like(coeff_tensor_by_level[min_index][..., 1:])
-        ], axis=-1)
-
-    k = min_index + 0
-
-    while k > 0:
-        print((
-            'Reconstructing low-frequency coefficients at level '
-            '{0:d} of {1:d} (resolutions = {2:.4f} and {3:.4f} deg)...'
-        ).format(
-            k, num_levels,
-            mean_resolution_by_level_deg[k - 1],
-            detail_resolution_by_level_deg[k - 1]
-        ))
-
-        coeff_tensor_by_level[k - 1] = tensorflow.concat([
-            inverse_dwt_object.call(coeff_tensor_by_level[k]),
-            coeff_tensor_by_level[k - 1][..., 1:]
-        ], axis=-1)
-
-        print((
-            'Zeroing out high-frequency coefficients at level '
-            '{0:d} of {1:d} (resolutions = {2:.4f} and {3:.4f} deg)...'
-        ).format(
-            k, num_levels,
-            mean_resolution_by_level_deg[k - 1],
-            detail_resolution_by_level_deg[k - 1]
-        ))
-
-        coeff_tensor_by_level[k - 1] = tensorflow.concat([
-            coeff_tensor_by_level[k - 1][..., :1],
-            tensorflow.zeros_like(coeff_tensor_by_level[k - 1][..., 1:])
-        ], axis=-1)
-
-        k -= 1
-
-    return coeff_tensor_by_level
-
-
-def _coeff_tensors_to_numpy(coeff_tensor_by_level, num_grid_rows):
-    """Converts wavelet coeffs from tensor format to numpy format.
-
-    N = number of rows in grid = number of columns in grid
-    K = number of levels in wavelet transform
-
-    :param coeff_tensor_by_level: length-K list of tensors, each containing
-        coefficients in format returned by WaveTF library.
-    :param num_grid_rows: N in the above discussion.
-    :return: mean_coeff_matrix: N-by-N numpy array of mean coefficients.
-        Resolution decreases (wavelength increases) with row index and column
-        index.
-    :return: horizontal_coeff_matrix: N-by-N numpy array of horizontal-detail
-        coefficients.  Resolution decreases (wavelength increases) with row
-        index and column index.
-    :return: vertical_coeff_matrix: Same but for vertical detail.
-    :return: diagonal_coeff_matrix: Same but for diagonal detail.
-    """
-
-    dimensions = (num_grid_rows, num_grid_rows)
-    mean_coeff_matrix = numpy.full(dimensions, numpy.nan)
-    horizontal_coeff_matrix = numpy.full(dimensions, numpy.nan)
-    vertical_coeff_matrix = numpy.full(dimensions, numpy.nan)
-    diagonal_coeff_matrix = numpy.full(dimensions, numpy.nan)
-
-    num_levels = len(coeff_tensor_by_level)
-    i = 0
-
-    for k in range(num_levels):
-        this_coeff_matrix = K.eval(coeff_tensor_by_level[k])[0, ...]
-        num_rows = this_coeff_matrix.shape[0]
-
-        mean_coeff_matrix[i:(i + num_rows), i:(i + num_rows)] = (
-            this_coeff_matrix[..., 0]
-        )
-        horizontal_coeff_matrix[i:(i + num_rows), i:(i + num_rows)] = (
-            this_coeff_matrix[..., 2]
-        )
-        vertical_coeff_matrix[i:(i + num_rows), i:(i + num_rows)] = (
-            this_coeff_matrix[..., 1]
-        )
-        diagonal_coeff_matrix[i:(i + num_rows), i:(i + num_rows)] = (
-            this_coeff_matrix[..., 3]
-        )
-
-        i += num_rows
-
-    return (
-        mean_coeff_matrix, horizontal_coeff_matrix, vertical_coeff_matrix,
-        diagonal_coeff_matrix
-    )
 
 
 def _overlay_text(
@@ -624,7 +311,58 @@ def _run(top_prediction_dir_name, valid_time_string, radar_number,
     )
 
     # Plot tapered predictions.
-    prediction_dict = _taper_spatial_data(prediction_dict)
+
+    # TODO(thunderhoser): Modularize tapering.
+    prediction_dict[prediction_io.PROBABILITY_MATRIX_KEY], padding_arg = (
+        wavelet_utils.taper_spatial_data(
+            prediction_dict[prediction_io.PROBABILITY_MATRIX_KEY]
+        )
+    )
+    prediction_dict[prediction_io.TARGET_MATRIX_KEY] = (
+        wavelet_utils.taper_spatial_data(
+            prediction_dict[prediction_io.TARGET_MATRIX_KEY]
+        )[0]
+    )
+    prediction_dict[prediction_io.TARGET_MATRIX_KEY] = numpy.round(
+        prediction_dict[prediction_io.TARGET_MATRIX_KEY]
+    ).astype(int)
+
+    start_padding_px = padding_arg[1][0]
+    end_padding_px = padding_arg[1][-1]
+
+    latitudes_deg_n = prediction_dict[prediction_io.LATITUDES_KEY]
+    latitude_spacing_deg = numpy.diff(latitudes_deg_n[:2])[0]
+    start_latitudes_deg_n = (
+        latitudes_deg_n[:start_padding_px] -
+        start_padding_px * latitude_spacing_deg
+    )
+    end_latitudes_deg_n = (
+        latitudes_deg_n[-end_padding_px:] +
+        end_padding_px * latitude_spacing_deg
+    )
+    latitudes_deg_n = numpy.concatenate((
+        start_latitudes_deg_n, latitudes_deg_n, end_latitudes_deg_n
+    ))
+    prediction_dict[prediction_io.LATITUDES_KEY] = latitudes_deg_n
+
+    start_padding_px = padding_arg[2][0]
+    end_padding_px = padding_arg[2][-1]
+
+    longitudes_deg_e = prediction_dict[prediction_io.LONGITUDES_KEY]
+    longitude_spacing_deg = numpy.diff(longitudes_deg_e[:2])[0]
+    start_longitudes_deg_e = (
+        longitudes_deg_e[:start_padding_px] -
+        start_padding_px * longitude_spacing_deg
+    )
+    end_longitudes_deg_e = (
+        longitudes_deg_e[-end_padding_px:] +
+        end_padding_px * longitude_spacing_deg
+    )
+    longitudes_deg_e = numpy.concatenate((
+        start_longitudes_deg_e, longitudes_deg_e, end_longitudes_deg_e
+    ))
+    prediction_dict[prediction_io.LONGITUDES_KEY] = longitudes_deg_e
+
     mask_matrix = numpy.full(
         prediction_dict[prediction_io.TARGET_MATRIX_KEY].shape[1:],
         1, dtype=bool
@@ -658,18 +396,16 @@ def _run(top_prediction_dir_name, valid_time_string, radar_number,
     )
 
     # Plot unfiltered WT coefficients.
-    coeff_tensor_by_level = _do_forward_transform(prediction_dict)
+    coeff_tensor_by_level = wavelet_utils.do_forward_transform(
+        prediction_dict[prediction_io.PROBABILITY_MATRIX_KEY]
+    )
 
     (
         mean_coeff_matrix,
         horizontal_coeff_matrix,
         vertical_coeff_matrix,
         diagonal_coeff_matrix
-    ) = _coeff_tensors_to_numpy(
-        coeff_tensor_by_level=coeff_tensor_by_level,
-        num_grid_rows=
-        prediction_dict[prediction_io.PROBABILITY_MATRIX_KEY].shape[1]
-    )
+    ) = wavelet_utils.coeff_tensors_to_numpy(coeff_tensor_by_level)
 
     all_coeffs = numpy.concatenate((
         numpy.ravel(horizontal_coeff_matrix),
@@ -692,7 +428,7 @@ def _run(top_prediction_dir_name, valid_time_string, radar_number,
 
     panel_file_names[0] = '{0:s}/mean_coeffs.jpg'.format(output_dir_name)
     _plot_wavelet_coeffs(
-        coeff_matrix=mean_coeff_matrix,
+        coeff_matrix=mean_coeff_matrix[0, ...],
         plotting_mean_coeffs=True,
         colour_map_object=COEFF_COLOUR_MAP_OBJECT,
         colour_norm_object=mean_colour_norm_object,
@@ -707,7 +443,7 @@ def _run(top_prediction_dir_name, valid_time_string, radar_number,
 
     panel_file_names[1] = '{0:s}/horizontal_coeffs.jpg'.format(output_dir_name)
     _plot_wavelet_coeffs(
-        coeff_matrix=horizontal_coeff_matrix,
+        coeff_matrix=horizontal_coeff_matrix[0, ...],
         plotting_mean_coeffs=False,
         colour_map_object=COEFF_COLOUR_MAP_OBJECT,
         colour_norm_object=detail_colour_norm_object,
@@ -722,7 +458,7 @@ def _run(top_prediction_dir_name, valid_time_string, radar_number,
 
     panel_file_names[2] = '{0:s}/vertical_coeffs.jpg'.format(output_dir_name)
     _plot_wavelet_coeffs(
-        coeff_matrix=vertical_coeff_matrix,
+        coeff_matrix=vertical_coeff_matrix[0, ...],
         plotting_mean_coeffs=False,
         colour_map_object=COEFF_COLOUR_MAP_OBJECT,
         colour_norm_object=detail_colour_norm_object,
@@ -737,7 +473,7 @@ def _run(top_prediction_dir_name, valid_time_string, radar_number,
 
     panel_file_names[3] = '{0:s}/diagonal_coeffs.jpg'.format(output_dir_name)
     _plot_wavelet_coeffs(
-        coeff_matrix=diagonal_coeff_matrix,
+        coeff_matrix=diagonal_coeff_matrix[0, ...],
         plotting_mean_coeffs=False,
         colour_map_object=COEFF_COLOUR_MAP_OBJECT,
         colour_norm_object=detail_colour_norm_object,
@@ -750,10 +486,11 @@ def _run(top_prediction_dir_name, valid_time_string, radar_number,
         y_offset_from_top_px=LARGE_BORDER_WIDTH_PX, text_string='(d)'
     )
 
-    coeff_tensor_by_level = _filter_wavelet_coeffs(
+    wavelet_utils.filter_coefficients(
         coeff_tensor_by_level=coeff_tensor_by_level,
-        min_resolution_deg=min_resolution_deg,
-        max_resolution_deg=max_resolution_deg
+        grid_spacing_metres=GRID_SPACING_DEG,
+        min_resolution_metres=min_resolution_deg,
+        max_resolution_metres=max_resolution_deg
     )
 
     (
@@ -761,18 +498,14 @@ def _run(top_prediction_dir_name, valid_time_string, radar_number,
         horizontal_coeff_matrix,
         vertical_coeff_matrix,
         diagonal_coeff_matrix
-    ) = _coeff_tensors_to_numpy(
-        coeff_tensor_by_level=coeff_tensor_by_level,
-        num_grid_rows=
-        prediction_dict[prediction_io.PROBABILITY_MATRIX_KEY].shape[1]
-    )
+    ) = wavelet_utils.coeff_tensors_to_numpy(coeff_tensor_by_level)
 
     # Plot filtered WT coefficients.
     panel_file_names[4] = '{0:s}/filtered_mean_coeffs.jpg'.format(
         output_dir_name
     )
     _plot_wavelet_coeffs(
-        coeff_matrix=mean_coeff_matrix,
+        coeff_matrix=mean_coeff_matrix[0, ...],
         plotting_mean_coeffs=True,
         colour_map_object=COEFF_COLOUR_MAP_OBJECT,
         colour_norm_object=mean_colour_norm_object,
@@ -789,7 +522,7 @@ def _run(top_prediction_dir_name, valid_time_string, radar_number,
         output_dir_name
     )
     _plot_wavelet_coeffs(
-        coeff_matrix=horizontal_coeff_matrix,
+        coeff_matrix=horizontal_coeff_matrix[0, ...],
         plotting_mean_coeffs=False,
         colour_map_object=COEFF_COLOUR_MAP_OBJECT,
         colour_norm_object=detail_colour_norm_object,
@@ -806,7 +539,7 @@ def _run(top_prediction_dir_name, valid_time_string, radar_number,
         output_dir_name
     )
     _plot_wavelet_coeffs(
-        coeff_matrix=vertical_coeff_matrix,
+        coeff_matrix=vertical_coeff_matrix[0, ...],
         plotting_mean_coeffs=False,
         colour_map_object=COEFF_COLOUR_MAP_OBJECT,
         colour_norm_object=detail_colour_norm_object,
@@ -823,7 +556,7 @@ def _run(top_prediction_dir_name, valid_time_string, radar_number,
         output_dir_name
     )
     _plot_wavelet_coeffs(
-        coeff_matrix=diagonal_coeff_matrix,
+        coeff_matrix=diagonal_coeff_matrix[0, ...],
         plotting_mean_coeffs=False,
         colour_map_object=COEFF_COLOUR_MAP_OBJECT,
         colour_norm_object=detail_colour_norm_object,
@@ -841,8 +574,43 @@ def _run(top_prediction_dir_name, valid_time_string, radar_number,
     prediction_dict[prediction_io.PROBABILITY_MATRIX_KEY] = (
         K.eval(probability_tensor)[..., 0]
     )
+    prediction_dict[prediction_io.PROBABILITY_MATRIX_KEY] = numpy.maximum(
+        prediction_dict[prediction_io.PROBABILITY_MATRIX_KEY], 0.
+    )
+    prediction_dict[prediction_io.PROBABILITY_MATRIX_KEY] = numpy.minimum(
+        prediction_dict[prediction_io.PROBABILITY_MATRIX_KEY], 1.
+    )
 
-    prediction_dict = _untaper_spatial_data(prediction_dict)
+    prediction_dict[prediction_io.PROBABILITY_MATRIX_KEY] = (
+        wavelet_utils.untaper_spatial_data(
+            spatial_data_matrix=
+            prediction_dict[prediction_io.PROBABILITY_MATRIX_KEY],
+            numpy_pad_width=padding_arg
+        )
+    )
+    prediction_dict[prediction_io.TARGET_MATRIX_KEY] = (
+        wavelet_utils.untaper_spatial_data(
+            spatial_data_matrix=
+            prediction_dict[prediction_io.TARGET_MATRIX_KEY],
+            numpy_pad_width=padding_arg
+        )
+    )
+
+    start_padding_px = padding_arg[1][0]
+    end_padding_px = padding_arg[1][-1]
+    prediction_dict[prediction_io.LATITUDES_KEY] = (
+        prediction_dict[prediction_io.LATITUDES_KEY][
+            start_padding_px:-end_padding_px
+        ]
+    )
+
+    start_padding_px = padding_arg[2][0]
+    end_padding_px = padding_arg[2][-1]
+    prediction_dict[prediction_io.LONGITUDES_KEY] = (
+        prediction_dict[prediction_io.LONGITUDES_KEY][
+            start_padding_px:-end_padding_px
+        ]
+    )
     mask_matrix = numpy.full(
         prediction_dict[prediction_io.TARGET_MATRIX_KEY].shape[1:],
         1, dtype=bool

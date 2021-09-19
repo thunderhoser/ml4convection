@@ -7,7 +7,6 @@ matplotlib.use('agg')
 from matplotlib import pyplot
 import matplotlib.colors
 import matplotlib.patches
-from scipy.interpolate import interp1d
 from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.plotting import plotting_utils as gg_plotting_utils
@@ -38,11 +37,8 @@ HISTOGRAM_FACE_COLOUR = numpy.full(3, 152. / 255)
 HISTOGRAM_FACE_COLOUR = matplotlib.colors.to_rgba(HISTOGRAM_FACE_COLOUR, 0.5)
 HISTOGRAM_EDGE_COLOUR = numpy.full(3, 152. / 255)
 
-COLOUR_BAR_FONT_SIZE = 40
-LABEL_FONT_SIZE = 55
-LABEL_BOUNDING_BOX_DICT = {
-    'alpha': 0.5, 'edgecolor': 'k', 'linewidth': 1
-}
+HOURLY_CBAR_FONT_SIZE = 35
+MONTHLY_CBAR_FONT_SIZE = 40
 TEMPORAL_COLOUR_MAP_OBJECT = pyplot.get_cmap('hsv')
 
 FIGURE_WIDTH_INCHES = 15
@@ -162,18 +158,19 @@ def _plot_performance_diagrams(score_tables_xarray, confidence_level):
                 tick_strings[i][0].upper(), tick_strings[i][1:]
             )
 
+    if num_tables == NUM_HOURS_PER_DAY:
+        this_font_size = HOURLY_CBAR_FONT_SIZE
+    else:
+        this_font_size = MONTHLY_CBAR_FONT_SIZE
+
     colour_bar_object = gg_plotting_utils.plot_colour_bar(
         axes_object_or_matrix=axes_object,
         data_matrix=time_indices,
         colour_map_object=TEMPORAL_COLOUR_MAP_OBJECT,
         colour_norm_object=colour_norm_object,
-        orientation_string='vertical', extend_min=False, extend_max=False,
-        font_size=COLOUR_BAR_FONT_SIZE
+        orientation_string='horizontal', padding=0.11,
+        extend_min=False, extend_max=False, font_size=this_font_size
     )
-
-    tick_values = colour_bar_object.get_ticks()
-    print(tick_values)
-    print('\n\n\n**************\n\n\n')
 
     colour_bar_object.set_ticks(time_indices)
     colour_bar_object.set_ticklabels(tick_strings)
@@ -199,6 +196,7 @@ def _plot_reliability_curves(score_tables_xarray, confidence_level):
         numpy.min(time_indices), numpy.max(time_indices)
     )
     colour_matrix = TEMPORAL_COLOUR_MAP_OBJECT(colour_norm_object(time_indices))
+    tick_strings = [''] * num_tables
 
     figure_object, axes_object = pyplot.subplots(
         1, 1, figsize=(FIGURE_WIDTH_INCHES, FIGURE_HEIGHT_INCHES)
@@ -239,50 +237,35 @@ def _plot_reliability_curves(score_tables_xarray, confidence_level):
             )
 
         if num_tables == NUM_HOURS_PER_DAY:
-            label_string = '{0:02d}'.format(i)
+            tick_strings[i] = '{0:02d}'.format(i)
         else:
             valid_time_string = '2000-{0:02d}'.format(i + 1)
             valid_time_unix_sec = time_conversion.string_to_unix_sec(
                 valid_time_string, '%Y-%m'
             )
-            label_string = time_conversion.unix_sec_to_string(
+            tick_strings[i] = time_conversion.unix_sec_to_string(
                 valid_time_unix_sec, '%b'
             )
-            label_string = '{0:s}{1:s}'.format(
-                label_string[0].upper(), label_string[1:]
+            tick_strings[i] = '{0:s}{1:s}'.format(
+                tick_strings[i][0].upper(), tick_strings[i][1:]
             )
 
-        real_indices = numpy.where(numpy.invert(numpy.logical_or(
-            numpy.isnan(these_mean_probs), numpy.isnan(these_event_freqs)
-        )))[0]
+    if num_tables == NUM_HOURS_PER_DAY:
+        this_font_size = HOURLY_CBAR_FONT_SIZE
+    else:
+        this_font_size = MONTHLY_CBAR_FONT_SIZE
 
-        label_x_coord = float(i) / (num_tables - 1)
+    colour_bar_object = gg_plotting_utils.plot_colour_bar(
+        axes_object_or_matrix=axes_object,
+        data_matrix=time_indices,
+        colour_map_object=TEMPORAL_COLOUR_MAP_OBJECT,
+        colour_norm_object=colour_norm_object,
+        orientation_string='horizontal', padding=0.11,
+        extend_min=False, extend_max=False, font_size=this_font_size
+    )
 
-        if label_x_coord < these_mean_probs[real_indices][-1]:
-            if len(real_indices) > 1:
-                interp_object = interp1d(
-                    x=these_mean_probs[real_indices],
-                    y=these_event_freqs[real_indices],
-                    kind='linear', assume_sorted=True, bounds_error=False,
-                    fill_value='extrapolate'
-                )
-                label_y_coord = interp_object(label_x_coord)
-            else:
-                label_x_coord = these_mean_probs[real_indices][-1]
-                label_y_coord = these_event_freqs[real_indices][-1]
-        else:
-            label_x_coord = these_mean_probs[real_indices][-1]
-            label_y_coord = these_event_freqs[real_indices][-1]
-
-        label_y_coord = max([0., label_y_coord])
-        label_y_coord = min([1., label_y_coord])
-
-        axes_object.text(
-            label_x_coord, label_y_coord, label_string,
-            fontsize=LABEL_FONT_SIZE, color=colour_matrix[i, ...],
-            bbox=LABEL_BOUNDING_BOX_DICT, horizontalalignment='center',
-            verticalalignment='center', zorder=1e10
-        )
+    colour_bar_object.set_ticks(time_indices)
+    colour_bar_object.set_ticklabels(tick_strings)
 
     return figure_object, axes_object
 
