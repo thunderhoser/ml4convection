@@ -19,6 +19,10 @@ LAST_VALIDN_DATE_ARG_NAME = 'last_validn_date_string'
 NORMALIZE_ARG_NAME = 'normalize'
 UNIFORMIZE_ARG_NAME = 'uniformize'
 ADD_COORDS_ARG_NAME = 'add_coords'
+FOURIER_TRANSFORM_ARG_NAME = 'fourier_transform_targets'
+WAVELET_TRANSFORM_ARG_NAME = 'wavelet_transform_targets'
+MIN_TARGET_RESOLUTION_ARG_NAME = 'min_target_resolution_deg'
+MAX_TARGET_RESOLUTION_ARG_NAME = 'max_target_resolution_deg'
 BATCH_SIZE_ARG_NAME = 'num_examples_per_batch'
 MAX_DAILY_EXAMPLES_ARG_NAME = 'max_examples_per_day_in_batch'
 USE_PARTIAL_GRIDS_ARG_NAME = 'use_partial_grids'
@@ -86,6 +90,20 @@ UNIFORMIZE_HELP_STRING = (
 )
 ADD_COORDS_HELP_STRING = (
     'Boolean flag.  If 1, will use coordinates (lat/long) as predictors.'
+)
+FOURIER_TRANSFORM_HELP_STRING = (
+    'Boolean flag.  If True, will use Fourier transform to apply band-pass '
+    'filter to targets.'
+)
+WAVELET_TRANSFORM_HELP_STRING = (
+    'Boolean flag.  If True, will use wavelet transform to apply band-pass '
+    'filter to targets.'
+)
+MIN_TARGET_RESOLUTION_HELP_STRING = (
+    'Minimum resolution (degrees) to allow through band-pass filter.'
+)
+MAX_TARGET_RESOLUTION_HELP_STRING = (
+    'Max resolution (degrees) to allow through band-pass filter.'
 )
 BATCH_SIZE_HELP_STRING = (
     'Number of examples in each training and validation (monitoring) batch.'
@@ -188,6 +206,22 @@ def add_input_args(parser_object):
     parser_object.add_argument(
         '--' + ADD_COORDS_ARG_NAME, type=int, required=False, default=0,
         help=ADD_COORDS_HELP_STRING
+    )
+    parser_object.add_argument(
+        '--' + FOURIER_TRANSFORM_ARG_NAME, type=int, required=False, default=0,
+        help=FOURIER_TRANSFORM_HELP_STRING
+    )
+    parser_object.add_argument(
+        '--' + WAVELET_TRANSFORM_ARG_NAME, type=int, required=False, default=0,
+        help=WAVELET_TRANSFORM_HELP_STRING
+    )
+    parser_object.add_argument(
+        '--' + MIN_TARGET_RESOLUTION_ARG_NAME, type=float, required=False,
+        default=-1, help=MIN_TARGET_RESOLUTION_HELP_STRING
+    )
+    parser_object.add_argument(
+        '--' + MAX_TARGET_RESOLUTION_ARG_NAME, type=float, required=False,
+        default=-1, help=MAX_TARGET_RESOLUTION_HELP_STRING
     )
     parser_object.add_argument(
         '--' + BATCH_SIZE_ARG_NAME, type=int, required=False, default=256,

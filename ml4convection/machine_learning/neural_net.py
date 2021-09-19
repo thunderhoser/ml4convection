@@ -2280,6 +2280,19 @@ def read_metafile(dill_file_name):
         training_option_dict[OMIT_NORTH_RADAR_KEY] = False
         validation_option_dict[OMIT_NORTH_RADAR_KEY] = False
 
+    if FOURIER_TRANSFORM_KEY not in training_option_dict:
+        training_option_dict[FOURIER_TRANSFORM_KEY] = False
+        validation_option_dict[FOURIER_TRANSFORM_KEY] = False
+
+        training_option_dict[WAVELET_TRANSFORM_KEY] = False
+        validation_option_dict[WAVELET_TRANSFORM_KEY] = False
+
+        training_option_dict[MIN_TARGET_RESOLUTION_KEY] = numpy.nan
+        validation_option_dict[MIN_TARGET_RESOLUTION_KEY] = numpy.nan
+
+        training_option_dict[MAX_TARGET_RESOLUTION_KEY] = numpy.nan
+        validation_option_dict[MAX_TARGET_RESOLUTION_KEY] = numpy.nan
+
     metadata_dict[TRAINING_OPTIONS_KEY] = training_option_dict
     metadata_dict[VALIDATION_OPTIONS_KEY] = validation_option_dict
 
