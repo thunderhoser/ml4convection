@@ -10,6 +10,7 @@ import keras
 import tensorflow
 tensorflow.random.set_seed(6695)
 import tensorflow.keras as tf_keras
+from tensorflow.keras import backend as K
 
 THIS_DIRECTORY_NAME = os.path.dirname(os.path.realpath(
     os.path.join(os.getcwd(), os.path.expanduser(__file__))
@@ -26,12 +27,17 @@ import example_io
 import general_utils
 import radar_utils
 import fourier_utils
+import wavelet_utils
 import custom_losses
 import custom_metrics
 import fourier_metrics
 import wavelet_metrics
+from _wavetf import WaveTFFactory
 
 TOLERANCE = 1e-6
+
+GRID_SPACING_DEG = 0.0125
+MAX_TARGET_RESOLUTION_DEG = 6.4
 
 FSS_NAME = fourier_metrics.FSS_NAME
 BRIER_SCORE_NAME = fourier_metrics.BRIER_SCORE_NAME
@@ -86,6 +92,10 @@ LAST_VALID_DATE_KEY = 'last_valid_date_string'
 NORMALIZE_FLAG_KEY = 'normalize'
 UNIFORMIZE_FLAG_KEY = 'uniformize'
 ADD_COORDS_KEY = 'add_coords'
+FOURIER_TRANSFORM_KEY = 'fourier_transform_targets'
+WAVELET_TRANSFORM_KEY = 'wavelet_transform_targets'
+MIN_TARGET_RESOLUTION_KEY = 'min_target_resolution_deg'
+MAX_TARGET_RESOLUTION_KEY = 'max_target_resolution_deg'
 PREDICTOR_DIRECTORY_KEY = 'top_predictor_dir_name'
 TARGET_DIRECTORY_KEY = 'top_target_dir_name'
 
@@ -97,7 +107,9 @@ DEFAULT_GENERATOR_OPTION_DICT = {
     OMIT_NORTH_RADAR_KEY: False,
     NORMALIZE_FLAG_KEY: True,
     UNIFORMIZE_FLAG_KEY: True,
-    ADD_COORDS_KEY: False
+    ADD_COORDS_KEY: False,
+    FOURIER_TRANSFORM_KEY: False,
+    WAVELET_TRANSFORM_KEY: False
 }
 
 VALID_DATE_KEY = 'valid_date_string'
@@ -190,6 +202,24 @@ def _check_generator_args(option_dict):
 
     error_checking.assert_is_boolean(option_dict[INCLUDE_TIME_DIM_KEY])
     error_checking.assert_is_boolean(option_dict[OMIT_NORTH_RADAR_KEY])
+
+    error_checking.assert_is_boolean(option_dict[FOURIER_TRANSFORM_KEY])
+    error_checking.assert_is_boolean(option_dict[WAVELET_TRANSFORM_KEY])
+    if option_dict[FOURIER_TRANSFORM_KEY]:
+        option_dict[WAVELET_TRANSFORM_KEY] = False
+
+    if option_dict[FOURIER_TRANSFORM_KEY] or option_dict[WAVELET_TRANSFORM_KEY]:
+        error_checking.assert_is_geq(option_dict[MIN_TARGET_RESOLUTION_KEY], 0.)
+        error_checking.assert_is_greater(
+            option_dict[MAX_TARGET_RESOLUTION_KEY],
+            option_dict[MIN_TARGET_RESOLUTION_KEY]
+        )
+
+        if option_dict[MAX_TARGET_RESOLUTION_KEY] > MAX_TARGET_RESOLUTION_DEG:
+            option_dict[MAX_TARGET_RESOLUTION_KEY] = numpy.inf
+    else:
+        option_dict[MIN_TARGET_RESOLUTION_KEY] = numpy.nan
+        option_dict[MAX_TARGET_RESOLUTION_KEY] = numpy.nan
 
     return option_dict
 
@@ -306,7 +336,8 @@ def _read_inputs_one_day(
         valid_date_string, predictor_file_names, band_numbers,
         normalize, uniformize, add_coords, target_file_names, lead_time_seconds,
         lag_times_seconds, include_time_dimension, num_examples_to_read,
-        return_coords):
+        return_coords, fourier_transform_targets, wavelet_transform_targets,
+        min_target_resolution_deg, max_target_resolution_deg):
     """Reads inputs (predictor and target files) for one day.
 
     E = number of examples
@@ -328,9 +359,12 @@ def _read_inputs_one_day(
     :param num_examples_to_read: Number of examples to read.
     :param return_coords: Boolean flag.  If True, will return latitudes and
         longitudes for grid points.
+    :param fourier_transform_targets: See doc for `generator_full_grid`.
+    :param wavelet_transform_targets: Same.
+    :param min_target_resolution_deg: Same.
+    :param max_target_resolution_deg: Same.
     :return: data_dict: Dictionary with the following keys.
-    data_dict['predictor_matrix']: See doc for
-        `generator_full_grid`.
+    data_dict['predictor_matrix']: See doc for `generator_full_grid`.
     data_dict['target_matrix']: Same.
     data_dict['valid_times_unix_sec']: length-E numpy array of valid times.
     data_dict['latitudes_deg_n']: length-M numpy array of latitudes (deg N).
@@ -470,14 +504,97 @@ def _read_inputs_one_day(
         )
 
     target_matrix = target_dict[example_io.TARGET_MATRIX_KEY]
-
     print('Number of target values in batch = {0:d} ... mean = {1:.3g}'.format(
         target_matrix.size, numpy.mean(target_matrix)
     ))
 
+    if fourier_transform_targets:
+        target_matrix = target_matrix.astype(float)
+        num_examples = target_matrix.shape[0]
+
+        target_matrix = numpy.stack([
+            fourier_utils.taper_spatial_data(target_matrix[i, ...])
+            for i in range(num_examples)
+        ], axis=0)
+
+        blackman_matrix = fourier_utils.apply_blackman_window(
+            numpy.ones(target_matrix.shape[1:])
+        )
+        target_matrix = numpy.stack([
+            target_matrix[i, ...] * blackman_matrix for i in range(num_examples)
+        ], axis=0)
+
+        target_tensor = tensorflow.constant(
+            target_matrix, dtype=tensorflow.complex128
+        )
+        target_weight_tensor = tensorflow.signal.fft2d(target_tensor)
+        target_weight_matrix = K.eval(target_weight_tensor)
+
+        butterworth_matrix = fourier_utils.apply_butterworth_filter(
+            coefficient_matrix=numpy.ones(target_matrix.shape[1:]),
+            filter_order=2, grid_spacing_metres=GRID_SPACING_DEG,
+            min_resolution_metres=min_target_resolution_deg,
+            max_resolution_metres=max_target_resolution_deg
+        )
+
+        target_weight_matrix = numpy.stack([
+            target_weight_matrix[i, ...] * butterworth_matrix
+            for i in range(num_examples)
+        ], axis=0)
+
+        target_weight_tensor = tensorflow.constant(
+            target_weight_matrix, dtype=tensorflow.complex128
+        )
+        target_tensor = tensorflow.signal.ifft2d(target_weight_tensor)
+        target_tensor = tensorflow.math.real(target_tensor)
+        target_matrix = K.eval(target_tensor)
+
+        target_matrix = fourier_utils.untaper_spatial_data(target_matrix)
+        target_matrix = numpy.maximum(target_matrix, 0.)
+        target_matrix = numpy.minimum(target_matrix, 1.)
+
+        print((
+            'Number of target values and mean after Fourier transform = '
+            '{0:d}, {1:.3g}'
+        ).format(
+            target_matrix.size, numpy.mean(target_matrix)
+        ))
+
+    if wavelet_transform_targets:
+        target_matrix = target_matrix.astype(float)
+        target_matrix, padding_arg = wavelet_utils.taper_spatial_data(
+            target_matrix
+        )
+
+        coeff_tensor_by_level = wavelet_utils.do_forward_transform(
+            target_matrix
+        )
+        coeff_tensor_by_level = wavelet_utils.filter_coefficients(
+            coeff_tensor_by_level=coeff_tensor_by_level,
+            grid_spacing_metres=GRID_SPACING_DEG,
+            min_resolution_metres=min_target_resolution_deg,
+            max_resolution_metres=max_target_resolution_deg, verbose=True
+        )
+
+        inverse_dwt_object = WaveTFFactory().build('haar', dim=2, inverse=True)
+        target_tensor = inverse_dwt_object.call(coeff_tensor_by_level[0])
+        target_matrix = K.eval(target_tensor)[..., 0]
+
+        target_matrix = wavelet_utils.untaper_spatial_data(
+            spatial_data_matrix=target_matrix, numpy_pad_width=padding_arg
+        )
+        target_matrix = numpy.maximum(target_matrix, 0.)
+        target_matrix = numpy.minimum(target_matrix, 1.)
+
+        print((
+            'Number of target values and mean after wavelet transform = '
+            '{0:d}, {1:.3g}'
+        ).format(
+            target_matrix.size, numpy.mean(target_matrix)
+        ))
+
     data_dict = {
         PREDICTOR_MATRIX_KEY: predictor_matrix.astype('float16'),
-        # PREDICTOR_MATRIX_KEY: predictor_matrix,
         TARGET_MATRIX_KEY: numpy.expand_dims(target_matrix, axis=-1),
         VALID_TIMES_KEY: valid_times_unix_sec,
         LATITUDES_KEY: None,
@@ -1245,6 +1362,10 @@ def create_data_full_grid(option_dict, return_coords=False):
     option_dict['normalize']: See doc for `generator_full_grid`.
     option_dict['uniformize']: Same.
     option_dict['add_coords']: Same.
+    option_dict['fourier_transform_targets']: Same.
+    option_dict['wavelet_transform_targets']: Same.
+    option_dict['min_target_resolution_deg']: Same.
+    option_dict['max_target_resolution_deg']: Same.
 
     :param return_coords: See doc for `_read_inputs_one_day`.
     :return: data_dict: Same.
@@ -1263,6 +1384,10 @@ def create_data_full_grid(option_dict, return_coords=False):
     normalize = option_dict[NORMALIZE_FLAG_KEY]
     uniformize = option_dict[UNIFORMIZE_FLAG_KEY]
     add_coords = option_dict[ADD_COORDS_KEY]
+    fourier_transform_targets = option_dict[FOURIER_TRANSFORM_KEY]
+    wavelet_transform_targets = option_dict[WAVELET_TRANSFORM_KEY]
+    min_target_resolution_deg = option_dict[MIN_TARGET_RESOLUTION_KEY]
+    max_target_resolution_deg = option_dict[MAX_TARGET_RESOLUTION_KEY]
 
     if lead_time_seconds > 0 or numpy.any(lag_times_seconds > 0):
         first_init_date_string = general_utils.get_previous_date(
@@ -1308,7 +1433,11 @@ def create_data_full_grid(option_dict, return_coords=False):
         lead_time_seconds=lead_time_seconds,
         lag_times_seconds=lag_times_seconds,
         include_time_dimension=include_time_dimension,
-        num_examples_to_read=int(1e6), return_coords=return_coords
+        num_examples_to_read=int(1e6), return_coords=return_coords,
+        fourier_transform_targets=fourier_transform_targets,
+        wavelet_transform_targets=wavelet_transform_targets,
+        min_target_resolution_deg=min_target_resolution_deg,
+        max_target_resolution_deg=max_target_resolution_deg
     )
 
 
@@ -1335,6 +1464,10 @@ def create_data_partial_grids(option_dict, return_coords=False,
     option_dict['normalize']: See doc for `generator_partial_grids`.
     option_dict['uniformize']: Same.
     option_dict['add_coords']: Same.
+    option_dict['fourier_transform_targets']: Same.
+    option_dict['wavelet_transform_targets']: Same.
+    option_dict['min_target_resolution_deg']: Same.
+    option_dict['max_target_resolution_deg']: Same.
 
     :param return_coords: See doc for `_read_inputs_one_day`.
     :param radar_number: Will return data only for this radar (non-negative
@@ -1363,6 +1496,10 @@ def create_data_partial_grids(option_dict, return_coords=False,
     normalize = option_dict[NORMALIZE_FLAG_KEY]
     uniformize = option_dict[UNIFORMIZE_FLAG_KEY]
     add_coords = option_dict[ADD_COORDS_KEY]
+    fourier_transform_targets = option_dict[FOURIER_TRANSFORM_KEY]
+    wavelet_transform_targets = option_dict[WAVELET_TRANSFORM_KEY]
+    min_target_resolution_deg = option_dict[MIN_TARGET_RESOLUTION_KEY]
+    max_target_resolution_deg = option_dict[MAX_TARGET_RESOLUTION_KEY]
 
     if lead_time_seconds > 0 or numpy.any(lag_times_seconds > 0):
         first_init_date_string = general_utils.get_previous_date(
@@ -1423,7 +1560,11 @@ def create_data_partial_grids(option_dict, return_coords=False,
             lead_time_seconds=lead_time_seconds,
             lag_times_seconds=lag_times_seconds,
             include_time_dimension=include_time_dimension,
-            num_examples_to_read=int(1e6), return_coords=return_coords
+            num_examples_to_read=int(1e6), return_coords=return_coords,
+            fourier_transform_targets=fourier_transform_targets,
+            wavelet_transform_targets=wavelet_transform_targets,
+            min_target_resolution_deg=min_target_resolution_deg,
+            max_target_resolution_deg=max_target_resolution_deg
         )
 
     return data_dicts
@@ -1469,11 +1610,19 @@ def generator_full_grid(option_dict):
         If False, will use only normalized predictors.
     option_dict['add_coords']: Boolean flag.  If True (False), will use
         coordinates (latitude and longitude) as predictors.
+    option_dict['fourier_transform_targets']: Boolean flag.  If True, will use
+        Fourier transform to apply band-pass filter to targets.
+    option_dict['wavelet_transform_targets']: Boolean flag.  If True, will use
+        wavelet transform to apply band-pass filter to targets.
+    option_dict['min_target_resolution_deg']: Minimum resolution (degrees) to
+        allow through band-pass filter.
+    option_dict['max_target_resolution_deg']: Max resolution (degrees) to allow
+        through band-pass filter.
 
     :return: predictor_matrix: numpy array (E x M x N x LB or E x M x N x L x B)
         of predictor values, based on satellite data.
     :return: target_matrix: E-by-M-by-N-by-1 numpy array of target values
-        (integers in 0...1, indicating whether or not convection occurs at
+        (floats in 0...1, indicating whether or not convection occurs at
         the given lead time).
     :raises: ValueError: if no valid date can be found for which predictors and
         targets are available.
@@ -1494,6 +1643,10 @@ def generator_full_grid(option_dict):
     normalize = option_dict[NORMALIZE_FLAG_KEY]
     uniformize = option_dict[UNIFORMIZE_FLAG_KEY]
     add_coords = option_dict[ADD_COORDS_KEY]
+    fourier_transform_targets = option_dict[FOURIER_TRANSFORM_KEY]
+    wavelet_transform_targets = option_dict[WAVELET_TRANSFORM_KEY]
+    min_target_resolution_deg = option_dict[MIN_TARGET_RESOLUTION_KEY]
+    max_target_resolution_deg = option_dict[MAX_TARGET_RESOLUTION_KEY]
 
     if lead_time_seconds > 0 or numpy.any(lag_times_seconds > 0):
         first_init_date_string = general_utils.get_previous_date(
@@ -1559,7 +1712,11 @@ def generator_full_grid(option_dict):
                 lead_time_seconds=lead_time_seconds,
                 lag_times_seconds=lag_times_seconds,
                 include_time_dimension=include_time_dimension,
-                num_examples_to_read=num_examples_to_read, return_coords=False
+                num_examples_to_read=num_examples_to_read, return_coords=False,
+                fourier_transform_targets=fourier_transform_targets,
+                wavelet_transform_targets=wavelet_transform_targets,
+                min_target_resolution_deg=min_target_resolution_deg,
+                max_target_resolution_deg=max_target_resolution_deg
             )
 
             date_index += 1
@@ -1617,6 +1774,10 @@ def generator_partial_grids(option_dict):
     normalize = option_dict[NORMALIZE_FLAG_KEY]
     uniformize = option_dict[UNIFORMIZE_FLAG_KEY]
     add_coords = option_dict[ADD_COORDS_KEY]
+    fourier_transform_targets = option_dict[FOURIER_TRANSFORM_KEY]
+    wavelet_transform_targets = option_dict[WAVELET_TRANSFORM_KEY]
+    min_target_resolution_deg = option_dict[MIN_TARGET_RESOLUTION_KEY]
+    max_target_resolution_deg = option_dict[MAX_TARGET_RESOLUTION_KEY]
 
     if lead_time_seconds > 0 or numpy.any(lag_times_seconds > 0):
         first_init_date_string = general_utils.get_previous_date(
@@ -1745,7 +1906,11 @@ def generator_partial_grids(option_dict):
                 lead_time_seconds=lead_time_seconds,
                 lag_times_seconds=lag_times_seconds,
                 include_time_dimension=include_time_dimension,
-                num_examples_to_read=num_examples_to_read, return_coords=False
+                num_examples_to_read=num_examples_to_read, return_coords=False,
+                fourier_transform_targets=fourier_transform_targets,
+                wavelet_transform_targets=wavelet_transform_targets,
+                min_target_resolution_deg=min_target_resolution_deg,
+                max_target_resolution_deg=max_target_resolution_deg
             )
 
             current_index += 1
