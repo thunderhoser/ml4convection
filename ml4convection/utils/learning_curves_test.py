@@ -509,11 +509,11 @@ class LearningCurvesTests(unittest.TestCase):
             this_num_pixels, FOURIER_DICE_NUM_PIXELS, atol=TOLERANCE
         ))
 
-    def test_get_fourier_csi_components_one_time(self):
-        """Ensures correct output from _get_fourier_csi_components_one_time."""
+    def test_get_band_pass_csi_components_one_time(self):
+        """Ensures correctness of _get_band_pass_csi_components_one_time."""
 
         this_numerator, this_denominator = (
-            learning_curves._get_fourier_csi_components_one_time(
+            learning_curves._get_band_pass_csi_components_one_time(
                 actual_target_matrix=ACTUAL_TARGET_MATRIX,
                 probability_matrix=PROBABILITY_MATRIX,
                 eval_mask_matrix=MASK_MATRIX

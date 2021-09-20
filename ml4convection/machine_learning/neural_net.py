@@ -542,7 +542,11 @@ def _read_inputs_one_day(
         target_tensor = tensorflow.math.real(target_tensor)
         target_matrix = K.eval(target_tensor)
 
-        target_matrix = fourier_utils.untaper_spatial_data(target_matrix)
+        target_matrix = numpy.stack([
+            fourier_utils.untaper_spatial_data(target_matrix[i, ...])
+            for i in range(num_examples)
+        ], axis=0)
+
         target_matrix = numpy.maximum(target_matrix, 0.)
         target_matrix = numpy.minimum(target_matrix, 1.)
 

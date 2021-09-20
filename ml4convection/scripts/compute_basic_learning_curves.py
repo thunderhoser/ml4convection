@@ -14,8 +14,8 @@ NUM_RADARS = len(radar_utils.RADAR_LATITUDES_DEG_N)
 INPUT_DIR_ARG_NAME = 'input_prediction_dir_name'
 VALID_DATES_ARG_NAME = 'valid_date_strings'
 NEIGH_DISTANCES_ARG_NAME = 'neigh_distances_px'
-MIN_RESOLUTIONS_ARG_NAME = 'min_fourier_resolutions_deg'
-MAX_RESOLUTIONS_ARG_NAME = 'max_fourier_resolutions_deg'
+MIN_RESOLUTIONS_ARG_NAME = 'min_resolutions_deg'
+MAX_RESOLUTIONS_ARG_NAME = 'max_resolutions_deg'
 OUTPUT_DIR_ARG_NAME = 'output_dir_name'
 
 INPUT_DIR_HELP_STRING = (
@@ -33,7 +33,7 @@ NEIGH_DISTANCES_HELP_STRING = (
 )
 MIN_RESOLUTIONS_HELP_STRING = (
     'List of minimum resolutions (degrees) for band-pass filters.  If you do '
-    'not want Fourier-based evaluation, leave this alone.'
+    'not want evaluation with band-pass filters, leave this alone.'
 )
 MAX_RESOLUTIONS_HELP_STRING = (
     'Same as `{0:s}` but with max resolutions.'.format(MIN_RESOLUTIONS_ARG_NAME)
@@ -72,8 +72,7 @@ INPUT_ARG_PARSER.add_argument(
 
 
 def _run(top_prediction_dir_name, valid_date_strings, neigh_distances_px,
-         min_fourier_resolutions_deg, max_fourier_resolutions_deg,
-         top_output_dir_name):
+         min_resolutions_deg, max_resolutions_deg, top_output_dir_name):
     """Computes basic scores for learning curves.
 
     This is effectively the main method.
@@ -81,25 +80,17 @@ def _run(top_prediction_dir_name, valid_date_strings, neigh_distances_px,
     :param top_prediction_dir_name: See documentation at top of file.
     :param valid_date_strings: Same.
     :param neigh_distances_px: Same.
-    :param min_fourier_resolutions_deg: Same.
-    :param max_fourier_resolutions_deg: Same.
+    :param min_resolutions_deg: Same.
+    :param max_resolutions_deg: Same.
     :param top_output_dir_name: Same.
     """
 
     if len(neigh_distances_px) == 1 and neigh_distances_px[0] < 0:
         neigh_distances_px = None
-
-    if (
-            len(min_fourier_resolutions_deg) == 1
-            and min_fourier_resolutions_deg[0] < 0
-    ):
-        min_fourier_resolutions_deg = None
-
-    if (
-            len(max_fourier_resolutions_deg) == 1
-            and max_fourier_resolutions_deg[0] < 0
-    ):
-        max_fourier_resolutions_deg = None
+    if len(min_resolutions_deg) == 1 and min_resolutions_deg[0] < 0:
+        min_resolutions_deg = None
+    if len(max_resolutions_deg) == 1 and max_resolutions_deg[0] < 0:
+        max_resolutions_deg = None
 
     all_date_strings = copy.deepcopy(valid_date_strings)
 
@@ -132,8 +123,8 @@ def _run(top_prediction_dir_name, valid_date_strings, neigh_distances_px,
             basic_score_table_xarray = learning_curves.get_basic_scores(
                 prediction_dict=prediction_dict,
                 neigh_distances_px=neigh_distances_px,
-                min_fourier_resolutions_deg=min_fourier_resolutions_deg,
-                max_fourier_resolutions_deg=max_fourier_resolutions_deg
+                min_resolutions_deg=min_resolutions_deg,
+                max_resolutions_deg=max_resolutions_deg
             )
 
             output_file_name = learning_curves.find_basic_score_file(
@@ -163,10 +154,10 @@ if __name__ == '__main__':
         neigh_distances_px=numpy.array(
             getattr(INPUT_ARG_OBJECT, NEIGH_DISTANCES_ARG_NAME), dtype=float
         ),
-        min_fourier_resolutions_deg=numpy.array(
+        min_resolutions_deg=numpy.array(
             getattr(INPUT_ARG_OBJECT, MIN_RESOLUTIONS_ARG_NAME), dtype=float
         ),
-        max_fourier_resolutions_deg=numpy.array(
+        max_resolutions_deg=numpy.array(
             getattr(INPUT_ARG_OBJECT, MAX_RESOLUTIONS_ARG_NAME), dtype=float
         ),
         top_output_dir_name=getattr(INPUT_ARG_OBJECT, OUTPUT_DIR_ARG_NAME)
