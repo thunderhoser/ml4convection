@@ -44,7 +44,7 @@ set max_target_resolution_deg=${MAX_TARGET_RESOLUTIONS_DEG[$SLURM_ARRAY_TASK_ID]
 set min_target_resolution_deg=`printf "%.4f" $min_target_resolution_deg`
 set max_target_resolution_deg=`printf "%.4f" $max_target_resolution_deg`
 
-set top_model_dir_name="${TOP_OUTPUT_DIR_NAME}/${base_loss_function_name}_wavelets${wavelet_transform_targets}_min-resolution-deg=${min_target_resolution_deg}_max-resolution-deg=${max_target_resolution_deg}"
+set top_model_dir_name="${TOP_MODEL_DIR_NAME}/${base_loss_function_name}_wavelets${wavelet_transform_targets}_min-resolution-deg=${min_target_resolution_deg}_max-resolution-deg=${max_target_resolution_deg}"
 
 set model_file_names={${top_model_dir_name}/model*.h5}
 set model_file_name=${model_file_names[$#model_file_names]}
