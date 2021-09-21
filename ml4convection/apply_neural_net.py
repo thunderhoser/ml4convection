@@ -2,6 +2,7 @@
 
 import os
 import sys
+import glob
 import copy
 import argparse
 import numpy
@@ -240,6 +241,32 @@ def _run(model_file_name, top_predictor_dir_name, top_target_dir_name,
     :param last_valid_date_string: Same.
     :param top_output_dir_name: Same.
     """
+
+    if not os.path.isfile(model_file_name):
+        model_file_names = glob.glob(model_file_name)
+        pathless_model_file_names = [
+            os.path.split(f)[1] for f in model_file_names
+        ]
+        extensionless_model_file_names = [
+            os.path.splitext(f)[0] for f in pathless_model_file_names
+        ]
+        validation_loss_strings = [
+            f.split('_')[-1] for f in extensionless_model_file_names
+        ]
+
+        for this_string in validation_loss_strings:
+            assert this_string.startswith('val-loss=')
+
+        validation_losses = numpy.array([
+            float(s.replace('val-loss=', '')) for s in validation_loss_strings
+        ])
+        min_index = numpy.nanargmin(validation_losses)
+        model_file_name = model_file_names[min_index]
+
+        extensionless_model_file_name = os.path.splitext(model_file_name)[0]
+        top_output_dir_name = '{0:s}/{1:s}'.format(
+            extensionless_model_file_name, top_output_dir_name
+        )
 
     print('Reading model from: "{0:s}"...'.format(model_file_name))
     model_object = neural_net.read_model(model_file_name)
