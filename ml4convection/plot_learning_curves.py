@@ -192,7 +192,7 @@ def _run(top_model_dir_name, output_dir_name):
     advanced_score_tables_xarray = []
     epoch_indices = []
     num_neigh_distances = 0
-    num_fourier_bands = 0
+    num_filter_bands = 0
 
     for this_file_name in input_file_names:
         print('Reading data from: "{0:s}"...'.format(this_file_name))
@@ -214,10 +214,10 @@ def _run(top_model_dir_name, output_dir_name):
             assert num_neigh_distances <= MAX_LINES_PER_GRAPH
 
         if learning_curves.MIN_RESOLUTION_DIM in a[0].coords:
-            num_fourier_bands = len(
+            num_filter_bands = len(
                 a[0].coords[learning_curves.MIN_RESOLUTION_DIM].values
             )
-            assert num_fourier_bands <= MAX_LINES_PER_GRAPH
+            assert num_filter_bands <= MAX_LINES_PER_GRAPH
 
         # assert (
         #     a[-1].attrs[learning_curves.MODEL_FILE_KEY] ==
@@ -395,7 +395,7 @@ def _run(top_model_dir_name, output_dir_name):
         )
         pyplot.close(figure_object)
 
-    if num_fourier_bands == 0:
+    if num_filter_bands == 0:
         return
 
     min_resolutions_deg = advanced_score_tables_xarray[0].coords[
@@ -415,7 +415,7 @@ def _run(top_model_dir_name, output_dir_name):
     legend_strings = [s.replace('inf]', r'$\infty$)') for s in legend_strings]
     legend_strings = [s + r'$^{\circ}$' for s in legend_strings]
 
-    # Plot Brier score.
+    # Plot Fourier-based Brier score.
     brier_score_matrix = numpy.vstack([
         a[learning_curves.FOURIER_BRIER_SCORE_KEY].values
         for a in advanced_score_tables_xarray
@@ -438,7 +438,30 @@ def _run(top_model_dir_name, output_dir_name):
     )
     pyplot.close(figure_object)
 
-    # Plot FSS.
+    # Plot wavelet-based Brier score.
+    brier_score_matrix = numpy.vstack([
+        a[learning_curves.WAVELET_BRIER_SCORE_KEY].values
+        for a in advanced_score_tables_xarray
+    ])
+
+    figure_object, axes_object = _plot_one_learning_curve(
+        score_matrix=brier_score_matrix, epoch_indices=epoch_indices,
+        legend_strings=legend_strings, is_positively_oriented=False,
+        is_dice_coeff=False
+    )
+    axes_object.set_ylim(bottom=0.)
+    axes_object.set_ylabel('Brier score')
+    axes_object.set_title('Wavelet-based Brier score')
+
+    output_file_name = '{0:s}/wavelet_brier_score.jpg'.format(output_dir_name)
+    print('Saving figure to file: "{0:s}"...'.format(output_file_name))
+    figure_object.savefig(
+        output_file_name, dpi=FIGURE_RESOLUTION_DPI,
+        pad_inches=0, bbox_inches='tight'
+    )
+    pyplot.close(figure_object)
+
+    # Plot Fourier-based FSS.
     fss_matrix = numpy.vstack([
         a[learning_curves.FOURIER_FSS_KEY].values
         for a in advanced_score_tables_xarray
@@ -461,7 +484,30 @@ def _run(top_model_dir_name, output_dir_name):
     )
     pyplot.close(figure_object)
 
-    # Plot IOU.
+    # Plot wavelet-based FSS.
+    fss_matrix = numpy.vstack([
+        a[learning_curves.WAVELET_FSS_KEY].values
+        for a in advanced_score_tables_xarray
+    ])
+
+    figure_object, axes_object = _plot_one_learning_curve(
+        score_matrix=fss_matrix, epoch_indices=epoch_indices,
+        legend_strings=legend_strings, is_positively_oriented=True,
+        is_dice_coeff=False
+    )
+    axes_object.set_ylim(bottom=0.)
+    axes_object.set_ylabel('FSS')
+    axes_object.set_title('Wavelet-based fractions skill score (FSS)')
+
+    output_file_name = '{0:s}/wavelet_fss.jpg'.format(output_dir_name)
+    print('Saving figure to file: "{0:s}"...'.format(output_file_name))
+    figure_object.savefig(
+        output_file_name, dpi=FIGURE_RESOLUTION_DPI,
+        pad_inches=0, bbox_inches='tight'
+    )
+    pyplot.close(figure_object)
+
+    # Plot Fourier-based IOU.
     iou_matrix = numpy.vstack([
         a[learning_curves.FOURIER_IOU_KEY].values
         for a in advanced_score_tables_xarray
@@ -484,7 +530,30 @@ def _run(top_model_dir_name, output_dir_name):
     )
     pyplot.close(figure_object)
 
-    # Plot Dice coefficient.
+    # Plot wavelet-based IOU.
+    iou_matrix = numpy.vstack([
+        a[learning_curves.WAVELET_IOU_KEY].values
+        for a in advanced_score_tables_xarray
+    ])
+
+    figure_object, axes_object = _plot_one_learning_curve(
+        score_matrix=iou_matrix, epoch_indices=epoch_indices,
+        legend_strings=legend_strings, is_positively_oriented=True,
+        is_dice_coeff=False
+    )
+    axes_object.set_ylim(bottom=0.)
+    axes_object.set_ylabel('IOU')
+    axes_object.set_title('Wavelet-based intersection over union (IOU)')
+
+    output_file_name = '{0:s}/wavelet_iou.jpg'.format(output_dir_name)
+    print('Saving figure to file: "{0:s}"...'.format(output_file_name))
+    figure_object.savefig(
+        output_file_name, dpi=FIGURE_RESOLUTION_DPI,
+        pad_inches=0, bbox_inches='tight'
+    )
+    pyplot.close(figure_object)
+
+    # Plot Fourier-based Dice coefficient.
     dice_coeff_matrix = numpy.vstack([
         a[learning_curves.FOURIER_DICE_COEFF_KEY].values
         for a in advanced_score_tables_xarray
@@ -507,7 +576,30 @@ def _run(top_model_dir_name, output_dir_name):
     )
     pyplot.close(figure_object)
 
-    # Plot CSI.
+    # Plot wavelet-based Dice coefficient.
+    dice_coeff_matrix = numpy.vstack([
+        a[learning_curves.WAVELET_DICE_COEFF_KEY].values
+        for a in advanced_score_tables_xarray
+    ])
+
+    figure_object, axes_object = _plot_one_learning_curve(
+        score_matrix=dice_coeff_matrix, epoch_indices=epoch_indices,
+        legend_strings=legend_strings, is_positively_oriented=True,
+        is_dice_coeff=True
+    )
+    axes_object.set_ylim(top=1.)
+    axes_object.set_ylabel('Dice coefficient')
+    axes_object.set_title('Wavelet-based Dice coefficient')
+
+    output_file_name = '{0:s}/wavelet_dice_coeff.jpg'.format(output_dir_name)
+    print('Saving figure to file: "{0:s}"...'.format(output_file_name))
+    figure_object.savefig(
+        output_file_name, dpi=FIGURE_RESOLUTION_DPI,
+        pad_inches=0, bbox_inches='tight'
+    )
+    pyplot.close(figure_object)
+
+    # Plot Fourier-based CSI.
     csi_matrix = numpy.vstack([
         a[learning_curves.FOURIER_CSI_KEY].values
         for a in advanced_score_tables_xarray
@@ -530,14 +622,37 @@ def _run(top_model_dir_name, output_dir_name):
     )
     pyplot.close(figure_object)
 
-    # Plot real part of frequency-space MSE.
-    freq_mse_matrix_real = numpy.vstack([
-        a[learning_curves.FREQ_MSE_REAL_KEY].values
+    # Plot wavelet-based CSI.
+    csi_matrix = numpy.vstack([
+        a[learning_curves.WAVELET_CSI_KEY].values
         for a in advanced_score_tables_xarray
     ])
 
     figure_object, axes_object = _plot_one_learning_curve(
-        score_matrix=freq_mse_matrix_real, epoch_indices=epoch_indices,
+        score_matrix=csi_matrix, epoch_indices=epoch_indices,
+        legend_strings=legend_strings, is_positively_oriented=True,
+        is_dice_coeff=False
+    )
+    axes_object.set_ylim(bottom=0.)
+    axes_object.set_ylabel('CSI')
+    axes_object.set_title('Wavelet-based critical success index (CSI)')
+
+    output_file_name = '{0:s}/wavelet_csi.jpg'.format(output_dir_name)
+    print('Saving figure to file: "{0:s}"...'.format(output_file_name))
+    figure_object.savefig(
+        output_file_name, dpi=FIGURE_RESOLUTION_DPI,
+        pad_inches=0, bbox_inches='tight'
+    )
+    pyplot.close(figure_object)
+
+    # Plot real part of Fourier-space MSE.
+    fourier_real_coeff_mse_matrix = numpy.vstack([
+        a[learning_curves.FOURIER_COEFF_MSE_REAL_KEY].values
+        for a in advanced_score_tables_xarray
+    ])
+
+    figure_object, axes_object = _plot_one_learning_curve(
+        score_matrix=fourier_real_coeff_mse_matrix, epoch_indices=epoch_indices,
         legend_strings=legend_strings, is_positively_oriented=False,
         is_dice_coeff=False
     )
@@ -545,7 +660,9 @@ def _run(top_model_dir_name, output_dir_name):
     axes_object.set_ylabel('MSE')
     axes_object.set_title('MSE for real part of Fourier spectrum')
 
-    output_file_name = '{0:s}/freq_mse_real.jpg'.format(output_dir_name)
+    output_file_name = '{0:s}/fourier_coeff_mse_real.jpg'.format(
+        output_dir_name
+    )
     print('Saving figure to file: "{0:s}"...'.format(output_file_name))
     figure_object.savefig(
         output_file_name, dpi=FIGURE_RESOLUTION_DPI,
@@ -553,14 +670,14 @@ def _run(top_model_dir_name, output_dir_name):
     )
     pyplot.close(figure_object)
 
-    # Plot imaginary part of frequency-space MSE.
-    freq_mse_matrix_imag = numpy.vstack([
-        a[learning_curves.FREQ_MSE_IMAGINARY_KEY].values
+    # Plot imaginary part of Fourier-space MSE.
+    fourier_imag_coeff_mse_matrix = numpy.vstack([
+        a[learning_curves.FOURIER_COEFF_MSE_IMAGINARY_KEY].values
         for a in advanced_score_tables_xarray
     ])
 
     figure_object, axes_object = _plot_one_learning_curve(
-        score_matrix=freq_mse_matrix_imag, epoch_indices=epoch_indices,
+        score_matrix=fourier_imag_coeff_mse_matrix, epoch_indices=epoch_indices,
         legend_strings=legend_strings, is_positively_oriented=False,
         is_dice_coeff=False
     )
@@ -568,7 +685,9 @@ def _run(top_model_dir_name, output_dir_name):
     axes_object.set_ylabel('MSE')
     axes_object.set_title('MSE for imaginary part of Fourier spectrum')
 
-    output_file_name = '{0:s}/freq_mse_imaginary.jpg'.format(output_dir_name)
+    output_file_name = '{0:s}/fourier_coeff_mse_imaginary.jpg'.format(
+        output_dir_name
+    )
     print('Saving figure to file: "{0:s}"...'.format(output_file_name))
     figure_object.savefig(
         output_file_name, dpi=FIGURE_RESOLUTION_DPI,
@@ -576,14 +695,14 @@ def _run(top_model_dir_name, output_dir_name):
     )
     pyplot.close(figure_object)
 
-    # Plot total frequency-space MSE.
-    freq_mse_matrix_total = numpy.vstack([
-        a[learning_curves.FREQ_MSE_TOTAL_KEY].values
+    # Plot total Fourier-space MSE.
+    fourier_coeff_mse_matrix = numpy.vstack([
+        a[learning_curves.FOURIER_COEFF_MSE_TOTAL_KEY].values
         for a in advanced_score_tables_xarray
     ])
 
     figure_object, axes_object = _plot_one_learning_curve(
-        score_matrix=freq_mse_matrix_total, epoch_indices=epoch_indices,
+        score_matrix=fourier_coeff_mse_matrix, epoch_indices=epoch_indices,
         legend_strings=legend_strings, is_positively_oriented=False,
         is_dice_coeff=False
     )
@@ -591,7 +710,59 @@ def _run(top_model_dir_name, output_dir_name):
     axes_object.set_ylabel('MSE')
     axes_object.set_title('MSE for total Fourier spectrum')
 
-    output_file_name = '{0:s}/freq_mse_total.jpg'.format(output_dir_name)
+    output_file_name = '{0:s}/fourier_coeff_mse_total.jpg'.format(
+        output_dir_name
+    )
+    print('Saving figure to file: "{0:s}"...'.format(output_file_name))
+    figure_object.savefig(
+        output_file_name, dpi=FIGURE_RESOLUTION_DPI,
+        pad_inches=0, bbox_inches='tight'
+    )
+    pyplot.close(figure_object)
+
+    # Plot mean-coefficient MSE for wavelet decomp.
+    wavelet_mean_coeff_mse_matrix = numpy.vstack([
+        a[learning_curves.WAVELET_COEFF_MSE_MEAN_KEY].values
+        for a in advanced_score_tables_xarray
+    ])
+
+    figure_object, axes_object = _plot_one_learning_curve(
+        score_matrix=wavelet_mean_coeff_mse_matrix, epoch_indices=epoch_indices,
+        legend_strings=legend_strings, is_positively_oriented=False,
+        is_dice_coeff=False
+    )
+    axes_object.set_ylim(bottom=0.)
+    axes_object.set_ylabel('MSE')
+    axes_object.set_title('MSE for low-freq part of wavelet spectrum')
+
+    output_file_name = '{0:s}/wavelet_mean_coeff_mse.jpg'.format(
+        output_dir_name
+    )
+    print('Saving figure to file: "{0:s}"...'.format(output_file_name))
+    figure_object.savefig(
+        output_file_name, dpi=FIGURE_RESOLUTION_DPI,
+        pad_inches=0, bbox_inches='tight'
+    )
+    pyplot.close(figure_object)
+
+    # Plot detail-coefficient MSE for wavelet decomp.
+    wavelet_detail_coeff_mse_matrix = numpy.vstack([
+        a[learning_curves.WAVELET_COEFF_MSE_DETAIL_KEY].values
+        for a in advanced_score_tables_xarray
+    ])
+
+    figure_object, axes_object = _plot_one_learning_curve(
+        score_matrix=wavelet_detail_coeff_mse_matrix,
+        epoch_indices=epoch_indices, legend_strings=legend_strings,
+        is_positively_oriented=False, is_dice_coeff=False
+    )
+    axes_object.set_ylim(bottom=0.)
+    axes_object.set_ylabel('MSE')
+    axes_object.set_title('MSE for high-freq part of wavelet spectrum')
+
+    output_file_name = '{0:s}/wavelet_detail_coeff_mse.jpg'.format(
+        output_dir_name
+    )
     print('Saving figure to file: "{0:s}"...'.format(output_file_name))
     figure_object.savefig(
         output_file_name, dpi=FIGURE_RESOLUTION_DPI,

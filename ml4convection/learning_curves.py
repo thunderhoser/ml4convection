@@ -22,7 +22,9 @@ import error_checking
 import prediction_io
 import general_utils
 import fourier_utils
+import wavelet_utils
 import neural_net
+from _wavetf import WaveTFFactory
 
 # TODO(thunderhoser): This module contains some duplicated code from
 # evaluation.py.
@@ -32,8 +34,8 @@ GRID_SPACING_DEG = 0.0125
 DATE_FORMAT = '%Y%m%d'
 
 TIME_DIM = 'valid_time_unix_sec'
-MIN_RESOLUTION_DIM = 'min_fourier_resolution_deg'
-MAX_RESOLUTION_DIM = 'max_fourier_resolution_deg'
+MIN_RESOLUTION_DIM = 'min_resolution_deg'
+MAX_RESOLUTION_DIM = 'max_resolution_deg'
 NEIGH_DISTANCE_DIM = 'neigh_distance_px'
 
 MODEL_FILE_KEY = 'model_file_name'
@@ -51,10 +53,10 @@ NEIGH_OBS_ORIENTED_TP_KEY = 'neigh_obs_oriented_true_positives'
 NEIGH_FALSE_POSITIVES_KEY = 'neigh_false_positives'
 NEIGH_FALSE_NEGATIVES_KEY = 'neigh_false_negatives'
 
-FREQ_SSE_REAL_KEY = 'freq_space_sse_real'
-FREQ_SSE_IMAGINARY_KEY = 'freq_space_sse_imaginary'
-FREQ_SSE_TOTAL_KEY = 'freq_space_sse_total'
-FREQ_SSE_NUM_WEIGHTS_KEY = 'freq_space_sse_num_weights'
+FOURIER_COEFF_SSE_REAL_KEY = 'fourier_coeff_sse_real'
+FOURIER_COEFF_SSE_IMAGINARY_KEY = 'fourier_coeff_sse_imaginary'
+FOURIER_COEFF_SSE_TOTAL_KEY = 'fourier_coeff_sse_total'
+FOURIER_COEFF_NUM_WEIGHTS_KEY = 'fourier_coeff_num_weights'
 
 FOURIER_BRIER_SSE_KEY = 'fourier_brier_sse'
 FOURIER_BRIER_NUM_VALS_KEY = 'fourier_brier_num_values'
@@ -67,20 +69,44 @@ FOURIER_DICE_NUM_PIX_KEY = 'fourier_dice_num_pixels'
 FOURIER_CSI_NUMERATOR_KEY = 'fourier_csi_numerator'
 FOURIER_CSI_DENOMINATOR_KEY = 'fourier_csi_denominator'
 
+WAVELET_SSE_MEAN_COEFFS_KEY = 'wavelet_sse_mean_coeffs'
+WAVELET_SSE_DETAIL_COEFFS_KEY = 'wavelet_sse_detail_coeffs'
+WAVELET_NUM_MEAN_COEFFS_KEY = 'wavelet_num_mean_coeffs'
+WAVELET_NUM_DETAIL_COEFFS_KEY = 'wavelet_num_detail_coeffs'
+
+WAVELET_BRIER_SSE_KEY = 'wavelet_brier_sse'
+WAVELET_BRIER_NUM_VALS_KEY = 'wavelet_brier_num_values'
+WAVELET_FSS_ACTUAL_SSE_KEY = 'wavelet_fss_actual_sse'
+WAVELET_FSS_REFERENCE_SSE_KEY = 'wavelet_fss_reference_sse'
+WAVELET_IOU_INTERSECTION_KEY = 'wavelet_iou_intersection'
+WAVELET_IOU_UNION_KEY = 'wavelet_iou_union'
+WAVELET_DICE_INTERSECTION_KEY = 'wavelet_dice_intersection'
+WAVELET_DICE_NUM_PIX_KEY = 'wavelet_dice_num_pixels'
+WAVELET_CSI_NUMERATOR_KEY = 'wavelet_csi_numerator'
+WAVELET_CSI_DENOMINATOR_KEY = 'wavelet_csi_denominator'
+
 NEIGH_BRIER_SCORE_KEY = 'neigh_brier_score'
 NEIGH_FSS_KEY = 'neigh_fss'
 NEIGH_IOU_KEY = 'neigh_iou'
 NEIGH_DICE_COEFF_KEY = 'neigh_dice_coeff'
 NEIGH_CSI_KEY = 'neigh_csi'
 
-FREQ_MSE_REAL_KEY = 'freq_space_mse_real'
-FREQ_MSE_IMAGINARY_KEY = 'freq_space_mse_imaginary'
-FREQ_MSE_TOTAL_KEY = 'freq_space_mse_total'
+FOURIER_COEFF_MSE_REAL_KEY = 'fourier_coeff_mse_real'
+FOURIER_COEFF_MSE_IMAGINARY_KEY = 'fourier_coeff_mse_imaginary'
+FOURIER_COEFF_MSE_TOTAL_KEY = 'fourier_coeff_mse_total'
 FOURIER_BRIER_SCORE_KEY = 'fourier_brier_score'
 FOURIER_FSS_KEY = 'fourier_fss'
 FOURIER_IOU_KEY = 'fourier_iou'
 FOURIER_DICE_COEFF_KEY = 'fourier_dice_coeff'
 FOURIER_CSI_KEY = 'fourier_csi'
+
+WAVELET_COEFF_MSE_MEAN_KEY = 'wavelet_coeff_mse_real'
+WAVELET_COEFF_MSE_DETAIL_KEY = 'wavelet_coeff_mse_imaginary'
+WAVELET_BRIER_SCORE_KEY = 'wavelet_brier_score'
+WAVELET_FSS_KEY = 'wavelet_fss'
+WAVELET_IOU_KEY = 'wavelet_iou'
+WAVELET_DICE_COEFF_KEY = 'wavelet_dice_coeff'
+WAVELET_CSI_KEY = 'wavelet_csi'
 
 
 def _apply_max_filter(input_matrix, half_width_px):
@@ -141,41 +167,145 @@ def _erode_binary_matrix(binary_matrix, half_width_px):
     return eroded_binary_matrix.astype(binary_matrix.dtype)
 
 
-def _apply_fourier_filter(orig_data_matrix, filter_matrix):
+def _apply_fourier_filter(orig_data_matrix, min_resolution_deg,
+                          max_resolution_deg):
     """Filters spatial data via Fourier decomposition.
 
+    E = number of examples
     M = number of rows in grid
     N = number of columns in grid
+    T = number of rows after tapering = number of columns after tapering
 
-    :param orig_data_matrix: M-by-N numpy array of spatial data.
-    :param filter_matrix: M-by-N numpy array of filter weights for Fourier
+    :param orig_data_matrix: E-by-M-by-N numpy array of spatial data.
+    :param min_resolution_deg: Minimum resolution (degrees) allowed through
+        band-pass filter.
+    :param max_resolution_deg: Max resolution (degrees) allowed through
+        band-pass filter.
+    :return: filtered_data_matrix: E-by-M-by-N numpy array of filtered spatial
+        data.
+    :return: filtered_coeff_matrix: E-by-T-by-T numpy array of filtered Fourier
         coefficients.
-    :return: filtered_data_matrix: M-by-N numpy array of filtered spatial data.
-    :return: fourier_weight_matrix: M-by-N numpy array of complex weights.
     """
 
+    orig_data_matrix = orig_data_matrix.astype(float)
+    num_examples = orig_data_matrix.shape[0]
+
+    orig_data_matrix = numpy.stack([
+        fourier_utils.taper_spatial_data(orig_data_matrix[i, ...])
+        for i in range(num_examples)
+    ], axis=0)
+
+    blackman_matrix = fourier_utils.apply_blackman_window(
+        numpy.ones(orig_data_matrix.shape[1:])
+    )
+    orig_data_matrix = numpy.stack([
+        orig_data_matrix[i, ...] * blackman_matrix for i in range(num_examples)
+    ], axis=0)
+
     orig_data_tensor = tensorflow.constant(
-        numpy.expand_dims(orig_data_matrix, axis=0),
-        dtype=tensorflow.complex128
+        orig_data_matrix, dtype=tensorflow.complex128
+    )
+    coeff_tensor = tensorflow.signal.fft2d(orig_data_tensor)
+    coeff_matrix = K.eval(coeff_tensor)
+
+    butterworth_matrix = fourier_utils.apply_butterworth_filter(
+        coefficient_matrix=numpy.ones(coeff_matrix.shape[1:]),
+        filter_order=2, grid_spacing_metres=GRID_SPACING_DEG,
+        min_resolution_metres=min_resolution_deg,
+        max_resolution_metres=max_resolution_deg
     )
 
-    fourier_weight_tensor = tensorflow.signal.fft2d(orig_data_tensor)
-    fourier_weight_matrix = K.eval(fourier_weight_tensor)[0, ...]
-    fourier_weight_matrix = fourier_weight_matrix * filter_matrix
+    coeff_matrix = numpy.stack([
+        coeff_matrix[i, ...] * butterworth_matrix
+        for i in range(num_examples)
+    ], axis=0)
 
-    fourier_weight_tensor = tensorflow.constant(
-        numpy.expand_dims(fourier_weight_matrix, axis=0),
-        dtype=tensorflow.complex128
+    coeff_tensor = tensorflow.constant(
+        coeff_matrix, dtype=tensorflow.complex128
     )
-
-    filtered_data_tensor = tensorflow.signal.ifft2d(fourier_weight_tensor)
+    filtered_data_tensor = tensorflow.signal.ifft2d(coeff_tensor)
     filtered_data_tensor = tensorflow.math.real(filtered_data_tensor)
-    return K.eval(filtered_data_tensor)[0, ...], fourier_weight_matrix
+    filtered_data_matrix = K.eval(filtered_data_tensor)
+
+    filtered_data_matrix = numpy.stack([
+        fourier_utils.untaper_spatial_data(filtered_data_matrix[i, ...])
+        for i in range(num_examples)
+    ], axis=0)
+
+    filtered_data_matrix = numpy.maximum(filtered_data_matrix, 0.)
+    filtered_data_matrix = numpy.minimum(filtered_data_matrix, 1.)
+
+    return filtered_data_matrix, coeff_matrix
 
 
-def _get_freq_mse_components_one_time(
+def _apply_wavelet_filter(orig_data_matrix, min_resolution_deg,
+                          max_resolution_deg):
+    """Filters spatial data via wavelet decomposition.
+
+    E = number of examples
+    M = number of rows in grid
+    N = number of columns in grid
+    T = number of rows after tapering = number of columns after tapering
+
+    :param orig_data_matrix: E-by-M-by-N numpy array of spatial data.
+    :param min_resolution_deg: Minimum resolution (degrees) allowed through
+        band-pass filter.
+    :param max_resolution_deg: Max resolution (degrees) allowed through
+        band-pass filter.
+    :return: filtered_data_matrix: E-by-M-by-N numpy array of filtered spatial
+        data.
+    :return: filtered_mean_coeff_matrix: E-by-T-by-T numpy array of filtered
+        wavelet coefficients for mean features.
+    :return: filtered_detail_coeff_matrix: E-by-T-by-T-by-3 numpy array of
+        filtered wavelet coefficients for detail features.
+    """
+
+    orig_data_matrix = orig_data_matrix.astype(float)
+    orig_data_matrix, padding_arg = wavelet_utils.taper_spatial_data(
+        orig_data_matrix
+    )
+
+    coeff_tensor_by_level = wavelet_utils.do_forward_transform(
+        orig_data_matrix
+    )
+    coeff_tensor_by_level = wavelet_utils.filter_coefficients(
+        coeff_tensor_by_level=coeff_tensor_by_level,
+        grid_spacing_metres=GRID_SPACING_DEG,
+        min_resolution_metres=min_resolution_deg,
+        max_resolution_metres=max_resolution_deg, verbose=True
+    )
+
+    (
+        filtered_mean_coeff_matrix,
+        horizontal_coeff_matrix,
+        vertical_coeff_matrix,
+        diagonal_coeff_matrix
+    ) = wavelet_utils.coeff_tensors_to_numpy(coeff_tensor_by_level)
+
+    filtered_detail_coeff_matrix = numpy.stack(
+        (horizontal_coeff_matrix, vertical_coeff_matrix, diagonal_coeff_matrix),
+        axis=-1
+    )
+
+    inverse_dwt_object = WaveTFFactory().build('haar', dim=2, inverse=True)
+    filtered_data_tensor = inverse_dwt_object.call(coeff_tensor_by_level[0])
+    filtered_data_matrix = K.eval(filtered_data_tensor)[..., 0]
+
+    filtered_data_matrix = wavelet_utils.untaper_spatial_data(
+        spatial_data_matrix=filtered_data_matrix, numpy_pad_width=padding_arg
+    )
+    filtered_data_matrix = numpy.maximum(filtered_data_matrix, 0.)
+    filtered_data_matrix = numpy.minimum(filtered_data_matrix, 1.)
+
+    return (
+        filtered_data_matrix, filtered_mean_coeff_matrix,
+        filtered_detail_coeff_matrix
+    )
+
+
+def _get_fourier_coeff_sse_one_time(
         actual_weight_matrix, predicted_weight_matrix):
-    """Computes components of frequency-space MSE for one time step.
+    """Computes SSE for Fourier coefficients at one time step.
 
     M = number of rows in grid
     N = number of columns in grid
@@ -208,6 +338,43 @@ def _get_freq_mse_components_one_time(
     )
 
 
+def _get_wavelet_coeff_sse_one_time(
+        actual_mean_coeff_matrix, actual_detail_coeff_matrix,
+        predicted_mean_coeff_matrix, predicted_detail_coeff_matrix):
+    """Computes SSE for Fourier coefficients at one time step.
+
+    M = number of rows in grid
+    N = number of columns in grid
+
+    :param actual_mean_coeff_matrix: M-by-N numpy array of actual coefficients.
+    :param actual_detail_coeff_matrix: M-by-N-by-3 numpy array of actual
+        coefficients.
+    :param predicted_mean_coeff_matrix: M-by-N numpy array of predicted
+        coefficients.
+    :param predicted_detail_coeff_matrix: M-by-N-by-3 numpy array of predicted
+        coefficients.
+    :return: mean_sse: Sum of squared errors (SSE) for mean coefficients.
+    :return: detail_sse: SSE for detail coefficients.
+    :return: num_mean_coeffs: Number of mean coefficients used in calculation.
+    :return: num_detail_coeffs: Number of detail coefficients used in
+        calculation.
+    """
+
+    this_error_matrix = (
+        (actual_mean_coeff_matrix - predicted_mean_coeff_matrix) ** 2
+    )
+    mean_sse = numpy.nansum(this_error_matrix)
+    num_mean_coeffs = numpy.sum(numpy.invert(numpy.isnan(this_error_matrix)))
+
+    this_error_matrix = (
+        (actual_detail_coeff_matrix - predicted_detail_coeff_matrix) ** 2
+    )
+    detail_sse = numpy.nansum(this_error_matrix)
+    num_detail_coeffs = numpy.sum(numpy.invert(numpy.isnan(this_error_matrix)))
+
+    return mean_sse, detail_sse, num_mean_coeffs, num_detail_coeffs
+
+
 def _get_brier_components_one_time(
         actual_target_matrix, probability_matrix, eval_mask_matrix,
         matching_distance_px):
@@ -219,9 +386,9 @@ def _get_brier_components_one_time(
     If doing neighbourhood-based evaluation, this method assumes that
     `eval_mask_matrix` is already eroded for the given matching distance.
 
-    If doing Fourier-based evaluation, this method assumes that
-    `actual_target_matrix` and `probability_matrix` have already gone through
-    Fourier decomposition and recomposition.
+    If doing evaluation with band-pass filter (Fourier or wavelet), this method
+    assumes that `actual_target_matrix` and `probability_matrix` have already
+    gone through decomposition and recomposition.
 
     :param actual_target_matrix: M-by-N numpy array (see doc for
         `general_utils.check_2d_binary_matrix`), indicating where actual
@@ -232,8 +399,8 @@ def _get_brier_components_one_time(
         `general_utils.check_2d_binary_matrix`), indicating which pixels are to
         be used for evaluation.
     :param matching_distance_px: Matching distance (pixels) for
-        neighbourhood-based evaluation.  If doing Fourier-based
-        evaluation, make this None.
+        neighbourhood-based evaluation.  If doing evaluation with band-pass
+        filter, make this None.
     :return: sum_of_squared_errors: Sum of squared errors (SSE).
     :return: num_values: Number of values used to compute SSE.
     """
@@ -260,7 +427,7 @@ def _get_fss_components_one_time(
         matching_distance_px):
     """Computes components of fractions skill score (FSS) for one time step.
 
-    See notes on neighbourhood-based vs. Fourier-based evaluation in
+    See notes on neighbourhood vs. band-pass filter in
     `_get_brier_components_one_time`.
 
     :param actual_target_matrix: See doc for `_get_brier_components_one_time`.
@@ -303,7 +470,7 @@ def _get_iou_components_one_time(
         matching_distance_px):
     """Computes components of intersection over union (IOU) for one time step.
 
-    See notes on neighbourhood-based vs. Fourier-based evaluation in
+    See notes on neighbourhood vs. band-pass filter in
     `_get_brier_components_one_time`.
 
     :param actual_target_matrix: See doc for `_get_brier_components_one_time`.
@@ -338,7 +505,7 @@ def _get_dice_components_one_time(
         matching_distance_px):
     """Computes components of Dice coefficient for one time step.
 
-    See notes on neighbourhood-based vs. Fourier-based evaluation in
+    See notes on neighbourhood vs. band-pass filter in
     `_get_brier_components_one_time`.
 
     :param actual_target_matrix: See doc for `_get_brier_components_one_time`.
@@ -374,19 +541,18 @@ def _get_dice_components_one_time(
     return intersection, num_pixels
 
 
-def _get_fourier_csi_components_one_time(
+def _get_band_pass_csi_components_one_time(
         actual_target_matrix, probability_matrix, eval_mask_matrix):
-    """Computes components of Fourier-based CSI for one time step.
+    """Computes components of CSI on band-pass-filtered data for one time step.
 
-    See notes on neighbourhood-based vs. Fourier-based evaluation in
+    See notes on neighbourhood vs. band-pass filter in
     `_get_brier_components_one_time`.
 
     :param actual_target_matrix: See doc for `_get_brier_components_one_time`.
     :param probability_matrix: Same.
     :param eval_mask_matrix: Same.
-    :return: numerator: Number of Fourier-based CSI (number of true
-        positives).
-    :return: denominator: Denominator of Fourier-based CSI (number of
+    :return: numerator: Numerator of CSI (number of true positives).
+    :return: denominator: Denominator of CSI (number of
         true positives + false positives + false negatives).
     """
 
@@ -412,7 +578,7 @@ def _get_neigh_csi_components_one_time(
         matching_distance_px):
     """Computes components of neighbourhood-based CSI for one time step.
 
-    See notes on neighbourhood-based vs. Fourier-based evaluation in
+    See notes on neighbourhood vs. band-pass filter in
     `_get_brier_components_one_time`.
 
     :param actual_target_matrix: See doc for `_get_brier_components_one_time`.
@@ -485,22 +651,22 @@ def _find_eval_mask(prediction_dict):
 
 
 def get_basic_scores(
-        prediction_dict, neigh_distances_px, min_fourier_resolutions_deg,
-        max_fourier_resolutions_deg, test_mode=False, eval_mask_matrix=None,
+        prediction_dict, neigh_distances_px, min_resolutions_deg,
+        max_resolutions_deg, test_mode=False, eval_mask_matrix=None,
         model_file_name=None):
     """Computes basic scores.
 
     D = number of matching distances for neighbourhood-based evaluation
-    R = number of resolution bands for Fourier-based evaluation
+    R = number of resolution bands for evaluation with band-pass filter
 
     :param prediction_dict: Dictionary with predicted and actual values (in
         format returned by `prediction_io.read_file`).
     :param neigh_distances_px: length-D numpy array of matching distances.  If
         you do not want neighbourhood-based evaluation, make this None.
-    :param min_fourier_resolutions_deg: length-R numpy array of minimum
-        resolutions (degrees).  If you do not want Fourier-based
-        evaluation, make this None.
-    :param max_fourier_resolutions_deg: Same but with max resolutions.
+    :param min_resolutions_deg: length-R numpy array of minimum
+        resolutions (degrees).  If you do not want evaluation with band-pass
+        filter, make this None.
+    :param max_resolutions_deg: Same but with max resolutions.
     :param test_mode: Leave this alone.
     :param eval_mask_matrix: Leave this alone.
     :param model_file_name: Leave this alone.
@@ -519,19 +685,19 @@ def get_basic_scores(
         num_neigh_distances = len(neigh_distances_px)
 
     if (
-            min_fourier_resolutions_deg is None
-            or max_fourier_resolutions_deg is None
+            min_resolutions_deg is None
+            or max_resolutions_deg is None
     ):
-        num_fourier_bands = 0
+        num_filter_bands = 0
     else:
         error_checking.assert_is_numpy_array(
-            min_fourier_resolutions_deg, num_dimensions=1
+            min_resolutions_deg, num_dimensions=1
         )
 
-        num_fourier_bands = len(min_fourier_resolutions_deg)
-        expected_dim = numpy.array([num_fourier_bands], dtype=int)
+        num_filter_bands = len(min_resolutions_deg)
+        expected_dim = numpy.array([num_filter_bands], dtype=int)
         error_checking.assert_is_numpy_array(
-            max_fourier_resolutions_deg, exact_dimensions=expected_dim
+            max_resolutions_deg, exact_dimensions=expected_dim
         )
 
     error_checking.assert_is_boolean(test_mode)
@@ -567,18 +733,18 @@ def get_basic_scores(
         }
         main_data_dict.update(new_dict)
 
-    if num_fourier_bands > 0:
-        metadata_dict[MIN_RESOLUTION_DIM] = min_fourier_resolutions_deg
-        metadata_dict[MAX_RESOLUTION_DIM] = max_fourier_resolutions_deg
+    if num_filter_bands > 0:
+        metadata_dict[MIN_RESOLUTION_DIM] = min_resolutions_deg
+        metadata_dict[MAX_RESOLUTION_DIM] = max_resolutions_deg
 
         these_dim = (TIME_DIM, MIN_RESOLUTION_DIM)
-        this_array = numpy.full((num_times, num_fourier_bands), numpy.nan)
+        this_array = numpy.full((num_times, num_filter_bands), numpy.nan)
 
         new_dict = {
-            FREQ_SSE_REAL_KEY: (these_dim, this_array + 0),
-            FREQ_SSE_IMAGINARY_KEY: (these_dim, this_array + 0),
-            FREQ_SSE_TOTAL_KEY: (these_dim, this_array + 0),
-            FREQ_SSE_NUM_WEIGHTS_KEY: (these_dim, this_array + 0),
+            FOURIER_COEFF_SSE_REAL_KEY: (these_dim, this_array + 0),
+            FOURIER_COEFF_SSE_IMAGINARY_KEY: (these_dim, this_array + 0),
+            FOURIER_COEFF_SSE_TOTAL_KEY: (these_dim, this_array + 0),
+            FOURIER_COEFF_NUM_WEIGHTS_KEY: (these_dim, this_array + 0),
             FOURIER_BRIER_SSE_KEY: (these_dim, this_array + 0),
             FOURIER_BRIER_NUM_VALS_KEY: (these_dim, this_array + 0.),
             FOURIER_FSS_ACTUAL_SSE_KEY: (these_dim, this_array + 0.),
@@ -588,7 +754,20 @@ def get_basic_scores(
             FOURIER_DICE_INTERSECTION_KEY: (these_dim, this_array + 0.),
             FOURIER_DICE_NUM_PIX_KEY: (these_dim, this_array + 0.),
             FOURIER_CSI_NUMERATOR_KEY: (these_dim, this_array + 0.),
-            FOURIER_CSI_DENOMINATOR_KEY: (these_dim, this_array + 0.)
+            FOURIER_CSI_DENOMINATOR_KEY: (these_dim, this_array + 0.),
+            WAVELET_SSE_MEAN_COEFFS_KEY: (these_dim, this_array + 0),
+            WAVELET_SSE_DETAIL_COEFFS_KEY: (these_dim, this_array + 0),
+            WAVELET_NUM_MEAN_COEFFS_KEY: (these_dim, this_array + 0),
+            WAVELET_BRIER_SSE_KEY: (these_dim, this_array + 0),
+            WAVELET_BRIER_NUM_VALS_KEY: (these_dim, this_array + 0.),
+            WAVELET_FSS_ACTUAL_SSE_KEY: (these_dim, this_array + 0.),
+            WAVELET_FSS_REFERENCE_SSE_KEY: (these_dim, this_array + 0.),
+            WAVELET_IOU_INTERSECTION_KEY: (these_dim, this_array + 0.),
+            WAVELET_IOU_UNION_KEY: (these_dim, this_array + 0.),
+            WAVELET_DICE_INTERSECTION_KEY: (these_dim, this_array + 0.),
+            WAVELET_DICE_NUM_PIX_KEY: (these_dim, this_array + 0.),
+            WAVELET_CSI_NUMERATOR_KEY: (these_dim, this_array + 0.),
+            WAVELET_CSI_DENOMINATOR_KEY: (these_dim, this_array + 0.)
         }
         main_data_dict.update(new_dict)
 
@@ -617,12 +796,13 @@ def get_basic_scores(
             )
 
         for i in range(num_times):
-            print((
-                'Computing neighbourhood-based scores for {0:d}th of {1:d} time'
-                ' steps...'
-            ).format(
-                i + 1, num_times
-            ))
+            if numpy.mod(i, 10) == 0:
+                print((
+                    'Computing neighbourhood-based scores for {0:d}th of {1:d} '
+                    'time steps...'
+                ).format(
+                    i + 1, num_times
+                ))
 
             this_prob_matrix = (
                 prediction_dict[prediction_io.PROBABILITY_MATRIX_KEY][i, ...]
@@ -685,94 +865,110 @@ def get_basic_scores(
                     matching_distance_px=neigh_distances_px[k]
                 )
 
-    if num_fourier_bands > 0:
+        print((
+            'Have computed neighbourhood-based scores for all {0:d} time steps!'
+        ).format(
+            num_times
+        ))
+
+    if num_filter_bands > 0:
+        these_dim = (
+            (num_filter_bands,) +
+            prediction_dict[prediction_io.PROBABILITY_MATRIX_KEY].shape
+        )
+        fourier_forecast_matrix = numpy.full(these_dim, numpy.nan)
+        fourier_target_matrix = numpy.full(these_dim, numpy.nan)
+        wavelet_forecast_matrix = numpy.full(these_dim, numpy.nan)
+        wavelet_target_matrix = numpy.full(these_dim, numpy.nan)
+
         this_matrix = fourier_utils.taper_spatial_data(
             prediction_dict[prediction_io.PROBABILITY_MATRIX_KEY][0, ...]
         )
+        these_dim = (num_filter_bands, num_times) + this_matrix.shape
+        fourier_forecast_coeff_matrix = numpy.full(these_dim, numpy.nan)
+        fourier_target_coeff_matrix = numpy.full(these_dim, numpy.nan)
 
-        num_tapered_rows = this_matrix.shape[0]
-        num_tapered_columns = this_matrix.shape[1]
-        these_dim = (num_fourier_bands, num_tapered_rows, num_tapered_columns)
+        this_matrix = wavelet_utils.taper_spatial_data(
+            prediction_dict[prediction_io.PROBABILITY_MATRIX_KEY][[0], ...]
+        )[0]
+        these_dim = (num_filter_bands, num_times) + this_matrix.shape
+        wavelet_forecast_mean_coeff_matrix = numpy.full(these_dim, numpy.nan)
+        wavelet_target_mean_coeff_matrix = numpy.full(these_dim, numpy.nan)
 
-        blackman_window_matrix = numpy.full(these_dim, numpy.nan)
-        butterworth_filter_matrix = numpy.full(these_dim, numpy.nan)
+        these_dim = these_dim + (3,)
+        wavelet_forecast_detail_coeff_matrix = numpy.full(these_dim, numpy.nan)
+        wavelet_target_detail_coeff_matrix = numpy.full(these_dim, numpy.nan)
 
-        for k in range(num_fourier_bands):
-            blackman_window_matrix[k, ...] = (
-                fourier_utils.apply_blackman_window(
-                    numpy.ones(blackman_window_matrix[k, ...].shape)
-                )
+        for k in range(num_filter_bands):
+            (
+                fourier_forecast_matrix[k, ...],
+                fourier_forecast_coeff_matrix[k, ...]
+            ) = _apply_fourier_filter(
+                orig_data_matrix=
+                prediction_dict[prediction_io.PROBABILITY_MATRIX_KEY] + 0.,
+                min_resolution_deg=min_resolutions_deg[k],
+                max_resolution_deg=max_resolutions_deg[k]
             )
 
-            butterworth_filter_matrix[k, ...] = (
-                fourier_utils.apply_butterworth_filter(
-                    coefficient_matrix=
-                    numpy.ones(butterworth_filter_matrix[k, ...].shape),
-                    filter_order=2., grid_spacing_metres=GRID_SPACING_DEG,
-                    min_resolution_metres=min_fourier_resolutions_deg[k],
-                    max_resolution_metres=max_fourier_resolutions_deg[k]
-                )
+            (
+                fourier_target_matrix[k, ...],
+                fourier_target_coeff_matrix[k, ...]
+            ) = _apply_fourier_filter(
+                orig_data_matrix=
+                prediction_dict[prediction_io.TARGET_MATRIX_KEY] + 0.,
+                min_resolution_deg=min_resolutions_deg[k],
+                max_resolution_deg=max_resolutions_deg[k]
+            )
+
+            (
+                wavelet_forecast_matrix[k, ...],
+                wavelet_forecast_mean_coeff_matrix[k, ...],
+                wavelet_forecast_detail_coeff_matrix[k, ...]
+            ) = _apply_wavelet_filter(
+                orig_data_matrix=
+                prediction_dict[prediction_io.PROBABILITY_MATRIX_KEY] + 0.,
+                min_resolution_deg=min_resolutions_deg[k],
+                max_resolution_deg=max_resolutions_deg[k]
+            )
+
+            (
+                wavelet_target_matrix[k, ...],
+                wavelet_target_mean_coeff_matrix[k, ...],
+                wavelet_target_detail_coeff_matrix[k, ...]
+            ) = _apply_wavelet_filter(
+                orig_data_matrix=
+                prediction_dict[prediction_io.TARGET_MATRIX_KEY] + 0.,
+                min_resolution_deg=min_resolutions_deg[k],
+                max_resolution_deg=max_resolutions_deg[k]
             )
 
         for i in range(num_times):
-            print((
-                'Computing Fourier-based scores for {0:d}th of {1:d} time '
-                'steps...'
-            ).format(
-                i + 1, num_times
-            ))
+            if numpy.mod(i, 10) == 0:
+                print((
+                    'Computing scores with band-pass filter for '
+                    '{0:d}th of {1:d} time steps...'
+                ).format(
+                    i + 1, num_times
+                ))
 
-            tapered_prob_matrix = fourier_utils.taper_spatial_data(
-                prediction_dict[prediction_io.PROBABILITY_MATRIX_KEY][i, ...]
-            )
-            tapered_target_matrix = fourier_utils.taper_spatial_data(
-                prediction_dict[prediction_io.TARGET_MATRIX_KEY][i, ...]
-            )
-            tapered_target_matrix = tapered_target_matrix.astype(float)
-
-            for k in range(num_fourier_bands):
+            for k in range(num_filter_bands):
                 (
-                    this_filtered_prob_matrix, this_predicted_weight_matrix
-                ) = _apply_fourier_filter(
-                    orig_data_matrix=
-                    tapered_prob_matrix * blackman_window_matrix[k, ...],
-                    filter_matrix=butterworth_filter_matrix[k, ...]
-                )
-
-                this_filtered_prob_matrix = fourier_utils.untaper_spatial_data(
-                    this_filtered_prob_matrix
-                )
-
-                (
-                    this_filtered_target_matrix, this_actual_weight_matrix
-                ) = _apply_fourier_filter(
-                    orig_data_matrix=
-                    tapered_target_matrix * blackman_window_matrix[k, ...],
-                    filter_matrix=butterworth_filter_matrix[k, ...]
-                )
-
-                this_filtered_target_matrix = (
-                    fourier_utils.untaper_spatial_data(
-                        this_filtered_target_matrix
-                    )
-                )
-
-                (
-                    b[FREQ_SSE_REAL_KEY].values[i, k],
-                    b[FREQ_SSE_IMAGINARY_KEY].values[i, k],
-                    b[FREQ_SSE_TOTAL_KEY].values[i, k],
-                    b[FREQ_SSE_NUM_WEIGHTS_KEY].values[i, k]
-                ) = _get_freq_mse_components_one_time(
-                    actual_weight_matrix=this_actual_weight_matrix,
-                    predicted_weight_matrix=this_predicted_weight_matrix
+                    b[FOURIER_COEFF_SSE_REAL_KEY].values[i, k],
+                    b[FOURIER_COEFF_SSE_IMAGINARY_KEY].values[i, k],
+                    b[FOURIER_COEFF_SSE_TOTAL_KEY].values[i, k],
+                    b[FOURIER_COEFF_NUM_WEIGHTS_KEY].values[i, k]
+                ) = _get_fourier_coeff_sse_one_time(
+                    actual_weight_matrix=fourier_target_coeff_matrix[k, i, ...],
+                    predicted_weight_matrix=
+                    fourier_forecast_coeff_matrix[k, i, ...]
                 )
 
                 (
                     b[FOURIER_BRIER_SSE_KEY].values[i, k],
                     b[FOURIER_BRIER_NUM_VALS_KEY].values[i, k]
                 ) = _get_brier_components_one_time(
-                    actual_target_matrix=this_filtered_target_matrix,
-                    probability_matrix=this_filtered_prob_matrix,
+                    actual_target_matrix=fourier_target_matrix[k, i, ...],
+                    probability_matrix=fourier_forecast_matrix[k, i, ...],
                     eval_mask_matrix=eval_mask_matrix,
                     matching_distance_px=None
                 )
@@ -781,8 +977,8 @@ def get_basic_scores(
                     b[FOURIER_FSS_ACTUAL_SSE_KEY].values[i, k],
                     b[FOURIER_FSS_REFERENCE_SSE_KEY].values[i, k]
                 ) = _get_fss_components_one_time(
-                    actual_target_matrix=this_filtered_target_matrix,
-                    probability_matrix=this_filtered_prob_matrix,
+                    actual_target_matrix=fourier_target_matrix[k, i, ...],
+                    probability_matrix=fourier_forecast_matrix[k, i, ...],
                     eval_mask_matrix=eval_mask_matrix,
                     matching_distance_px=None
                 )
@@ -791,8 +987,8 @@ def get_basic_scores(
                     b[FOURIER_IOU_INTERSECTION_KEY].values[i, k],
                     b[FOURIER_IOU_UNION_KEY].values[i, k]
                 ) = _get_iou_components_one_time(
-                    actual_target_matrix=this_filtered_target_matrix,
-                    probability_matrix=this_filtered_prob_matrix,
+                    actual_target_matrix=fourier_target_matrix[k, i, ...],
+                    probability_matrix=fourier_forecast_matrix[k, i, ...],
                     eval_mask_matrix=eval_mask_matrix,
                     matching_distance_px=None
                 )
@@ -801,8 +997,8 @@ def get_basic_scores(
                     b[FOURIER_DICE_INTERSECTION_KEY].values[i, k],
                     b[FOURIER_DICE_NUM_PIX_KEY].values[i, k]
                 ) = _get_dice_components_one_time(
-                    actual_target_matrix=this_filtered_target_matrix,
-                    probability_matrix=this_filtered_prob_matrix,
+                    actual_target_matrix=fourier_target_matrix[k, i, ...],
+                    probability_matrix=fourier_forecast_matrix[k, i, ...],
                     eval_mask_matrix=eval_mask_matrix,
                     matching_distance_px=None
                 )
@@ -810,11 +1006,83 @@ def get_basic_scores(
                 (
                     b[FOURIER_CSI_NUMERATOR_KEY].values[i, k],
                     b[FOURIER_CSI_DENOMINATOR_KEY].values[i, k]
-                ) = _get_fourier_csi_components_one_time(
-                    actual_target_matrix=this_filtered_target_matrix,
-                    probability_matrix=this_filtered_prob_matrix,
+                ) = _get_band_pass_csi_components_one_time(
+                    actual_target_matrix=fourier_target_matrix[k, i, ...],
+                    probability_matrix=fourier_forecast_matrix[k, i, ...],
                     eval_mask_matrix=eval_mask_matrix,
                 )
+
+                (
+                    b[WAVELET_SSE_MEAN_COEFFS_KEY].values[i, k],
+                    b[WAVELET_SSE_DETAIL_COEFFS_KEY].values[i, k],
+                    b[WAVELET_NUM_MEAN_COEFFS_KEY].values[i, k],
+                    b[WAVELET_NUM_DETAIL_COEFFS_KEY].values[i, k]
+                ) = _get_wavelet_coeff_sse_one_time(
+                    actual_mean_coeff_matrix=
+                    wavelet_target_mean_coeff_matrix[k, i, ...],
+                    actual_detail_coeff_matrix=
+                    wavelet_target_detail_coeff_matrix[k, i, ...],
+                    predicted_mean_coeff_matrix=
+                    wavelet_forecast_mean_coeff_matrix[k, i, ...],
+                    predicted_detail_coeff_matrix=
+                    wavelet_forecast_detail_coeff_matrix[k, i, ...]
+                )
+
+                (
+                    b[WAVELET_BRIER_SSE_KEY].values[i, k],
+                    b[WAVELET_BRIER_NUM_VALS_KEY].values[i, k]
+                ) = _get_brier_components_one_time(
+                    actual_target_matrix=wavelet_target_matrix[k, i, ...],
+                    probability_matrix=wavelet_forecast_matrix[k, i, ...],
+                    eval_mask_matrix=eval_mask_matrix,
+                    matching_distance_px=None
+                )
+
+                (
+                    b[WAVELET_FSS_ACTUAL_SSE_KEY].values[i, k],
+                    b[WAVELET_FSS_REFERENCE_SSE_KEY].values[i, k]
+                ) = _get_fss_components_one_time(
+                    actual_target_matrix=wavelet_target_matrix[k, i, ...],
+                    probability_matrix=wavelet_forecast_matrix[k, i, ...],
+                    eval_mask_matrix=eval_mask_matrix,
+                    matching_distance_px=None
+                )
+
+                (
+                    b[WAVELET_IOU_INTERSECTION_KEY].values[i, k],
+                    b[WAVELET_IOU_UNION_KEY].values[i, k]
+                ) = _get_iou_components_one_time(
+                    actual_target_matrix=wavelet_target_matrix[k, i, ...],
+                    probability_matrix=wavelet_forecast_matrix[k, i, ...],
+                    eval_mask_matrix=eval_mask_matrix,
+                    matching_distance_px=None
+                )
+
+                (
+                    b[WAVELET_DICE_INTERSECTION_KEY].values[i, k],
+                    b[WAVELET_DICE_NUM_PIX_KEY].values[i, k]
+                ) = _get_dice_components_one_time(
+                    actual_target_matrix=wavelet_target_matrix[k, i, ...],
+                    probability_matrix=wavelet_forecast_matrix[k, i, ...],
+                    eval_mask_matrix=eval_mask_matrix,
+                    matching_distance_px=None
+                )
+
+                (
+                    b[WAVELET_CSI_NUMERATOR_KEY].values[i, k],
+                    b[WAVELET_CSI_DENOMINATOR_KEY].values[i, k]
+                ) = _get_band_pass_csi_components_one_time(
+                    actual_target_matrix=wavelet_target_matrix[k, i, ...],
+                    probability_matrix=wavelet_forecast_matrix[k, i, ...],
+                    eval_mask_matrix=eval_mask_matrix,
+                )
+
+        print((
+            'Have computed scores with band-pass filter for all {0:d} time '
+            'steps!'
+        ).format(
+            num_times
+        ))
 
     basic_score_table_xarray = b
     return basic_score_table_xarray
@@ -867,9 +1135,9 @@ def get_advanced_scores(basic_score_table_xarray):
         num_neigh_distances = 0
 
     if MIN_RESOLUTION_DIM in metadata_dict:
-        num_fourier_bands = len(metadata_dict[MIN_RESOLUTION_DIM])
+        num_filter_bands = len(metadata_dict[MIN_RESOLUTION_DIM])
     else:
-        num_fourier_bands = 0
+        num_filter_bands = 0
 
     main_data_dict = dict()
 
@@ -886,19 +1154,26 @@ def get_advanced_scores(basic_score_table_xarray):
         }
         main_data_dict.update(new_dict)
 
-    if num_fourier_bands > 0:
+    if num_filter_bands > 0:
         these_dim = (MIN_RESOLUTION_DIM,)
-        this_array = numpy.full(num_fourier_bands, numpy.nan)
+        this_array = numpy.full(num_filter_bands, numpy.nan)
 
         new_dict = {
-            FREQ_MSE_REAL_KEY: (these_dim, this_array + 0.),
-            FREQ_MSE_IMAGINARY_KEY: (these_dim, this_array + 0.),
-            FREQ_MSE_TOTAL_KEY: (these_dim, this_array + 0.),
+            FOURIER_COEFF_MSE_REAL_KEY: (these_dim, this_array + 0.),
+            FOURIER_COEFF_MSE_IMAGINARY_KEY: (these_dim, this_array + 0.),
+            FOURIER_COEFF_MSE_TOTAL_KEY: (these_dim, this_array + 0.),
             FOURIER_BRIER_SCORE_KEY: (these_dim, this_array + 0.),
             FOURIER_FSS_KEY: (these_dim, this_array + 0.),
             FOURIER_IOU_KEY: (these_dim, this_array + 0.),
             FOURIER_DICE_COEFF_KEY: (these_dim, this_array + 0.),
-            FOURIER_CSI_KEY: (these_dim, this_array + 0.)
+            FOURIER_CSI_KEY: (these_dim, this_array + 0.),
+            WAVELET_COEFF_MSE_MEAN_KEY: (these_dim, this_array + 0.),
+            WAVELET_COEFF_MSE_DETAIL_KEY: (these_dim, this_array + 0.),
+            WAVELET_BRIER_SCORE_KEY: (these_dim, this_array + 0.),
+            WAVELET_FSS_KEY: (these_dim, this_array + 0.),
+            WAVELET_IOU_KEY: (these_dim, this_array + 0.),
+            WAVELET_DICE_COEFF_KEY: (these_dim, this_array + 0.),
+            WAVELET_CSI_KEY: (these_dim, this_array + 0.)
         }
         main_data_dict.update(new_dict)
 
@@ -938,23 +1213,29 @@ def get_advanced_scores(basic_score_table_xarray):
             -1.
         )
 
-    if num_fourier_bands > 0:
-        numerators = numpy.sum(b[FREQ_SSE_REAL_KEY].values, axis=0)
-        denominators = numpy.sum(b[FREQ_SSE_NUM_WEIGHTS_KEY].values, axis=0)
-        a[FREQ_MSE_REAL_KEY].values = numerators / denominators
+    if num_filter_bands > 0:
+        numerators = numpy.sum(b[FOURIER_COEFF_SSE_REAL_KEY].values, axis=0)
+        denominators = numpy.sum(
+            b[FOURIER_COEFF_NUM_WEIGHTS_KEY].values, axis=0
+        )
+        a[FOURIER_COEFF_MSE_REAL_KEY].values = numerators / denominators
 
-        numerators = numpy.sum(b[FREQ_SSE_IMAGINARY_KEY].values, axis=0)
-        a[FREQ_MSE_IMAGINARY_KEY].values = numerators / denominators
+        numerators = numpy.sum(
+            b[FOURIER_COEFF_SSE_IMAGINARY_KEY].values, axis=0
+        )
+        a[FOURIER_COEFF_MSE_IMAGINARY_KEY].values = numerators / denominators
 
-        numerators = numpy.sum(b[FREQ_SSE_TOTAL_KEY].values, axis=0)
-        a[FREQ_MSE_TOTAL_KEY].values = numerators / denominators
+        numerators = numpy.sum(b[FOURIER_COEFF_SSE_TOTAL_KEY].values, axis=0)
+        a[FOURIER_COEFF_MSE_TOTAL_KEY].values = numerators / denominators
 
         numerators = numpy.sum(b[FOURIER_BRIER_SSE_KEY].values, axis=0)
         denominators = numpy.sum(b[FOURIER_BRIER_NUM_VALS_KEY].values, axis=0)
         a[FOURIER_BRIER_SCORE_KEY].values = numerators / denominators
 
         numerators = numpy.sum(b[FOURIER_FSS_ACTUAL_SSE_KEY].values, axis=0)
-        denominators = numpy.sum(b[FOURIER_FSS_REFERENCE_SSE_KEY].values, axis=0)
+        denominators = numpy.sum(
+            b[FOURIER_FSS_REFERENCE_SSE_KEY].values, axis=0
+        )
         a[FOURIER_FSS_KEY].values = 1. - numerators / denominators
 
         numerators = numpy.sum(b[FOURIER_IOU_INTERSECTION_KEY].values, axis=0)
@@ -968,6 +1249,38 @@ def get_advanced_scores(basic_score_table_xarray):
         numerators = numpy.sum(b[FOURIER_CSI_NUMERATOR_KEY].values, axis=0)
         denominators = numpy.sum(b[FOURIER_CSI_DENOMINATOR_KEY].values, axis=0)
         a[FOURIER_CSI_KEY].values = numerators / denominators
+
+        numerators = numpy.sum(b[WAVELET_SSE_MEAN_COEFFS_KEY].values, axis=0)
+        denominators = numpy.sum(b[WAVELET_NUM_MEAN_COEFFS_KEY].values, axis=0)
+        a[WAVELET_COEFF_MSE_MEAN_KEY].values = numerators / denominators
+
+        numerators = numpy.sum(b[WAVELET_SSE_DETAIL_COEFFS_KEY].values, axis=0)
+        denominators = numpy.sum(
+            b[WAVELET_NUM_DETAIL_COEFFS_KEY].values, axis=0
+        )
+        a[WAVELET_COEFF_MSE_DETAIL_KEY].values = numerators / denominators
+
+        numerators = numpy.sum(b[WAVELET_BRIER_SSE_KEY].values, axis=0)
+        denominators = numpy.sum(b[WAVELET_BRIER_NUM_VALS_KEY].values, axis=0)
+        a[WAVELET_BRIER_SCORE_KEY].values = numerators / denominators
+
+        numerators = numpy.sum(b[WAVELET_FSS_ACTUAL_SSE_KEY].values, axis=0)
+        denominators = numpy.sum(
+            b[WAVELET_FSS_REFERENCE_SSE_KEY].values, axis=0
+        )
+        a[WAVELET_FSS_KEY].values = 1. - numerators / denominators
+
+        numerators = numpy.sum(b[WAVELET_IOU_INTERSECTION_KEY].values, axis=0)
+        denominators = numpy.sum(b[WAVELET_IOU_UNION_KEY].values, axis=0)
+        a[WAVELET_IOU_KEY].values = numerators / denominators
+
+        numerators = numpy.sum(b[WAVELET_DICE_INTERSECTION_KEY].values, axis=0)
+        denominators = numpy.sum(b[WAVELET_DICE_NUM_PIX_KEY].values, axis=0)
+        a[WAVELET_DICE_COEFF_KEY].values = numerators / denominators
+
+        numerators = numpy.sum(b[WAVELET_CSI_NUMERATOR_KEY].values, axis=0)
+        denominators = numpy.sum(b[WAVELET_CSI_DENOMINATOR_KEY].values, axis=0)
+        a[WAVELET_CSI_KEY].values = numerators / denominators
 
     advanced_score_table_xarray = a
     return advanced_score_table_xarray
