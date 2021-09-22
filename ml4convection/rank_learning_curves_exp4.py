@@ -173,20 +173,25 @@ def _read_scores_one_model(
     ).format(
         experiment_dir_name, this_string
     )
-
     score_file_names = glob.glob(score_file_pattern)
 
-    if len(score_file_names) == 0:
-        error_string = 'Cannot find any files with pattern: {0:s}'.format(
-            score_file_pattern
-        )
-        raise ValueError(error_string)
+    model_subdir_names = [f.split('/')[-5] for f in score_file_names]
+    validation_loss_strings = [
+        d.split('_')[-1] for d in model_subdir_names
+    ]
 
-    score_file_names.sort()
+    for this_string in validation_loss_strings:
+        assert this_string.startswith('val-loss=')
 
-    print('Reading data from: "{0:s}"...'.format(score_file_names[-1]))
+    validation_losses = numpy.array([
+        float(s.replace('val-loss=', '')) for s in validation_loss_strings
+    ])
+    min_index = numpy.nanargmin(validation_losses)
+    score_file_name = score_file_names[min_index]
+
+    print('Reading data from: "{0:s}"...'.format(score_file_name))
     advanced_score_table_xarray = learning_curves.read_scores(
-        score_file_names[-1]
+        score_file_name
     )
     a = advanced_score_table_xarray
 
