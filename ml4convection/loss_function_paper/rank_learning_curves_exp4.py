@@ -3,6 +3,9 @@
 import glob
 import argparse
 import numpy
+import matplotlib
+matplotlib.use('agg')
+from matplotlib import pyplot
 from ml4convection.utils import learning_curves
 from ml4convection.machine_learning import neural_net
 
@@ -11,23 +14,62 @@ SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 TOLERANCE = 1e-6
 MAX_MAX_RESOLUTION_DEG = 1e10
 
+BASE_LOSS_FUNCTION_NAMES_FANCY = [
+    'Brier score', 'FSS', 'CSI', 'positive-class IOU', 'all-class IOU',
+    'Dice coeff'
+]
+FILTER_NAMES_FANCY = [
+    r'FT 0-0.0125$^{\circ}$',
+    r'FT 0.0125-0.025$^{\circ}$',
+    r'FT 0.025-0.05$^{\circ}$',
+    r'FT 0.05-0.1$^{\circ}$',
+    r'FT 0.1-0.2$^{\circ}$',
+    r'FT 0.2-0.4$^{\circ}$',
+    r'FT 0.4-0.8$^{\circ}$',
+    r'FT 0.8-$\infty^{\circ}$',
+    r'WT 0-0.0125$^{\circ}$',
+    r'WT 0.0125-0.025$^{\circ}$',
+    r'WT 0.025-0.05$^{\circ}$',
+    r'WT 0.05-0.1$^{\circ}$',
+    r'WT 0.1-0.2$^{\circ}$',
+    r'WT 0.2-0.4$^{\circ}$',
+    r'WT 0.4-0.8$^{\circ}$',
+    r'WT 0.8-$\infty^{\circ}$'
+]
+
 LOSS_FUNCTION_NAMES = [
     'brier_0.0000d_0.0125d_wavelets0', 'brier_0.0125d_0.0250d_wavelets0',
     'brier_0.0250d_0.0500d_wavelets0', 'brier_0.0500d_0.1000d_wavelets0',
     'brier_0.1000d_0.2000d_wavelets0', 'brier_0.2000d_0.4000d_wavelets0',
     'brier_0.4000d_0.8000d_wavelets0', 'brier_0.8000d_infd_wavelets0',
+    'brier_0.0000d_0.0125d_wavelets1', 'brier_0.0125d_0.0250d_wavelets1',
+    'brier_0.0250d_0.0500d_wavelets1', 'brier_0.0500d_0.1000d_wavelets1',
+    'brier_0.1000d_0.2000d_wavelets1', 'brier_0.2000d_0.4000d_wavelets1',
+    'brier_0.4000d_0.8000d_wavelets1', 'brier_0.8000d_infd_wavelets1',
     'fss_0.0000d_0.0125d_wavelets0', 'fss_0.0125d_0.0250d_wavelets0',
     'fss_0.0250d_0.0500d_wavelets0', 'fss_0.0500d_0.1000d_wavelets0',
     'fss_0.1000d_0.2000d_wavelets0', 'fss_0.2000d_0.4000d_wavelets0',
     'fss_0.4000d_0.8000d_wavelets0', 'fss_0.8000d_infd_wavelets0',
+    'fss_0.0000d_0.0125d_wavelets1', 'fss_0.0125d_0.0250d_wavelets1',
+    'fss_0.0250d_0.0500d_wavelets1', 'fss_0.0500d_0.1000d_wavelets1',
+    'fss_0.1000d_0.2000d_wavelets1', 'fss_0.2000d_0.4000d_wavelets1',
+    'fss_0.4000d_0.8000d_wavelets1', 'fss_0.8000d_infd_wavelets1',
     'csi_0.0000d_0.0125d_wavelets0', 'csi_0.0125d_0.0250d_wavelets0',
     'csi_0.0250d_0.0500d_wavelets0', 'csi_0.0500d_0.1000d_wavelets0',
     'csi_0.1000d_0.2000d_wavelets0', 'csi_0.2000d_0.4000d_wavelets0',
     'csi_0.4000d_0.8000d_wavelets0', 'csi_0.8000d_infd_wavelets0',
+    'csi_0.0000d_0.0125d_wavelets1', 'csi_0.0125d_0.0250d_wavelets1',
+    'csi_0.0250d_0.0500d_wavelets1', 'csi_0.0500d_0.1000d_wavelets1',
+    'csi_0.1000d_0.2000d_wavelets1', 'csi_0.2000d_0.4000d_wavelets1',
+    'csi_0.4000d_0.8000d_wavelets1', 'csi_0.8000d_infd_wavelets1',
     'iou_0.0000d_0.0125d_wavelets0', 'iou_0.0125d_0.0250d_wavelets0',
     'iou_0.0250d_0.0500d_wavelets0', 'iou_0.0500d_0.1000d_wavelets0',
     'iou_0.1000d_0.2000d_wavelets0', 'iou_0.2000d_0.4000d_wavelets0',
     'iou_0.4000d_0.8000d_wavelets0', 'iou_0.8000d_infd_wavelets0',
+    'iou_0.0000d_0.0125d_wavelets1', 'iou_0.0125d_0.0250d_wavelets1',
+    'iou_0.0250d_0.0500d_wavelets1', 'iou_0.0500d_0.1000d_wavelets1',
+    'iou_0.1000d_0.2000d_wavelets1', 'iou_0.2000d_0.4000d_wavelets1',
+    'iou_0.4000d_0.8000d_wavelets1', 'iou_0.8000d_infd_wavelets1',
     'all-class-iou_0.0000d_0.0125d_wavelets0',
     'all-class-iou_0.0125d_0.0250d_wavelets0',
     'all-class-iou_0.0250d_0.0500d_wavelets0',
@@ -36,26 +78,6 @@ LOSS_FUNCTION_NAMES = [
     'all-class-iou_0.2000d_0.4000d_wavelets0',
     'all-class-iou_0.4000d_0.8000d_wavelets0',
     'all-class-iou_0.8000d_infd_wavelets0',
-    'dice_0.0000d_0.0125d_wavelets0', 'dice_0.0125d_0.0250d_wavelets0',
-    'dice_0.0250d_0.0500d_wavelets0', 'dice_0.0500d_0.1000d_wavelets0',
-    'dice_0.1000d_0.2000d_wavelets0', 'dice_0.2000d_0.4000d_wavelets0',
-    'dice_0.4000d_0.8000d_wavelets0', 'dice_0.8000d_infd_wavelets0',
-    'brier_0.0000d_0.0125d_wavelets1', 'brier_0.0125d_0.0250d_wavelets1',
-    'brier_0.0250d_0.0500d_wavelets1', 'brier_0.0500d_0.1000d_wavelets1',
-    'brier_0.1000d_0.2000d_wavelets1', 'brier_0.2000d_0.4000d_wavelets1',
-    'brier_0.4000d_0.8000d_wavelets1', 'brier_0.8000d_infd_wavelets1',
-    'fss_0.0000d_0.0125d_wavelets1', 'fss_0.0125d_0.0250d_wavelets1',
-    'fss_0.0250d_0.0500d_wavelets1', 'fss_0.0500d_0.1000d_wavelets1',
-    'fss_0.1000d_0.2000d_wavelets1', 'fss_0.2000d_0.4000d_wavelets1',
-    'fss_0.4000d_0.8000d_wavelets1', 'fss_0.8000d_infd_wavelets1',
-    'csi_0.0000d_0.0125d_wavelets1', 'csi_0.0125d_0.0250d_wavelets1',
-    'csi_0.0250d_0.0500d_wavelets1', 'csi_0.0500d_0.1000d_wavelets1',
-    'csi_0.1000d_0.2000d_wavelets1', 'csi_0.2000d_0.4000d_wavelets1',
-    'csi_0.4000d_0.8000d_wavelets1', 'csi_0.8000d_infd_wavelets1',
-    'iou_0.0000d_0.0125d_wavelets1', 'iou_0.0125d_0.0250d_wavelets1',
-    'iou_0.0250d_0.0500d_wavelets1', 'iou_0.0500d_0.1000d_wavelets1',
-    'iou_0.1000d_0.2000d_wavelets1', 'iou_0.2000d_0.4000d_wavelets1',
-    'iou_0.4000d_0.8000d_wavelets1', 'iou_0.8000d_infd_wavelets1',
     'all-class-iou_0.0000d_0.0125d_wavelets1',
     'all-class-iou_0.0125d_0.0250d_wavelets1',
     'all-class-iou_0.0250d_0.0500d_wavelets1',
@@ -64,6 +86,10 @@ LOSS_FUNCTION_NAMES = [
     'all-class-iou_0.2000d_0.4000d_wavelets1',
     'all-class-iou_0.4000d_0.8000d_wavelets1',
     'all-class-iou_0.8000d_infd_wavelets1',
+    'dice_0.0000d_0.0125d_wavelets0', 'dice_0.0125d_0.0250d_wavelets0',
+    'dice_0.0250d_0.0500d_wavelets0', 'dice_0.0500d_0.1000d_wavelets0',
+    'dice_0.1000d_0.2000d_wavelets0', 'dice_0.2000d_0.4000d_wavelets0',
+    'dice_0.4000d_0.8000d_wavelets0', 'dice_0.8000d_infd_wavelets0',
     'dice_0.0000d_0.0125d_wavelets1', 'dice_0.0125d_0.0250d_wavelets1',
     'dice_0.0250d_0.0500d_wavelets1', 'dice_0.0500d_0.1000d_wavelets1',
     'dice_0.1000d_0.2000d_wavelets1', 'dice_0.2000d_0.4000d_wavelets1',
@@ -110,16 +136,41 @@ NEGATIVELY_ORIENTED_KEYS = [
     learning_curves.WAVELET_COEFF_MSE_DETAIL_KEY
 ]
 
+COLOUR_MAP_OBJECT = pyplot.get_cmap('plasma')
+DEFAULT_FONT_SIZE = 20
+COLOUR_BAR_FONT_SIZE = 25
+
+pyplot.rc('font', size=DEFAULT_FONT_SIZE)
+pyplot.rc('axes', titlesize=DEFAULT_FONT_SIZE)
+pyplot.rc('axes', labelsize=DEFAULT_FONT_SIZE)
+pyplot.rc('xtick', labelsize=DEFAULT_FONT_SIZE)
+pyplot.rc('ytick', labelsize=DEFAULT_FONT_SIZE)
+pyplot.rc('legend', fontsize=DEFAULT_FONT_SIZE)
+pyplot.rc('figure', titlesize=DEFAULT_FONT_SIZE)
+
+FIGURE_WIDTH_INCHES = 15
+FIGURE_HEIGHT_INCHES = 15
+FIGURE_RESOLUTION_DPI = 300
+
 EXPERIMENT_DIR_ARG_NAME = 'input_experiment_dir_name'
+OUTPUT_DIR_ARG_NAME = 'output_dir_name'
+
 EXPERIMENT_DIR_HELP_STRING = (
     'Name of experiment directory, containing individual models in '
     'subdirectories.'
+)
+OUTPUT_DIR_HELP_STRING = (
+    'Name of output directory.  Figures will be saved here.'
 )
 
 INPUT_ARG_PARSER = argparse.ArgumentParser()
 INPUT_ARG_PARSER.add_argument(
     '--' + EXPERIMENT_DIR_ARG_NAME, type=str, required=True,
     help=EXPERIMENT_DIR_HELP_STRING
+)
+INPUT_ARG_PARSER.add_argument(
+    '--' + OUTPUT_DIR_ARG_NAME, type=str, required=True,
+    help=OUTPUT_DIR_HELP_STRING
 )
 
 
@@ -165,20 +216,25 @@ def _read_scores_one_model(
     ).format(
         experiment_dir_name, this_string
     )
-
     score_file_names = glob.glob(score_file_pattern)
 
-    if len(score_file_names) == 0:
-        error_string = 'Cannot find any files with pattern: {0:s}'.format(
-            score_file_pattern
-        )
-        raise ValueError(error_string)
+    model_subdir_names = [f.split('/')[-5] for f in score_file_names]
+    validation_loss_strings = [
+        d.split('_')[-1] for d in model_subdir_names
+    ]
 
-    score_file_names.sort()
+    for this_string in validation_loss_strings:
+        assert this_string.startswith('val-loss=')
 
-    print('Reading data from: "{0:s}"...'.format(score_file_names[-1]))
+    validation_losses = numpy.array([
+        float(s.replace('val-loss=', '')) for s in validation_loss_strings
+    ])
+    min_index = numpy.nanargmin(validation_losses)
+    score_file_name = score_file_names[min_index]
+
+    print('Reading data from: "{0:s}"...'.format(score_file_name))
     advanced_score_table_xarray = learning_curves.read_scores(
-        score_file_names[-1]
+        score_file_name
     )
     a = advanced_score_table_xarray
 
@@ -226,12 +282,57 @@ def _read_scores_one_model(
     return score_values
 
 
-def _run(experiment_dir_name):
+def _plot_grid_one_score(score_values, min_colour_value, max_colour_value,
+                         colour_map_object):
+    """Plots grid for one score.
+
+    L = number of loss functions
+
+    :param score_values: length-L numpy array of values for the given score.
+    :param min_colour_value: Minimum value in colour scheme.
+    :param max_colour_value: Max value in colour scheme.
+    :param colour_map_object: Colour scheme (instance of `matplotlib.pyplot.cm`
+        or similar).
+    :return: figure_object: Figure handle (instance of
+        `matplotlib.figure.Figure`).
+    :return: axes_object: Axes handle (instance of
+        `matplotlib.axes._subplots.AxesSubplot`).
+    """
+
+    these_dim = (
+        len(BASE_LOSS_FUNCTION_NAMES_FANCY), len(FILTER_NAMES_FANCY)
+    )
+    score_matrix = numpy.reshape(score_values, these_dim)
+
+    figure_object, axes_object = pyplot.subplots(
+        1, 1, figsize=(FIGURE_WIDTH_INCHES, FIGURE_HEIGHT_INCHES)
+    )
+
+    axes_object.imshow(
+        score_matrix, cmap=colour_map_object, origin='lower',
+        vmin=min_colour_value, vmax=max_colour_value
+    )
+
+    x_tick_values = numpy.linspace(
+        0, score_matrix.shape[1] - 1, num=score_matrix.shape[1], dtype=float
+    )
+    y_tick_values = numpy.linspace(
+        0, score_matrix.shape[0] - 1, num=score_matrix.shape[0], dtype=float
+    )
+
+    pyplot.xticks(x_tick_values, FILTER_NAMES_FANCY, rotation=90.)
+    pyplot.yticks(y_tick_values, BASE_LOSS_FUNCTION_NAMES_FANCY)
+
+    return figure_object, axes_object
+
+
+def _run(experiment_dir_name, output_dir_name):
     """Ranks learning curves for Loss-function Experiment 4.
 
     This is effectively the main method.
 
     :param experiment_dir_name: See documentation at top of file.
+    :param output_dir_name: Same.
     """
 
     neigh_score_key_matrix, neigh_distance_matrix_px = numpy.meshgrid(
@@ -299,6 +400,66 @@ def _run(experiment_dir_name):
     print(SEPARATOR_STRING)
 
     for j in range(num_scores):
+        figure_object, axes_object = _plot_grid_one_score(
+            score_values=score_matrix[:, j],
+            min_colour_value=numpy.nanpercentile(score_matrix[:, j], 1),
+            max_colour_value=numpy.nanpercentile(score_matrix[:, j], 99),
+            colour_map_object=COLOUR_MAP_OBJECT
+        )
+
+        axes_object.set_ylabel('Score for loss function')
+        axes_object.set_xlabel('Filter for loss function')
+
+        if not numpy.isnan(fourier_min_resolutions_deg[j]):
+            title_string = '{0:s} at {1:.4f}-{2:.4f}'.format(
+                score_keys[j],
+                fourier_min_resolutions_deg[j],
+                fourier_max_resolutions_deg[j]
+            )
+            title_string += r'$^{\circ}$'
+            title_string += ' for different loss fcns'
+
+            output_file_name = '{0:s}/{1:s}_{2:.4f}-{3:.4f}deg.jpg'.format(
+                output_dir_name, score_keys[j].replace('_', '-'),
+                fourier_min_resolutions_deg[j],
+                fourier_max_resolutions_deg[j]
+            )
+
+        elif not numpy.isnan(wavelet_min_resolutions_deg[j]):
+            title_string = '{0:s} at {1:.4f}-{2:.4f}'.format(
+                score_keys[j],
+                wavelet_min_resolutions_deg[j],
+                wavelet_max_resolutions_deg[j]
+            )
+            title_string += r'$^{\circ}$'
+            title_string += ' for different loss fcns'
+
+            output_file_name = '{0:s}/{1:s}_{2:.4f}-{3:.4f}deg.jpg'.format(
+                output_dir_name, score_keys[j].replace('_', '-'),
+                wavelet_min_resolutions_deg[j],
+                wavelet_max_resolutions_deg[j]
+            )
+
+        else:
+            title_string = '{0:d}-pixel {1:s} for different loss fcns'.format(
+                int(numpy.round(neigh_distances_px[j])),
+                score_keys[j]
+            )
+
+            output_file_name = '{0:s}/{1:s}_{2:02d}px.jpg'.format(
+                output_dir_name, score_keys[j].replace('_', '-'),
+                int(numpy.round(neigh_distances_px[j]))
+            )
+
+        axes_object.set_title(title_string)
+
+        print('Saving figure to: "{0:s}"...'.format(output_file_name))
+        figure_object.savefig(
+            output_file_name, dpi=FIGURE_RESOLUTION_DPI,
+            pad_inches=0, bbox_inches='tight'
+        )
+        pyplot.close(figure_object)
+
         if score_keys[j] in NEGATIVELY_ORIENTED_KEYS:
             sort_indices = numpy.argsort(score_matrix[:, j])
         else:
@@ -343,5 +504,6 @@ if __name__ == '__main__':
     INPUT_ARG_OBJECT = INPUT_ARG_PARSER.parse_args()
 
     _run(
-        experiment_dir_name=getattr(INPUT_ARG_OBJECT, EXPERIMENT_DIR_ARG_NAME)
+        experiment_dir_name=getattr(INPUT_ARG_OBJECT, EXPERIMENT_DIR_ARG_NAME),
+        output_dir_name=getattr(INPUT_ARG_OBJECT, OUTPUT_DIR_ARG_NAME)
     )
