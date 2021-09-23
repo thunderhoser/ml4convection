@@ -2,6 +2,8 @@
 
 import os
 import sys
+import glob
+import numpy
 import argparse
 
 THIS_DIRECTORY_NAME = os.path.dirname(os.path.realpath(
@@ -63,6 +65,28 @@ def _run(top_basic_score_dir_name, first_date_string, last_date_string,
     :param last_date_string: Same.
     :param output_file_name: Same.
     """
+
+    if not os.path.isdir(top_basic_score_dir_name):
+        top_basic_score_dir_names = glob.glob(top_basic_score_dir_name)
+        validation_losses = numpy.full(len(top_basic_score_dir_names), numpy.nan)
+
+        for i in range(len(top_basic_score_dir_names)):
+            these_words = (
+                top_basic_score_dir_names[i].replace('/', '_').split('_')
+            )
+
+            for this_word in these_words:
+                if not this_word.startswith('val-loss='):
+                    continue
+
+                validation_losses[i] = float(this_word.replace('val-loss=', ''))
+
+        min_index = numpy.nanargmin(validation_losses)
+        top_basic_score_dir_name = top_basic_score_dir_names[min_index]
+
+        output_file_name = '{0:s}/advanced_scores.nc'.format(
+            top_basic_score_dir_name
+        )
 
     date_strings = []
     basic_score_file_names = []
