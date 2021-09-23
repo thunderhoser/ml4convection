@@ -21,9 +21,33 @@ FREQUENCY_COEFF_MATRIX = numpy.full((30, 36), 1.)
 BRIER_SCORE = custom_metrics_test.BRIER_SCORE_NEIGH0
 CSI_VALUE = custom_metrics_test.CSI_NEIGH0
 FREQUENCY_BIAS = 41.6 / (40 + SMALL_NUMBER)
+PEIRCE_SCORE = -41.6 / (192 + SMALL_NUMBER)
 POSITIVE_IOU_VALUE = custom_metrics_test.POSITIVE_IOU_NEIGH0
 ALL_CLASS_IOU_VALUE = custom_metrics_test.ALL_CLASS_IOU_NEIGH0
 DICE_COEFF = custom_metrics_test.DICE_COEFF_NEIGH0
+
+EVENT_RATIO = 192. / (40 + SMALL_NUMBER)
+NUM_TRUE_POSITIVES = 0.
+NUM_TRUE_NEGATIVES = 150.4
+NUM_FALSE_POSITIVES = 41.6
+NUM_FALSE_NEGATIVES = 40.
+
+THIS_NUMERATOR = (
+    NUM_TRUE_POSITIVES * EVENT_RATIO
+    + NUM_TRUE_NEGATIVES * (1. / EVENT_RATIO)
+    - NUM_FALSE_POSITIVES - NUM_FALSE_NEGATIVES
+)
+GERRITY_SCORE = THIS_NUMERATOR / 232
+
+RANDOM_NUM_CORRECT = (
+    (NUM_TRUE_POSITIVES + NUM_FALSE_POSITIVES) *
+    (NUM_TRUE_POSITIVES + NUM_FALSE_NEGATIVES) +
+    (NUM_FALSE_NEGATIVES + NUM_TRUE_NEGATIVES) *
+    (NUM_FALSE_POSITIVES + NUM_TRUE_NEGATIVES)
+) / 232
+
+THIS_NUMERATOR = NUM_TRUE_POSITIVES + NUM_TRUE_NEGATIVES - RANDOM_NUM_CORRECT
+HEIDKE_SCORE = THIS_NUMERATOR / (232 - RANDOM_NUM_CORRECT + SMALL_NUMBER)
 
 ACTUAL_MSE = numpy.mean(
     numpy.expand_dims(MASK_MATRIX, axis=0) *
@@ -66,6 +90,54 @@ class FourierMetricsTests(unittest.TestCase):
         this_csi = K.eval(this_function(TARGET_TENSOR, PREDICTION_TENSOR))
 
         self.assertTrue(numpy.isclose(this_csi, CSI_VALUE, atol=TOLERANCE))
+
+    def test_peirce_score(self):
+        """Ensures correct output from peirce_score()."""
+
+        this_function = fourier_metrics.peirce_score(
+            spatial_coeff_matrix=SPATIAL_COEFF_MATRIX,
+            frequency_coeff_matrix=FREQUENCY_COEFF_MATRIX,
+            mask_matrix=MASK_MATRIX, use_as_loss_function=False
+        )
+        this_peirce_score = K.eval(
+            this_function(TARGET_TENSOR, PREDICTION_TENSOR)
+        )
+
+        self.assertTrue(numpy.isclose(
+            this_peirce_score, PEIRCE_SCORE, atol=TOLERANCE
+        ))
+
+    def test_gerrity_score(self):
+        """Ensures correct output from gerrity_score()."""
+
+        this_function = fourier_metrics.gerrity_score(
+            spatial_coeff_matrix=SPATIAL_COEFF_MATRIX,
+            frequency_coeff_matrix=FREQUENCY_COEFF_MATRIX,
+            mask_matrix=MASK_MATRIX, use_as_loss_function=False
+        )
+        this_gerrity_score = K.eval(
+            this_function(TARGET_TENSOR, PREDICTION_TENSOR)
+        )
+
+        self.assertTrue(numpy.isclose(
+            this_gerrity_score, GERRITY_SCORE, atol=TOLERANCE
+        ))
+
+    def test_heidke_score(self):
+        """Ensures correct output from heidke_score()."""
+
+        this_function = fourier_metrics.heidke_score(
+            spatial_coeff_matrix=SPATIAL_COEFF_MATRIX,
+            frequency_coeff_matrix=FREQUENCY_COEFF_MATRIX,
+            mask_matrix=MASK_MATRIX, use_as_loss_function=False
+        )
+        this_heidke_score = K.eval(
+            this_function(TARGET_TENSOR, PREDICTION_TENSOR)
+        )
+
+        self.assertTrue(numpy.isclose(
+            this_heidke_score, HEIDKE_SCORE, atol=TOLERANCE
+        ))
 
     def test_frequency_bias(self):
         """Ensures correct output from frequency_bias()."""

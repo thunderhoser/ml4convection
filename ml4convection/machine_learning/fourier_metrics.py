@@ -326,6 +326,7 @@ def get_heidke_score(target_tensor, prediction_tensor, mask_matrix):
         num_true_positives + num_false_positives +
         num_false_negatives + num_true_negatives
     )
+    random_num_correct = random_num_correct / num_examples
 
     numerator = num_true_positives + num_true_negatives - random_num_correct
     denominator = num_examples - random_num_correct + K.epsilon()
@@ -369,9 +370,8 @@ def get_gerrity_score(target_tensor, prediction_tensor, mask_matrix):
         + num_true_negatives * (1. / event_ratio)
         - num_false_positives - num_false_negatives
     )
-    denominator = num_examples + K.epsilon()
 
-    return numerator / denominator
+    return numerator / num_examples
 
 
 def get_frequency_bias(target_tensor, prediction_tensor, mask_matrix):
@@ -730,6 +730,7 @@ def heidke_score(spatial_coeff_matrix, frequency_coeff_matrix, mask_matrix,
 
     if function_name is not None:
         heidke_function.__name__ = function_name
+
 
     return heidke_function
 
