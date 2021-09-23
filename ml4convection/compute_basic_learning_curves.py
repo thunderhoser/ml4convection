@@ -3,6 +3,7 @@
 import os
 import sys
 import copy
+import glob
 import argparse
 import numpy
 
@@ -91,6 +92,28 @@ def _run(top_prediction_dir_name, valid_date_strings, neigh_distances_px,
     :param max_resolutions_deg: Same.
     :param top_output_dir_name: Same.
     """
+
+    if not os.path.isdir(top_prediction_dir_name):
+        top_prediction_dir_names = glob.glob(top_prediction_dir_name)
+        validation_losses = numpy.full(len(top_prediction_dir_names), numpy.nan)
+
+        for i in range(len(top_prediction_dir_names)):
+            these_words = (
+                top_prediction_dir_names[i].replace('/', '_').split('_')
+            )
+
+            for this_word in these_words:
+                if not this_word.startswith('val-loss='):
+                    continue
+
+                validation_losses[i] = float(this_word.replace('val-loss=', ''))
+
+        min_index = numpy.nanargmin(validation_losses)
+        top_prediction_dir_name = top_prediction_dir_names[min_index]
+
+        top_output_dir_name = '{0:s}/learning_curves'.format(
+            top_prediction_dir_name
+        )
 
     if len(neigh_distances_px) == 1 and neigh_distances_px[0] < 0:
         neigh_distances_px = None
