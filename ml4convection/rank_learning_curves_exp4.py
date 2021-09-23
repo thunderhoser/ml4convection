@@ -14,6 +14,7 @@ THIS_DIRECTORY_NAME = os.path.dirname(os.path.realpath(
 ))
 sys.path.append(os.path.normpath(os.path.join(THIS_DIRECTORY_NAME, '..')))
 
+import file_system_utils
 import learning_curves
 import neural_net
 
@@ -342,6 +343,10 @@ def _run(experiment_dir_name, output_dir_name):
     :param experiment_dir_name: See documentation at top of file.
     :param output_dir_name: Same.
     """
+
+    file_system_utils.mkdir_recursive_if_necessary(
+        directory_name=output_dir_name
+    )
 
     neigh_score_key_matrix, neigh_distance_matrix_px = numpy.meshgrid(
         numpy.array(UNIQUE_NEIGH_SCORE_KEYS), UNIQUE_NEIGH_DISTANCES_PX
