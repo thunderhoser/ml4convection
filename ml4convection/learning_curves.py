@@ -758,6 +758,7 @@ def get_basic_scores(
             WAVELET_SSE_MEAN_COEFFS_KEY: (these_dim, this_array + 0),
             WAVELET_SSE_DETAIL_COEFFS_KEY: (these_dim, this_array + 0),
             WAVELET_NUM_MEAN_COEFFS_KEY: (these_dim, this_array + 0),
+            WAVELET_NUM_DETAIL_COEFFS_KEY: (these_dim, this_array + 0),
             WAVELET_BRIER_SSE_KEY: (these_dim, this_array + 0),
             WAVELET_BRIER_NUM_VALS_KEY: (these_dim, this_array + 0.),
             WAVELET_FSS_ACTUAL_SSE_KEY: (these_dim, this_array + 0.),
