@@ -891,7 +891,7 @@ def get_basic_scores(
         this_matrix = wavelet_utils.taper_spatial_data(
             prediction_dict[prediction_io.PROBABILITY_MATRIX_KEY][[0], ...]
         )[0]
-        these_dim = (num_filter_bands, num_times) + this_matrix.shape
+        these_dim = (num_filter_bands, num_times) + this_matrix.shape[1:]
         wavelet_forecast_mean_coeff_matrix = numpy.full(these_dim, numpy.nan)
         wavelet_target_mean_coeff_matrix = numpy.full(these_dim, numpy.nan)
 
