@@ -293,6 +293,16 @@ def _run(experiment_dir_name):
         fourier_max_resolutions_deg,
         numpy.full(len(wavelet_score_keys), numpy.nan)
     ))
+    wavelet_min_resolutions_deg = numpy.concatenate((
+        numpy.full(len(neigh_score_keys), numpy.nan),
+        numpy.full(len(fourier_score_keys), numpy.nan),
+        wavelet_min_resolutions_deg
+    ))
+    wavelet_max_resolutions_deg = numpy.concatenate((
+        numpy.full(len(neigh_score_keys), numpy.nan),
+        numpy.full(len(fourier_score_keys), numpy.nan),
+        wavelet_max_resolutions_deg
+    ))
 
     num_loss_functions = len(LOSS_FUNCTION_NAMES)
     num_scores = len(score_keys)
