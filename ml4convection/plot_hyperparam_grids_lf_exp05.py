@@ -351,13 +351,18 @@ def _run(experiment_dir_name, matching_distance_px, output_dir_name):
             t = evaluation.read_advanced_score_file(this_score_file_name)
 
             aupd_matrix[i, j] = gg_model_eval.get_area_under_perf_diagram(
-                pod_by_threshold=t[evaluation.POD_KEY].values,
+                pod_by_threshold=
+                numpy.nanmean(t[evaluation.POD_KEY].values, axis=0),
                 success_ratio_by_threshold=
-                t[evaluation.SUCCESS_RATIO_KEY].values
+                numpy.nanmean(t[evaluation.SUCCESS_RATIO_KEY].values, axis=0)
             )
-            max_csi_matrix[i, j] = numpy.nanmax(t[evaluation.CSI_KEY].values)
-            fss_matrix[i, j] = t[evaluation.FSS_KEY].values[0]
-            bss_matrix[i, j] = t[evaluation.BRIER_SKILL_SCORE_KEY].values[0]
+            max_csi_matrix[i, j] = numpy.nanmean(
+                numpy.nanmax(t[evaluation.CSI_KEY].values, axis=1)
+            )
+            fss_matrix[i, j] = numpy.nanmean(t[evaluation.FSS_KEY].values)
+            bss_matrix[i, j] = numpy.nanmean(
+                t[evaluation.BRIER_SKILL_SCORE_KEY].values
+            )
 
     print(SEPARATOR_STRING)
 
