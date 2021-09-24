@@ -1,4 +1,4 @@
-"""Ranks learning curves for Loss-function Experiment 4."""
+"""Ranks learning curves for Loss-function Experiment 5."""
 
 import glob
 import argparse
@@ -17,93 +17,92 @@ TOLERANCE = 1e-6
 MAX_MAX_RESOLUTION_DEG = 1e10
 
 BASE_LOSS_FUNCTION_NAMES_FANCY = [
-    'Brier score', 'FSS', 'CSI', 'positive-class IOU', 'all-class IOU',
-    'Dice coeff'
+    'FSS', r'IOU$_{all}$', 'Dice', 'Heidke', 'Gerrity', 'Peirce'
 ]
 FILTER_NAMES_FANCY = [
-    r'FT 0-0.0125$^{\circ}$',
-    r'FT 0.0125-0.025$^{\circ}$',
-    r'FT 0.025-0.05$^{\circ}$',
-    r'FT 0.05-0.1$^{\circ}$',
-    r'FT 0.1-0.2$^{\circ}$',
-    r'FT 0.2-0.4$^{\circ}$',
-    r'FT 0.4-0.8$^{\circ}$',
-    r'FT 0.8-$\infty^{\circ}$',
-    r'WT 0-0.0125$^{\circ}$',
-    r'WT 0.0125-0.025$^{\circ}$',
-    r'WT 0.025-0.05$^{\circ}$',
-    r'WT 0.05-0.1$^{\circ}$',
-    r'WT 0.1-0.2$^{\circ}$',
-    r'WT 0.2-0.4$^{\circ}$',
-    r'WT 0.4-0.8$^{\circ}$',
-    r'WT 0.8-$\infty^{\circ}$'
+    r'FT 0-0.05$^{\circ}$',
+    r'FT 0-0.1$^{\circ}$',
+    r'FT 0-0.2$^{\circ}$',
+    r'FT 0-0.4$^{\circ}$',
+    r'FT 0.05-$\infty^{\circ}$',
+    r'FT 0.1-$\infty^{\circ}$',
+    r'FT 0.2-$\infty^{\circ}$',
+    r'FT 0.4-$\infty^{\circ}$',
+    r'WT 0-0.05$^{\circ}$',
+    r'WT 0-0.1$^{\circ}$',
+    r'WT 0-0.2$^{\circ}$',
+    r'WT 0-0.4$^{\circ}$',
+    r'WT 0.05-$\infty^{\circ}$',
+    r'WT 0.1-$\infty^{\circ}$',
+    r'WT 0.2-$\infty^{\circ}$',
+    r'WT 0.4-$\infty^{\circ}$'
 ]
 
 LOSS_FUNCTION_NAMES = [
-    'brier_0.0000d_0.0125d_wavelets0', 'brier_0.0125d_0.0250d_wavelets0',
-    'brier_0.0250d_0.0500d_wavelets0', 'brier_0.0500d_0.1000d_wavelets0',
-    'brier_0.1000d_0.2000d_wavelets0', 'brier_0.2000d_0.4000d_wavelets0',
-    'brier_0.4000d_0.8000d_wavelets0', 'brier_0.8000d_infd_wavelets0',
-    'brier_0.0000d_0.0125d_wavelets1', 'brier_0.0125d_0.0250d_wavelets1',
-    'brier_0.0250d_0.0500d_wavelets1', 'brier_0.0500d_0.1000d_wavelets1',
-    'brier_0.1000d_0.2000d_wavelets1', 'brier_0.2000d_0.4000d_wavelets1',
-    'brier_0.4000d_0.8000d_wavelets1', 'brier_0.8000d_infd_wavelets1',
-    'fss_0.0000d_0.0125d_wavelets0', 'fss_0.0125d_0.0250d_wavelets0',
-    'fss_0.0250d_0.0500d_wavelets0', 'fss_0.0500d_0.1000d_wavelets0',
-    'fss_0.1000d_0.2000d_wavelets0', 'fss_0.2000d_0.4000d_wavelets0',
-    'fss_0.4000d_0.8000d_wavelets0', 'fss_0.8000d_infd_wavelets0',
-    'fss_0.0000d_0.0125d_wavelets1', 'fss_0.0125d_0.0250d_wavelets1',
-    'fss_0.0250d_0.0500d_wavelets1', 'fss_0.0500d_0.1000d_wavelets1',
-    'fss_0.1000d_0.2000d_wavelets1', 'fss_0.2000d_0.4000d_wavelets1',
-    'fss_0.4000d_0.8000d_wavelets1', 'fss_0.8000d_infd_wavelets1',
-    'csi_0.0000d_0.0125d_wavelets0', 'csi_0.0125d_0.0250d_wavelets0',
-    'csi_0.0250d_0.0500d_wavelets0', 'csi_0.0500d_0.1000d_wavelets0',
-    'csi_0.1000d_0.2000d_wavelets0', 'csi_0.2000d_0.4000d_wavelets0',
-    'csi_0.4000d_0.8000d_wavelets0', 'csi_0.8000d_infd_wavelets0',
-    'csi_0.0000d_0.0125d_wavelets1', 'csi_0.0125d_0.0250d_wavelets1',
-    'csi_0.0250d_0.0500d_wavelets1', 'csi_0.0500d_0.1000d_wavelets1',
-    'csi_0.1000d_0.2000d_wavelets1', 'csi_0.2000d_0.4000d_wavelets1',
-    'csi_0.4000d_0.8000d_wavelets1', 'csi_0.8000d_infd_wavelets1',
-    'iou_0.0000d_0.0125d_wavelets0', 'iou_0.0125d_0.0250d_wavelets0',
-    'iou_0.0250d_0.0500d_wavelets0', 'iou_0.0500d_0.1000d_wavelets0',
-    'iou_0.1000d_0.2000d_wavelets0', 'iou_0.2000d_0.4000d_wavelets0',
-    'iou_0.4000d_0.8000d_wavelets0', 'iou_0.8000d_infd_wavelets0',
-    'iou_0.0000d_0.0125d_wavelets1', 'iou_0.0125d_0.0250d_wavelets1',
-    'iou_0.0250d_0.0500d_wavelets1', 'iou_0.0500d_0.1000d_wavelets1',
-    'iou_0.1000d_0.2000d_wavelets1', 'iou_0.2000d_0.4000d_wavelets1',
-    'iou_0.4000d_0.8000d_wavelets1', 'iou_0.8000d_infd_wavelets1',
-    'all-class-iou_0.0000d_0.0125d_wavelets0',
-    'all-class-iou_0.0125d_0.0250d_wavelets0',
-    'all-class-iou_0.0250d_0.0500d_wavelets0',
-    'all-class-iou_0.0500d_0.1000d_wavelets0',
-    'all-class-iou_0.1000d_0.2000d_wavelets0',
-    'all-class-iou_0.2000d_0.4000d_wavelets0',
-    'all-class-iou_0.4000d_0.8000d_wavelets0',
-    'all-class-iou_0.8000d_infd_wavelets0',
-    'all-class-iou_0.0000d_0.0125d_wavelets1',
-    'all-class-iou_0.0125d_0.0250d_wavelets1',
-    'all-class-iou_0.0250d_0.0500d_wavelets1',
-    'all-class-iou_0.0500d_0.1000d_wavelets1',
-    'all-class-iou_0.1000d_0.2000d_wavelets1',
-    'all-class-iou_0.2000d_0.4000d_wavelets1',
-    'all-class-iou_0.4000d_0.8000d_wavelets1',
-    'all-class-iou_0.8000d_infd_wavelets1',
-    'dice_0.0000d_0.0125d_wavelets0', 'dice_0.0125d_0.0250d_wavelets0',
-    'dice_0.0250d_0.0500d_wavelets0', 'dice_0.0500d_0.1000d_wavelets0',
-    'dice_0.1000d_0.2000d_wavelets0', 'dice_0.2000d_0.4000d_wavelets0',
-    'dice_0.4000d_0.8000d_wavelets0', 'dice_0.8000d_infd_wavelets0',
-    'dice_0.0000d_0.0125d_wavelets1', 'dice_0.0125d_0.0250d_wavelets1',
-    'dice_0.0250d_0.0500d_wavelets1', 'dice_0.0500d_0.1000d_wavelets1',
-    'dice_0.1000d_0.2000d_wavelets1', 'dice_0.2000d_0.4000d_wavelets1',
-    'dice_0.4000d_0.8000d_wavelets1', 'dice_0.8000d_infd_wavelets1'
+    'fss_0.0000d_0.0500d_wavelets0', 'fss_0.0000d_0.1000d_wavelets0',
+    'fss_0.0000d_0.2000d_wavelets0', 'fss_0.0000d_0.4000d_wavelets0',
+    'fss_0.0500d_infd_wavelets0', 'fss_0.1000d_infd_wavelets0',
+    'fss_0.2000d_infd_wavelets0', 'fss_0.4000d_infd_wavelets0',
+    'fss_0.0000d_0.0500d_wavelets1', 'fss_0.0000d_0.1000d_wavelets1',
+    'fss_0.0000d_0.2000d_wavelets1', 'fss_0.0000d_0.4000d_wavelets1',
+    'fss_0.0500d_infd_wavelets1', 'fss_0.1000d_infd_wavelets1',
+    'fss_0.2000d_infd_wavelets1', 'fss_0.4000d_infd_wavelets1',
+    'all-class-iou_0.0000d_0.0500d_wavelets0',
+    'all-class-iou_0.0000d_0.1000d_wavelets0',
+    'all-class-iou_0.0000d_0.2000d_wavelets0',
+    'all-class-iou_0.0000d_0.4000d_wavelets0',
+    'all-class-iou_0.0500d_infd_wavelets0',
+    'all-class-iou_0.1000d_infd_wavelets0',
+    'all-class-iou_0.2000d_infd_wavelets0',
+    'all-class-iou_0.4000d_infd_wavelets0',
+    'all-class-iou_0.0000d_0.0500d_wavelets1',
+    'all-class-iou_0.0000d_0.1000d_wavelets1',
+    'all-class-iou_0.0000d_0.2000d_wavelets1',
+    'all-class-iou_0.0000d_0.4000d_wavelets1',
+    'all-class-iou_0.0500d_infd_wavelets1',
+    'all-class-iou_0.1000d_infd_wavelets1',
+    'all-class-iou_0.2000d_infd_wavelets1',
+    'all-class-iou_0.4000d_infd_wavelets1',
+    'dice_0.0000d_0.0500d_wavelets0', 'dice_0.0000d_0.1000d_wavelets0',
+    'dice_0.0000d_0.2000d_wavelets0', 'dice_0.0000d_0.4000d_wavelets0',
+    'dice_0.0500d_infd_wavelets0', 'dice_0.1000d_infd_wavelets0',
+    'dice_0.2000d_infd_wavelets0', 'dice_0.4000d_infd_wavelets0',
+    'dice_0.0000d_0.0500d_wavelets1', 'dice_0.0000d_0.1000d_wavelets1',
+    'dice_0.0000d_0.2000d_wavelets1', 'dice_0.0000d_0.4000d_wavelets1',
+    'dice_0.0500d_infd_wavelets1', 'dice_0.1000d_infd_wavelets1',
+    'dice_0.2000d_infd_wavelets1', 'dice_0.4000d_infd_wavelets1',
+    'heidke_0.0000d_0.0500d_wavelets0', 'heidke_0.0000d_0.1000d_wavelets0',
+    'heidke_0.0000d_0.2000d_wavelets0', 'heidke_0.0000d_0.4000d_wavelets0',
+    'heidke_0.0500d_infd_wavelets0', 'heidke_0.1000d_infd_wavelets0',
+    'heidke_0.2000d_infd_wavelets0', 'heidke_0.4000d_infd_wavelets0',
+    'heidke_0.0000d_0.0500d_wavelets1', 'heidke_0.0000d_0.1000d_wavelets1',
+    'heidke_0.0000d_0.2000d_wavelets1', 'heidke_0.0000d_0.4000d_wavelets1',
+    'heidke_0.0500d_infd_wavelets1', 'heidke_0.1000d_infd_wavelets1',
+    'heidke_0.2000d_infd_wavelets1', 'heidke_0.4000d_infd_wavelets1',
+    'gerrity_0.0000d_0.0500d_wavelets0', 'gerrity_0.0000d_0.1000d_wavelets0',
+    'gerrity_0.0000d_0.2000d_wavelets0', 'gerrity_0.0000d_0.4000d_wavelets0',
+    'gerrity_0.0500d_infd_wavelets0', 'gerrity_0.1000d_infd_wavelets0',
+    'gerrity_0.2000d_infd_wavelets0', 'gerrity_0.4000d_infd_wavelets0',
+    'gerrity_0.0000d_0.0500d_wavelets1', 'gerrity_0.0000d_0.1000d_wavelets1',
+    'gerrity_0.0000d_0.2000d_wavelets1', 'gerrity_0.0000d_0.4000d_wavelets1',
+    'gerrity_0.0500d_infd_wavelets1', 'gerrity_0.1000d_infd_wavelets1',
+    'gerrity_0.2000d_infd_wavelets1', 'gerrity_0.4000d_infd_wavelets1',
+    'peirce_0.0000d_0.0500d_wavelets0', 'peirce_0.0000d_0.1000d_wavelets0',
+    'peirce_0.0000d_0.2000d_wavelets0', 'peirce_0.0000d_0.4000d_wavelets0',
+    'peirce_0.0500d_infd_wavelets0', 'peirce_0.1000d_infd_wavelets0',
+    'peirce_0.2000d_infd_wavelets0', 'peirce_0.4000d_infd_wavelets0',
+    'peirce_0.0000d_0.0500d_wavelets1', 'peirce_0.0000d_0.1000d_wavelets1',
+    'peirce_0.0000d_0.2000d_wavelets1', 'peirce_0.0000d_0.4000d_wavelets1',
+    'peirce_0.0500d_infd_wavelets1', 'peirce_0.1000d_infd_wavelets1',
+    'peirce_0.2000d_infd_wavelets1', 'peirce_0.4000d_infd_wavelets1'
 ]
 
 UNIQUE_NEIGH_DISTANCES_PX = numpy.array([0, 1, 2, 3, 4, 6, 8, 12], dtype=float)
 UNIQUE_MIN_RESOLUTIONS_DEG = numpy.array([
-    0, 0.0125, 0.0250, 0.0500, 0.1000, 0.2000, 0.4000, 0.8000
+    0, 0, 0, 0, 0.05, 0.1, 0.2, 0.4
 ])
 UNIQUE_MAX_RESOLUTIONS_DEG = numpy.array([
-    0.0125, 0.0250, 0.0500, 0.1000, 0.2000, 0.4000, 0.8000, numpy.inf
+    0.05, 0.1, 0.2, 0.4, numpy.inf, numpy.inf, numpy.inf, numpy.inf
 ])
 
 UNIQUE_NEIGH_SCORE_KEYS = [
@@ -113,17 +112,22 @@ UNIQUE_NEIGH_SCORE_KEYS = [
 ]
 
 UNIQUE_FOURIER_SCORE_KEYS = [
-    learning_curves.FOURIER_BRIER_SCORE_KEY, learning_curves.FOURIER_CSI_KEY,
-    learning_curves.FOURIER_FSS_KEY, learning_curves.FOURIER_IOU_KEY,
+    learning_curves.FOURIER_BRIER_SCORE_KEY, learning_curves.FOURIER_FSS_KEY,
+    learning_curves.FOURIER_CSI_KEY, learning_curves.FOURIER_HEIDKE_SCORE_KEY,
+    learning_curves.FOURIER_GERRITY_SCORE_KEY,
+    learning_curves.FOURIER_PEIRCE_SCORE_KEY,
+    learning_curves.FOURIER_IOU_KEY,
     learning_curves.FOURIER_DICE_COEFF_KEY,
     learning_curves.FOURIER_COEFF_MSE_REAL_KEY,
     learning_curves.FOURIER_COEFF_MSE_IMAGINARY_KEY,
     learning_curves.FOURIER_COEFF_MSE_TOTAL_KEY
 ]
 UNIQUE_WAVELET_SCORE_KEYS = [
-    learning_curves.WAVELET_BRIER_SCORE_KEY, learning_curves.WAVELET_CSI_KEY,
-    learning_curves.WAVELET_FSS_KEY, learning_curves.WAVELET_IOU_KEY,
-    learning_curves.WAVELET_DICE_COEFF_KEY,
+    learning_curves.WAVELET_BRIER_SCORE_KEY, learning_curves.WAVELET_FSS_KEY,
+    learning_curves.WAVELET_CSI_KEY, learning_curves.WAVELET_HEIDKE_SCORE_KEY,
+    learning_curves.WAVELET_GERRITY_SCORE_KEY,
+    learning_curves.WAVELET_PEIRCE_SCORE_KEY,
+    learning_curves.WAVELET_IOU_KEY,
     learning_curves.WAVELET_COEFF_MSE_MEAN_KEY,
     learning_curves.WAVELET_COEFF_MSE_DETAIL_KEY
 ]
@@ -341,7 +345,7 @@ def _plot_grid_one_score(score_values, min_colour_value, max_colour_value,
 
 
 def _run(experiment_dir_name, output_dir_name):
-    """Ranks learning curves for Loss-function Experiment 4.
+    """Ranks learning curves for Loss-function Experiment 5.
 
     This is effectively the main method.
 
