@@ -46,9 +46,9 @@ set MATCHING_DISTANCES_PX=("4.000000")
 set j=1
 
 while ($j <= ${#MATCHING_DISTANCES_PX})
-    set output_dir_names={${top_model_dir_name}/model*/validation_best_validation_loss/full_grids/evaluation/matching_distance_px=${MATCHING_DISTANCES_PX[$j]}/advanced_scores_gridded=0}
-    set output_dir_name=${output_dir_names[$#output_dir_names]}
-    set advanced_score_file_name="${output_dir_name}.p"
+    set advanced_score_file_names={${top_model_dir_name}/model*/validation_best_validation_loss/full_grids/evaluation/matching_distance_px=${MATCHING_DISTANCES_PX[$j]}/advanced_scores_gridded=0.p}
+    set advanced_score_file_name=${advanced_score_file_names[$#advanced_score_file_names]}
+    set output_dir_name=`echo $advanced_score_file_name | rev | cut -c 3- | rev`
 
     python3 -u "${CODE_DIR_NAME}/plot_evaluation.py" \
     --input_advanced_score_file_name="${advanced_score_file_name}" \
