@@ -350,11 +350,11 @@ def _run(experiment_dir_name, matching_distance_px, output_dir_name):
             ))
             t = evaluation.read_advanced_score_file(this_score_file_name)
 
-            print(t[evaluation.POD_KEY].values.shape)
-            print(t[evaluation.SUCCESS_RATIO_KEY].values.shape)
-            print(t[evaluation.CSI_KEY].values.shape)
-            print(t[evaluation.FSS_KEY].values.shape)
-            print(t[evaluation.BRIER_SKILL_SCORE_KEY].values.shape)
+            print(t[evaluation.POD_KEY].values)
+            print(t[evaluation.SUCCESS_RATIO_KEY].values)
+            print(t[evaluation.CSI_KEY].values)
+            print(t[evaluation.FSS_KEY].values)
+            print(t[evaluation.BRIER_SKILL_SCORE_KEY].values)
 
             aupd_matrix[i, j] = gg_model_eval.get_area_under_perf_diagram(
                 pod_by_threshold=
