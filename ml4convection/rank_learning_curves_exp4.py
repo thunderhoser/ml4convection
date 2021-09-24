@@ -309,6 +309,10 @@ def _plot_grid_one_score(score_values, min_colour_value, max_colour_value,
         `matplotlib.axes._subplots.AxesSubplot`).
     """
 
+    max_colour_value = max([
+        max_colour_value, min_colour_value + 1e-6
+    ])
+
     these_dim = (
         len(BASE_LOSS_FUNCTION_NAMES_FANCY), len(FILTER_NAMES_FANCY)
     )
@@ -338,7 +342,7 @@ def _plot_grid_one_score(score_values, min_colour_value, max_colour_value,
         colour_map_object=colour_map_object, min_value=min_colour_value,
         max_value=max_colour_value, orientation_string='vertical',
         extend_min=False, extend_max=False, font_size=COLOUR_BAR_FONT_SIZE,
-        fraction_of_axis_length=0.7
+        fraction_of_axis_length=0.4
     )
 
     return figure_object, axes_object

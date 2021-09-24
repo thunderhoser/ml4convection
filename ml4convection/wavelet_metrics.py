@@ -27,17 +27,18 @@ NUM_ROWS_AFTER_PADDING = 256
 FSS_NAME = 'fss'
 BRIER_SCORE_NAME = 'brier'
 CSI_NAME = 'csi'
+HEIDKE_SCORE_NAME = 'heidke'
+GERRITY_SCORE_NAME = 'gerrity'
+PEIRCE_SCORE_NAME = 'peirce'
 FREQUENCY_BIAS_NAME = 'bias'
 IOU_NAME = 'iou'
 ALL_CLASS_IOU_NAME = 'all-class-iou'
 DICE_COEFF_NAME = 'dice'
-# REAL_FREQ_MSE_NAME = 'fmser'
-# IMAGINARY_FREQ_MSE_NAME = 'fmsei'
-# FREQ_MSE_NAME = 'fmse'
 
 VALID_SCORE_NAMES = [
-    FSS_NAME, BRIER_SCORE_NAME, CSI_NAME, FREQUENCY_BIAS_NAME,
-    IOU_NAME, ALL_CLASS_IOU_NAME, DICE_COEFF_NAME
+    FSS_NAME, BRIER_SCORE_NAME, CSI_NAME,
+    HEIDKE_SCORE_NAME, GERRITY_SCORE_NAME, PEIRCE_SCORE_NAME,
+    FREQUENCY_BIAS_NAME, IOU_NAME, ALL_CLASS_IOU_NAME, DICE_COEFF_NAME
 ]
 
 
@@ -63,8 +64,6 @@ def _check_input_args(min_resolution_deg, max_resolution_deg, mask_matrix,
         at which levels the mean signal will be kept.
     :return: keep_detail_flags: Same but for details.
     """
-
-    # TODO(thunderhoser): Needs unit test.
 
     error_checking.assert_is_geq(min_resolution_deg, 0.)
     error_checking.assert_is_greater(max_resolution_deg, min_resolution_deg)
@@ -370,7 +369,8 @@ def csi(min_resolution_deg, max_resolution_deg, mask_matrix,
     :param min_resolution_deg: See documentation for `_check_input_args`.
     :param max_resolution_deg: Same.
     :param mask_matrix: Same.
-    :param use_as_loss_function: Leave this alone.
+    :param use_as_loss_function: Boolean flag.  If True, will return 1 - CSI, to
+        use as negatively oriented loss function.
     :param function_name: Function name (string).
     :return: csi_function: Function (defined below).
     """
@@ -410,6 +410,156 @@ def csi(min_resolution_deg, max_resolution_deg, mask_matrix,
         csi_function.__name__ = function_name
 
     return csi_function
+
+
+def heidke_score(min_resolution_deg, max_resolution_deg, mask_matrix,
+                 use_as_loss_function, function_name=None):
+    """Creates function to compute Heidke score at given scale.
+
+    :param min_resolution_deg: See documentation for `_check_input_args`.
+    :param max_resolution_deg: Same.
+    :param mask_matrix: Same.
+    :param use_as_loss_function: Boolean flag.  If True, will return 1 minus
+        Heidke score, to use as negatively oriented loss function.
+    :param function_name: Function name (string).
+    :return: heidke_function: Function (defined below).
+    """
+
+    error_checking.assert_is_boolean(use_as_loss_function)
+
+    mask_matrix, keep_mean_flags, keep_detail_flags = _check_input_args(
+        min_resolution_deg=min_resolution_deg,
+        max_resolution_deg=max_resolution_deg,
+        mask_matrix=mask_matrix, function_name=function_name
+    )
+
+    def heidke_function(target_tensor, prediction_tensor):
+        """Computes Heidke score at a given scale.
+
+        :param target_tensor: Tensor of target (actual) values.
+        :param prediction_tensor: Tensor of predicted values.
+        :return: heidke_value: Heidke score (scalar).
+        """
+
+        target_tensor, prediction_tensor = _filter_fields(
+            target_tensor=target_tensor, prediction_tensor=prediction_tensor,
+            keep_mean_flags=keep_mean_flags, keep_detail_flags=keep_detail_flags
+        )
+
+        heidke_value = fourier_metrics.get_heidke_score(
+            target_tensor=target_tensor, prediction_tensor=prediction_tensor,
+            mask_matrix=mask_matrix
+        )
+
+        if use_as_loss_function:
+            return 1. - heidke_value
+
+        return heidke_value
+
+    if function_name is not None:
+        heidke_function.__name__ = function_name
+
+    return heidke_function
+
+
+def peirce_score(min_resolution_deg, max_resolution_deg, mask_matrix,
+                 use_as_loss_function, function_name=None):
+    """Creates function to compute Peirce score at given scale.
+
+    :param min_resolution_deg: See documentation for `_check_input_args`.
+    :param max_resolution_deg: Same.
+    :param mask_matrix: Same.
+    :param use_as_loss_function: Boolean flag.  If True, will return 1 minus
+        Peirce score, to use as negatively oriented loss function.
+    :param function_name: Function name (string).
+    :return: peirce_function: Function (defined below).
+    """
+
+    error_checking.assert_is_boolean(use_as_loss_function)
+
+    mask_matrix, keep_mean_flags, keep_detail_flags = _check_input_args(
+        min_resolution_deg=min_resolution_deg,
+        max_resolution_deg=max_resolution_deg,
+        mask_matrix=mask_matrix, function_name=function_name
+    )
+
+    def peirce_function(target_tensor, prediction_tensor):
+        """Computes Peirce score at a given scale.
+
+        :param target_tensor: Tensor of target (actual) values.
+        :param prediction_tensor: Tensor of predicted values.
+        :return: peirce_value: Peirce score (scalar).
+        """
+
+        target_tensor, prediction_tensor = _filter_fields(
+            target_tensor=target_tensor, prediction_tensor=prediction_tensor,
+            keep_mean_flags=keep_mean_flags, keep_detail_flags=keep_detail_flags
+        )
+
+        peirce_value = fourier_metrics.get_peirce_score(
+            target_tensor=target_tensor, prediction_tensor=prediction_tensor,
+            mask_matrix=mask_matrix
+        )
+
+        if use_as_loss_function:
+            return 1. - peirce_value
+
+        return peirce_value
+
+    if function_name is not None:
+        peirce_function.__name__ = function_name
+
+    return peirce_function
+
+
+def gerrity_score(min_resolution_deg, max_resolution_deg, mask_matrix,
+                  use_as_loss_function, function_name=None):
+    """Creates function to compute Gerrity score at given scale.
+
+    :param min_resolution_deg: See documentation for `_check_input_args`.
+    :param max_resolution_deg: Same.
+    :param mask_matrix: Same.
+    :param use_as_loss_function: Boolean flag.  If True, will return 1 minus
+        Gerrity score, to use as negatively oriented loss function.
+    :param function_name: Function name (string).
+    :return: gerrity_function: Function (defined below).
+    """
+
+    error_checking.assert_is_boolean(use_as_loss_function)
+
+    mask_matrix, keep_mean_flags, keep_detail_flags = _check_input_args(
+        min_resolution_deg=min_resolution_deg,
+        max_resolution_deg=max_resolution_deg,
+        mask_matrix=mask_matrix, function_name=function_name
+    )
+
+    def gerrity_function(target_tensor, prediction_tensor):
+        """Computes Gerrity score at a given scale.
+
+        :param target_tensor: Tensor of target (actual) values.
+        :param prediction_tensor: Tensor of predicted values.
+        :return: gerrity_value: Gerrity score (scalar).
+        """
+
+        target_tensor, prediction_tensor = _filter_fields(
+            target_tensor=target_tensor, prediction_tensor=prediction_tensor,
+            keep_mean_flags=keep_mean_flags, keep_detail_flags=keep_detail_flags
+        )
+
+        gerrity_value = fourier_metrics.get_gerrity_score(
+            target_tensor=target_tensor, prediction_tensor=prediction_tensor,
+            mask_matrix=mask_matrix
+        )
+
+        if use_as_loss_function:
+            return 1. - gerrity_value
+
+        return gerrity_value
+
+    if function_name is not None:
+        gerrity_function.__name__ = function_name
+
+    return gerrity_function
 
 
 def frequency_bias(min_resolution_deg, max_resolution_deg, mask_matrix,
@@ -465,7 +615,8 @@ def pixelwise_fss(min_resolution_deg, max_resolution_deg, mask_matrix,
     :param min_resolution_deg: See documentation for `_check_input_args`.
     :param max_resolution_deg: Same.
     :param mask_matrix: Same.
-    :param use_as_loss_function: Leave this alone.
+    :param use_as_loss_function: Boolean flag.  If True, will return 1 - FSS,
+        to use as negatively oriented loss function.
     :param function_name: Function name (string).
     :return: pixelwise_fss_function: Function (defined below).
     """
@@ -514,7 +665,8 @@ def iou(min_resolution_deg, max_resolution_deg, mask_matrix,
     :param min_resolution_deg: See documentation for `_check_input_args`.
     :param max_resolution_deg: Same.
     :param mask_matrix: Same.
-    :param use_as_loss_function: Leave this alone.
+    :param use_as_loss_function: Boolean flag.  If True, will return 1 - IOU,
+        to use as negatively oriented loss function.
     :param function_name: Function name (string).
     :return: iou_function: Function (defined below).
     """
@@ -563,7 +715,8 @@ def all_class_iou(min_resolution_deg, max_resolution_deg, mask_matrix,
     :param min_resolution_deg: See documentation for `_check_input_args`.
     :param max_resolution_deg: Same.
     :param mask_matrix: Same.
-    :param use_as_loss_function: Leave this alone.
+    :param use_as_loss_function: Boolean flag.  If True, will return 1 - IOU,
+        to use as negatively oriented loss function.
     :param function_name: Function name (string).
     :return: all_class_iou_function: Function (defined below).
     """
@@ -612,7 +765,8 @@ def dice_coeff(min_resolution_deg, max_resolution_deg, mask_matrix,
     :param min_resolution_deg: See documentation for `_check_input_args`.
     :param max_resolution_deg: Same.
     :param mask_matrix: Same.
-    :param use_as_loss_function: Leave this alone.
+    :param use_as_loss_function: Boolean flag.  If True, will return 1 minus
+        Dice coeff, to use as negatively oriented loss function.
     :param function_name: Function name (string).
     :return: dice_function: Function (defined below).
     """
