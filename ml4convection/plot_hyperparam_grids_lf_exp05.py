@@ -350,12 +350,21 @@ def _run(experiment_dir_name, matching_distance_px, output_dir_name):
             ))
             t = evaluation.read_advanced_score_file(this_score_file_name)
 
-            aupd_matrix[i, j] = gg_model_eval.get_area_under_perf_diagram(
-                pod_by_threshold=
-                numpy.nanmean(t[evaluation.POD_KEY].values, axis=0),
-                success_ratio_by_threshold=
-                numpy.nanmean(t[evaluation.SUCCESS_RATIO_KEY].values, axis=0)
+            these_pod = numpy.nanmean(t[evaluation.POD_KEY].values, axis=0)
+            these_success_ratios = numpy.nanmean(
+                t[evaluation.SUCCESS_RATIO_KEY].values, axis=0
             )
+            bad_flags = numpy.logical_or(
+                numpy.isnan(these_pod), numpy.isnan(these_success_ratios)
+            )
+            good_indices = numpy.where(numpy.invert(bad_flags))[0]
+
+            if len(good_indices) >= 2:
+                aupd_matrix[i, j] = gg_model_eval.get_area_under_perf_diagram(
+                    pod_by_threshold=these_pod,
+                    success_ratio_by_threshold=these_success_ratios
+                )
+
             max_csi_matrix[i, j] = numpy.nanmean(
                 numpy.nanmax(t[evaluation.CSI_KEY].values, axis=1)
             )
