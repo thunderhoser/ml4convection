@@ -127,8 +127,10 @@ NEIGH_DICE_NUM_PIXELS = 92.
 FOURIER_DICE_INTERSECTION = 58.6
 FOURIER_DICE_NUM_PIXELS = 92.
 
-FOURIER_CSI_NUMERATOR = 0.
-FOURIER_CSI_DENOMINATOR = 33.4
+FOURIER_NUM_TRUE_POSITIVES = 0.
+FOURIER_NUM_FALSE_POSITIVES = 17.4
+FOURIER_NUM_FALSE_NEGATIVES = 16.
+FOURIER_NUM_TRUE_NEGATIVES = 58.6
 NEIGH_NUM_OBS_ORIENTED_TP = 16.
 NEIGH_NUM_FALSE_NEGATIVES = 0.
 NEIGH_NUM_PRED_ORIENTED_TP = 9.3
@@ -182,7 +184,7 @@ MAIN_DATA_DICT = {
 #     learning_curves.FOURIER_IOU_UNION_KEY: (THESE_DIM, THIS_ARRAY + 0.),
 #     learning_curves.FOURIER_DICE_INTERSECTION_KEY: (THESE_DIM, THIS_ARRAY + 0.),
 #     learning_curves.FOURIER_DICE_NUM_PIX_KEY: (THESE_DIM, THIS_ARRAY + 0.),
-#     learning_curves.FOURIER_CSI_NUMERATOR_KEY: (THESE_DIM, THIS_ARRAY + 0.),
+#     learning_curves.FOURIER_NUM_TRUE_POSITIVES_KEY: (THESE_DIM, THIS_ARRAY + 0.),
 #     learning_curves.FOURIER_CSI_DENOMINATOR_KEY: (THESE_DIM, THIS_ARRAY + 0.)
 # }
 # MAIN_DATA_DICT.update(NEW_DICT)
@@ -509,22 +511,31 @@ class LearningCurvesTests(unittest.TestCase):
             this_num_pixels, FOURIER_DICE_NUM_PIXELS, atol=TOLERANCE
         ))
 
-    def test_get_band_pass_csi_components_one_time(self):
-        """Ensures correctness of _get_band_pass_csi_components_one_time."""
+    def test_get_band_pass_contingency_one_time(self):
+        """Ensures correctness of _get_band_pass_contingency_one_time."""
 
-        this_numerator, this_denominator = (
-            learning_curves._get_band_pass_csi_components_one_time(
-                actual_target_matrix=ACTUAL_TARGET_MATRIX,
-                probability_matrix=PROBABILITY_MATRIX,
-                eval_mask_matrix=MASK_MATRIX
-            )
+        (
+            this_num_true_positives, this_num_false_positives,
+            this_num_false_negatives, this_num_true_negatives
+        ) = learning_curves._get_band_pass_contingency_one_time(
+            actual_target_matrix=ACTUAL_TARGET_MATRIX,
+            probability_matrix=PROBABILITY_MATRIX,
+            eval_mask_matrix=MASK_MATRIX
         )
 
         self.assertTrue(numpy.isclose(
-            this_numerator, FOURIER_CSI_NUMERATOR, atol=TOLERANCE
+            this_num_true_positives, FOURIER_NUM_TRUE_POSITIVES, atol=TOLERANCE
         ))
         self.assertTrue(numpy.isclose(
-            this_denominator, FOURIER_CSI_DENOMINATOR, atol=TOLERANCE
+            this_num_false_positives, FOURIER_NUM_FALSE_POSITIVES,
+            atol=TOLERANCE
+        ))
+        self.assertTrue(numpy.isclose(
+            this_num_false_negatives, FOURIER_NUM_FALSE_NEGATIVES,
+            atol=TOLERANCE
+        ))
+        self.assertTrue(numpy.isclose(
+            this_num_true_negatives, FOURIER_NUM_TRUE_NEGATIVES, atol=TOLERANCE
         ))
 
     def test_get_neigh_csi_components_one_time(self):

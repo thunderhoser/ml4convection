@@ -45,14 +45,14 @@ GERRITY_SCORE_NAME = fourier_metrics.GERRITY_SCORE_NAME
 REAL_FREQ_MSE_NAME = fourier_metrics.REAL_FREQ_MSE_NAME
 IMAGINARY_FREQ_MSE_NAME = fourier_metrics.IMAGINARY_FREQ_MSE_NAME
 FREQ_MSE_NAME = fourier_metrics.FREQ_MSE_NAME
+CROSS_ENTROPY_NAME = 'xentropy'
 
 VALID_SCORE_NAMES_NEIGH = [
     FSS_NAME, BRIER_SCORE_NAME, CSI_NAME, FREQUENCY_BIAS_NAME,
-    IOU_NAME, ALL_CLASS_IOU_NAME, DICE_COEFF_NAME
-]
-VALID_SCORE_NAMES_WAVELET = VALID_SCORE_NAMES_NEIGH + [
+    IOU_NAME, ALL_CLASS_IOU_NAME, DICE_COEFF_NAME,
     HEIDKE_SCORE_NAME, PEIRCE_SCORE_NAME, GERRITY_SCORE_NAME
 ]
+VALID_SCORE_NAMES_WAVELET = VALID_SCORE_NAMES_NEIGH + []
 VALID_SCORE_NAMES_FOURIER = VALID_SCORE_NAMES_WAVELET + [
     REAL_FREQ_MSE_NAME, IMAGINARY_FREQ_MSE_NAME, FREQ_MSE_NAME
 ]
@@ -1367,6 +1367,13 @@ def get_metrics(metric_names, mask_matrix, use_as_loss_function):
                     function_name=this_metric_name
                 )
         else:
+            # TODO(thunderhoser): Having some loss functions in
+            # custom_losses.py, and some in custom_metrics.py, is a HACK.
+            # Eventually, I need to put the bulk of the code into
+            # custom_metrics.py and have the other modules (neigh_metrics.py,
+            # wavelet_metrics.py, fourier_metrics.py) contain mostly wrapper
+            # methods.
+
             if this_param_dict[SCORE_NAME_KEY] == FSS_NAME:
                 this_function = custom_losses.fractions_skill_score(
                     half_window_size_px=this_param_dict[HALF_WINDOW_SIZE_KEY],
@@ -1374,10 +1381,28 @@ def get_metrics(metric_names, mask_matrix, use_as_loss_function):
                     use_as_loss_function=use_as_loss_function,
                     function_name=this_metric_name
                 )
-            # elif this_param_dict[SCORE_NAME_KEY] == CROSS_ENTROPY_NAME:
-            #     this_function = custom_losses.cross_entropy(
-            #         mask_matrix=mask_matrix, function_name=this_metric_name
-            #     )
+            elif this_param_dict[SCORE_NAME_KEY] == HEIDKE_SCORE_NAME:
+                this_function = custom_losses.heidke_score(
+                    mask_matrix=mask_matrix,
+                    use_as_loss_function=use_as_loss_function,
+                    function_name=this_metric_name
+                )
+            elif this_param_dict[SCORE_NAME_KEY] == PEIRCE_SCORE_NAME:
+                this_function = custom_losses.peirce_score(
+                    mask_matrix=mask_matrix,
+                    use_as_loss_function=use_as_loss_function,
+                    function_name=this_metric_name
+                )
+            elif this_param_dict[SCORE_NAME_KEY] == GERRITY_SCORE_NAME:
+                this_function = custom_losses.gerrity_score(
+                    mask_matrix=mask_matrix,
+                    use_as_loss_function=use_as_loss_function,
+                    function_name=this_metric_name
+                )
+            elif this_param_dict[SCORE_NAME_KEY] == CROSS_ENTROPY_NAME:
+                this_function = custom_losses.cross_entropy(
+                    mask_matrix=mask_matrix, function_name=this_metric_name
+                )
             elif this_param_dict[SCORE_NAME_KEY] == BRIER_SCORE_NAME:
                 this_function = custom_metrics.brier_score(
                     half_window_size_px=this_param_dict[HALF_WINDOW_SIZE_KEY],

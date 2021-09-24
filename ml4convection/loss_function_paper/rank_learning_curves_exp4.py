@@ -6,6 +6,8 @@ import numpy
 import matplotlib
 matplotlib.use('agg')
 from matplotlib import pyplot
+from gewittergefahr.gg_utils import file_system_utils
+from gewittergefahr.plotting import plotting_utils as gg_plotting_utils
 from ml4convection.utils import learning_curves
 from ml4convection.machine_learning import neural_net
 
@@ -323,6 +325,14 @@ def _plot_grid_one_score(score_values, min_colour_value, max_colour_value,
     pyplot.xticks(x_tick_values, FILTER_NAMES_FANCY, rotation=90.)
     pyplot.yticks(y_tick_values, BASE_LOSS_FUNCTION_NAMES_FANCY)
 
+    gg_plotting_utils.plot_linear_colour_bar(
+        axes_object_or_matrix=axes_object, data_matrix=score_matrix,
+        colour_map_object=colour_map_object, min_value=min_colour_value,
+        max_value=max_colour_value, orientation_string='vertical',
+        extend_min=False, extend_max=False, font_size=COLOUR_BAR_FONT_SIZE,
+        fraction_of_axis_length=0.7
+    )
+
     return figure_object, axes_object
 
 
@@ -334,6 +344,10 @@ def _run(experiment_dir_name, output_dir_name):
     :param experiment_dir_name: See documentation at top of file.
     :param output_dir_name: Same.
     """
+
+    file_system_utils.mkdir_recursive_if_necessary(
+        directory_name=output_dir_name
+    )
 
     neigh_score_key_matrix, neigh_distance_matrix_px = numpy.meshgrid(
         numpy.array(UNIQUE_NEIGH_SCORE_KEYS), UNIQUE_NEIGH_DISTANCES_PX
@@ -412,8 +426,8 @@ def _run(experiment_dir_name, output_dir_name):
     for j in range(num_scores):
         figure_object, axes_object = _plot_grid_one_score(
             score_values=score_matrix[:, j],
-            min_colour_value=numpy.nanpercentile(score_matrix[:, j], 1),
-            max_colour_value=numpy.nanpercentile(score_matrix[:, j], 99),
+            min_colour_value=numpy.nanpercentile(score_matrix[:, j], 0),
+            max_colour_value=numpy.nanpercentile(score_matrix[:, j], 100),
             colour_map_object=COLOUR_MAP_OBJECT
         )
 

@@ -5,6 +5,7 @@ import numpy
 from tensorflow.keras import backend as K
 from gewittergefahr.gg_utils import error_checking
 from ml4convection.utils import general_utils
+from ml4convection.machine_learning import fourier_metrics
 
 
 def _log2(input_tensor):
@@ -188,3 +189,111 @@ def cross_entropy(mask_matrix, function_name=None):
         loss.__name__ = function_name
 
     return loss
+
+
+def heidke_score(mask_matrix, use_as_loss_function, function_name=None):
+    """Creates function to compute Heidke score at given scale.
+
+    :param mask_matrix: See doc for `fractions_skill_score`.
+    :param use_as_loss_function: Same.
+    :param function_name: Same.
+    :return: heidke_function: Function (defined below).
+    """
+
+    error_checking.assert_is_boolean(use_as_loss_function)
+    mask_matrix = numpy.expand_dims(mask_matrix, axis=0).astype(numpy.float32)
+
+    def heidke_function(target_tensor, prediction_tensor):
+        """Computes Heidke score at a given scale.
+
+        :param target_tensor: Tensor of target (actual) values.
+        :param prediction_tensor: Tensor of predicted values.
+        :return: heidke_value: Heidke score (scalar).
+        """
+
+        heidke_value = fourier_metrics.get_heidke_score(
+            target_tensor=target_tensor, prediction_tensor=prediction_tensor,
+            mask_matrix=mask_matrix
+        )
+
+        if use_as_loss_function:
+            return 1. - heidke_value
+
+        return heidke_value
+
+    if function_name is not None:
+        heidke_function.__name__ = function_name
+
+    return heidke_function
+
+
+def peirce_score(mask_matrix, use_as_loss_function, function_name=None):
+    """Creates function to compute Peirce score at given scale.
+
+    :param mask_matrix: See doc for `fractions_skill_score`.
+    :param use_as_loss_function: Same.
+    :param function_name: Same.
+    :return: peirce_function: Function (defined below).
+    """
+
+    error_checking.assert_is_boolean(use_as_loss_function)
+    mask_matrix = numpy.expand_dims(mask_matrix, axis=0).astype(numpy.float32)
+
+    def peirce_function(target_tensor, prediction_tensor):
+        """Computes Peirce score at a given scale.
+
+        :param target_tensor: Tensor of target (actual) values.
+        :param prediction_tensor: Tensor of predicted values.
+        :return: peirce_value: Peirce score (scalar).
+        """
+
+        peirce_value = fourier_metrics.get_peirce_score(
+            target_tensor=target_tensor, prediction_tensor=prediction_tensor,
+            mask_matrix=mask_matrix
+        )
+
+        if use_as_loss_function:
+            return 1. - peirce_value
+
+        return peirce_value
+
+    if function_name is not None:
+        peirce_function.__name__ = function_name
+
+    return peirce_function
+
+
+def gerrity_score(mask_matrix, use_as_loss_function, function_name=None):
+    """Creates function to compute Gerrity score at given scale.
+
+    :param mask_matrix: See doc for `fractions_skill_score`.
+    :param use_as_loss_function: Same.
+    :param function_name: Same.
+    :return: gerrity_function: Function (defined below).
+    """
+
+    error_checking.assert_is_boolean(use_as_loss_function)
+    mask_matrix = numpy.expand_dims(mask_matrix, axis=0).astype(numpy.float32)
+
+    def gerrity_function(target_tensor, prediction_tensor):
+        """Computes Gerrity score at a given scale.
+
+        :param target_tensor: Tensor of target (actual) values.
+        :param prediction_tensor: Tensor of predicted values.
+        :return: gerrity_value: Gerrity score (scalar).
+        """
+
+        gerrity_value = fourier_metrics.get_gerrity_score(
+            target_tensor=target_tensor, prediction_tensor=prediction_tensor,
+            mask_matrix=mask_matrix
+        )
+
+        if use_as_loss_function:
+            return 1. - gerrity_value
+
+        return gerrity_value
+
+    if function_name is not None:
+        gerrity_function.__name__ = function_name
+
+    return gerrity_function
