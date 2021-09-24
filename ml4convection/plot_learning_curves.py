@@ -645,6 +645,141 @@ def _run(top_model_dir_name, output_dir_name):
     )
     pyplot.close(figure_object)
 
+    # Plot Fourier-based Heidke score.
+    heidke_score_matrix = numpy.vstack([
+        a[learning_curves.FOURIER_HEIDKE_SCORE_KEY].values
+        for a in advanced_score_tables_xarray
+    ])
+
+    figure_object, axes_object = _plot_one_learning_curve(
+        score_matrix=heidke_score_matrix, epoch_indices=epoch_indices,
+        legend_strings=legend_strings, is_positively_oriented=True,
+        is_dice_coeff=False
+    )
+    axes_object.set_ylabel('Heidke score')
+    axes_object.set_title('Fourier-based Heidke score')
+
+    output_file_name = '{0:s}/fourier_heidke_score.jpg'.format(output_dir_name)
+    print('Saving figure to file: "{0:s}"...'.format(output_file_name))
+    figure_object.savefig(
+        output_file_name, dpi=FIGURE_RESOLUTION_DPI,
+        pad_inches=0, bbox_inches='tight'
+    )
+    pyplot.close(figure_object)
+
+    # Plot wavelet-based Heidke score.
+    heidke_score_matrix = numpy.vstack([
+        a[learning_curves.WAVELET_HEIDKE_SCORE_KEY].values
+        for a in advanced_score_tables_xarray
+    ])
+
+    figure_object, axes_object = _plot_one_learning_curve(
+        score_matrix=heidke_score_matrix, epoch_indices=epoch_indices,
+        legend_strings=legend_strings, is_positively_oriented=True,
+        is_dice_coeff=False
+    )
+    axes_object.set_ylim(bottom=0.)
+    axes_object.set_ylabel('Heidke score')
+    axes_object.set_title('Wavelet-based Heidke score')
+
+    output_file_name = '{0:s}/wavelet_heidke_score.jpg'.format(output_dir_name)
+    print('Saving figure to file: "{0:s}"...'.format(output_file_name))
+    figure_object.savefig(
+        output_file_name, dpi=FIGURE_RESOLUTION_DPI,
+        pad_inches=0, bbox_inches='tight'
+    )
+    pyplot.close(figure_object)
+
+    # Plot Fourier-based Peirce score.
+    peirce_score_matrix = numpy.vstack([
+        a[learning_curves.FOURIER_PEIRCE_SCORE_KEY].values
+        for a in advanced_score_tables_xarray
+    ])
+
+    figure_object, axes_object = _plot_one_learning_curve(
+        score_matrix=peirce_score_matrix, epoch_indices=epoch_indices,
+        legend_strings=legend_strings, is_positively_oriented=True,
+        is_dice_coeff=False
+    )
+    axes_object.set_ylabel('Peirce score')
+    axes_object.set_title('Fourier-based Peirce score')
+
+    output_file_name = '{0:s}/fourier_peirce_score.jpg'.format(output_dir_name)
+    print('Saving figure to file: "{0:s}"...'.format(output_file_name))
+    figure_object.savefig(
+        output_file_name, dpi=FIGURE_RESOLUTION_DPI,
+        pad_inches=0, bbox_inches='tight'
+    )
+    pyplot.close(figure_object)
+
+    # Plot wavelet-based Peirce score.
+    peirce_score_matrix = numpy.vstack([
+        a[learning_curves.WAVELET_PEIRCE_SCORE_KEY].values
+        for a in advanced_score_tables_xarray
+    ])
+
+    figure_object, axes_object = _plot_one_learning_curve(
+        score_matrix=peirce_score_matrix, epoch_indices=epoch_indices,
+        legend_strings=legend_strings, is_positively_oriented=True,
+        is_dice_coeff=False
+    )
+    axes_object.set_ylim(bottom=0.)
+    axes_object.set_ylabel('Peirce score')
+    axes_object.set_title('Wavelet-based Peirce score')
+
+    output_file_name = '{0:s}/wavelet_peirce_score.jpg'.format(output_dir_name)
+    print('Saving figure to file: "{0:s}"...'.format(output_file_name))
+    figure_object.savefig(
+        output_file_name, dpi=FIGURE_RESOLUTION_DPI,
+        pad_inches=0, bbox_inches='tight'
+    )
+    pyplot.close(figure_object)
+
+    # Plot Fourier-based Gerrity score.
+    gerrity_score_matrix = numpy.vstack([
+        a[learning_curves.FOURIER_GERRITY_SCORE_KEY].values
+        for a in advanced_score_tables_xarray
+    ])
+
+    figure_object, axes_object = _plot_one_learning_curve(
+        score_matrix=gerrity_score_matrix, epoch_indices=epoch_indices,
+        legend_strings=legend_strings, is_positively_oriented=True,
+        is_dice_coeff=False
+    )
+    axes_object.set_ylabel('Gerrity score')
+    axes_object.set_title('Fourier-based Gerrity score')
+
+    output_file_name = '{0:s}/fourier_gerrity_score.jpg'.format(output_dir_name)
+    print('Saving figure to file: "{0:s}"...'.format(output_file_name))
+    figure_object.savefig(
+        output_file_name, dpi=FIGURE_RESOLUTION_DPI,
+        pad_inches=0, bbox_inches='tight'
+    )
+    pyplot.close(figure_object)
+
+    # Plot wavelet-based Gerrity score.
+    gerrity_score_matrix = numpy.vstack([
+        a[learning_curves.WAVELET_GERRITY_SCORE_KEY].values
+        for a in advanced_score_tables_xarray
+    ])
+
+    figure_object, axes_object = _plot_one_learning_curve(
+        score_matrix=gerrity_score_matrix, epoch_indices=epoch_indices,
+        legend_strings=legend_strings, is_positively_oriented=True,
+        is_dice_coeff=False
+    )
+    axes_object.set_ylim(bottom=0.)
+    axes_object.set_ylabel('Gerrity score')
+    axes_object.set_title('Wavelet-based Gerrity score')
+
+    output_file_name = '{0:s}/wavelet_gerrity_score.jpg'.format(output_dir_name)
+    print('Saving figure to file: "{0:s}"...'.format(output_file_name))
+    figure_object.savefig(
+        output_file_name, dpi=FIGURE_RESOLUTION_DPI,
+        pad_inches=0, bbox_inches='tight'
+    )
+    pyplot.close(figure_object)
+
     # Plot real part of Fourier-space MSE.
     fourier_real_coeff_mse_matrix = numpy.vstack([
         a[learning_curves.FOURIER_COEFF_MSE_REAL_KEY].values

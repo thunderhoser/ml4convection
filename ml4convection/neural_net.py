@@ -3,7 +3,7 @@
 import os
 import sys
 import copy
-import pickle
+import dill
 import numpy
 numpy.random.seed(6695)
 import keras
@@ -46,16 +46,22 @@ FREQUENCY_BIAS_NAME = fourier_metrics.FREQUENCY_BIAS_NAME
 IOU_NAME = fourier_metrics.IOU_NAME
 ALL_CLASS_IOU_NAME = fourier_metrics.ALL_CLASS_IOU_NAME
 DICE_COEFF_NAME = fourier_metrics.DICE_COEFF_NAME
+HEIDKE_SCORE_NAME = fourier_metrics.HEIDKE_SCORE_NAME
+PEIRCE_SCORE_NAME = fourier_metrics.PEIRCE_SCORE_NAME
+GERRITY_SCORE_NAME = fourier_metrics.GERRITY_SCORE_NAME
 REAL_FREQ_MSE_NAME = fourier_metrics.REAL_FREQ_MSE_NAME
 IMAGINARY_FREQ_MSE_NAME = fourier_metrics.IMAGINARY_FREQ_MSE_NAME
 FREQ_MSE_NAME = fourier_metrics.FREQ_MSE_NAME
 CROSS_ENTROPY_NAME = 'xentropy'
 
-VALID_SCORE_NAMES = [
+VALID_SCORE_NAMES_NEIGH = [
     FSS_NAME, BRIER_SCORE_NAME, CSI_NAME, FREQUENCY_BIAS_NAME,
     IOU_NAME, ALL_CLASS_IOU_NAME, DICE_COEFF_NAME,
-    REAL_FREQ_MSE_NAME, IMAGINARY_FREQ_MSE_NAME, FREQ_MSE_NAME,
-    CROSS_ENTROPY_NAME
+    HEIDKE_SCORE_NAME, PEIRCE_SCORE_NAME, GERRITY_SCORE_NAME
+]
+VALID_SCORE_NAMES_WAVELET = VALID_SCORE_NAMES_NEIGH + []
+VALID_SCORE_NAMES_FOURIER = VALID_SCORE_NAMES_WAVELET + [
+    REAL_FREQ_MSE_NAME, IMAGINARY_FREQ_MSE_NAME, FREQ_MSE_NAME
 ]
 
 SCORE_NAME_KEY = 'score_name'
@@ -151,20 +157,39 @@ FIRST_INPUT_COLUMN_KEY = 'first_input_column'
 LAST_INPUT_COLUMN_KEY = 'last_input_column'
 
 
-def _check_score_name(score_name):
+def _check_score_name(score_name, neigh_based=False, fourier_based=False,
+                      wavelet_based=False):
     """Error-checks name of evaluation score.
 
     :param score_name: Name of evaluation score.
+    :param neigh_based: Boolean flag.  If True, will ensure that score is valid
+        for neighbourhood-based evaluation.
+    :param fourier_based: Boolean flag.  If True, will ensure that score is
+        valid for Fourier-transform-based evaluation.
+    :param wavelet_based: Boolean flag.  If True, will ensure that score is
+        valid for wavelet-transform-based evaluation.
     :raises: ValueError: if `score_name not in VALID_SCORE_NAMES`.
     """
 
     error_checking.assert_is_string(score_name)
-    if score_name in VALID_SCORE_NAMES:
+
+    if neigh_based:
+        valid_score_names = VALID_SCORE_NAMES_NEIGH
+    elif fourier_based:
+        valid_score_names = VALID_SCORE_NAMES_FOURIER
+    elif wavelet_based:
+        valid_score_names = VALID_SCORE_NAMES_WAVELET
+    else:
+        valid_score_names = ['']
+
+    if score_name in valid_score_names:
         return
 
     error_string = (
         'Valid scores (listed below) do not include "{0:s}":\n{1:s}'
-    ).format(score_name, str(VALID_SCORE_NAMES))
+    ).format(
+        score_name, str(valid_score_names)
+    )
 
     raise ValueError(error_string)
 
@@ -656,7 +681,7 @@ def _write_metafile(
     file_system_utils.mkdir_recursive_if_necessary(file_name=dill_file_name)
 
     dill_file_handle = open(dill_file_name, 'wb')
-    pickle.dump(metadata_dict, dill_file_handle)
+    dill.dump(metadata_dict, dill_file_handle)
     dill_file_handle.close()
 
 
@@ -905,16 +930,21 @@ def metric_params_to_name(
     :return: metric_name: Metric name (string).
     """
 
-    _check_score_name(score_name)
-
     if half_window_size_px is not None:
         error_checking.assert_is_not_nan(half_window_size_px)
         half_window_size_px = int(numpy.round(half_window_size_px))
         error_checking.assert_is_geq(half_window_size_px, 0)
 
+        _check_score_name(score_name=score_name, neigh_based=True)
+
         return '{0:s}_neigh{1:d}'.format(score_name, half_window_size_px)
 
     error_checking.assert_is_boolean(use_wavelets)
+    _check_score_name(
+        score_name=score_name, fourier_based=not use_wavelets,
+        wavelet_based=use_wavelets
+    )
+
     error_checking.assert_is_geq(min_resolution_deg, 0.)
     error_checking.assert_is_greater(max_resolution_deg, min_resolution_deg)
 
@@ -944,15 +974,15 @@ def metric_name_to_params(metric_name):
 
     error_checking.assert_is_string(metric_name)
     metric_name_parts = metric_name.split('_')
-
     score_name = metric_name_parts[0]
-    _check_score_name(score_name)
 
     if len(metric_name_parts) == 2:
         assert metric_name_parts[1].startswith('neigh')
         half_window_size_px = int(
             metric_name_parts[1].replace('neigh', '')
         )
+
+        _check_score_name(score_name=score_name, neigh_based=True)
 
         return {
             SCORE_NAME_KEY: score_name,
@@ -981,6 +1011,11 @@ def metric_name_to_params(metric_name):
         use_wavelets = bool(int(metric_name_parts[-1][-1]))
     else:
         use_wavelets = False
+
+    _check_score_name(
+        score_name=score_name, fourier_based=not use_wavelets,
+        wavelet_based=use_wavelets
+    )
 
     return {
         SCORE_NAME_KEY: score_name,
@@ -1165,6 +1200,30 @@ def get_metrics(metric_names, mask_matrix, use_as_loss_function):
                     use_as_loss_function=use_as_loss_function,
                     function_name=this_metric_name
                 )
+            elif this_param_dict[SCORE_NAME_KEY] == HEIDKE_SCORE_NAME:
+                this_function = wavelet_metrics.heidke_score(
+                    min_resolution_deg=this_param_dict[MIN_RESOLUTION_KEY],
+                    max_resolution_deg=this_param_dict[MAX_RESOLUTION_KEY],
+                    mask_matrix=mask_matrix,
+                    use_as_loss_function=use_as_loss_function,
+                    function_name=this_metric_name
+                )
+            elif this_param_dict[SCORE_NAME_KEY] == PEIRCE_SCORE_NAME:
+                this_function = wavelet_metrics.peirce_score(
+                    min_resolution_deg=this_param_dict[MIN_RESOLUTION_KEY],
+                    max_resolution_deg=this_param_dict[MAX_RESOLUTION_KEY],
+                    mask_matrix=mask_matrix,
+                    use_as_loss_function=use_as_loss_function,
+                    function_name=this_metric_name
+                )
+            elif this_param_dict[SCORE_NAME_KEY] == GERRITY_SCORE_NAME:
+                this_function = wavelet_metrics.gerrity_score(
+                    min_resolution_deg=this_param_dict[MIN_RESOLUTION_KEY],
+                    max_resolution_deg=this_param_dict[MAX_RESOLUTION_KEY],
+                    mask_matrix=mask_matrix,
+                    use_as_loss_function=use_as_loss_function,
+                    function_name=this_metric_name
+                )
             elif this_param_dict[SCORE_NAME_KEY] == FREQUENCY_BIAS_NAME:
                 this_function = wavelet_metrics.frequency_bias(
                     min_resolution_deg=this_param_dict[MIN_RESOLUTION_KEY],
@@ -1242,6 +1301,30 @@ def get_metrics(metric_names, mask_matrix, use_as_loss_function):
                     use_as_loss_function=use_as_loss_function,
                     function_name=this_metric_name
                 )
+            elif this_param_dict[SCORE_NAME_KEY] == PEIRCE_SCORE_NAME:
+                this_function = fourier_metrics.peirce_score(
+                    spatial_coeff_matrix=this_spatial_coeff_matrix,
+                    frequency_coeff_matrix=this_frequency_coeff_matrix,
+                    mask_matrix=mask_matrix,
+                    use_as_loss_function=use_as_loss_function,
+                    function_name=this_metric_name
+                )
+            elif this_param_dict[SCORE_NAME_KEY] == HEIDKE_SCORE_NAME:
+                this_function = fourier_metrics.heidke_score(
+                    spatial_coeff_matrix=this_spatial_coeff_matrix,
+                    frequency_coeff_matrix=this_frequency_coeff_matrix,
+                    mask_matrix=mask_matrix,
+                    use_as_loss_function=use_as_loss_function,
+                    function_name=this_metric_name
+                )
+            elif this_param_dict[SCORE_NAME_KEY] == GERRITY_SCORE_NAME:
+                this_function = fourier_metrics.gerrity_score(
+                    spatial_coeff_matrix=this_spatial_coeff_matrix,
+                    frequency_coeff_matrix=this_frequency_coeff_matrix,
+                    mask_matrix=mask_matrix,
+                    use_as_loss_function=use_as_loss_function,
+                    function_name=this_metric_name
+                )
             elif this_param_dict[SCORE_NAME_KEY] == FREQUENCY_BIAS_NAME:
                 this_function = fourier_metrics.frequency_bias(
                     spatial_coeff_matrix=this_spatial_coeff_matrix,
@@ -1291,9 +1374,34 @@ def get_metrics(metric_names, mask_matrix, use_as_loss_function):
                     function_name=this_metric_name
                 )
         else:
+            # TODO(thunderhoser): Having some loss functions in
+            # custom_losses.py, and some in custom_metrics.py, is a HACK.
+            # Eventually, I need to put the bulk of the code into
+            # custom_metrics.py and have the other modules (neigh_metrics.py,
+            # wavelet_metrics.py, fourier_metrics.py) contain mostly wrapper
+            # methods.
+
             if this_param_dict[SCORE_NAME_KEY] == FSS_NAME:
                 this_function = custom_losses.fractions_skill_score(
                     half_window_size_px=this_param_dict[HALF_WINDOW_SIZE_KEY],
+                    mask_matrix=mask_matrix,
+                    use_as_loss_function=use_as_loss_function,
+                    function_name=this_metric_name
+                )
+            elif this_param_dict[SCORE_NAME_KEY] == HEIDKE_SCORE_NAME:
+                this_function = custom_losses.heidke_score(
+                    mask_matrix=mask_matrix,
+                    use_as_loss_function=use_as_loss_function,
+                    function_name=this_metric_name
+                )
+            elif this_param_dict[SCORE_NAME_KEY] == PEIRCE_SCORE_NAME:
+                this_function = custom_losses.peirce_score(
+                    mask_matrix=mask_matrix,
+                    use_as_loss_function=use_as_loss_function,
+                    function_name=this_metric_name
+                )
+            elif this_param_dict[SCORE_NAME_KEY] == GERRITY_SCORE_NAME:
+                this_function = custom_losses.gerrity_score(
                     mask_matrix=mask_matrix,
                     use_as_loss_function=use_as_loss_function,
                     function_name=this_metric_name
@@ -2244,7 +2352,7 @@ def read_metafile(dill_file_name):
     error_checking.assert_file_exists(dill_file_name)
 
     dill_file_handle = open(dill_file_name, 'rb')
-    metadata_dict = pickle.load(dill_file_handle)
+    metadata_dict = dill.load(dill_file_handle)
     dill_file_handle.close()
 
     if LOSS_FUNCTION_KEY not in metadata_dict:

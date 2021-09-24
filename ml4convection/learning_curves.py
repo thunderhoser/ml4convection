@@ -66,8 +66,10 @@ FOURIER_IOU_INTERSECTION_KEY = 'fourier_iou_intersection'
 FOURIER_IOU_UNION_KEY = 'fourier_iou_union'
 FOURIER_DICE_INTERSECTION_KEY = 'fourier_dice_intersection'
 FOURIER_DICE_NUM_PIX_KEY = 'fourier_dice_num_pixels'
-FOURIER_CSI_NUMERATOR_KEY = 'fourier_csi_numerator'
-FOURIER_CSI_DENOMINATOR_KEY = 'fourier_csi_denominator'
+FOURIER_TRUE_POSITIVES_KEY = 'fourier_num_true_positives'
+FOURIER_FALSE_POSITIVES_KEY = 'fourier_num_false_positives'
+FOURIER_FALSE_NEGATIVES_KEY = 'fourier_num_false_negatives'
+FOURIER_TRUE_NEGATIVES_KEY = 'fourier_num_true_negatives'
 
 WAVELET_SSE_MEAN_COEFFS_KEY = 'wavelet_sse_mean_coeffs'
 WAVELET_SSE_DETAIL_COEFFS_KEY = 'wavelet_sse_detail_coeffs'
@@ -82,8 +84,10 @@ WAVELET_IOU_INTERSECTION_KEY = 'wavelet_iou_intersection'
 WAVELET_IOU_UNION_KEY = 'wavelet_iou_union'
 WAVELET_DICE_INTERSECTION_KEY = 'wavelet_dice_intersection'
 WAVELET_DICE_NUM_PIX_KEY = 'wavelet_dice_num_pixels'
-WAVELET_CSI_NUMERATOR_KEY = 'wavelet_csi_numerator'
-WAVELET_CSI_DENOMINATOR_KEY = 'wavelet_csi_denominator'
+WAVELET_TRUE_POSITIVES_KEY = 'wavelet_num_true_positives'
+WAVELET_FALSE_POSITIVES_KEY = 'wavelet_num_false_positives'
+WAVELET_FALSE_NEGATIVES_KEY = 'wavelet_num_false_negatives'
+WAVELET_TRUE_NEGATIVES_KEY = 'wavelet_num_true_negatives'
 
 NEIGH_BRIER_SCORE_KEY = 'neigh_brier_score'
 NEIGH_FSS_KEY = 'neigh_fss'
@@ -99,6 +103,9 @@ FOURIER_FSS_KEY = 'fourier_fss'
 FOURIER_IOU_KEY = 'fourier_iou'
 FOURIER_DICE_COEFF_KEY = 'fourier_dice_coeff'
 FOURIER_CSI_KEY = 'fourier_csi'
+FOURIER_PEIRCE_SCORE_KEY = 'fourier_peirce_score'
+FOURIER_HEIDKE_SCORE_KEY = 'fourier_heidke_score'
+FOURIER_GERRITY_SCORE_KEY = 'fourier_gerrity_score'
 
 WAVELET_COEFF_MSE_MEAN_KEY = 'wavelet_coeff_mse_real'
 WAVELET_COEFF_MSE_DETAIL_KEY = 'wavelet_coeff_mse_imaginary'
@@ -107,6 +114,9 @@ WAVELET_FSS_KEY = 'wavelet_fss'
 WAVELET_IOU_KEY = 'wavelet_iou'
 WAVELET_DICE_COEFF_KEY = 'wavelet_dice_coeff'
 WAVELET_CSI_KEY = 'wavelet_csi'
+WAVELET_PEIRCE_SCORE_KEY = 'wavelet_peirce_score'
+WAVELET_HEIDKE_SCORE_KEY = 'wavelet_heidke_score'
+WAVELET_GERRITY_SCORE_KEY = 'wavelet_gerrity_score'
 
 
 def _apply_max_filter(input_matrix, half_width_px):
@@ -541,38 +551,6 @@ def _get_dice_components_one_time(
     return intersection, num_pixels
 
 
-def _get_band_pass_csi_components_one_time(
-        actual_target_matrix, probability_matrix, eval_mask_matrix):
-    """Computes components of CSI on band-pass-filtered data for one time step.
-
-    See notes on neighbourhood vs. band-pass filter in
-    `_get_brier_components_one_time`.
-
-    :param actual_target_matrix: See doc for `_get_brier_components_one_time`.
-    :param probability_matrix: Same.
-    :param eval_mask_matrix: Same.
-    :return: numerator: Numerator of CSI (number of true positives).
-    :return: denominator: Denominator of CSI (number of
-        true positives + false positives + false negatives).
-    """
-
-    this_matrix = probability_matrix * actual_target_matrix
-    this_matrix[eval_mask_matrix.astype(bool) == False] = numpy.nan
-    num_true_positives = numpy.nansum(this_matrix)
-
-    this_matrix = probability_matrix * (1 - actual_target_matrix)
-    this_matrix[eval_mask_matrix.astype(bool) == False] = numpy.nan
-    num_false_positives = numpy.nansum(this_matrix)
-
-    this_matrix = (1 - probability_matrix) * actual_target_matrix
-    this_matrix[eval_mask_matrix.astype(bool) == False] = numpy.nan
-    num_false_negatives = numpy.nansum(this_matrix)
-
-    denominator = num_true_positives + num_false_positives + num_false_negatives
-
-    return num_true_positives, denominator
-
-
 def _get_neigh_csi_components_one_time(
         actual_target_matrix, probability_matrix, eval_mask_matrix,
         matching_distance_px):
@@ -620,6 +598,44 @@ def _get_neigh_csi_components_one_time(
     return (
         num_prediction_oriented_tp, num_obs_oriented_tp,
         num_false_positives, num_false_negatives
+    )
+
+
+def _get_band_pass_contingency_one_time(
+        actual_target_matrix, probability_matrix, eval_mask_matrix):
+    """Computes contingency table on band-pass-filtered data for one time step.
+
+    See notes on neighbourhood vs. band-pass filter in
+    `_get_brier_components_one_time`.
+
+    :param actual_target_matrix: See doc for `_get_brier_components_one_time`.
+    :param probability_matrix: Same.
+    :param eval_mask_matrix: Same.
+    :return: num_true_positives: a in contingency-table speak.
+    :return: num_false_positives: b in contingency-table speak.
+    :return: num_false_negatives: c in contingency-table speak.
+    :return: num_true_negatives: d in contingency-table speak.
+    """
+
+    this_matrix = probability_matrix * actual_target_matrix
+    this_matrix[eval_mask_matrix.astype(bool) == False] = numpy.nan
+    num_true_positives = numpy.nansum(this_matrix)
+
+    this_matrix = probability_matrix * (1 - actual_target_matrix)
+    this_matrix[eval_mask_matrix.astype(bool) == False] = numpy.nan
+    num_false_positives = numpy.nansum(this_matrix)
+
+    this_matrix = (1 - probability_matrix) * actual_target_matrix
+    this_matrix[eval_mask_matrix.astype(bool) == False] = numpy.nan
+    num_false_negatives = numpy.nansum(this_matrix)
+
+    this_matrix = (1 - probability_matrix) * (1 - actual_target_matrix)
+    this_matrix[eval_mask_matrix.astype(bool) == False] = numpy.nan
+    num_true_negatives = numpy.nansum(this_matrix)
+
+    return (
+        num_true_positives, num_false_positives,
+        num_false_negatives, num_true_negatives
     )
 
 
@@ -753,8 +769,10 @@ def get_basic_scores(
             FOURIER_IOU_UNION_KEY: (these_dim, this_array + 0.),
             FOURIER_DICE_INTERSECTION_KEY: (these_dim, this_array + 0.),
             FOURIER_DICE_NUM_PIX_KEY: (these_dim, this_array + 0.),
-            FOURIER_CSI_NUMERATOR_KEY: (these_dim, this_array + 0.),
-            FOURIER_CSI_DENOMINATOR_KEY: (these_dim, this_array + 0.),
+            FOURIER_TRUE_POSITIVES_KEY: (these_dim, this_array + 0.),
+            FOURIER_FALSE_POSITIVES_KEY: (these_dim, this_array + 0.),
+            FOURIER_FALSE_NEGATIVES_KEY: (these_dim, this_array + 0.),
+            FOURIER_TRUE_NEGATIVES_KEY: (these_dim, this_array + 0.),
             WAVELET_SSE_MEAN_COEFFS_KEY: (these_dim, this_array + 0),
             WAVELET_SSE_DETAIL_COEFFS_KEY: (these_dim, this_array + 0),
             WAVELET_NUM_MEAN_COEFFS_KEY: (these_dim, this_array + 0),
@@ -767,8 +785,10 @@ def get_basic_scores(
             WAVELET_IOU_UNION_KEY: (these_dim, this_array + 0.),
             WAVELET_DICE_INTERSECTION_KEY: (these_dim, this_array + 0.),
             WAVELET_DICE_NUM_PIX_KEY: (these_dim, this_array + 0.),
-            WAVELET_CSI_NUMERATOR_KEY: (these_dim, this_array + 0.),
-            WAVELET_CSI_DENOMINATOR_KEY: (these_dim, this_array + 0.)
+            WAVELET_TRUE_POSITIVES_KEY: (these_dim, this_array + 0.),
+            WAVELET_FALSE_POSITIVES_KEY: (these_dim, this_array + 0.),
+            WAVELET_FALSE_NEGATIVES_KEY: (these_dim, this_array + 0.),
+            WAVELET_TRUE_NEGATIVES_KEY: (these_dim, this_array + 0.)
         }
         main_data_dict.update(new_dict)
 
@@ -1005,9 +1025,11 @@ def get_basic_scores(
                 )
 
                 (
-                    b[FOURIER_CSI_NUMERATOR_KEY].values[i, k],
-                    b[FOURIER_CSI_DENOMINATOR_KEY].values[i, k]
-                ) = _get_band_pass_csi_components_one_time(
+                    b[FOURIER_TRUE_POSITIVES_KEY].values[i, k],
+                    b[FOURIER_FALSE_POSITIVES_KEY].values[i, k],
+                    b[FOURIER_FALSE_NEGATIVES_KEY].values[i, k],
+                    b[FOURIER_TRUE_NEGATIVES_KEY].values[i, k]
+                ) = _get_band_pass_contingency_one_time(
                     actual_target_matrix=fourier_target_matrix[k, i, ...],
                     probability_matrix=fourier_forecast_matrix[k, i, ...],
                     eval_mask_matrix=eval_mask_matrix,
@@ -1070,9 +1092,11 @@ def get_basic_scores(
                 )
 
                 (
-                    b[WAVELET_CSI_NUMERATOR_KEY].values[i, k],
-                    b[WAVELET_CSI_DENOMINATOR_KEY].values[i, k]
-                ) = _get_band_pass_csi_components_one_time(
+                    b[WAVELET_TRUE_POSITIVES_KEY].values[i, k],
+                    b[WAVELET_FALSE_POSITIVES_KEY].values[i, k],
+                    b[WAVELET_FALSE_NEGATIVES_KEY].values[i, k],
+                    b[WAVELET_TRUE_NEGATIVES_KEY].values[i, k]
+                ) = _get_band_pass_contingency_one_time(
                     actual_target_matrix=wavelet_target_matrix[k, i, ...],
                     probability_matrix=wavelet_forecast_matrix[k, i, ...],
                     eval_mask_matrix=eval_mask_matrix,
@@ -1110,6 +1134,154 @@ def concat_basic_score_tables(basic_score_tables_xarray):
     ]
 
     return xarray.concat(objs=non_empty_tables, dim=TIME_DIM)
+
+
+def _compute_peirce_scores(
+        basic_score_table_xarray, advanced_score_table_xarray, use_wavelets):
+    """Computes Peirce score for each band-pass filter.
+
+    :param basic_score_table_xarray: xarray table created by `get_basic_scores`.
+    :param advanced_score_table_xarray: xarray table with advanced scores
+        (variable and dimension names should make the table self-explanatory).
+    :param use_wavelets: Boolean flag.  If True (False), will use
+        wavelet- (Fourier-)based band-pass filters.
+    :return: advanced_score_table_xarray: Same as input but with updated Peirce
+        scores.
+    """
+
+    b = basic_score_table_xarray
+    a = advanced_score_table_xarray
+
+    if use_wavelets:
+        num_true_positives_key = WAVELET_TRUE_POSITIVES_KEY
+        num_false_positives_key = WAVELET_FALSE_POSITIVES_KEY
+        num_false_negatives_key = WAVELET_FALSE_NEGATIVES_KEY
+        num_true_negatives_key = WAVELET_TRUE_NEGATIVES_KEY
+        peirce_score_key = WAVELET_PEIRCE_SCORE_KEY
+    else:
+        num_true_positives_key = FOURIER_TRUE_POSITIVES_KEY
+        num_false_positives_key = FOURIER_FALSE_POSITIVES_KEY
+        num_false_negatives_key = FOURIER_FALSE_NEGATIVES_KEY
+        num_true_negatives_key = FOURIER_TRUE_NEGATIVES_KEY
+        peirce_score_key = FOURIER_PEIRCE_SCORE_KEY
+
+    numerators = numpy.sum(b[num_true_positives_key].values, axis=0)
+    denominators = numpy.sum(
+        b[num_true_positives_key].values + b[num_false_negatives_key].values,
+        axis=0
+    )
+    pod_values = numerators / denominators
+
+    numerators = numpy.sum(b[num_false_positives_key].values, axis=0)
+    denominators = numpy.sum(
+        b[num_false_positives_key].values + b[num_true_negatives_key].values,
+        axis=0
+    )
+    pofd_values = numerators / denominators
+
+    a[peirce_score_key].values = pod_values - pofd_values
+    return a
+
+
+def _compute_heidke_scores(
+        basic_score_table_xarray, advanced_score_table_xarray, use_wavelets):
+    """Computes Heidke score for each band-pass filter.
+
+    :param basic_score_table_xarray: See doc for `_compute_peirce_scores`.
+    :param advanced_score_table_xarray: Same.
+    :param use_wavelets: Same.
+    :return: advanced_score_table_xarray: Same.
+    """
+
+    b = basic_score_table_xarray
+    a = advanced_score_table_xarray
+
+    if use_wavelets:
+        num_true_positives_key = WAVELET_TRUE_POSITIVES_KEY
+        num_false_positives_key = WAVELET_FALSE_POSITIVES_KEY
+        num_false_negatives_key = WAVELET_FALSE_NEGATIVES_KEY
+        num_true_negatives_key = WAVELET_TRUE_NEGATIVES_KEY
+        heidke_score_key = WAVELET_HEIDKE_SCORE_KEY
+    else:
+        num_true_positives_key = FOURIER_TRUE_POSITIVES_KEY
+        num_false_positives_key = FOURIER_FALSE_POSITIVES_KEY
+        num_false_negatives_key = FOURIER_FALSE_NEGATIVES_KEY
+        num_true_negatives_key = FOURIER_TRUE_NEGATIVES_KEY
+        heidke_score_key = FOURIER_HEIDKE_SCORE_KEY
+
+    true_positive_counts = numpy.sum(b[num_true_positives_key].values, axis=0)
+    false_positive_counts = numpy.sum(b[num_false_positives_key].values, axis=0)
+    false_negative_counts = numpy.sum(b[num_false_negatives_key].values, axis=0)
+    true_negative_counts = numpy.sum(b[num_true_negatives_key].values, axis=0)
+
+    random_correct_counts = (
+        (true_positive_counts + false_positive_counts) *
+        (true_positive_counts + false_negative_counts) +
+        (false_negative_counts + true_negative_counts) *
+        (false_positive_counts + true_negative_counts)
+    )
+    example_counts = (
+        true_positive_counts + false_positive_counts +
+        false_negative_counts + true_negative_counts
+    )
+    random_correct_counts = random_correct_counts / example_counts
+
+    numerators = (
+        true_positive_counts + true_negative_counts - random_correct_counts
+    )
+    denominators = example_counts - random_correct_counts
+
+    a[heidke_score_key].values = numerators / denominators
+    return a
+
+
+def _compute_gerrity_scores(
+        basic_score_table_xarray, advanced_score_table_xarray, use_wavelets):
+    """Computes Gerrity score for each band-pass filter.
+
+    :param basic_score_table_xarray: See doc for `_compute_peirce_scores`.
+    :param advanced_score_table_xarray: Same.
+    :param use_wavelets: Same.
+    :return: advanced_score_table_xarray: Same.
+    """
+
+    b = basic_score_table_xarray
+    a = advanced_score_table_xarray
+
+    if use_wavelets:
+        num_true_positives_key = WAVELET_TRUE_POSITIVES_KEY
+        num_false_positives_key = WAVELET_FALSE_POSITIVES_KEY
+        num_false_negatives_key = WAVELET_FALSE_NEGATIVES_KEY
+        num_true_negatives_key = WAVELET_TRUE_NEGATIVES_KEY
+        gerrity_score_key = WAVELET_GERRITY_SCORE_KEY
+    else:
+        num_true_positives_key = FOURIER_TRUE_POSITIVES_KEY
+        num_false_positives_key = FOURIER_FALSE_POSITIVES_KEY
+        num_false_negatives_key = FOURIER_FALSE_NEGATIVES_KEY
+        num_true_negatives_key = FOURIER_TRUE_NEGATIVES_KEY
+        gerrity_score_key = FOURIER_GERRITY_SCORE_KEY
+
+    true_positive_counts = numpy.sum(b[num_true_positives_key].values, axis=0)
+    false_positive_counts = numpy.sum(b[num_false_positives_key].values, axis=0)
+    false_negative_counts = numpy.sum(b[num_false_negatives_key].values, axis=0)
+    true_negative_counts = numpy.sum(b[num_true_negatives_key].values, axis=0)
+
+    example_counts = (
+        true_positive_counts + false_positive_counts +
+        false_negative_counts + true_negative_counts
+    )
+    event_ratios = (
+        (false_positive_counts + true_negative_counts) /
+        (true_positive_counts + false_negative_counts)
+    )
+    numerators = (
+        true_positive_counts * event_ratios
+        + true_negative_counts * (1. / event_ratios)
+        - false_positive_counts - false_negative_counts
+    )
+
+    a[gerrity_score_key].values = numerators / example_counts
+    return a
 
 
 def get_advanced_scores(basic_score_table_xarray):
@@ -1247,9 +1419,27 @@ def get_advanced_scores(basic_score_table_xarray):
         denominators = numpy.sum(b[FOURIER_DICE_NUM_PIX_KEY].values, axis=0)
         a[FOURIER_DICE_COEFF_KEY].values = numerators / denominators
 
-        numerators = numpy.sum(b[FOURIER_CSI_NUMERATOR_KEY].values, axis=0)
-        denominators = numpy.sum(b[FOURIER_CSI_DENOMINATOR_KEY].values, axis=0)
+        numerators = numpy.sum(b[FOURIER_TRUE_POSITIVES_KEY].values, axis=0)
+        denominators = numpy.sum(
+            b[FOURIER_TRUE_POSITIVES_KEY].values +
+            b[FOURIER_FALSE_POSITIVES_KEY].values +
+            b[FOURIER_FALSE_NEGATIVES_KEY].values,
+            axis=0
+        )
         a[FOURIER_CSI_KEY].values = numerators / denominators
+
+        a = _compute_peirce_scores(
+            basic_score_table_xarray=b, advanced_score_table_xarray=a,
+            use_wavelets=False
+        )
+        a = _compute_heidke_scores(
+            basic_score_table_xarray=b, advanced_score_table_xarray=a,
+            use_wavelets=False
+        )
+        a = _compute_gerrity_scores(
+            basic_score_table_xarray=b, advanced_score_table_xarray=a,
+            use_wavelets=False
+        )
 
         numerators = numpy.sum(b[WAVELET_SSE_MEAN_COEFFS_KEY].values, axis=0)
         denominators = numpy.sum(b[WAVELET_NUM_MEAN_COEFFS_KEY].values, axis=0)
@@ -1279,9 +1469,27 @@ def get_advanced_scores(basic_score_table_xarray):
         denominators = numpy.sum(b[WAVELET_DICE_NUM_PIX_KEY].values, axis=0)
         a[WAVELET_DICE_COEFF_KEY].values = numerators / denominators
 
-        numerators = numpy.sum(b[WAVELET_CSI_NUMERATOR_KEY].values, axis=0)
-        denominators = numpy.sum(b[WAVELET_CSI_DENOMINATOR_KEY].values, axis=0)
+        numerators = numpy.sum(b[WAVELET_TRUE_POSITIVES_KEY].values, axis=0)
+        denominators = numpy.sum(
+            b[WAVELET_TRUE_POSITIVES_KEY].values +
+            b[WAVELET_FALSE_POSITIVES_KEY].values +
+            b[WAVELET_FALSE_NEGATIVES_KEY].values,
+            axis=0
+        )
         a[WAVELET_CSI_KEY].values = numerators / denominators
+
+        a = _compute_peirce_scores(
+            basic_score_table_xarray=b, advanced_score_table_xarray=a,
+            use_wavelets=True
+        )
+        a = _compute_heidke_scores(
+            basic_score_table_xarray=b, advanced_score_table_xarray=a,
+            use_wavelets=True
+        )
+        a = _compute_gerrity_scores(
+            basic_score_table_xarray=b, advanced_score_table_xarray=a,
+            use_wavelets=True
+        )
 
     advanced_score_table_xarray = a
     return advanced_score_table_xarray

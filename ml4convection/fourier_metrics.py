@@ -23,6 +23,9 @@ ORIG_NUM_COLUMNS_KEY = 'orig_num_columns'
 FSS_NAME = 'fss'
 BRIER_SCORE_NAME = 'brier'
 CSI_NAME = 'csi'
+HEIDKE_SCORE_NAME = 'heidke'
+GERRITY_SCORE_NAME = 'gerrity'
+PEIRCE_SCORE_NAME = 'peirce'
 FREQUENCY_BIAS_NAME = 'bias'
 IOU_NAME = 'iou'
 ALL_CLASS_IOU_NAME = 'all-class-iou'
@@ -32,8 +35,9 @@ IMAGINARY_FREQ_MSE_NAME = 'fmsei'
 FREQ_MSE_NAME = 'fmse'
 
 VALID_SCORE_NAMES = [
-    FSS_NAME, BRIER_SCORE_NAME, CSI_NAME, FREQUENCY_BIAS_NAME,
-    IOU_NAME, ALL_CLASS_IOU_NAME, DICE_COEFF_NAME,
+    FSS_NAME, BRIER_SCORE_NAME, CSI_NAME,
+    HEIDKE_SCORE_NAME, GERRITY_SCORE_NAME, PEIRCE_SCORE_NAME,
+    FREQUENCY_BIAS_NAME, IOU_NAME, ALL_CLASS_IOU_NAME, DICE_COEFF_NAME,
     REAL_FREQ_MSE_NAME, IMAGINARY_FREQ_MSE_NAME, FREQ_MSE_NAME
 ]
 
@@ -264,6 +268,120 @@ def get_csi(target_tensor, prediction_tensor, mask_matrix):
     return num_true_positives / denominator
 
 
+def get_peirce_score(target_tensor, prediction_tensor, mask_matrix):
+    """Computes Peirce score.
+
+    :param target_tensor: See doc for `get_brier_score`.
+    :param prediction_tensor: Same.
+    :param mask_matrix: Same.
+    :return: peirce_score: Peirce score (scalar).
+    """
+
+    num_true_positives = K.sum(
+        mask_matrix * target_tensor * prediction_tensor
+    )
+    num_false_positives = K.sum(
+        mask_matrix * (1 - target_tensor) * prediction_tensor
+    )
+    num_false_negatives = K.sum(
+        mask_matrix * target_tensor * (1 - prediction_tensor)
+    )
+    num_true_negatives = K.sum(
+        mask_matrix * (1 - target_tensor) * (1 - prediction_tensor)
+    )
+
+    pod_value = (
+        num_true_positives /
+        (num_true_positives + num_false_negatives + K.epsilon())
+    )
+    pofd_value = (
+        num_false_positives /
+        (num_false_positives + num_true_negatives + K.epsilon())
+    )
+
+    return pod_value - pofd_value
+
+
+def get_heidke_score(target_tensor, prediction_tensor, mask_matrix):
+    """Computes Heidke score.
+
+    :param target_tensor: See doc for `get_brier_score`.
+    :param prediction_tensor: Same.
+    :param mask_matrix: Same.
+    :return: heidke_score: Heidke score (scalar).
+    """
+
+    num_true_positives = K.sum(
+        mask_matrix * target_tensor * prediction_tensor
+    )
+    num_false_positives = K.sum(
+        mask_matrix * (1 - target_tensor) * prediction_tensor
+    )
+    num_false_negatives = K.sum(
+        mask_matrix * target_tensor * (1 - prediction_tensor)
+    )
+    num_true_negatives = K.sum(
+        mask_matrix * (1 - target_tensor) * (1 - prediction_tensor)
+    )
+
+    random_num_correct = (
+        (num_true_positives + num_false_positives) *
+        (num_true_positives + num_false_negatives) +
+        (num_false_negatives + num_true_negatives) *
+        (num_false_positives + num_true_negatives)
+    )
+    num_examples = (
+        num_true_positives + num_false_positives +
+        num_false_negatives + num_true_negatives
+    )
+    random_num_correct = random_num_correct / num_examples
+
+    numerator = num_true_positives + num_true_negatives - random_num_correct
+    denominator = num_examples - random_num_correct + K.epsilon()
+
+    return numerator / denominator
+
+
+def get_gerrity_score(target_tensor, prediction_tensor, mask_matrix):
+    """Computes Gerrity score.
+
+    :param target_tensor: See doc for `get_brier_score`.
+    :param prediction_tensor: Same.
+    :param mask_matrix: Same.
+    :return: gerrity_score: Gerrity score (scalar).
+    """
+
+    num_true_positives = K.sum(
+        mask_matrix * target_tensor * prediction_tensor
+    )
+    num_false_positives = K.sum(
+        mask_matrix * (1 - target_tensor) * prediction_tensor
+    )
+    num_false_negatives = K.sum(
+        mask_matrix * target_tensor * (1 - prediction_tensor)
+    )
+    num_true_negatives = K.sum(
+        mask_matrix * (1 - target_tensor) * (1 - prediction_tensor)
+    )
+
+    event_ratio = (
+        (num_false_positives + num_true_negatives) /
+        (num_true_positives + num_false_negatives + K.epsilon())
+    )
+    num_examples = (
+        num_true_positives + num_false_positives +
+        num_false_negatives + num_true_negatives
+    )
+
+    numerator = (
+        num_true_positives * event_ratio
+        + num_true_negatives * (1. / event_ratio)
+        - num_false_positives - num_false_negatives
+    )
+
+    return numerator / num_examples
+
+
 def get_frequency_bias(target_tensor, prediction_tensor, mask_matrix):
     """Computes frequency bias.
 
@@ -405,8 +523,7 @@ def brier_score(
     :param spatial_coeff_matrix: See doc for `_check_input_args`.
     :param frequency_coeff_matrix: Same.
     :param mask_matrix: Same.
-    :param use_as_loss_function: Boolean flag.  If True, will return 1 - CSI, to
-        use as negatively oriented loss function.
+    :param use_as_loss_function: Leave this alone.
     :param function_name: See doc for `_check_input_args`.
     :return: brier_function: Function (defined below).
     """
@@ -509,6 +626,181 @@ def csi(spatial_coeff_matrix, frequency_coeff_matrix, mask_matrix,
     return csi_function
 
 
+def peirce_score(spatial_coeff_matrix, frequency_coeff_matrix, mask_matrix,
+                 use_as_loss_function, function_name=None):
+    """Creates function to compute Peirce score at a given scale.
+
+    :param spatial_coeff_matrix: See doc for `_check_input_args`.
+    :param frequency_coeff_matrix: Same.
+    :param mask_matrix: Same.
+    :param use_as_loss_function: Boolean flag.  If True, will return 1 minus
+        Peirce score, to use as negatively oriented loss function.
+    :param function_name: See doc for `_check_input_args`.
+    :return: peirce_function: Function (defined below).
+    """
+
+    error_checking.assert_is_boolean(use_as_loss_function)
+
+    argument_dict = _check_input_args(
+        spatial_coeff_matrix=spatial_coeff_matrix,
+        frequency_coeff_matrix=frequency_coeff_matrix,
+        mask_matrix=mask_matrix, function_name=function_name
+    )
+
+    spatial_coeff_matrix = argument_dict[SPATIAL_COEFFS_KEY]
+    frequency_coeff_matrix = argument_dict[FREQUENCY_COEFFS_KEY]
+    mask_matrix = argument_dict[MASK_KEY]
+    orig_num_rows = argument_dict[ORIG_NUM_ROWS_KEY]
+    orig_num_columns = argument_dict[ORIG_NUM_COLUMNS_KEY]
+
+    def peirce_function(target_tensor, prediction_tensor):
+        """Computes Peirce score at a given scale.
+
+        :param target_tensor: Tensor of target (actual) values.
+        :param prediction_tensor: Tensor of predicted values.
+        :return: peirce_value: Peirce score (scalar).
+        """
+
+        target_tensor, prediction_tensor = _filter_fields(
+            target_tensor=target_tensor, prediction_tensor=prediction_tensor,
+            spatial_coeff_matrix=spatial_coeff_matrix,
+            frequency_coeff_matrix=frequency_coeff_matrix,
+            orig_num_rows=orig_num_rows, orig_num_columns=orig_num_columns
+        )[:2]
+
+        peirce_value = get_peirce_score(
+            target_tensor=target_tensor, prediction_tensor=prediction_tensor,
+            mask_matrix=mask_matrix
+        )
+
+        if use_as_loss_function:
+            return 1. - peirce_value
+
+        return peirce_value
+
+    if function_name is not None:
+        peirce_function.__name__ = function_name
+
+    return peirce_function
+
+
+def heidke_score(spatial_coeff_matrix, frequency_coeff_matrix, mask_matrix,
+                 use_as_loss_function, function_name=None):
+    """Creates function to compute Heidke score at a given scale.
+
+    :param spatial_coeff_matrix: See doc for `_check_input_args`.
+    :param frequency_coeff_matrix: Same.
+    :param mask_matrix: Same.
+    :param use_as_loss_function: Boolean flag.  If True, will return 1 minus
+        Heidke score, to use as negatively oriented loss function.
+    :param function_name: See doc for `_check_input_args`.
+    :return: heidke_function: Function (defined below).
+    """
+
+    error_checking.assert_is_boolean(use_as_loss_function)
+
+    argument_dict = _check_input_args(
+        spatial_coeff_matrix=spatial_coeff_matrix,
+        frequency_coeff_matrix=frequency_coeff_matrix,
+        mask_matrix=mask_matrix, function_name=function_name
+    )
+
+    spatial_coeff_matrix = argument_dict[SPATIAL_COEFFS_KEY]
+    frequency_coeff_matrix = argument_dict[FREQUENCY_COEFFS_KEY]
+    mask_matrix = argument_dict[MASK_KEY]
+    orig_num_rows = argument_dict[ORIG_NUM_ROWS_KEY]
+    orig_num_columns = argument_dict[ORIG_NUM_COLUMNS_KEY]
+
+    def heidke_function(target_tensor, prediction_tensor):
+        """Computes Heidke score at a given scale.
+
+        :param target_tensor: Tensor of target (actual) values.
+        :param prediction_tensor: Tensor of predicted values.
+        :return: heidke_value: Heidke score (scalar).
+        """
+
+        target_tensor, prediction_tensor = _filter_fields(
+            target_tensor=target_tensor, prediction_tensor=prediction_tensor,
+            spatial_coeff_matrix=spatial_coeff_matrix,
+            frequency_coeff_matrix=frequency_coeff_matrix,
+            orig_num_rows=orig_num_rows, orig_num_columns=orig_num_columns
+        )[:2]
+
+        heidke_value = get_heidke_score(
+            target_tensor=target_tensor, prediction_tensor=prediction_tensor,
+            mask_matrix=mask_matrix
+        )
+
+        if use_as_loss_function:
+            return 1. - heidke_value
+
+        return heidke_value
+
+    if function_name is not None:
+        heidke_function.__name__ = function_name
+
+
+    return heidke_function
+
+
+def gerrity_score(spatial_coeff_matrix, frequency_coeff_matrix, mask_matrix,
+                  use_as_loss_function, function_name=None):
+    """Creates function to compute Gerrity score at a given scale.
+
+    :param spatial_coeff_matrix: See doc for `_check_input_args`.
+    :param frequency_coeff_matrix: Same.
+    :param mask_matrix: Same.
+    :param use_as_loss_function: Boolean flag.  If True, will return 1 minus
+        Gerrity score, to use as negatively oriented loss function.
+    :param function_name: See doc for `_check_input_args`.
+    :return: gerrity_function: Function (defined below).
+    """
+
+    error_checking.assert_is_boolean(use_as_loss_function)
+
+    argument_dict = _check_input_args(
+        spatial_coeff_matrix=spatial_coeff_matrix,
+        frequency_coeff_matrix=frequency_coeff_matrix,
+        mask_matrix=mask_matrix, function_name=function_name
+    )
+
+    spatial_coeff_matrix = argument_dict[SPATIAL_COEFFS_KEY]
+    frequency_coeff_matrix = argument_dict[FREQUENCY_COEFFS_KEY]
+    mask_matrix = argument_dict[MASK_KEY]
+    orig_num_rows = argument_dict[ORIG_NUM_ROWS_KEY]
+    orig_num_columns = argument_dict[ORIG_NUM_COLUMNS_KEY]
+
+    def gerrity_function(target_tensor, prediction_tensor):
+        """Computes Gerrity score at a given scale.
+
+        :param target_tensor: Tensor of target (actual) values.
+        :param prediction_tensor: Tensor of predicted values.
+        :return: gerrity_value: Gerrity score (scalar).
+        """
+
+        target_tensor, prediction_tensor = _filter_fields(
+            target_tensor=target_tensor, prediction_tensor=prediction_tensor,
+            spatial_coeff_matrix=spatial_coeff_matrix,
+            frequency_coeff_matrix=frequency_coeff_matrix,
+            orig_num_rows=orig_num_rows, orig_num_columns=orig_num_columns
+        )[:2]
+
+        gerrity_value = get_gerrity_score(
+            target_tensor=target_tensor, prediction_tensor=prediction_tensor,
+            mask_matrix=mask_matrix
+        )
+
+        if use_as_loss_function:
+            return 1. - gerrity_value
+
+        return gerrity_value
+
+    if function_name is not None:
+        gerrity_function.__name__ = function_name
+
+    return gerrity_function
+
+
 def frequency_bias(spatial_coeff_matrix, frequency_coeff_matrix, mask_matrix,
                    function_name=None):
     """Creates function to compute frequency bias at a given scale.
@@ -565,7 +857,7 @@ def pixelwise_fss(spatial_coeff_matrix, frequency_coeff_matrix, mask_matrix,
     :param spatial_coeff_matrix: See doc for `_check_input_args`.
     :param frequency_coeff_matrix: Same.
     :param mask_matrix: Same.
-    :param use_as_loss_function: Boolean flag.  If True, will return 1 - CSI, to
+    :param use_as_loss_function: Boolean flag.  If True, will return 1 - FSS, to
         use as negatively oriented loss function.
     :param function_name: See doc for `_check_input_args`.
     :return: pixelwise_fss_function: Function (defined below).
@@ -623,7 +915,7 @@ def iou(spatial_coeff_matrix, frequency_coeff_matrix, mask_matrix,
     :param spatial_coeff_matrix: See doc for `_check_input_args`.
     :param frequency_coeff_matrix: Same.
     :param mask_matrix: Same.
-    :param use_as_loss_function: Boolean flag.  If True, will return 1 - CSI, to
+    :param use_as_loss_function: Boolean flag.  If True, will return 1 - IOU, to
         use as negatively oriented loss function.
     :param function_name: See doc for `_check_input_args`.
     :return: iou_function: Function (defined below).
@@ -740,8 +1032,8 @@ def dice_coeff(
     :param spatial_coeff_matrix: See doc for `_check_input_args`.
     :param frequency_coeff_matrix: Same.
     :param mask_matrix: Same.
-    :param use_as_loss_function: Boolean flag.  If True, will return 1 - CSI, to
-        use as negatively oriented loss function.
+    :param use_as_loss_function: Boolean flag.  If True, will return 1 minus
+        Dice coeff, to use as negatively oriented loss function.
     :param function_name: See doc for `_check_input_args`.
     :return: dice_function: Function (defined below).
     """
@@ -789,128 +1081,6 @@ def dice_coeff(
         dice_function.__name__ = function_name
 
     return dice_function
-
-
-def metrics(spatial_coeff_matrix, frequency_coeff_matrix, mask_matrix,
-            metric_names, function_name=None):
-    """Creates function to compute several metrics at a given scale.
-
-    :param spatial_coeff_matrix: See doc for `_check_input_args`.
-    :param frequency_coeff_matrix: Same.
-    :param mask_matrix: Same.
-    :param metric_names: 1-D list of metric names (strings).  Each metric name
-        should start with the name of a score (accepted by `_check_score_name`),
-        followed by an underscore.
-    :param function_name: Name of this function (may be None).
-    :return: metrics_function: Function (defined below).
-    """
-
-    error_checking.assert_is_string_list(metric_names)
-    score_names = [n.split('_')[0] for n in metric_names]
-    for this_score_name in score_names:
-        _check_score_name(this_score_name)
-
-    argument_dict = _check_input_args(
-        spatial_coeff_matrix=spatial_coeff_matrix,
-        frequency_coeff_matrix=frequency_coeff_matrix,
-        mask_matrix=mask_matrix, function_name=function_name
-    )
-
-    spatial_coeff_matrix = argument_dict[SPATIAL_COEFFS_KEY]
-    frequency_coeff_matrix = argument_dict[FREQUENCY_COEFFS_KEY]
-    mask_matrix = argument_dict[MASK_KEY]
-    orig_num_rows = argument_dict[ORIG_NUM_ROWS_KEY]
-    orig_num_columns = argument_dict[ORIG_NUM_COLUMNS_KEY]
-
-    def metrics_function(target_tensor, prediction_tensor):
-        """Computes several metrics at a given scale.
-
-        :param target_tensor: Tensor of target (actual) values.
-        :param prediction_tensor: Tensor of predicted values.
-        :return: metrics_dict: Dictionary, where each key is a metric name and
-            each value is a metric value (scalar).
-        """
-
-        (
-            target_tensor, prediction_tensor,
-            target_coeff_tensor, predicted_coeff_tensor
-        ) = _filter_fields(
-            target_tensor=target_tensor, prediction_tensor=prediction_tensor,
-            spatial_coeff_matrix=spatial_coeff_matrix,
-            frequency_coeff_matrix=frequency_coeff_matrix,
-            orig_num_rows=orig_num_rows, orig_num_columns=orig_num_columns
-        )
-
-        metrics_dict = dict()
-
-        for i in range(len(metric_names)):
-            if score_names[i] == BRIER_SCORE_NAME:
-                metrics_dict[metric_names[i]] = get_brier_score(
-                    target_tensor=target_tensor,
-                    prediction_tensor=prediction_tensor,
-                    mask_matrix=mask_matrix
-                )
-            elif score_names[i] == CSI_NAME:
-                metrics_dict[metric_names[i]] = get_csi(
-                    target_tensor=target_tensor,
-                    prediction_tensor=prediction_tensor,
-                    mask_matrix=mask_matrix
-                )
-            elif score_names[i] == FREQUENCY_BIAS_NAME:
-                metrics_dict[metric_names[i]] = get_frequency_bias(
-                    target_tensor=target_tensor,
-                    prediction_tensor=prediction_tensor,
-                    mask_matrix=mask_matrix
-                )
-            elif score_names[i] == FSS_NAME:
-                metrics_dict[metric_names[i]] = get_pixelwise_fss(
-                    target_tensor=target_tensor,
-                    prediction_tensor=prediction_tensor,
-                    mask_matrix=mask_matrix
-                )
-            elif score_names[i] == IOU_NAME:
-                metrics_dict[metric_names[i]] = get_iou(
-                    target_tensor=target_tensor,
-                    prediction_tensor=prediction_tensor,
-                    mask_matrix=mask_matrix
-                )
-            elif score_names[i] == ALL_CLASS_IOU_NAME:
-                metrics_dict[metric_names[i]] = get_all_class_iou(
-                    target_tensor=target_tensor,
-                    prediction_tensor=prediction_tensor,
-                    mask_matrix=mask_matrix
-                )
-            elif score_names[i] == DICE_COEFF_NAME:
-                metrics_dict[metric_names[i]] = get_dice_coeff(
-                    target_tensor=target_tensor,
-                    prediction_tensor=prediction_tensor,
-                    mask_matrix=mask_matrix
-                )
-            elif score_names[i] == REAL_FREQ_MSE_NAME:
-                metrics_dict[metric_names[i]] = _get_frequency_domain_mse(
-                    target_coeff_tensor=target_coeff_tensor,
-                    predicted_coeff_tensor=predicted_coeff_tensor,
-                    include_real=True, include_imaginary=False
-                )
-            elif score_names[i] == IMAGINARY_FREQ_MSE_NAME:
-                metrics_dict[metric_names[i]] = _get_frequency_domain_mse(
-                    target_coeff_tensor=target_coeff_tensor,
-                    predicted_coeff_tensor=predicted_coeff_tensor,
-                    include_real=False, include_imaginary=True
-                )
-            else:
-                metrics_dict[metric_names[i]] = _get_frequency_domain_mse(
-                    target_coeff_tensor=target_coeff_tensor,
-                    predicted_coeff_tensor=predicted_coeff_tensor,
-                    include_real=True, include_imaginary=True
-                )
-
-        return metrics_dict
-
-    if function_name is not None:
-        metrics_function.__name__ = function_name
-
-    return metrics_function
 
 
 def frequency_domain_mse_real(
