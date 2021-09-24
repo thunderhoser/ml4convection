@@ -2,6 +2,7 @@
 
 import os
 import sys
+import glob
 import argparse
 from PIL import Image
 import numpy
@@ -330,9 +331,9 @@ def _run(experiment_dir_name, matching_distance_px, output_dir_name):
 
     for i in range(num_base_loss_functions):
         for j in range(num_filters):
-            this_score_file_name = (
+            this_score_file_pattern = (
                 '{0:s}/{1:s}_wavelets{2:d}_min-resolution-deg={3:.4f}_'
-                'max-resolution-deg={4:.4f}/'
+                'max-resolution-deg={4:.4f}/model*/'
                 'validation_best_validation_loss/full_grids/evaluation/'
                 'matching_distance_px={5:.6f}/'
                 'advanced_scores_gridded=0.p'
@@ -343,6 +344,7 @@ def _run(experiment_dir_name, matching_distance_px, output_dir_name):
                 matching_distance_px
             )
 
+            this_score_file_name = glob.glob(this_score_file_pattern)[0]
             print('Reading data from: "{0:s}"...'.format(
                 this_score_file_name
             ))
