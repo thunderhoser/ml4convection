@@ -55,7 +55,7 @@ while ($i <= ${#BASE_LOSS_FUNCTION_NAMES})
         @ j = $j + 1
     end
     
-    set model_descriptions_string="FT_0.0000--0.0125-deg_${BASE_LOSS_FUNCTION_NAMES_FANCY[$i]} FT_0.0125--0.0250-deg_${BASE_LOSS_FUNCTION_NAMES_FANCY[$i]} FT_0.0250--0.0500-deg_${BASE_LOSS_FUNCTION_NAMES_FANCY[$i]} FT_0.0500--0.1000-deg_${BASE_LOSS_FUNCTION_NAMES_FANCY[$i]} FT_0.1000--0.2000-deg_${BASE_LOSS_FUNCTION_NAMES_FANCY[$i]} FT_0.2000--0.4000-deg_${BASE_LOSS_FUNCTION_NAMES_FANCY[$i]} FT_0.4000--0.8000-deg_${BASE_LOSS_FUNCTION_NAMES_FANCY[$i]} FT_0.8000--inf-deg_${BASE_LOSS_FUNCTION_NAMES_FANCY[$i]}"
+    set model_descriptions_string="FT_0--0.05-deg_${BASE_LOSS_FUNCTION_NAMES_FANCY[$i]} FT_0--0.01-deg_${BASE_LOSS_FUNCTION_NAMES_FANCY[$i]} FT_0--0.2-deg_${BASE_LOSS_FUNCTION_NAMES_FANCY[$i]} FT_0--0.4-deg_${BASE_LOSS_FUNCTION_NAMES_FANCY[$i]} FT_0.05--inf-deg_${BASE_LOSS_FUNCTION_NAMES_FANCY[$i]} FT_0.1--inf-deg_${BASE_LOSS_FUNCTION_NAMES_FANCY[$i]} FT_0.2--inf-deg_${BASE_LOSS_FUNCTION_NAMES_FANCY[$i]} FT_0.4--inf-deg_${BASE_LOSS_FUNCTION_NAMES_FANCY[$i]}"
 
     python3 -u "${CODE_DIR_NAME}/make_prediction_comparison_figure.py" \
     --input_prediction_dir_names ${prediction_dir_names_string} \
@@ -83,7 +83,7 @@ while ($i <= ${#BASE_LOSS_FUNCTION_NAMES})
         @ j = $j + 1
     end
     
-    set model_descriptions_string="WT_0.0000--0.0125-deg_${BASE_LOSS_FUNCTION_NAMES_FANCY[$i]} WT_0.0125--0.0250-deg_${BASE_LOSS_FUNCTION_NAMES_FANCY[$i]} WT_0.0250--0.0500-deg_${BASE_LOSS_FUNCTION_NAMES_FANCY[$i]} WT_0.0500--0.1000-deg_${BASE_LOSS_FUNCTION_NAMES_FANCY[$i]} WT_0.1000--0.2000-deg_${BASE_LOSS_FUNCTION_NAMES_FANCY[$i]} WT_0.2000--0.4000-deg_${BASE_LOSS_FUNCTION_NAMES_FANCY[$i]} WT_0.4000--0.8000-deg_${BASE_LOSS_FUNCTION_NAMES_FANCY[$i]} WT_0.8000--inf-deg_${BASE_LOSS_FUNCTION_NAMES_FANCY[$i]}"
+    set model_descriptions_string="WT_0--0.05-deg_${BASE_LOSS_FUNCTION_NAMES_FANCY[$i]} WT_0--0.01-deg_${BASE_LOSS_FUNCTION_NAMES_FANCY[$i]} WT_0--0.2-deg_${BASE_LOSS_FUNCTION_NAMES_FANCY[$i]} WT_0--0.4-deg_${BASE_LOSS_FUNCTION_NAMES_FANCY[$i]} WT_0.05--inf-deg_${BASE_LOSS_FUNCTION_NAMES_FANCY[$i]} WT_0.1--inf-deg_${BASE_LOSS_FUNCTION_NAMES_FANCY[$i]} WT_0.2--inf-deg_${BASE_LOSS_FUNCTION_NAMES_FANCY[$i]} WT_0.4--inf-deg_${BASE_LOSS_FUNCTION_NAMES_FANCY[$i]}"
 
     python3 -u "${CODE_DIR_NAME}/make_prediction_comparison_figure.py" \
     --input_prediction_dir_names ${prediction_dir_names_string} \
