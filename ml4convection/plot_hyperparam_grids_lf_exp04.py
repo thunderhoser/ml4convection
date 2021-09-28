@@ -387,16 +387,16 @@ def _run(experiment_dir_name, matching_distance_px, output_dir_name):
     _print_ranking_one_score(score_matrix=bss_matrix, score_name='BSS')
     print(SEPARATOR_STRING)
 
-    this_index = numpy.argmax(numpy.ravel(aupd_matrix))
+    this_index = numpy.nanargmax(numpy.ravel(aupd_matrix))
     max_aupd_indices = numpy.unravel_index(this_index, aupd_matrix.shape)
 
-    this_index = numpy.argmax(numpy.ravel(max_csi_matrix))
+    this_index = numpy.nanargmax(numpy.ravel(max_csi_matrix))
     max_csi_indices = numpy.unravel_index(this_index, max_csi_matrix.shape)
 
-    this_index = numpy.argmax(numpy.ravel(fss_matrix))
+    this_index = numpy.nanargmax(numpy.ravel(fss_matrix))
     max_fss_indices = numpy.unravel_index(this_index, fss_matrix.shape)
 
-    this_index = numpy.argmax(numpy.ravel(bss_matrix))
+    this_index = numpy.nanargmax(numpy.ravel(bss_matrix))
     max_bss_indices = numpy.unravel_index(this_index, bss_matrix.shape)
 
     # Plot AUPD.

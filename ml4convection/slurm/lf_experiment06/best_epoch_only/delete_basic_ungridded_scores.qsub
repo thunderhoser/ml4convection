@@ -1,0 +1,50 @@
+#!/bin/tcsh
+
+#SBATCH --job-name="delete_basic_ungridded_scores"
+#SBATCH --partition="fge"
+#SBATCH --account="rda-ghpcs"
+#SBATCH --qos="batch"
+#SBATCH --ntasks=1
+#SBATCH --nodes=1
+#SBATCH --cpus-per-task=1
+##SBATCH --nodes=1
+##SBATCH --ntasks=1
+##SBATCH --cpus-per-task=1
+##SBATCH --ntasks-per-node=1
+#SBATCH --time=01:00:00
+#SBATCH --array=1-72
+#SBATCH --exclude=h28n12
+##SBATCH --exclude=h31n03,h28n12
+##SBATCH --exclude=h29n01,h26n05,h28n06,h29n07,h30n03,h30n15
+#SBATCH --mail-type=BEGIN,END,FAIL
+#SBATCH --mail-user=ryan.lagerquist@noaa.gov
+#SBATCH --output=delete_basic_ungridded_scores_%A_%a.out
+
+module load cuda/10.1
+source /scratch2/BMC/gsd-hpcs/Jebb.Q.Stewart/conda3.7/etc/profile.d/conda.csh
+conda activate base
+
+set CODE_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_standalone/ml4convection"
+set TOP_MODEL_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_models/lf_experiment06"
+
+set LOSS_FUNCTION_NAMES=("brier-neigh0" "brier-neigh1" "brier-neigh2" "brier-neigh3" "brier-neigh4" "brier-neigh6" "brier-neigh8" "brier-neigh12" "fss-neigh0" "fss-neigh1" "fss-neigh2" "fss-neigh3" "fss-neigh4" "fss-neigh6" "fss-neigh8" "fss-neigh12" "csi-neigh0" "csi-neigh1" "csi-neigh2" "csi-neigh3" "csi-neigh4" "csi-neigh6" "csi-neigh8" "csi-neigh12" "iou-neigh0" "iou-neigh1" "iou-neigh2" "iou-neigh3" "iou-neigh4" "iou-neigh6" "iou-neigh8" "iou-neigh12" "all-class-iou-neigh0" "all-class-iou-neigh1" "all-class-iou-neigh2" "all-class-iou-neigh3" "all-class-iou-neigh4" "all-class-iou-neigh6" "all-class-iou-neigh8" "all-class-iou-neigh12" "dice-neigh0" "dice-neigh1" "dice-neigh2" "dice-neigh3" "dice-neigh4" "dice-neigh6" "dice-neigh8" "dice-neigh12" "heidke-neigh0" "heidke-neigh1" "heidke-neigh2" "heidke-neigh3" "heidke-neigh4" "heidke-neigh6" "heidke-neigh8" "heidke-neigh12" "peirce-neigh0" "peirce-neigh1" "peirce-neigh2" "peirce-neigh3" "peirce-neigh4" "peirce-neigh6" "peirce-neigh8" "peirce-neigh12" "gerrity-neigh0" "gerrity-neigh1" "gerrity-neigh2" "gerrity-neigh3" "gerrity-neigh4" "gerrity-neigh6" "gerrity-neigh8" "gerrity-neigh12")
+set loss_function_name=${LOSS_FUNCTION_NAMES[$SLURM_ARRAY_TASK_ID]}
+
+set top_model_dir_name="${TOP_MODEL_DIR_NAME}/${loss_function_name}"
+
+set MATCHING_DISTANCES_PX=("4.000000")
+set j=1
+
+while ($j <= ${#MATCHING_DISTANCES_PX})
+    set evaluation_dir_names={${top_model_dir_name}/model*/validation_best_validation_loss/full_grids/evaluation/matching_distance_px=${MATCHING_DISTANCES_PX[$j]}}
+    set evaluation_dir_name=${evaluation_dir_names[$#evaluation_dir_names]}
+    
+    python3 -u "${CODE_DIR_NAME}/delete_basic_scores.py" \
+    --evaluation_dir_name="${evaluation_dir_name}" \
+    --first_date_string="20170101" \
+    --last_date_string="20171224" \
+    --gridded=0 \
+    --use_partial_grids=0
+
+    @ j = $j + 1
+end
