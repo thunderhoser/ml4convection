@@ -45,7 +45,7 @@ set max_target_resolution_deg=`printf "%.4f" $max_target_resolution_deg`
 set top_model_dir_name="${TOP_MODEL_DIR_NAME}/${base_loss_function_name}_wavelets${wavelet_transform_targets}_min-resolution-deg=${min_target_resolution_deg}_max-resolution-deg=${max_target_resolution_deg}"
 
 python3 -u "${CODE_DIR_NAME}/compute_advanced_learning_curves.py" \
---input_basic_score_dir_name="${top_model_dir_name}/model*/validation/partial_grids/learning_curves" \
+--input_basic_score_dir_name="${top_model_dir_name}/model*/validation_best_validation_loss/partial_grids/learning_curves" \
 --first_date_string="20170101" \
 --last_date_string="20171212" \
 --output_file_name=""
