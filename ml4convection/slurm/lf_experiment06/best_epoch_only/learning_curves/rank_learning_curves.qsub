@@ -27,5 +27,4 @@ set CODE_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_stan
 set TOP_MODEL_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_models/lf_experiment06"
 
 python3 -u "${CODE_DIR_NAME}/rank_learning_curves_exp6.py" \
---input_experiment_dir_name="${TOP_MODEL_DIR_NAME}" \
---output_dir_name="${TOP_MODEL_DIR_NAME}/hyperparam_grids"
+--input_experiment_dir_name="${TOP_MODEL_DIR_NAME}"
