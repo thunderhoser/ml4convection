@@ -1,6 +1,6 @@
 #!/bin/tcsh
 
-#SBATCH --job-name="compute_advanced_learning_curves"
+#SBATCH --job-name="compute_basic_learning_curves"
 #SBATCH --partition="fge"
 #SBATCH --account="rda-ghpcs"
 #SBATCH --qos="batch"
@@ -18,7 +18,7 @@
 ##SBATCH --exclude=h29n01,h26n05,h28n06,h29n07,h30n03,h30n15
 #SBATCH --mail-type=BEGIN,END,FAIL
 #SBATCH --mail-user=ryan.lagerquist@noaa.gov
-#SBATCH --output=compute_advanced_learning_curves_%A_%a.out
+#SBATCH --output=compute_basic_learning_curves_%A_%a.out
 
 module load cuda/10.1
 source /scratch2/BMC/gsd-hpcs/Jebb.Q.Stewart/conda3.7/etc/profile.d/conda.csh
@@ -33,9 +33,23 @@ set LOSS_FUNCTION_NAMES=("brier-neigh0" "brier-neigh1" "brier-neigh2" "brier-nei
 set loss_function_name=${LOSS_FUNCTION_NAMES[$SLURM_ARRAY_TASK_ID]}
 
 set top_model_dir_name="${TOP_MODEL_DIR_NAME}/${loss_function_name}"
+set model_file_names={${top_model_dir_name}/model*.h5}
 
-python3 -u "${CODE_DIR_NAME}/compute_advanced_learning_curves.py" \
---input_basic_score_dir_name="${top_model_dir_name}/model*/validation/partial_grids/learning_curves" \
---first_date_string="20170101" \
---last_date_string="20171212" \
---output_file_name=""
+set i=1
+
+while ($i <= ${#model_file_names})
+    set model_file_name=${model_file_names[$i]}
+    set model_dir_name=`echo $model_file_name | rev | cut -c 4- | rev`
+    set prediction_dir_name="${model_dir_name}/validation/partial_grids"
+    set output_dir_name="${prediction_dir_name}/learning_curves"
+    
+    python3 -u "${CODE_DIR_NAME}/compute_basic_learning_curves.py" \
+    --input_prediction_dir_name="${prediction_dir_name}" \
+    --valid_date_strings "20170101" "20170202" "20170303" "20170404" "20170505" "20170606" "20170707" "20170808" "20170909" "20171010" "20171111" "20171212" \
+    --neigh_distances_px 0 1 2 3 4 6 8 12 \
+    --min_resolutions_deg 0 0.0125 0.025 0.05 0.1 0.2 0.4 0.8 0 0 0 0 0.05 0.1 0.2 0.4 \
+    --max_resolutions_deg 0.0125 0.025 0.05 0.1 0.2 0.4 0.8 10000000000 0.05 0.1 0.2 0.4 10000000000 10000000000 10000000000 10000000000 \
+    --output_dir_name="${output_dir_name}"
+
+    @ i = $i + 2
+end
