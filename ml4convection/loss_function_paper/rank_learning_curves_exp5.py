@@ -217,8 +217,8 @@ def _read_scores_one_model(
     )
 
     score_file_pattern = (
-        '{0:s}/{1:s}/model*/validation/partial_grids/learning_curves/'
-        'advanced_scores.nc'
+        '{0:s}/{1:s}/model*/validation_best_validation_loss/partial_grids/'
+        'learning_curves/advanced_scores.nc'
     ).format(
         experiment_dir_name, this_string
     )

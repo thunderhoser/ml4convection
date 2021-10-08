@@ -1333,13 +1333,19 @@ def get_advanced_scores(basic_score_table_xarray):
             FOURIER_IOU_KEY: (these_dim, this_array + 0.),
             FOURIER_DICE_COEFF_KEY: (these_dim, this_array + 0.),
             FOURIER_CSI_KEY: (these_dim, this_array + 0.),
+            FOURIER_PEIRCE_SCORE_KEY: (these_dim, this_array + 0.),
+            FOURIER_GERRITY_SCORE_KEY: (these_dim, this_array + 0.),
+            FOURIER_HEIDKE_SCORE_KEY: (these_dim, this_array + 0.),
             WAVELET_COEFF_MSE_MEAN_KEY: (these_dim, this_array + 0.),
             WAVELET_COEFF_MSE_DETAIL_KEY: (these_dim, this_array + 0.),
             WAVELET_BRIER_SCORE_KEY: (these_dim, this_array + 0.),
             WAVELET_FSS_KEY: (these_dim, this_array + 0.),
             WAVELET_IOU_KEY: (these_dim, this_array + 0.),
             WAVELET_DICE_COEFF_KEY: (these_dim, this_array + 0.),
-            WAVELET_CSI_KEY: (these_dim, this_array + 0.)
+            WAVELET_CSI_KEY: (these_dim, this_array + 0.),
+            WAVELET_PEIRCE_SCORE_KEY: (these_dim, this_array + 0.),
+            WAVELET_GERRITY_SCORE_KEY: (these_dim, this_array + 0.),
+            WAVELET_HEIDKE_SCORE_KEY: (these_dim, this_array + 0.)
         }
         main_data_dict.update(new_dict)
 
