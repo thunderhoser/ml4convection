@@ -44,8 +44,10 @@ NEIGH_BRIER_SSE_KEY = 'neigh_brier_sse'
 NEIGH_BRIER_NUM_VALS_KEY = 'neigh_brier_num_values'
 NEIGH_FSS_ACTUAL_SSE_KEY = 'neigh_fss_actual_sse'
 NEIGH_FSS_REFERENCE_SSE_KEY = 'neigh_fss_reference_sse'
-NEIGH_IOU_INTERSECTION_KEY = 'neigh_iou_intersection'
-NEIGH_IOU_UNION_KEY = 'neigh_iou_union'
+NEIGH_IOU_POS_ISCTN_KEY = 'neigh_iou_positive_intersection'
+NEIGH_IOU_POS_UNION_KEY = 'neigh_iou_positive_union'
+NEIGH_IOU_NEG_ISCTN_KEY = 'neigh_iou_negative_intersection'
+NEIGH_IOU_NEG_UNION_KEY = 'neigh_iou_negative_union'
 NEIGH_DICE_INTERSECTION_KEY = 'neigh_dice_intersection'
 NEIGH_DICE_NUM_PIX_KEY = 'neigh_dice_num_pixels'
 NEIGH_PRED_ORIENTED_TP_KEY = 'neigh_pred_oriented_true_positives'
@@ -62,8 +64,10 @@ FOURIER_BRIER_SSE_KEY = 'fourier_brier_sse'
 FOURIER_BRIER_NUM_VALS_KEY = 'fourier_brier_num_values'
 FOURIER_FSS_ACTUAL_SSE_KEY = 'fourier_fss_actual_sse'
 FOURIER_FSS_REFERENCE_SSE_KEY = 'fourier_fss_reference_sse'
-FOURIER_IOU_INTERSECTION_KEY = 'fourier_iou_intersection'
-FOURIER_IOU_UNION_KEY = 'fourier_iou_union'
+FOURIER_IOU_POS_ISCTN_KEY = 'fourier_iou_positive_intersection'
+FOURIER_IOU_POS_UNION_KEY = 'fourier_iou_positive_union'
+FOURIER_IOU_NEG_ISCTN_KEY = 'fourier_iou_negative_intersection'
+FOURIER_IOU_NEG_UNION_KEY = 'fourier_iou_negative_union'
 FOURIER_DICE_INTERSECTION_KEY = 'fourier_dice_intersection'
 FOURIER_DICE_NUM_PIX_KEY = 'fourier_dice_num_pixels'
 FOURIER_TRUE_POSITIVES_KEY = 'fourier_num_true_positives'
@@ -80,8 +84,10 @@ WAVELET_BRIER_SSE_KEY = 'wavelet_brier_sse'
 WAVELET_BRIER_NUM_VALS_KEY = 'wavelet_brier_num_values'
 WAVELET_FSS_ACTUAL_SSE_KEY = 'wavelet_fss_actual_sse'
 WAVELET_FSS_REFERENCE_SSE_KEY = 'wavelet_fss_reference_sse'
-WAVELET_IOU_INTERSECTION_KEY = 'wavelet_iou_intersection'
-WAVELET_IOU_UNION_KEY = 'wavelet_iou_union'
+WAVELET_IOU_POS_ISCTN_KEY = 'wavelet_iou_positive_intersection'
+WAVELET_IOU_POS_UNION_KEY = 'wavelet_iou_positive_union'
+WAVELET_IOU_NEG_ISCTN_KEY = 'wavelet_iou_negative_intersection'
+WAVELET_IOU_NEG_UNION_KEY = 'wavelet_iou_negative_union'
 WAVELET_DICE_INTERSECTION_KEY = 'wavelet_dice_intersection'
 WAVELET_DICE_NUM_PIX_KEY = 'wavelet_dice_num_pixels'
 WAVELET_TRUE_POSITIVES_KEY = 'wavelet_num_true_positives'
@@ -92,6 +98,7 @@ WAVELET_TRUE_NEGATIVES_KEY = 'wavelet_num_true_negatives'
 NEIGH_BRIER_SCORE_KEY = 'neigh_brier_score'
 NEIGH_FSS_KEY = 'neigh_fss'
 NEIGH_IOU_KEY = 'neigh_iou'
+NEIGH_ALL_CLASS_IOU_KEY = 'neigh_all_class_iou'
 NEIGH_DICE_COEFF_KEY = 'neigh_dice_coeff'
 NEIGH_CSI_KEY = 'neigh_csi'
 
@@ -101,6 +108,7 @@ FOURIER_COEFF_MSE_TOTAL_KEY = 'fourier_coeff_mse_total'
 FOURIER_BRIER_SCORE_KEY = 'fourier_brier_score'
 FOURIER_FSS_KEY = 'fourier_fss'
 FOURIER_IOU_KEY = 'fourier_iou'
+FOURIER_ALL_CLASS_IOU_KEY = 'fourier_all_class_iou'
 FOURIER_DICE_COEFF_KEY = 'fourier_dice_coeff'
 FOURIER_CSI_KEY = 'fourier_csi'
 FOURIER_PEIRCE_SCORE_KEY = 'fourier_peirce_score'
@@ -112,6 +120,7 @@ WAVELET_COEFF_MSE_DETAIL_KEY = 'wavelet_coeff_mse_imaginary'
 WAVELET_BRIER_SCORE_KEY = 'wavelet_brier_score'
 WAVELET_FSS_KEY = 'wavelet_fss'
 WAVELET_IOU_KEY = 'wavelet_iou'
+WAVELET_ALL_CLASS_IOU_KEY = 'wavelet_all_class_iou'
 WAVELET_DICE_COEFF_KEY = 'wavelet_dice_coeff'
 WAVELET_CSI_KEY = 'wavelet_csi'
 WAVELET_PEIRCE_SCORE_KEY = 'wavelet_peirce_score'
@@ -487,8 +496,12 @@ def _get_iou_components_one_time(
     :param probability_matrix: Same.
     :param eval_mask_matrix: Same.
     :param matching_distance_px: Same.
-    :return: intersection: Intersection (numerator of IOU).
-    :return: union: Union (denominator of IOU).
+    :return: positive_intersection: Intersection (numerator of IOU) for positive
+        class.
+    :return: positive_union: Union (denominator of IOU) for positive class.
+    :return: negative_intersection: Intersection (numerator of IOU) for negative
+        class.
+    :return: negative_union: Union (denominator of IOU) for negative class.
     """
 
     if matching_distance_px is None:
@@ -499,15 +512,32 @@ def _get_iou_components_one_time(
             half_width_px=matching_distance_px
         ).astype(int)
 
-    product_matrix = probability_matrix * this_actual_target_matrix
-    product_matrix[eval_mask_matrix.astype(bool) == False] = numpy.nan
-    intersection = numpy.nansum(product_matrix)
+    this_product_matrix = probability_matrix * this_actual_target_matrix
+    this_product_matrix[eval_mask_matrix.astype(bool) == False] = numpy.nan
+    positive_intersection = numpy.nansum(this_product_matrix)
 
-    max_matrix = numpy.maximum(probability_matrix, this_actual_target_matrix)
-    max_matrix[eval_mask_matrix.astype(bool) == False] = numpy.nan
-    union = numpy.nansum(max_matrix)
+    this_max_matrix = numpy.maximum(
+        probability_matrix, this_actual_target_matrix
+    )
+    this_max_matrix[eval_mask_matrix.astype(bool) == False] = numpy.nan
+    positive_union = numpy.nansum(this_max_matrix)
 
-    return intersection, union
+    this_product_matrix = (
+        (1 - probability_matrix) * (1 - this_actual_target_matrix)
+    )
+    this_product_matrix[eval_mask_matrix.astype(bool) == False] = numpy.nan
+    negative_intersection = numpy.nansum(this_product_matrix)
+
+    this_max_matrix = numpy.maximum(
+        1 - probability_matrix, 1 - this_actual_target_matrix
+    )
+    this_max_matrix[eval_mask_matrix.astype(bool) == False] = numpy.nan
+    negative_union = numpy.nansum(this_max_matrix)
+
+    return (
+        positive_intersection, positive_union,
+        negative_intersection, negative_union
+    )
 
 
 def _get_dice_components_one_time(
@@ -738,8 +768,10 @@ def get_basic_scores(
             NEIGH_BRIER_NUM_VALS_KEY: (these_dim, this_array + 0.),
             NEIGH_FSS_ACTUAL_SSE_KEY: (these_dim, this_array + 0.),
             NEIGH_FSS_REFERENCE_SSE_KEY: (these_dim, this_array + 0.),
-            NEIGH_IOU_INTERSECTION_KEY: (these_dim, this_array + 0.),
-            NEIGH_IOU_UNION_KEY: (these_dim, this_array + 0.),
+            NEIGH_IOU_POS_ISCTN_KEY: (these_dim, this_array + 0.),
+            NEIGH_IOU_POS_UNION_KEY: (these_dim, this_array + 0.),
+            NEIGH_IOU_NEG_ISCTN_KEY: (these_dim, this_array + 0.),
+            NEIGH_IOU_NEG_UNION_KEY: (these_dim, this_array + 0.),
             NEIGH_DICE_INTERSECTION_KEY: (these_dim, this_array + 0.),
             NEIGH_DICE_NUM_PIX_KEY: (these_dim, this_array + 0.),
             NEIGH_PRED_ORIENTED_TP_KEY: (these_dim, this_array + 0.),
@@ -765,8 +797,10 @@ def get_basic_scores(
             FOURIER_BRIER_NUM_VALS_KEY: (these_dim, this_array + 0.),
             FOURIER_FSS_ACTUAL_SSE_KEY: (these_dim, this_array + 0.),
             FOURIER_FSS_REFERENCE_SSE_KEY: (these_dim, this_array + 0.),
-            FOURIER_IOU_INTERSECTION_KEY: (these_dim, this_array + 0.),
-            FOURIER_IOU_UNION_KEY: (these_dim, this_array + 0.),
+            FOURIER_IOU_POS_ISCTN_KEY: (these_dim, this_array + 0.),
+            FOURIER_IOU_POS_UNION_KEY: (these_dim, this_array + 0.),
+            FOURIER_IOU_NEG_ISCTN_KEY: (these_dim, this_array + 0.),
+            FOURIER_IOU_NEG_UNION_KEY: (these_dim, this_array + 0.),
             FOURIER_DICE_INTERSECTION_KEY: (these_dim, this_array + 0.),
             FOURIER_DICE_NUM_PIX_KEY: (these_dim, this_array + 0.),
             FOURIER_TRUE_POSITIVES_KEY: (these_dim, this_array + 0.),
@@ -781,8 +815,10 @@ def get_basic_scores(
             WAVELET_BRIER_NUM_VALS_KEY: (these_dim, this_array + 0.),
             WAVELET_FSS_ACTUAL_SSE_KEY: (these_dim, this_array + 0.),
             WAVELET_FSS_REFERENCE_SSE_KEY: (these_dim, this_array + 0.),
-            WAVELET_IOU_INTERSECTION_KEY: (these_dim, this_array + 0.),
-            WAVELET_IOU_UNION_KEY: (these_dim, this_array + 0.),
+            WAVELET_IOU_POS_ISCTN_KEY: (these_dim, this_array + 0.),
+            WAVELET_IOU_POS_UNION_KEY: (these_dim, this_array + 0.),
+            WAVELET_IOU_NEG_ISCTN_KEY: (these_dim, this_array + 0.),
+            WAVELET_IOU_NEG_UNION_KEY: (these_dim, this_array + 0.),
             WAVELET_DICE_INTERSECTION_KEY: (these_dim, this_array + 0.),
             WAVELET_DICE_NUM_PIX_KEY: (these_dim, this_array + 0.),
             WAVELET_TRUE_POSITIVES_KEY: (these_dim, this_array + 0.),
@@ -855,8 +891,10 @@ def get_basic_scores(
                 )
 
                 (
-                    b[NEIGH_IOU_INTERSECTION_KEY].values[i, k],
-                    b[NEIGH_IOU_UNION_KEY].values[i, k]
+                    b[NEIGH_IOU_POS_ISCTN_KEY].values[i, k],
+                    b[NEIGH_IOU_POS_UNION_KEY].values[i, k],
+                    b[NEIGH_IOU_NEG_ISCTN_KEY].values[i, k],
+                    b[NEIGH_IOU_NEG_UNION_KEY].values[i, k]
                 ) = _get_iou_components_one_time(
                     actual_target_matrix=this_target_matrix,
                     probability_matrix=this_prob_matrix,
@@ -1005,8 +1043,10 @@ def get_basic_scores(
                 )
 
                 (
-                    b[FOURIER_IOU_INTERSECTION_KEY].values[i, k],
-                    b[FOURIER_IOU_UNION_KEY].values[i, k]
+                    b[FOURIER_IOU_POS_ISCTN_KEY].values[i, k],
+                    b[FOURIER_IOU_POS_UNION_KEY].values[i, k],
+                    b[FOURIER_IOU_NEG_ISCTN_KEY].values[i, k],
+                    b[FOURIER_IOU_NEG_UNION_KEY].values[i, k]
                 ) = _get_iou_components_one_time(
                     actual_target_matrix=fourier_target_matrix[k, i, ...],
                     probability_matrix=fourier_forecast_matrix[k, i, ...],
@@ -1072,8 +1112,10 @@ def get_basic_scores(
                 )
 
                 (
-                    b[WAVELET_IOU_INTERSECTION_KEY].values[i, k],
-                    b[WAVELET_IOU_UNION_KEY].values[i, k]
+                    b[WAVELET_IOU_POS_ISCTN_KEY].values[i, k],
+                    b[WAVELET_IOU_POS_UNION_KEY].values[i, k],
+                    b[WAVELET_IOU_NEG_ISCTN_KEY].values[i, k],
+                    b[WAVELET_IOU_NEG_UNION_KEY].values[i, k]
                 ) = _get_iou_components_one_time(
                     actual_target_matrix=wavelet_target_matrix[k, i, ...],
                     probability_matrix=wavelet_forecast_matrix[k, i, ...],
@@ -1322,6 +1364,7 @@ def get_advanced_scores(basic_score_table_xarray):
             NEIGH_BRIER_SCORE_KEY: (these_dim, this_array + 0.),
             NEIGH_FSS_KEY: (these_dim, this_array + 0.),
             NEIGH_IOU_KEY: (these_dim, this_array + 0.),
+            NEIGH_ALL_CLASS_IOU_KEY: (these_dim, this_array + 0.),
             NEIGH_DICE_COEFF_KEY: (these_dim, this_array + 0.),
             NEIGH_CSI_KEY: (these_dim, this_array + 0.)
         }
@@ -1338,6 +1381,7 @@ def get_advanced_scores(basic_score_table_xarray):
             FOURIER_BRIER_SCORE_KEY: (these_dim, this_array + 0.),
             FOURIER_FSS_KEY: (these_dim, this_array + 0.),
             FOURIER_IOU_KEY: (these_dim, this_array + 0.),
+            FOURIER_ALL_CLASS_IOU_KEY: (these_dim, this_array + 0.),
             FOURIER_DICE_COEFF_KEY: (these_dim, this_array + 0.),
             FOURIER_CSI_KEY: (these_dim, this_array + 0.),
             FOURIER_PEIRCE_SCORE_KEY: (these_dim, this_array + 0.),
@@ -1348,6 +1392,7 @@ def get_advanced_scores(basic_score_table_xarray):
             WAVELET_BRIER_SCORE_KEY: (these_dim, this_array + 0.),
             WAVELET_FSS_KEY: (these_dim, this_array + 0.),
             WAVELET_IOU_KEY: (these_dim, this_array + 0.),
+            WAVELET_ALL_CLASS_IOU_KEY: (these_dim, this_array + 0.),
             WAVELET_DICE_COEFF_KEY: (these_dim, this_array + 0.),
             WAVELET_CSI_KEY: (these_dim, this_array + 0.),
             WAVELET_PEIRCE_SCORE_KEY: (these_dim, this_array + 0.),
@@ -1371,9 +1416,15 @@ def get_advanced_scores(basic_score_table_xarray):
         denominators = numpy.sum(b[NEIGH_FSS_REFERENCE_SSE_KEY].values, axis=0)
         a[NEIGH_FSS_KEY].values = 1. - numerators / denominators
 
-        numerators = numpy.sum(b[NEIGH_IOU_INTERSECTION_KEY].values, axis=0)
-        denominators = numpy.sum(b[NEIGH_IOU_UNION_KEY].values, axis=0)
+        numerators = numpy.sum(b[NEIGH_IOU_POS_ISCTN_KEY].values, axis=0)
+        denominators = numpy.sum(b[NEIGH_IOU_POS_UNION_KEY].values, axis=0)
         a[NEIGH_IOU_KEY].values = numerators / denominators
+
+        numerators = numpy.sum(b[NEIGH_IOU_NEG_ISCTN_KEY].values, axis=0)
+        denominators = numpy.sum(b[NEIGH_IOU_NEG_UNION_KEY].values, axis=0)
+        a[NEIGH_ALL_CLASS_IOU_KEY].values = 0.5 * (
+            numerators / denominators + a[NEIGH_IOU_KEY].values
+        )
 
         numerators = numpy.sum(b[NEIGH_DICE_INTERSECTION_KEY].values, axis=0)
         denominators = numpy.sum(b[NEIGH_DICE_NUM_PIX_KEY].values, axis=0)
@@ -1417,9 +1468,15 @@ def get_advanced_scores(basic_score_table_xarray):
         )
         a[FOURIER_FSS_KEY].values = 1. - numerators / denominators
 
-        numerators = numpy.sum(b[FOURIER_IOU_INTERSECTION_KEY].values, axis=0)
-        denominators = numpy.sum(b[FOURIER_IOU_UNION_KEY].values, axis=0)
+        numerators = numpy.sum(b[FOURIER_IOU_POS_ISCTN_KEY].values, axis=0)
+        denominators = numpy.sum(b[FOURIER_IOU_POS_UNION_KEY].values, axis=0)
         a[FOURIER_IOU_KEY].values = numerators / denominators
+
+        numerators = numpy.sum(b[FOURIER_IOU_NEG_ISCTN_KEY].values, axis=0)
+        denominators = numpy.sum(b[FOURIER_IOU_NEG_UNION_KEY].values, axis=0)
+        a[FOURIER_ALL_CLASS_IOU_KEY].values = 0.5 * (
+            numerators / denominators + a[FOURIER_IOU_KEY].values
+        )
 
         numerators = numpy.sum(b[FOURIER_DICE_INTERSECTION_KEY].values, axis=0)
         denominators = numpy.sum(b[FOURIER_DICE_NUM_PIX_KEY].values, axis=0)
@@ -1467,9 +1524,15 @@ def get_advanced_scores(basic_score_table_xarray):
         )
         a[WAVELET_FSS_KEY].values = 1. - numerators / denominators
 
-        numerators = numpy.sum(b[WAVELET_IOU_INTERSECTION_KEY].values, axis=0)
-        denominators = numpy.sum(b[WAVELET_IOU_UNION_KEY].values, axis=0)
+        numerators = numpy.sum(b[WAVELET_IOU_POS_ISCTN_KEY].values, axis=0)
+        denominators = numpy.sum(b[WAVELET_IOU_POS_UNION_KEY].values, axis=0)
         a[WAVELET_IOU_KEY].values = numerators / denominators
+
+        numerators = numpy.sum(b[WAVELET_IOU_NEG_ISCTN_KEY].values, axis=0)
+        denominators = numpy.sum(b[WAVELET_IOU_NEG_UNION_KEY].values, axis=0)
+        a[WAVELET_ALL_CLASS_IOU_KEY].values = 0.5 * (
+            numerators / denominators + a[WAVELET_IOU_KEY].values
+        )
 
         numerators = numpy.sum(b[WAVELET_DICE_INTERSECTION_KEY].values, axis=0)
         denominators = numpy.sum(b[WAVELET_DICE_NUM_PIX_KEY].values, axis=0)
