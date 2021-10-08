@@ -159,8 +159,10 @@ MAIN_DATA_DICT = {
     learning_curves.NEIGH_BRIER_NUM_VALS_KEY: (THESE_DIM, THIS_ARRAY + 0.),
     learning_curves.NEIGH_FSS_ACTUAL_SSE_KEY: (THESE_DIM, THIS_ARRAY + 0.),
     learning_curves.NEIGH_FSS_REFERENCE_SSE_KEY: (THESE_DIM, THIS_ARRAY + 0.),
-    learning_curves.NEIGH_IOU_INTERSECTION_KEY: (THESE_DIM, THIS_ARRAY + 0.),
-    learning_curves.NEIGH_IOU_UNION_KEY: (THESE_DIM, THIS_ARRAY + 0.),
+    learning_curves.NEIGH_IOU_POS_ISCTN_KEY: (THESE_DIM, THIS_ARRAY + 0.),
+    learning_curves.NEIGH_IOU_POS_UNION_KEY: (THESE_DIM, THIS_ARRAY + 0.),
+    learning_curves.NEIGH_IOU_NEG_ISCTN_KEY: (THESE_DIM, THIS_ARRAY + 0.),
+    learning_curves.NEIGH_IOU_NEG_UNION_KEY: (THESE_DIM, THIS_ARRAY + 0.),
     learning_curves.NEIGH_DICE_INTERSECTION_KEY: (THESE_DIM, THIS_ARRAY + 0.),
     learning_curves.NEIGH_DICE_NUM_PIX_KEY: (THESE_DIM, THIS_ARRAY + 0.),
     learning_curves.NEIGH_PRED_ORIENTED_TP_KEY: (THESE_DIM, THIS_ARRAY + 0.),
@@ -214,14 +216,24 @@ B[learning_curves.NEIGH_FSS_REFERENCE_SSE_KEY].values = numpy.array([
     [200, 200, 200, 200, 200]
 ], dtype=float)
 
-B[learning_curves.NEIGH_IOU_INTERSECTION_KEY].values = numpy.array([
+B[learning_curves.NEIGH_IOU_POS_ISCTN_KEY].values = numpy.array([
     [10, 20, 30, 40, 50],
     [6, 7, 8, 9, 10]
 ], dtype=float)
 
-B[learning_curves.NEIGH_IOU_UNION_KEY].values = numpy.array([
+B[learning_curves.NEIGH_IOU_POS_UNION_KEY].values = numpy.array([
     [10, 20, 30, 40, 50],
     [60, 70, 80, 90, 100]
+], dtype=float)
+
+B[learning_curves.NEIGH_IOU_NEG_ISCTN_KEY].values = numpy.array([
+    [10, 9, 8, 7, 6],
+    [50, 40, 30, 20, 10]
+], dtype=float)
+
+B[learning_curves.NEIGH_IOU_NEG_UNION_KEY].values = numpy.array([
+    [100, 90, 80, 70, 60],
+    [50, 40, 30, 20, 10]
 ], dtype=float)
 
 B[learning_curves.NEIGH_DICE_INTERSECTION_KEY].values = numpy.array([
@@ -262,6 +274,7 @@ MAIN_DATA_DICT = {
     learning_curves.NEIGH_BRIER_SCORE_KEY: (THESE_DIM, THIS_ARRAY + 0.),
     learning_curves.NEIGH_FSS_KEY: (THESE_DIM, THIS_ARRAY + 0.),
     learning_curves.NEIGH_IOU_KEY: (THESE_DIM, THIS_ARRAY + 0.),
+    learning_curves.NEIGH_ALL_CLASS_IOU_KEY: (THESE_DIM, THIS_ARRAY + 0.),
     learning_curves.NEIGH_DICE_COEFF_KEY: (THESE_DIM, THIS_ARRAY + 0.),
     learning_curves.NEIGH_CSI_KEY: (THESE_DIM, THIS_ARRAY + 0.)
 }
@@ -291,12 +304,19 @@ A[learning_curves.NEIGH_BRIER_SCORE_KEY].values = (1. / 300) * numpy.array(
 A[learning_curves.NEIGH_FSS_KEY].values = 1. - (1. / 300) * numpy.array(
     [7, 9, 11, 13, 15], dtype=float
 )
-A[learning_curves.NEIGH_IOU_KEY].values = numpy.array(
-    [16. / 70, 27. / 90, 38. / 110, 49. / 130, 60. / 150], dtype=float
-)
+A[learning_curves.NEIGH_IOU_KEY].values = numpy.array([
+    16. / 70, 27. / 90, 38. / 110, 49. / 130, 60. / 150
+])
 A[learning_curves.NEIGH_DICE_COEFF_KEY].values = numpy.array([
     0.2, 0.2, 0.2, 0.2, 0.2
 ])
+
+NEGATIVE_IOU_VALUES = numpy.array([
+    60. / 150, 49. / 130, 38. / 110, 27. / 90, 16. / 70
+])
+A[learning_curves.NEIGH_ALL_CLASS_IOU_KEY].values = 0.5 * (
+    A[learning_curves.NEIGH_IOU_KEY].values + NEGATIVE_IOU_VALUES
+)
 
 POD_VALUES = numpy.array([35, 30, 40, 20, 30], dtype=float)
 POD_VALUES = 12. / (12 + POD_VALUES)
@@ -320,8 +340,8 @@ def _compare_advanced_score_tables(first_table, second_table):
 
     keys_to_compare = [
         learning_curves.NEIGH_BRIER_SCORE_KEY, learning_curves.NEIGH_FSS_KEY,
-        learning_curves.NEIGH_IOU_KEY, learning_curves.NEIGH_DICE_COEFF_KEY,
-        learning_curves.NEIGH_CSI_KEY
+        learning_curves.NEIGH_IOU_KEY, learning_curves.NEIGH_ALL_CLASS_IOU_KEY,
+        learning_curves.NEIGH_DICE_COEFF_KEY, learning_curves.NEIGH_CSI_KEY
     ]
 
     for this_key in keys_to_compare:
@@ -435,7 +455,7 @@ class LearningCurvesTests(unittest.TestCase):
                 probability_matrix=PROBABILITY_MATRIX,
                 eval_mask_matrix=MASK_MATRIX,
                 matching_distance_px=NEIGH_DISTANCE_PX
-            )
+            )[:2]
         )
 
         self.assertTrue(numpy.isclose(
@@ -457,7 +477,7 @@ class LearningCurvesTests(unittest.TestCase):
                 probability_matrix=PROBABILITY_MATRIX,
                 eval_mask_matrix=MASK_MATRIX,
                 matching_distance_px=None
-            )
+            )[:2]
         )
 
         self.assertTrue(numpy.isclose(
