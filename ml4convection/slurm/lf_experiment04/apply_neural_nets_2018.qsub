@@ -29,7 +29,7 @@ set TOP_MODEL_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection
 set TOP_PREDICTOR_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_project/predictors/quality_controlled/full_grids"
 set TOP_TARGET_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_project/targets/new_echo_classification/no_tracking/omit_north_radar/full_grids"
 
-set VALID_DATE_STRINGS=("20180125" "20180603" "20180803")
+set VALID_DATE_STRINGS=("20180125" "20180603" "20180823")
 
 set WAVELET_TRANSFORM_FLAGS=(0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1)
 set BASE_LOSS_FUNCTION_NAMES=("brier" "fss" "csi" "iou" "all-class-iou" "dice" "brier" "fss" "csi" "iou" "all-class-iou" "dice" "brier" "fss" "csi" "iou" "all-class-iou" "dice" "brier" "fss" "csi" "iou" "all-class-iou" "dice" "brier" "fss" "csi" "iou" "all-class-iou" "dice" "brier" "fss" "csi" "iou" "all-class-iou" "dice" "brier" "fss" "csi" "iou" "all-class-iou" "dice" "brier" "fss" "csi" "iou" "all-class-iou" "dice" "brier" "fss" "csi" "iou" "all-class-iou" "dice" "brier" "fss" "csi" "iou" "all-class-iou" "dice" "brier" "fss" "csi" "iou" "all-class-iou" "dice" "brier" "fss" "csi" "iou" "all-class-iou" "dice" "brier" "fss" "csi" "iou" "all-class-iou" "dice" "brier" "fss" "csi" "iou" "all-class-iou" "dice" "brier" "fss" "csi" "iou" "all-class-iou" "dice" "brier" "fss" "csi" "iou" "all-class-iou" "dice")
