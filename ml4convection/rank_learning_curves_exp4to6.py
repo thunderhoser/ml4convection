@@ -262,10 +262,6 @@ def _read_scores_one_model(
         MAX_MAX_RESOLUTION_DEG
     )
 
-    print(table_neigh_distances_px)
-    print(table_min_resolutions_deg)
-    print(table_max_resolutions_deg)
-
     num_loss_functions = len(LOSS_FUNCTION_NAMES)
     num_filters = len(FILTER_NAMES)
     score_matrix = numpy.full((num_loss_functions, num_filters), numpy.nan)
@@ -299,8 +295,6 @@ def _read_scores_one_model(
                 these_diffs = numpy.absolute(
                     NEIGH_HALF_WINDOW_SIZES_PX[j] - table_neigh_distances_px
                 )
-
-            print(these_diffs)
 
             scale_index = numpy.where(these_diffs <= TOLERANCE)[0][0]
             score_matrix[i, j] = a[this_key].values[scale_index]
@@ -471,7 +465,7 @@ def _run(all_experiment_dir_name, output_dir_name):
                     '{0:d}th-best {1:s} = {2:.4f} ... model trained with {3:s}'
                 ).format(
                     k + 1, score_string,
-                    score_matrix[loss_index, filter, i, j],
+                    score_matrix[loss_index, filter_index, i, j],
                     model_loss_string
                 )
 
