@@ -211,7 +211,7 @@ def _read_scores_one_model(
         )
     else:
         this_string = '{0:s}-neigh{1:d}'.format(
-            loss_function_name, neigh_half_window_size_px
+            loss_function_name, int(numpy.round(neigh_half_window_size_px))
         )
 
     score_file_pattern = (
