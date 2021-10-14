@@ -294,6 +294,8 @@ def _read_scores_one_model(
                     NEIGH_HALF_WINDOW_SIZES_PX[j] - table_neigh_distances_px
                 )
 
+            print(these_diffs)
+
             scale_index = numpy.where(these_diffs <= TOLERANCE)[0][0]
             score_matrix[i, j] = a[this_key].values[scale_index]
 
