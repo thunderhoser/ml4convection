@@ -262,6 +262,10 @@ def _read_scores_one_model(
         MAX_MAX_RESOLUTION_DEG
     )
 
+    print(table_neigh_distances_px)
+    print(table_min_resolutions_deg)
+    print(table_max_resolutions_deg)
+
     num_loss_functions = len(LOSS_FUNCTION_NAMES)
     num_filters = len(FILTER_NAMES)
     score_matrix = numpy.full((num_loss_functions, num_filters), numpy.nan)
