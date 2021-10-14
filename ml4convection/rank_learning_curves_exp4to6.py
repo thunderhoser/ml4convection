@@ -286,9 +286,15 @@ def _read_scores_one_model(
                 these_diffs = numpy.absolute(
                     MIN_RESOLUTIONS_DEG[j] - table_min_resolutions_deg
                 )
-                these_diffs += numpy.absolute(
-                    MAX_RESOLUTIONS_DEG[j] - table_max_resolutions_deg
-                )
+
+                if numpy.isinf(MAX_RESOLUTIONS_DEG[j]):
+                    these_diffs += numpy.absolute(
+                        MAX_MAX_RESOLUTION_DEG - table_max_resolutions_deg
+                    )
+                else:
+                    these_diffs += numpy.absolute(
+                        MAX_RESOLUTIONS_DEG[j] - table_max_resolutions_deg
+                    )
             else:
                 these_diffs = numpy.absolute(
                     NEIGH_HALF_WINDOW_SIZES_PX[j] - table_neigh_distances_px
