@@ -214,7 +214,13 @@ def _read_scores_one_model(
         subexperiment_dir_name, this_string, matching_distance_px
     )
 
-    score_file_name = glob.glob(score_file_pattern)[0]
+    all_file_names = glob.glob(score_file_pattern)
+    if len(all_file_names) == 0:
+        return None
+
+    assert len(all_file_names) == 1
+    score_file_name = all_file_names[0]
+
     print('Reading data from: "{0:s}"...'.format(score_file_name))
     return evaluation.read_advanced_score_file(score_file_name)
 
@@ -422,6 +428,9 @@ def _run(all_experiment_dir_name, matching_distance_px, output_dir_name):
                 neigh_half_window_size_px=NEIGH_HALF_WINDOW_SIZES_PX[j],
                 matching_distance_px=matching_distance_px
             )
+
+            if t is None:
+                continue
 
             these_pod = numpy.nanmean(t[evaluation.POD_KEY].values, axis=0)
             these_success_ratios = numpy.nanmean(

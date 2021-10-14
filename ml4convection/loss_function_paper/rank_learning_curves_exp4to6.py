@@ -220,6 +220,9 @@ def _read_scores_one_model(
     )
     score_file_names = glob.glob(score_file_pattern)
 
+    if len(score_file_names) == 0:
+        return None
+
     model_subdir_names = [f.split('/')[-5] for f in score_file_names]
     validation_loss_strings = [
         d.split('_')[-1] for d in model_subdir_names
@@ -359,7 +362,7 @@ def _run(all_experiment_dir_name, output_dir_name):
 
     for i in range(num_loss_functions):
         for j in range(num_filters):
-            score_matrix[i, j, ...] = _read_scores_one_model(
+            this_matrix = _read_scores_one_model(
                 subexperiment_dir_name='{0:s}/lf_experiment{1:02d}'.format(
                     all_experiment_dir_name, SUBEXPERIMENT_ENUMS[j]
                 ),
@@ -370,6 +373,11 @@ def _run(all_experiment_dir_name, output_dir_name):
                 max_resolution_deg=MAX_RESOLUTIONS_DEG[j],
                 neigh_half_window_size_px=NEIGH_HALF_WINDOW_SIZES_PX[j]
             )
+
+            if this_matrix is None:
+                continue
+
+            score_matrix[i, j, ...] = this_matrix
 
     print(SEPARATOR_STRING)
 
