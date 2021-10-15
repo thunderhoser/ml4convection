@@ -43,7 +43,7 @@ while ($i <= ${#BASE_LOSS_FUNCTION_NAMES})
     set prediction_dir_names_string=""
     set j=1
     
-    while ($j <= ${#NEIGH_HALF_WINDOW_SIZES_PX})
+    while ($j <= ${#FILTER_NAMES_ABBREV})
         set these_prediction_dir_names={${ALL_EXPERIMENT_DIR_NAME}/${BASE_LOSS_FUNCTION_NAMES[$i]}${FILTER_NAMES_ABBREV[$j]}/model*/testing_best_validation_loss/full_grids}
         set this_prediction_dir_name=${these_prediction_dir_names[$#these_prediction_dir_names]}
         set prediction_dir_names_string="${prediction_dir_names_string} ${this_prediction_dir_name}"
