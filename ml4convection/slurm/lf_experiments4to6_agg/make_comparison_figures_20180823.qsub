@@ -53,7 +53,7 @@ while ($i <= ${#BASE_LOSS_FUNCTION_NAMES})
 
     python3 -u "${CODE_DIR_NAME}/make_prediction_comparison_figure.py" \
     --input_prediction_dir_names ${prediction_dir_names_string} \
-    --model_description_strings ${model_descriptions_string} \
+    --model_description_strings ${FILTER_NAMES_FANCY_ONE_STRING} \
     --valid_time_string="${valid_time_string}" \
     --input_radar_dir_name="${TOP_RADAR_DIR_NAME}" \
     --smoothing_radii_px 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 \
