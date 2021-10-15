@@ -39,6 +39,7 @@ MAX_PLOT_LONGITUDE_DEG_E = 123.
 FIGURE_WIDTH_INCHES = 15.
 FIGURE_HEIGHT_INCHES = 15.
 FIGURE_RESOLUTION_DPI = 300
+PANEL_FIGURE_SIZE_PX = int(3e5)
 CONCAT_FIGURE_SIZE_PX = int(1e7)
 
 FONT_SIZE = 50
@@ -56,6 +57,7 @@ VALID_TIME_ARG_NAME = 'valid_time_string'
 RADAR_DIR_ARG_NAME = 'input_radar_dir_name'
 SMOOTHING_RADII_ARG_NAME = 'smoothing_radii_px'
 NUM_PANEL_ROWS_ARG_NAME = 'num_panel_rows'
+NUM_PANEL_COLUMNS_ARG_NAME = 'num_panel_columns'
 ROW_MAJOR_ARG_NAME = 'row_major_flag'
 RADAR_INDEX_ARG_NAME = 'radar_panel_index'
 OUTPUT_DIR_ARG_NAME = 'output_dir_name'
@@ -84,6 +86,9 @@ SMOOTHING_RADII_HELP_STRING = (
 NUM_PANEL_ROWS_HELP_STRING = (
     'Number of panel rows.  If you want number of rows to be determined '
     'automatically, leave this argument alone.'
+)
+NUM_PANEL_COLUMNS_HELP_STRING = 'Same as `{0:s}` but for columns.'.format(
+    NUM_PANEL_ROWS_ARG_NAME
 )
 ROW_MAJOR_HELP_STRING = (
     'Boolean flag.  If 1 (0), panels will be arranged in row-major (column-'
@@ -121,6 +126,10 @@ INPUT_ARG_PARSER.add_argument(
 INPUT_ARG_PARSER.add_argument(
     '--' + NUM_PANEL_ROWS_ARG_NAME, type=int, required=False, default=-1,
     help=NUM_PANEL_ROWS_HELP_STRING
+)
+INPUT_ARG_PARSER.add_argument(
+    '--' + NUM_PANEL_COLUMNS_ARG_NAME, type=int, required=False, default=-1,
+    help=NUM_PANEL_COLUMNS_HELP_STRING
 )
 INPUT_ARG_PARSER.add_argument(
     '--' + ROW_MAJOR_ARG_NAME, type=int, required=False, default=1,
@@ -402,8 +411,8 @@ def _plot_predictions_one_model(
 
 
 def _run(top_prediction_dir_names, model_descriptions_abbrev, valid_time_string,
-         top_radar_dir_name, smoothing_radii_px, num_panel_rows, row_major_flag,
-         radar_panel_index, output_dir_name):
+         top_radar_dir_name, smoothing_radii_px, num_panel_rows,
+         num_panel_columns, row_major_flag, radar_panel_index, output_dir_name):
     """Makes figure with predictions from different models.
 
     This is effectively the main method.
@@ -414,6 +423,7 @@ def _run(top_prediction_dir_names, model_descriptions_abbrev, valid_time_string,
     :param top_radar_dir_name: Same.
     :param smoothing_radii_px: Same.
     :param num_panel_rows: Same.
+    :param num_panel_columns: Same.
     :param row_major_flag: Same.
     :param radar_panel_index: Same.
     :param output_dir_name: Same.
@@ -441,10 +451,10 @@ def _run(top_prediction_dir_names, model_descriptions_abbrev, valid_time_string,
         num_panel_rows = int(numpy.ceil(
             numpy.sqrt(num_panels)
         ))
-
-    num_panel_columns = int(numpy.ceil(
-        float(num_panels) / num_panel_rows
-    ))
+    if num_panel_columns < 0:
+        num_panel_columns = int(numpy.ceil(
+            float(num_panels) / num_panel_rows
+        ))
 
     expected_dim = numpy.array([num_models], dtype=int)
     error_checking.assert_is_numpy_array(
@@ -557,6 +567,12 @@ def _run(top_prediction_dir_names, model_descriptions_abbrev, valid_time_string,
         )
         pyplot.close(figure_object)
 
+        imagemagick_utils.resize_image(
+            input_file_name=panel_file_names[panel_index],
+            output_file_name=panel_file_names[panel_index],
+            output_size_pixels=PANEL_FIGURE_SIZE_PX
+        )
+
     if top_radar_dir_name is not None:
         figure_object, axes_object = pyplot.subplots(
             1, 1, figsize=(FIGURE_WIDTH_INCHES, FIGURE_HEIGHT_INCHES)
@@ -595,6 +611,12 @@ def _run(top_prediction_dir_names, model_descriptions_abbrev, valid_time_string,
             pad_inches=0, bbox_inches='tight'
         )
         pyplot.close(figure_object)
+
+        imagemagick_utils.resize_image(
+            input_file_name=panel_file_names[radar_panel_index],
+            output_file_name=panel_file_names[radar_panel_index],
+            output_size_pixels=PANEL_FIGURE_SIZE_PX
+        )
 
     while len(panel_file_names) < num_panel_rows * num_panel_columns:
         panel_file_names.append('')
@@ -648,6 +670,7 @@ if __name__ == '__main__':
             getattr(INPUT_ARG_OBJECT, SMOOTHING_RADII_ARG_NAME), dtype=float
         ),
         num_panel_rows=getattr(INPUT_ARG_OBJECT, NUM_PANEL_ROWS_ARG_NAME),
+        num_panel_columns=getattr(INPUT_ARG_OBJECT, NUM_PANEL_COLUMNS_ARG_NAME),
         row_major_flag=bool(getattr(INPUT_ARG_OBJECT, ROW_MAJOR_ARG_NAME)),
         radar_panel_index=getattr(INPUT_ARG_OBJECT, RADAR_INDEX_ARG_NAME),
         output_dir_name=getattr(INPUT_ARG_OBJECT, OUTPUT_DIR_ARG_NAME)
