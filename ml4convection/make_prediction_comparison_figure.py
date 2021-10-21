@@ -22,6 +22,7 @@ import gg_plotting_utils
 import radar_io
 import border_io
 import prediction_io
+import general_utils
 import neural_net
 import plotting_utils
 import prediction_plotting
@@ -42,14 +43,16 @@ FIGURE_RESOLUTION_DPI = 300
 PANEL_FIGURE_SIZE_PX = int(3e5)
 CONCAT_FIGURE_SIZE_PX = int(1e7)
 
-FONT_SIZE = 50
-pyplot.rc('font', size=FONT_SIZE)
-pyplot.rc('axes', titlesize=FONT_SIZE)
-pyplot.rc('axes', labelsize=FONT_SIZE)
-pyplot.rc('xtick', labelsize=FONT_SIZE)
-pyplot.rc('ytick', labelsize=FONT_SIZE)
-pyplot.rc('legend', fontsize=FONT_SIZE)
-pyplot.rc('figure', titlesize=FONT_SIZE)
+DEFAULT_FONT_SIZE = 70
+LATLNG_FONT_SIZE = 50
+
+pyplot.rc('font', size=DEFAULT_FONT_SIZE)
+pyplot.rc('axes', titlesize=DEFAULT_FONT_SIZE)
+pyplot.rc('axes', labelsize=DEFAULT_FONT_SIZE)
+pyplot.rc('xtick', labelsize=DEFAULT_FONT_SIZE)
+pyplot.rc('ytick', labelsize=DEFAULT_FONT_SIZE)
+pyplot.rc('legend', fontsize=DEFAULT_FONT_SIZE)
+pyplot.rc('figure', titlesize=DEFAULT_FONT_SIZE)
 
 PREDICTION_DIRS_ARG_NAME = 'input_prediction_dir_names'
 MODEL_DESCRIPTIONS_ARG_NAME = 'model_description_strings'
@@ -257,13 +260,14 @@ def _plot_reflectivity(
         colour_map_object=colour_map_object,
         colour_norm_object=colour_norm_object,
         orientation_string='vertical', extend_min=False, extend_max=True,
-        font_size=FONT_SIZE
+        font_size=DEFAULT_FONT_SIZE
     )
 
     plotting_utils.plot_grid_lines(
         plot_latitudes_deg_n=latitudes_deg_n,
         plot_longitudes_deg_e=longitudes_deg_e, axes_object=axes_object,
-        parallel_spacing_deg=2., meridian_spacing_deg=2., font_size=FONT_SIZE
+        parallel_spacing_deg=2., meridian_spacing_deg=2.,
+        font_size=LATLNG_FONT_SIZE
     )
 
     axes_object.set_title('Composite reflectivity (dBZ)')
@@ -402,7 +406,8 @@ def _plot_predictions_one_model(
     plotting_utils.plot_grid_lines(
         plot_latitudes_deg_n=latitudes_deg_n,
         plot_longitudes_deg_e=longitudes_deg_e, axes_object=axes_object,
-        parallel_spacing_deg=2., meridian_spacing_deg=2., font_size=FONT_SIZE
+        parallel_spacing_deg=2., meridian_spacing_deg=2.,
+        font_size=LATLNG_FONT_SIZE
     )
 
     axes_object.set_title(title_string)
@@ -433,6 +438,10 @@ def _run(top_prediction_dir_names, model_descriptions_abbrev, valid_time_string,
     model_descriptions_verbose = [
         s.replace('_', ' ') for s in model_descriptions_abbrev
     ]
+    model_descriptions_verbose = [
+        s.replace('inf', r'$\infty$') for s in model_descriptions_verbose
+    ]
+
     model_descriptions_abbrev = [
         s.replace('_', '-').lower() for s in model_descriptions_abbrev
     ]
@@ -474,7 +483,7 @@ def _run(top_prediction_dir_names, model_descriptions_abbrev, valid_time_string,
     border_latitudes_deg_n, border_longitudes_deg_e = border_io.read_file()
 
     panel_letters = [
-        chr(ord('a') + k) for k in range(num_panels)
+        general_utils.integer_to_roman_numeral(k + 1) for k in range(num_panels)
     ]
     while len(panel_letters) < num_panel_rows * num_panel_columns:
         panel_letters.append('')
@@ -517,7 +526,7 @@ def _run(top_prediction_dir_names, model_descriptions_abbrev, valid_time_string,
             label_string='({0:s})'.format(
                 panel_letter_matrix[row_index, column_index]
             ),
-            x_coord_normalized=-0.025
+            x_coord_normalized=-0.025, font_size=DEFAULT_FONT_SIZE
         )
 
         if k == num_models - 1:
@@ -549,7 +558,7 @@ def _run(top_prediction_dir_names, model_descriptions_abbrev, valid_time_string,
                 colour_map_object=colour_map_object,
                 colour_norm_object=colour_norm_object,
                 orientation_string=orientation_string,
-                extend_min=False, extend_max=False, font_size=FONT_SIZE
+                extend_min=False, extend_max=False, font_size=DEFAULT_FONT_SIZE
             )
 
         panel_file_names[panel_index] = (
@@ -596,7 +605,7 @@ def _run(top_prediction_dir_names, model_descriptions_abbrev, valid_time_string,
             label_string='({0:s})'.format(
                 panel_letter_matrix[row_index, column_index]
             ),
-            x_coord_normalized=-0.025
+            x_coord_normalized=-0.025, font_size=DEFAULT_FONT_SIZE
         )
 
         panel_file_names[radar_panel_index] = (
@@ -638,7 +647,8 @@ def _run(top_prediction_dir_names, model_descriptions_abbrev, valid_time_string,
     imagemagick_utils.concatenate_images(
         input_file_names=panel_file_names,
         output_file_name=concat_figure_file_name,
-        num_panel_rows=num_panel_rows, num_panel_columns=num_panel_columns
+        num_panel_rows=num_panel_rows, num_panel_columns=num_panel_columns,
+        border_width_pixels=15
     )
     imagemagick_utils.trim_whitespace(
         input_file_name=concat_figure_file_name,
