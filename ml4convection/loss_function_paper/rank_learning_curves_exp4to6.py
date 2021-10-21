@@ -209,7 +209,7 @@ def _read_scores_one_model(
         )
     else:
         this_string = '{0:s}-neigh{1:d}'.format(
-            loss_function_name, neigh_half_window_size_px
+            loss_function_name, int(numpy.round(neigh_half_window_size_px))
         )
 
     score_file_pattern = (
@@ -274,9 +274,15 @@ def _read_scores_one_model(
                 these_diffs = numpy.absolute(
                     MIN_RESOLUTIONS_DEG[j] - table_min_resolutions_deg
                 )
-                these_diffs += numpy.absolute(
-                    MAX_RESOLUTIONS_DEG[j] - table_max_resolutions_deg
-                )
+
+                if numpy.isinf(MAX_RESOLUTIONS_DEG[j]):
+                    these_diffs += numpy.absolute(
+                        MAX_MAX_RESOLUTION_DEG - table_max_resolutions_deg
+                    )
+                else:
+                    these_diffs += numpy.absolute(
+                        MAX_RESOLUTIONS_DEG[j] - table_max_resolutions_deg
+                    )
             else:
                 these_diffs = numpy.absolute(
                     NEIGH_HALF_WINDOW_SIZES_PX[j] - table_neigh_distances_px
@@ -451,7 +457,7 @@ def _run(all_experiment_dir_name, output_dir_name):
                     '{0:d}th-best {1:s} = {2:.4f} ... model trained with {3:s}'
                 ).format(
                     k + 1, score_string,
-                    score_matrix[loss_index, filter, i, j],
+                    score_matrix[loss_index, filter_index, i, j],
                     model_loss_string
                 )
 
