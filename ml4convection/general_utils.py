@@ -2,6 +2,7 @@
 
 import os
 import sys
+from collections import OrderedDict
 import numpy
 from scipy.ndimage import distance_transform_edt
 from scipy.interpolate import LinearNDInterpolator
@@ -17,6 +18,21 @@ import time_conversion
 
 DATE_FORMAT = '%Y%m%d'
 DAYS_TO_SECONDS = 86400
+
+INTEGER_TO_ROMAN_DICT = OrderedDict()
+INTEGER_TO_ROMAN_DICT[1000] = 'M'
+INTEGER_TO_ROMAN_DICT[900] = 'CM'
+INTEGER_TO_ROMAN_DICT[500] = 'D'
+INTEGER_TO_ROMAN_DICT[400] = 'CD'
+INTEGER_TO_ROMAN_DICT[100] = 'C'
+INTEGER_TO_ROMAN_DICT[90] = 'XC'
+INTEGER_TO_ROMAN_DICT[50] = 'L'
+INTEGER_TO_ROMAN_DICT[40] = 'XL'
+INTEGER_TO_ROMAN_DICT[10] = 'X'
+INTEGER_TO_ROMAN_DICT[9] = 'IX'
+INTEGER_TO_ROMAN_DICT[5] = 'V'
+INTEGER_TO_ROMAN_DICT[4] = 'IV'
+INTEGER_TO_ROMAN_DICT[1] = 'I'
 
 
 def get_previous_date(date_string):
@@ -210,3 +226,31 @@ def fill_nans_by_interp(data_matrix):
     interp_values = interp_object(all_index_tuples)
 
     return numpy.reshape(interp_values, data_matrix.shape)
+
+
+def integer_to_roman_numeral(integer_value):
+    """Converts integer to Roman numeral.
+
+    :param integer_value: Integer.
+    :return: roman_numeral_string: Roman numeral.
+    """
+
+    error_checking.assert_is_integer(integer_value)
+    error_checking.assert_is_greater(integer_value, 0)
+
+    def get_roman_numeral(integer_value):
+        """Subfunction for converting integer to Roman numeral.
+
+        :param integer_value: Integer.
+        :return: partial_roman_numeral_string: Part of Roman numeral.
+        """
+
+        for this_multiple in INTEGER_TO_ROMAN_DICT:
+            this_coeff = divmod(integer_value, this_multiple)[0]
+            yield INTEGER_TO_ROMAN_DICT[this_multiple] * this_coeff
+
+            integer_value -= this_multiple * this_coeff
+            if integer_value <= 0:
+                break
+
+    return ''.join([s for s in get_roman_numeral(integer_value)])
