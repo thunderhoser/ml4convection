@@ -15,6 +15,7 @@ from gewittergefahr.plotting import plotting_utils as gg_plotting_utils
 from ml4convection.io import radar_io
 from ml4convection.io import border_io
 from ml4convection.io import prediction_io
+from ml4convection.utils import general_utils
 from ml4convection.machine_learning import neural_net
 from ml4convection.plotting import plotting_utils
 from ml4convection.plotting import prediction_plotting
@@ -32,16 +33,19 @@ MAX_PLOT_LONGITUDE_DEG_E = 123.
 FIGURE_WIDTH_INCHES = 15.
 FIGURE_HEIGHT_INCHES = 15.
 FIGURE_RESOLUTION_DPI = 300
+PANEL_FIGURE_SIZE_PX = int(3e5)
 CONCAT_FIGURE_SIZE_PX = int(1e7)
 
-FONT_SIZE = 50
-pyplot.rc('font', size=FONT_SIZE)
-pyplot.rc('axes', titlesize=FONT_SIZE)
-pyplot.rc('axes', labelsize=FONT_SIZE)
-pyplot.rc('xtick', labelsize=FONT_SIZE)
-pyplot.rc('ytick', labelsize=FONT_SIZE)
-pyplot.rc('legend', fontsize=FONT_SIZE)
-pyplot.rc('figure', titlesize=FONT_SIZE)
+DEFAULT_FONT_SIZE = 70
+LATLNG_FONT_SIZE = 50
+
+pyplot.rc('font', size=DEFAULT_FONT_SIZE)
+pyplot.rc('axes', titlesize=DEFAULT_FONT_SIZE)
+pyplot.rc('axes', labelsize=DEFAULT_FONT_SIZE)
+pyplot.rc('xtick', labelsize=DEFAULT_FONT_SIZE)
+pyplot.rc('ytick', labelsize=DEFAULT_FONT_SIZE)
+pyplot.rc('legend', fontsize=DEFAULT_FONT_SIZE)
+pyplot.rc('figure', titlesize=DEFAULT_FONT_SIZE)
 
 PREDICTION_DIRS_ARG_NAME = 'input_prediction_dir_names'
 MODEL_DESCRIPTIONS_ARG_NAME = 'model_description_strings'
@@ -49,6 +53,7 @@ VALID_TIME_ARG_NAME = 'valid_time_string'
 RADAR_DIR_ARG_NAME = 'input_radar_dir_name'
 SMOOTHING_RADII_ARG_NAME = 'smoothing_radii_px'
 NUM_PANEL_ROWS_ARG_NAME = 'num_panel_rows'
+NUM_PANEL_COLUMNS_ARG_NAME = 'num_panel_columns'
 ROW_MAJOR_ARG_NAME = 'row_major_flag'
 RADAR_INDEX_ARG_NAME = 'radar_panel_index'
 OUTPUT_DIR_ARG_NAME = 'output_dir_name'
@@ -77,6 +82,9 @@ SMOOTHING_RADII_HELP_STRING = (
 NUM_PANEL_ROWS_HELP_STRING = (
     'Number of panel rows.  If you want number of rows to be determined '
     'automatically, leave this argument alone.'
+)
+NUM_PANEL_COLUMNS_HELP_STRING = 'Same as `{0:s}` but for columns.'.format(
+    NUM_PANEL_ROWS_ARG_NAME
 )
 ROW_MAJOR_HELP_STRING = (
     'Boolean flag.  If 1 (0), panels will be arranged in row-major (column-'
@@ -114,6 +122,10 @@ INPUT_ARG_PARSER.add_argument(
 INPUT_ARG_PARSER.add_argument(
     '--' + NUM_PANEL_ROWS_ARG_NAME, type=int, required=False, default=-1,
     help=NUM_PANEL_ROWS_HELP_STRING
+)
+INPUT_ARG_PARSER.add_argument(
+    '--' + NUM_PANEL_COLUMNS_ARG_NAME, type=int, required=False, default=-1,
+    help=NUM_PANEL_COLUMNS_HELP_STRING
 )
 INPUT_ARG_PARSER.add_argument(
     '--' + ROW_MAJOR_ARG_NAME, type=int, required=False, default=1,
@@ -241,13 +253,14 @@ def _plot_reflectivity(
         colour_map_object=colour_map_object,
         colour_norm_object=colour_norm_object,
         orientation_string='vertical', extend_min=False, extend_max=True,
-        font_size=FONT_SIZE
+        font_size=DEFAULT_FONT_SIZE
     )
 
     plotting_utils.plot_grid_lines(
         plot_latitudes_deg_n=latitudes_deg_n,
         plot_longitudes_deg_e=longitudes_deg_e, axes_object=axes_object,
-        parallel_spacing_deg=2., meridian_spacing_deg=2., font_size=FONT_SIZE
+        parallel_spacing_deg=2., meridian_spacing_deg=2.,
+        font_size=LATLNG_FONT_SIZE
     )
 
     axes_object.set_title('Composite reflectivity (dBZ)')
@@ -386,7 +399,8 @@ def _plot_predictions_one_model(
     plotting_utils.plot_grid_lines(
         plot_latitudes_deg_n=latitudes_deg_n,
         plot_longitudes_deg_e=longitudes_deg_e, axes_object=axes_object,
-        parallel_spacing_deg=2., meridian_spacing_deg=2., font_size=FONT_SIZE
+        parallel_spacing_deg=2., meridian_spacing_deg=2.,
+        font_size=LATLNG_FONT_SIZE
     )
 
     axes_object.set_title(title_string)
@@ -395,8 +409,8 @@ def _plot_predictions_one_model(
 
 
 def _run(top_prediction_dir_names, model_descriptions_abbrev, valid_time_string,
-         top_radar_dir_name, smoothing_radii_px, num_panel_rows, row_major_flag,
-         radar_panel_index, output_dir_name):
+         top_radar_dir_name, smoothing_radii_px, num_panel_rows,
+         num_panel_columns, row_major_flag, radar_panel_index, output_dir_name):
     """Makes figure with predictions from different models.
 
     This is effectively the main method.
@@ -407,6 +421,7 @@ def _run(top_prediction_dir_names, model_descriptions_abbrev, valid_time_string,
     :param top_radar_dir_name: Same.
     :param smoothing_radii_px: Same.
     :param num_panel_rows: Same.
+    :param num_panel_columns: Same.
     :param row_major_flag: Same.
     :param radar_panel_index: Same.
     :param output_dir_name: Same.
@@ -416,6 +431,10 @@ def _run(top_prediction_dir_names, model_descriptions_abbrev, valid_time_string,
     model_descriptions_verbose = [
         s.replace('_', ' ') for s in model_descriptions_abbrev
     ]
+    model_descriptions_verbose = [
+        s.replace('inf', r'$\infty$') for s in model_descriptions_verbose
+    ]
+
     model_descriptions_abbrev = [
         s.replace('_', '-').lower() for s in model_descriptions_abbrev
     ]
@@ -434,10 +453,10 @@ def _run(top_prediction_dir_names, model_descriptions_abbrev, valid_time_string,
         num_panel_rows = int(numpy.ceil(
             numpy.sqrt(num_panels)
         ))
-
-    num_panel_columns = int(numpy.ceil(
-        float(num_panels) / num_panel_rows
-    ))
+    if num_panel_columns < 0:
+        num_panel_columns = int(numpy.ceil(
+            float(num_panels) / num_panel_rows
+        ))
 
     expected_dim = numpy.array([num_models], dtype=int)
     error_checking.assert_is_numpy_array(
@@ -457,7 +476,7 @@ def _run(top_prediction_dir_names, model_descriptions_abbrev, valid_time_string,
     border_latitudes_deg_n, border_longitudes_deg_e = border_io.read_file()
 
     panel_letters = [
-        chr(ord('a') + k) for k in range(num_panels)
+        general_utils.integer_to_roman_numeral(k + 1) for k in range(num_panels)
     ]
     while len(panel_letters) < num_panel_rows * num_panel_columns:
         panel_letters.append('')
@@ -500,7 +519,7 @@ def _run(top_prediction_dir_names, model_descriptions_abbrev, valid_time_string,
             label_string='({0:s})'.format(
                 panel_letter_matrix[row_index, column_index]
             ),
-            x_coord_normalized=-0.025
+            x_coord_normalized=-0.025, font_size=DEFAULT_FONT_SIZE
         )
 
         if k == num_models - 1:
@@ -532,7 +551,7 @@ def _run(top_prediction_dir_names, model_descriptions_abbrev, valid_time_string,
                 colour_map_object=colour_map_object,
                 colour_norm_object=colour_norm_object,
                 orientation_string=orientation_string,
-                extend_min=False, extend_max=False, font_size=FONT_SIZE
+                extend_min=False, extend_max=False, font_size=DEFAULT_FONT_SIZE
             )
 
         panel_file_names[panel_index] = (
@@ -549,6 +568,12 @@ def _run(top_prediction_dir_names, model_descriptions_abbrev, valid_time_string,
             pad_inches=0, bbox_inches='tight'
         )
         pyplot.close(figure_object)
+
+        imagemagick_utils.resize_image(
+            input_file_name=panel_file_names[panel_index],
+            output_file_name=panel_file_names[panel_index],
+            output_size_pixels=PANEL_FIGURE_SIZE_PX
+        )
 
     if top_radar_dir_name is not None:
         figure_object, axes_object = pyplot.subplots(
@@ -573,7 +598,7 @@ def _run(top_prediction_dir_names, model_descriptions_abbrev, valid_time_string,
             label_string='({0:s})'.format(
                 panel_letter_matrix[row_index, column_index]
             ),
-            x_coord_normalized=-0.025
+            x_coord_normalized=-0.025, font_size=DEFAULT_FONT_SIZE
         )
 
         panel_file_names[radar_panel_index] = (
@@ -588,6 +613,12 @@ def _run(top_prediction_dir_names, model_descriptions_abbrev, valid_time_string,
             pad_inches=0, bbox_inches='tight'
         )
         pyplot.close(figure_object)
+
+        imagemagick_utils.resize_image(
+            input_file_name=panel_file_names[radar_panel_index],
+            output_file_name=panel_file_names[radar_panel_index],
+            output_size_pixels=PANEL_FIGURE_SIZE_PX
+        )
 
     while len(panel_file_names) < num_panel_rows * num_panel_columns:
         panel_file_names.append('')
@@ -609,7 +640,8 @@ def _run(top_prediction_dir_names, model_descriptions_abbrev, valid_time_string,
     imagemagick_utils.concatenate_images(
         input_file_names=panel_file_names,
         output_file_name=concat_figure_file_name,
-        num_panel_rows=num_panel_rows, num_panel_columns=num_panel_columns
+        num_panel_rows=num_panel_rows, num_panel_columns=num_panel_columns,
+        border_width_pixels=15
     )
     imagemagick_utils.trim_whitespace(
         input_file_name=concat_figure_file_name,
@@ -641,6 +673,7 @@ if __name__ == '__main__':
             getattr(INPUT_ARG_OBJECT, SMOOTHING_RADII_ARG_NAME), dtype=float
         ),
         num_panel_rows=getattr(INPUT_ARG_OBJECT, NUM_PANEL_ROWS_ARG_NAME),
+        num_panel_columns=getattr(INPUT_ARG_OBJECT, NUM_PANEL_COLUMNS_ARG_NAME),
         row_major_flag=bool(getattr(INPUT_ARG_OBJECT, ROW_MAJOR_ARG_NAME)),
         radar_panel_index=getattr(INPUT_ARG_OBJECT, RADAR_INDEX_ARG_NAME),
         output_dir_name=getattr(INPUT_ARG_OBJECT, OUTPUT_DIR_ARG_NAME)
