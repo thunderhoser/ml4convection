@@ -402,10 +402,13 @@ def _run(all_experiment_dir_name, output_dir_name):
 
             figure_object, axes_object = _plot_grid_one_score(
                 score_matrix=score_matrix[..., i, j],
-                min_colour_value=
-                numpy.nanpercentile(score_matrix[..., i, j], 0),
-                max_colour_value=
-                numpy.nanpercentile(score_matrix[..., i, j], 100),
+                min_colour_value=numpy.nanpercentile(
+                    score_matrix[..., i, j], 0
+                ),
+                max_colour_value=numpy.nanpercentile(
+                    score_matrix[..., i, j],
+                    50 if LOSS_FUNCTION_NAMES[i] == 'brier' else 100
+                ),
                 colour_map_object=COLOUR_MAP_OBJECT
             )
 
