@@ -3,6 +3,7 @@
 import os
 import sys
 import argparse
+from string import ascii_lowercase
 import numpy
 import matplotlib
 matplotlib.use('agg')
@@ -22,7 +23,6 @@ import gg_plotting_utils
 import radar_io
 import border_io
 import prediction_io
-import general_utils
 import neural_net
 import plotting_utils
 import prediction_plotting
@@ -43,7 +43,7 @@ FIGURE_RESOLUTION_DPI = 300
 PANEL_FIGURE_SIZE_PX = int(3e5)
 CONCAT_FIGURE_SIZE_PX = int(1e7)
 
-DEFAULT_FONT_SIZE = 70
+DEFAULT_FONT_SIZE = 60
 LATLNG_FONT_SIZE = 50
 
 pyplot.rc('font', size=DEFAULT_FONT_SIZE)
@@ -270,7 +270,7 @@ def _plot_reflectivity(
         font_size=LATLNG_FONT_SIZE
     )
 
-    axes_object.set_title('Composite reflectivity (dBZ)')
+    axes_object.set_title('Reflectivity (dBZ)')
 
 
 def _plot_predictions_one_model(
@@ -482,9 +482,12 @@ def _run(top_prediction_dir_names, model_descriptions_abbrev, valid_time_string,
     # Do actual stuff.
     border_latitudes_deg_n, border_longitudes_deg_e = border_io.read_file()
 
-    panel_letters = [
-        general_utils.integer_to_roman_numeral(k + 1) for k in range(num_panels)
-    ]
+    panel_letters = (
+        list(ascii_lowercase) +
+        [x + y for x in ascii_lowercase for y in ascii_lowercase]
+    )
+    panel_letters = panel_letters[:num_panels]
+
     while len(panel_letters) < num_panel_rows * num_panel_columns:
         panel_letters.append('')
 
