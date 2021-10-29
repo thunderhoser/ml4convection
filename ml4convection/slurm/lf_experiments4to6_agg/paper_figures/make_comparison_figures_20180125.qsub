@@ -97,9 +97,9 @@ python3 -u "${CODE_DIR_NAME}/make_prediction_comparison_figure.py" \
 --model_description_strings ${model_descriptions_string} \
 --valid_time_string="${valid_time_string}" \
 --input_radar_dir_name="${TOP_RADAR_DIR_NAME}" \
---smoothing_radii_px 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 \
---num_panel_rows=6 \
+--smoothing_radii_px 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 \
+--num_panel_rows=5 \
 --num_panel_columns=8 \
 --row_major_flag=1 \
---radar_panel_index=40 \
+--radar_panel_index=32 \
 --output_dir_name="${TOP_OUTPUT_DIR_NAME}/transform"
