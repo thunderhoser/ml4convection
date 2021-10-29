@@ -130,6 +130,10 @@ LOSS_FUNCTION_KEYS_WAVELET = [
     learning_curves.WAVELET_PEIRCE_SCORE_KEY
 ]
 
+BEST_MARKER_TYPE = '*'
+BEST_MARKER_SIZE_GRID_CELLS = 0.3
+MARKER_COLOUR = numpy.full(3, 0.)
+
 COLOUR_MAP_OBJECT = pyplot.get_cmap('plasma')
 DEFAULT_FONT_SIZE = 20
 COLOUR_BAR_FONT_SIZE = 25
@@ -346,6 +350,31 @@ def _plot_grid_one_score(score_matrix, min_colour_value, max_colour_value,
     return figure_object, axes_object
 
 
+def _add_markers(figure_object, axes_object, best_marker_indices):
+    """Adds markers to figure.
+
+    :param figure_object: Figure handle (instance of
+        `matplotlib.figure.Figure`).
+    :param axes_object: Axes handle (instance of
+        `matplotlib.axes._subplots.AxesSubplot`).
+    :param best_marker_indices: length-2 numpy array of array indices for best
+        model.
+    """
+
+    figure_width_px = figure_object.get_size_inches()[0] * figure_object.dpi
+    marker_size_px = figure_width_px * (
+        BEST_MARKER_SIZE_GRID_CELLS / len(FILTER_NAMES)
+    )
+
+    axes_object.plot(
+        best_marker_indices[1], best_marker_indices[0],
+        linestyle='None', marker=BEST_MARKER_TYPE,
+        markersize=marker_size_px, markeredgewidth=0,
+        markerfacecolor=MARKER_COLOUR,
+        markeredgecolor=MARKER_COLOUR
+    )
+
+
 def _run(all_experiment_dir_name, output_dir_name):
     """Ranks learning-curve scores for aggregated experiment.
 
@@ -394,11 +423,30 @@ def _run(all_experiment_dir_name, output_dir_name):
 
             figure_object, axes_object = _plot_grid_one_score(
                 score_matrix=score_matrix[..., i, j],
-                min_colour_value=
-                numpy.nanpercentile(score_matrix[..., i, j], 0),
-                max_colour_value=
-                numpy.nanpercentile(score_matrix[..., i, j], 100),
+                min_colour_value=numpy.nanpercentile(
+                    score_matrix[..., i, j], 0
+                ),
+                max_colour_value=numpy.nanpercentile(
+                    score_matrix[..., i, j],
+                    50 if LOSS_FUNCTION_NAMES[i] == 'brier' else 100
+                ),
                 colour_map_object=COLOUR_MAP_OBJECT
+            )
+
+            if LOSS_FUNCTION_NAMES[i] == 'brier':
+                this_index = numpy.nanargmin(numpy.ravel(
+                    score_matrix[..., i, j]
+                ))
+            else:
+                this_index = numpy.nanargmax(numpy.ravel(
+                    score_matrix[..., i, j]
+                ))
+
+            _add_markers(
+                figure_object=figure_object, axes_object=axes_object,
+                best_marker_indices=numpy.unravel_index(
+                    this_index, score_matrix[..., i, j].shape
+                )
             )
 
             axes_object.set_ylabel('Score for model''s loss function')
