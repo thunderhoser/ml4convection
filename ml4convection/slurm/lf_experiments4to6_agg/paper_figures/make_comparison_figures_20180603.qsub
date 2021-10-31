@@ -44,21 +44,21 @@ set TRANSFORM_FILTER_NAMES_FANCY=("FT_0--0.1-deg" "FT_0.1--inf-deg" "WT_0--0.1-d
 
 set prediction_dir_names_string=""
 set model_descriptions_string=""
-set i=1
+set j=1
 
-while ($i <= ${#NEIGH_FILTER_NAMES_ABBREV})
-    set j=1
+while ($j <= ${#NEIGH_LOSS_FUNCTIONS_ABBREV})
+    set i=1
     
-    while ($j <= ${#NEIGH_LOSS_FUNCTIONS_ABBREV})
+    while ($i <= ${#NEIGH_FILTER_NAMES_ABBREV})
         set these_prediction_dir_names={${ALL_EXPERIMENT_DIR_NAME}/lf_experiment06/${NEIGH_LOSS_FUNCTIONS_ABBREV[$j]}${NEIGH_FILTER_NAMES_ABBREV[$i]}/model*/testing_best_validation_loss/full_grids}
         set this_prediction_dir_name=${these_prediction_dir_names[$#these_prediction_dir_names]}
         set prediction_dir_names_string="${prediction_dir_names_string} ${this_prediction_dir_name}"
         set model_descriptions_string="${model_descriptions_string} ${NEIGH_FILTER_NAMES_FANCY[$i]}_${NEIGH_LOSS_FUNCTIONS_FANCY[$j]}"
         
-        @ j = $j + 1
+        @ i = $i + 1
     end
     
-    @ i = $i + 1
+    @ j = $j + 1
 end
 
 python3 -u "${CODE_DIR_NAME}/make_prediction_comparison_figure.py" \
@@ -69,27 +69,27 @@ python3 -u "${CODE_DIR_NAME}/make_prediction_comparison_figure.py" \
 --smoothing_radii_px 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 \
 --num_panel_rows=4 \
 --num_panel_columns=5 \
---row_major_flag=1 \
---radar_panel_index=15 \
+--row_major_flag=0 \
+--radar_panel_index=3 \
 --output_dir_name="${TOP_OUTPUT_DIR_NAME}/neigh"
 
 set prediction_dir_names_string=""
 set model_descriptions_string=""
-set i=1
+set j=1
 
-while ($i <= ${#TRANSFORM_FILTER_NAMES_ABBREV})
-    set j=1
+while ($j <= ${#TRANSFORM_LOSS_FUNCTIONS_ABBREV})
+    set i=1
     
-    while ($j <= ${#TRANSFORM_LOSS_FUNCTIONS_ABBREV})
+    while ($i <= ${#TRANSFORM_FILTER_NAMES_ABBREV})
         set these_prediction_dir_names={${ALL_EXPERIMENT_DIR_NAME}/lf_experiment05/${TRANSFORM_LOSS_FUNCTIONS_ABBREV[$j]}${TRANSFORM_FILTER_NAMES_ABBREV[$i]}/model*/testing_best_validation_loss/full_grids}
         set this_prediction_dir_name=${these_prediction_dir_names[$#these_prediction_dir_names]}
         set prediction_dir_names_string="${prediction_dir_names_string} ${this_prediction_dir_name}"
         set model_descriptions_string="${model_descriptions_string} ${TRANSFORM_FILTER_NAMES_FANCY[$i]}_${TRANSFORM_LOSS_FUNCTIONS_FANCY[$j]}"
         
-        @ j = $j + 1
+        @ i = $i + 1
     end
     
-    @ i = $i + 1
+    @ j = $j + 1
 end
 
 python3 -u "${CODE_DIR_NAME}/make_prediction_comparison_figure.py" \
@@ -100,6 +100,6 @@ python3 -u "${CODE_DIR_NAME}/make_prediction_comparison_figure.py" \
 --smoothing_radii_px 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 \
 --num_panel_rows=5 \
 --num_panel_columns=8 \
---row_major_flag=1 \
---radar_panel_index=32 \
+--row_major_flag=0 \
+--radar_panel_index=4 \
 --output_dir_name="${TOP_OUTPUT_DIR_NAME}/transform"
