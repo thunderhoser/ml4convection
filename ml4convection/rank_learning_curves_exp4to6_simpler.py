@@ -441,8 +441,8 @@ def _run(all_experiment_dir_name, output_dir_name):
             0, rank_matrix.shape[0] - 1, num=rank_matrix.shape[0],
             dtype=float
         )
-        axes_object.set_xticks(x_tick_values, FILTER_NAMES, rotation=90.)
-        axes_object.set_yticks(
+        pyplot.xticks(x_tick_values, FILTER_NAMES, rotation=90.)
+        pyplot.yticks(
             y_tick_values,
             [LOSS_FUNCTION_NAMES_FANCY[k] for k in MODEL_NAME_INDICES_TO_PLOT]
         )
