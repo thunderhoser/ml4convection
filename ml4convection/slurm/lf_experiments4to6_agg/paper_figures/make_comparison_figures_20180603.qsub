@@ -40,7 +40,7 @@ set NEIGH_FILTER_NAMES_FANCY=("1-by-1" "9-by-9" "25-by-25")
 set TRANSFORM_LOSS_FUNCTIONS_ABBREV=("brier" "fss" "iou" "dice" "csi" "heidke" "gerrity" "peirce")
 set TRANSFORM_FILTER_NAMES_ABBREV=("_wavelets0_min-resolution-deg=0.0000_max-resolution-deg=0.1000" "_wavelets0_min-resolution-deg=0.1000_max-resolution-deg=10000000000.0000" "_wavelets1_min-resolution-deg=0.0000_max-resolution-deg=0.1000" "_wavelets1_min-resolution-deg=0.1000_max-resolution-deg=10000000000.0000")
 set TRANSFORM_LOSS_FUNCTIONS_FANCY=("Brier_score" "FSS" "IOU" "Dice_coeff" "CSI" "Heidke_score" "Gerrity_score" "Peirce_score")
-set TRANSFORM_FILTER_NAMES_FANCY=("FT_0--0.1-deg" "FT_0.1--inf-deg" "WT_0--0.1-deg" "WT_0.1--inf-deg")
+set TRANSFORM_FILTER_NAMES_FANCY=("FT_0--0.2-deg" "FT_0.2--inf-deg" "WT_0--0.2-deg" "WT_0.2--inf-deg")
 
 set prediction_dir_names_string=""
 set model_descriptions_string=""
