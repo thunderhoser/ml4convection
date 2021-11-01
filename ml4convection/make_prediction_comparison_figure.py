@@ -3,7 +3,6 @@
 import os
 import sys
 import argparse
-from string import ascii_lowercase
 import numpy
 import matplotlib
 matplotlib.use('agg')
@@ -59,9 +58,9 @@ MODEL_DESCRIPTIONS_ARG_NAME = 'model_description_strings'
 VALID_TIME_ARG_NAME = 'valid_time_string'
 RADAR_DIR_ARG_NAME = 'input_radar_dir_name'
 SMOOTHING_RADII_ARG_NAME = 'smoothing_radii_px'
+PANEL_LETTERS_ARG_NAME = 'panel_letters'
 NUM_PANEL_ROWS_ARG_NAME = 'num_panel_rows'
 NUM_PANEL_COLUMNS_ARG_NAME = 'num_panel_columns'
-ROW_MAJOR_ARG_NAME = 'row_major_flag'
 RADAR_INDEX_ARG_NAME = 'radar_panel_index'
 OUTPUT_DIR_ARG_NAME = 'output_dir_name'
 
@@ -86,16 +85,16 @@ SMOOTHING_RADII_HELP_STRING = (
     'Radii for Gaussian smoother (one per model).  Use non-positive number for '
     'no smoothing.'
 )
+PANEL_LETTERS_HELP_STRING = (
+    'Space-separated list of letters (one per panel) used for labels.  Num '
+    'panels = num models + (1 if plotting radar, else 0).'
+)
 NUM_PANEL_ROWS_HELP_STRING = (
     'Number of panel rows.  If you want number of rows to be determined '
     'automatically, leave this argument alone.'
 )
 NUM_PANEL_COLUMNS_HELP_STRING = 'Same as `{0:s}` but for columns.'.format(
     NUM_PANEL_ROWS_ARG_NAME
-)
-ROW_MAJOR_HELP_STRING = (
-    'Boolean flag.  If 1 (0), panels will be arranged in row-major (column-'
-    'major) format.'
 )
 RADAR_INDEX_HELP_STRING = (
     '[used only if `{0:s}` is specified] Array index of panel with radar data.'
@@ -127,16 +126,16 @@ INPUT_ARG_PARSER.add_argument(
     help=SMOOTHING_RADII_HELP_STRING
 )
 INPUT_ARG_PARSER.add_argument(
+    '--' + PANEL_LETTERS_ARG_NAME, nargs='+', type=str, required=True,
+    help=PANEL_LETTERS_HELP_STRING
+)
+INPUT_ARG_PARSER.add_argument(
     '--' + NUM_PANEL_ROWS_ARG_NAME, type=int, required=False, default=-1,
     help=NUM_PANEL_ROWS_HELP_STRING
 )
 INPUT_ARG_PARSER.add_argument(
     '--' + NUM_PANEL_COLUMNS_ARG_NAME, type=int, required=False, default=-1,
     help=NUM_PANEL_COLUMNS_HELP_STRING
-)
-INPUT_ARG_PARSER.add_argument(
-    '--' + ROW_MAJOR_ARG_NAME, type=int, required=False, default=1,
-    help=ROW_MAJOR_HELP_STRING
 )
 INPUT_ARG_PARSER.add_argument(
     '--' + RADAR_INDEX_ARG_NAME, type=int, required=False, default=-1,
@@ -416,8 +415,8 @@ def _plot_predictions_one_model(
 
 
 def _run(top_prediction_dir_names, model_descriptions_abbrev, valid_time_string,
-         top_radar_dir_name, smoothing_radii_px, num_panel_rows,
-         num_panel_columns, row_major_flag, radar_panel_index, output_dir_name):
+         top_radar_dir_name, smoothing_radii_px, panel_letters, num_panel_rows,
+         num_panel_columns, radar_panel_index, output_dir_name):
     """Makes figure with predictions from different models.
 
     This is effectively the main method.
@@ -427,9 +426,9 @@ def _run(top_prediction_dir_names, model_descriptions_abbrev, valid_time_string,
     :param valid_time_string: Same.
     :param top_radar_dir_name: Same.
     :param smoothing_radii_px: Same.
+    :param panel_letters: Same.
     :param num_panel_rows: Same.
     :param num_panel_columns: Same.
-    :param row_major_flag: Same.
     :param radar_panel_index: Same.
     :param output_dir_name: Same.
     """
@@ -441,7 +440,6 @@ def _run(top_prediction_dir_names, model_descriptions_abbrev, valid_time_string,
     model_descriptions_verbose = [
         s.replace('inf', r'$\infty$') for s in model_descriptions_verbose
     ]
-
     model_descriptions_abbrev = [
         s.replace('_', '-').lower() for s in model_descriptions_abbrev
     ]
@@ -473,6 +471,11 @@ def _run(top_prediction_dir_names, model_descriptions_abbrev, valid_time_string,
         smoothing_radii_px, exact_dimensions=expected_dim
     )
 
+    expected_dim = numpy.array([num_panels], dtype=int)
+    error_checking.assert_is_numpy_array(
+        numpy.array(panel_letters), exact_dimensions=expected_dim
+    )
+
     smoothing_radii_px = [r if r >= 0 else None for r in smoothing_radii_px]
 
     file_system_utils.mkdir_recursive_if_necessary(
@@ -482,18 +485,11 @@ def _run(top_prediction_dir_names, model_descriptions_abbrev, valid_time_string,
     # Do actual stuff.
     border_latitudes_deg_n, border_longitudes_deg_e = border_io.read_file()
 
-    panel_letters = (
-        list(ascii_lowercase) +
-        [x + y for x in ascii_lowercase for y in ascii_lowercase]
-    )
-    panel_letters = panel_letters[:num_panels]
-
     while len(panel_letters) < num_panel_rows * num_panel_columns:
         panel_letters.append('')
 
     panel_letter_matrix = numpy.reshape(
         numpy.array(panel_letters), (num_panel_rows, num_panel_columns),
-        order='C' if row_major_flag else 'F'
     )
 
     target_matrix = None
@@ -521,8 +517,7 @@ def _run(top_prediction_dir_names, model_descriptions_abbrev, valid_time_string,
         )
 
         row_index, column_index = numpy.unravel_index(
-            k, (num_panel_rows, num_panel_columns),
-            order='C' if row_major_flag else 'F'
+            k, (num_panel_rows, num_panel_columns)
         )
         gg_plotting_utils.label_axes(
             axes_object=axes_object,
@@ -543,8 +538,7 @@ def _run(top_prediction_dir_names, model_descriptions_abbrev, valid_time_string,
                 orientation_string = 'vertical'
             else:
                 radar_row_index, radar_column_index = numpy.unravel_index(
-                    radar_panel_index, (num_panel_rows, num_panel_columns),
-                    order='C' if row_major_flag else 'F'
+                    radar_panel_index, (num_panel_rows, num_panel_columns)
                 )
 
                 if (
@@ -600,8 +594,7 @@ def _run(top_prediction_dir_names, model_descriptions_abbrev, valid_time_string,
         )
 
         row_index, column_index = numpy.unravel_index(
-            radar_panel_index, (num_panel_rows, num_panel_columns),
-            order='C' if row_major_flag else 'F'
+            radar_panel_index, (num_panel_rows, num_panel_columns)
         )
         gg_plotting_utils.label_axes(
             axes_object=axes_object,
@@ -634,18 +627,11 @@ def _run(top_prediction_dir_names, model_descriptions_abbrev, valid_time_string,
         panel_file_names.append('')
 
     panel_file_name_matrix = numpy.reshape(
-        numpy.array(panel_file_names), (num_panel_rows, num_panel_columns),
-        order='C' if row_major_flag else 'F'
+        numpy.array(panel_file_names), (num_panel_rows, num_panel_columns)
     )
     panel_file_names = numpy.reshape(
         panel_file_name_matrix, panel_file_name_matrix.size, order='C'
     )
-
-    for k in range(len(panel_file_names)):
-        print(panel_file_names[k])
-
-    print('\n\n\n\n\n')
-
     panel_file_names = panel_file_names[:num_panels]
 
     concat_figure_file_name = '{0:s}/predictions_{1:s}_comparison.jpg'.format(
@@ -688,9 +674,9 @@ if __name__ == '__main__':
         smoothing_radii_px=numpy.array(
             getattr(INPUT_ARG_OBJECT, SMOOTHING_RADII_ARG_NAME), dtype=float
         ),
+        panel_letters=getattr(INPUT_ARG_OBJECT, PANEL_LETTERS_ARG_NAME),
         num_panel_rows=getattr(INPUT_ARG_OBJECT, NUM_PANEL_ROWS_ARG_NAME),
         num_panel_columns=getattr(INPUT_ARG_OBJECT, NUM_PANEL_COLUMNS_ARG_NAME),
-        row_major_flag=bool(getattr(INPUT_ARG_OBJECT, ROW_MAJOR_ARG_NAME)),
         radar_panel_index=getattr(INPUT_ARG_OBJECT, RADAR_INDEX_ARG_NAME),
         output_dir_name=getattr(INPUT_ARG_OBJECT, OUTPUT_DIR_ARG_NAME)
     )
