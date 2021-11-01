@@ -336,13 +336,17 @@ def _plot_grid_one_score(score_matrix, min_colour_value, max_colour_value,
         vmin=min_colour_value, vmax=max_colour_value
     )
 
-    gg_plotting_utils.plot_linear_colour_bar(
+    colour_bar_object = gg_plotting_utils.plot_linear_colour_bar(
         axes_object_or_matrix=axes_object, data_matrix=score_matrix,
         colour_map_object=colour_map_object, min_value=min_colour_value,
         max_value=max_colour_value, orientation_string='vertical',
         extend_min=False, extend_max=False, font_size=COLOUR_BAR_FONT_SIZE,
         fraction_of_axis_length=0.3
     )
+
+    tick_values = numpy.array([min_colour_value, max_colour_value])
+    colour_bar_object.set_ticks(tick_values)
+    colour_bar_object.set_ticklabels(['Worst', 'Best'])
 
     return figure_object, axes_object
 
@@ -455,7 +459,6 @@ def _run(all_experiment_dir_name, output_dir_name):
         )
 
         axes_object.set_ylabel('Score for loss function')
-        axes_object.yaxis.set_label_coords(-0.1, -0.1)
         axes_object.set_xlabel('Filter for loss function')
 
         score_string = '{0:s} ranking'.format(LOSS_FUNCTION_NAMES_FANCY[i])
