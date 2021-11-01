@@ -4,10 +4,12 @@ import os
 import sys
 import glob
 import argparse
+from PIL import Image
 import numpy
 from scipy.stats import rankdata
 import matplotlib
 matplotlib.use('agg')
+import matplotlib.colors
 from matplotlib import pyplot
 
 THIS_DIRECTORY_NAME = os.path.dirname(os.path.realpath(
@@ -16,6 +18,7 @@ THIS_DIRECTORY_NAME = os.path.dirname(os.path.realpath(
 sys.path.append(os.path.normpath(os.path.join(THIS_DIRECTORY_NAME, '..')))
 
 import file_system_utils
+import imagemagick_utils
 import gg_plotting_utils
 import learning_curves
 
@@ -156,6 +159,7 @@ pyplot.rc('figure', titlesize=DEFAULT_FONT_SIZE)
 FIGURE_WIDTH_INCHES = 15
 FIGURE_HEIGHT_INCHES = 15
 FIGURE_RESOLUTION_DPI = 300
+CONCAT_FIGURE_SIZE_PX = int(1e7)
 
 ALL_EXPERIMENT_DIR_ARG_NAME = 'input_all_experiment_dir_name'
 OUTPUT_DIR_ARG_NAME = 'output_dir_name'
@@ -336,18 +340,6 @@ def _plot_grid_one_score(score_matrix, min_colour_value, max_colour_value,
         vmin=min_colour_value, vmax=max_colour_value
     )
 
-    colour_bar_object = gg_plotting_utils.plot_linear_colour_bar(
-        axes_object_or_matrix=axes_object, data_matrix=score_matrix,
-        colour_map_object=colour_map_object, min_value=min_colour_value,
-        max_value=max_colour_value, orientation_string='vertical',
-        extend_min=False, extend_max=False, font_size=COLOUR_BAR_FONT_SIZE,
-        fraction_of_axis_length=0.3
-    )
-
-    tick_values = numpy.array([min_colour_value, max_colour_value])
-    colour_bar_object.set_ticks(tick_values)
-    colour_bar_object.set_ticklabels(['Worst', 'Best'])
-
     return figure_object, axes_object
 
 
@@ -373,6 +365,69 @@ def _add_markers(figure_object, axes_object, best_marker_indices):
         markersize=marker_size_px, markeredgewidth=0,
         markerfacecolor=MARKER_COLOUR,
         markeredgecolor=MARKER_COLOUR
+    )
+
+
+def _add_colour_bar(
+        figure_file_name, colour_map_object, min_colour_value, max_colour_value,
+        colour_bar_file_name):
+    """Adds colour bar to saved image file.
+
+    :param figure_file_name: Path to saved image file.  Colour bar will be added
+        to this image.
+    :param colour_map_object: Colour scheme (instance of `matplotlib.pyplot.cm`
+        or similar).
+    :param min_colour_value: Minimum value in colour scheme.
+    :param max_colour_value: Max value in colour scheme.
+    :param colour_bar_file_name: Path to output file.  Image with colour bar
+        will be saved here.
+    """
+
+    this_image_matrix = Image.open(figure_file_name)
+    figure_width_px, figure_height_px = this_image_matrix.size
+    figure_width_inches = float(figure_width_px) / FIGURE_RESOLUTION_DPI
+    figure_height_inches = float(figure_height_px) / FIGURE_RESOLUTION_DPI
+
+    extra_figure_object, extra_axes_object = pyplot.subplots(
+        1, 1, figsize=(figure_width_inches, figure_height_inches)
+    )
+    extra_axes_object.axis('off')
+
+    colour_norm_object = matplotlib.colors.Normalize(
+        vmin=min_colour_value, vmax=max_colour_value, clip=False
+    )
+    dummy_values = numpy.array([min_colour_value, max_colour_value])
+
+    colour_bar_object = gg_plotting_utils.plot_colour_bar(
+        axes_object_or_matrix=extra_axes_object, data_matrix=dummy_values,
+        colour_map_object=colour_map_object,
+        colour_norm_object=colour_norm_object,
+        orientation_string='horizontal', extend_min=False, extend_max=False,
+        fraction_of_axis_length=1.25
+    )
+
+    tick_values = numpy.array([min_colour_value, max_colour_value])
+    colour_bar_object.set_ticks(tick_values)
+    colour_bar_object.set_ticklabels(['Worst', 'Best'])
+
+    extra_figure_object.savefig(
+        colour_bar_file_name, dpi=FIGURE_RESOLUTION_DPI,
+        pad_inches=0, bbox_inches='tight'
+    )
+    pyplot.close(extra_figure_object)
+
+    print('Concatenating colour bar to: "{0:s}"...'.format(figure_file_name))
+
+    imagemagick_utils.concatenate_images(
+        input_file_names=[figure_file_name, colour_bar_file_name],
+        output_file_name=figure_file_name,
+        num_panel_rows=2, num_panel_columns=1,
+        extra_args_string='-gravity Center'
+    )
+
+    os.remove(colour_bar_file_name)
+    imagemagick_utils.trim_whitespace(
+        input_file_name=figure_file_name, output_file_name=figure_file_name
     )
 
 
@@ -416,6 +471,7 @@ def _run(all_experiment_dir_name, output_dir_name):
             score_matrix[i, j, ...] = this_matrix
 
     print(SEPARATOR_STRING)
+    panel_file_names = [''] * num_loss_functions
 
     for i in range(num_loss_functions):
         mean_value_matrix = numpy.nanmean(
@@ -437,19 +493,27 @@ def _run(all_experiment_dir_name, output_dir_name):
             colour_map_object=COLOUR_MAP_OBJECT
         )
 
-        x_tick_values = numpy.linspace(
-            0, rank_matrix.shape[1] - 1, num=rank_matrix.shape[1],
-            dtype=float
-        )
         y_tick_values = numpy.linspace(
             0, rank_matrix.shape[0] - 1, num=rank_matrix.shape[0],
             dtype=float
         )
-        pyplot.xticks(x_tick_values, FILTER_NAMES, rotation=90.)
         pyplot.yticks(
             y_tick_values,
             [LOSS_FUNCTION_NAMES_FANCY[k] for k in MODEL_NAME_INDICES_TO_PLOT]
         )
+
+        axes_object.set_ylabel('Score for LF')
+
+        if i == num_loss_functions - 1:
+            x_tick_values = numpy.linspace(
+                0, rank_matrix.shape[1] - 1, num=rank_matrix.shape[1],
+                dtype=float
+            )
+            pyplot.xticks(x_tick_values, FILTER_NAMES, rotation=90.)
+
+            axes_object.set_xlabel('Filter for LF')
+        else:
+            pyplot.xticks([], [])
 
         this_index = numpy.nanargmax(numpy.ravel(rank_matrix))
         _add_markers(
@@ -458,20 +522,17 @@ def _run(all_experiment_dir_name, output_dir_name):
             numpy.unravel_index(this_index, rank_matrix.shape)
         )
 
-        axes_object.set_ylabel('Score for LF')
-        axes_object.set_xlabel('Filter for LF')
-
         score_string = '{0:s} ranking'.format(LOSS_FUNCTION_NAMES_FANCY[i])
         title_string = score_string + ' for different models'
         axes_object.set_title(title_string)
 
-        output_file_name = '{0:s}/{1:s}_ranking.jpg'.format(
+        panel_file_names[i] = '{0:s}/{1:s}_ranking.jpg'.format(
             output_dir_name, LOSS_FUNCTION_NAMES[i]
         )
 
-        print('Saving figure to: "{0:s}"...'.format(output_file_name))
+        print('Saving figure to: "{0:s}"...'.format(panel_file_names[i]))
         figure_object.savefig(
-            output_file_name, dpi=FIGURE_RESOLUTION_DPI,
+            panel_file_names[i], dpi=FIGURE_RESOLUTION_DPI,
             pad_inches=0, bbox_inches='tight'
         )
         pyplot.close(figure_object)
@@ -490,7 +551,7 @@ def _run(all_experiment_dir_name, output_dir_name):
             )
 
             display_string = (
-                '{0:d}th-best {1:s} rank = {2:.1f} ... model trained with {3:s}'
+                '{0:d}th-best {1:s} = {2:.1f} ... model trained with {3:s}'
             ).format(
                 k + 1, score_string, rank_matrix[loss_index, filter_index],
                 model_loss_string
@@ -499,6 +560,30 @@ def _run(all_experiment_dir_name, output_dir_name):
             print(display_string)
 
         print(SEPARATOR_STRING)
+
+    concat_figure_file_name = '{0:s}/ranking_by_score.jpg'.format(
+        output_dir_name
+    )
+    print('Concatenating panels to: "{0:s}"...'.format(concat_figure_file_name))
+
+    imagemagick_utils.concatenate_images(
+        input_file_names=panel_file_names,
+        output_file_name=concat_figure_file_name,
+        num_panel_rows=len(panel_file_names), num_panel_columns=1
+    )
+    imagemagick_utils.resize_image(
+        input_file_name=concat_figure_file_name,
+        output_file_name=concat_figure_file_name,
+        output_size_pixels=CONCAT_FIGURE_SIZE_PX
+    )
+    _add_colour_bar(
+        figure_file_name=concat_figure_file_name,
+        colour_map_object=COLOUR_MAP_OBJECT,
+        min_colour_value=1., max_colour_value=2.,
+        colour_bar_file_name=
+        '{0:s}/ranking_by_score_cbar.jpg'.format(output_dir_name)
+    )
+    print(SEPARATOR_STRING)
 
 
 if __name__ == '__main__':
