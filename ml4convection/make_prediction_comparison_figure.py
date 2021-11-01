@@ -640,6 +640,12 @@ def _run(top_prediction_dir_names, model_descriptions_abbrev, valid_time_string,
     panel_file_names = numpy.reshape(
         panel_file_name_matrix, panel_file_name_matrix.size, order='C'
     )
+
+    for k in range(len(panel_file_names)):
+        print(panel_file_names[k])
+
+    print('\n\n\n\n\n')
+
     panel_file_names = panel_file_names[:num_panels]
 
     concat_figure_file_name = '{0:s}/predictions_{1:s}_comparison.jpg'.format(
