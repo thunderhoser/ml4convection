@@ -454,7 +454,7 @@ def _run(all_experiment_dir_name, output_dir_name):
             numpy.unravel_index(this_index, rank_matrix.shape)
         )
 
-        axes_object.set_ylabel('Score for loss function')
+        axes_object.set_ylabel('Score for loss function', loc='bottom')
         axes_object.set_xlabel('Filter for loss function')
 
         score_string = '{0:s} ranking'.format(LOSS_FUNCTION_NAMES_FANCY[i])
