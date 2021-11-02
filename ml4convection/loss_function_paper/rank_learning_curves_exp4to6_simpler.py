@@ -1,13 +1,17 @@
 """Ranks learning-curve scores for aggregated experiment."""
 
+import os
 import glob
 import argparse
+from PIL import Image
 import numpy
 from scipy.stats import rankdata
 import matplotlib
 matplotlib.use('agg')
+import matplotlib.colors
 from matplotlib import pyplot
 from gewittergefahr.gg_utils import file_system_utils
+from gewittergefahr.plotting import imagemagick_utils
 from gewittergefahr.plotting import plotting_utils as gg_plotting_utils
 from ml4convection.utils import learning_curves
 
@@ -54,6 +58,49 @@ SUBEXPERIMENT_ENUMS = numpy.array([
 ], dtype=int)
 
 FILTER_NAMES = [
+    'ft-0.0000-0.0125',
+    'ft-0.0125-0.0250',
+    'ft-0.0250-0.0500',
+    'ft-0.0500-0.1000',
+    'ft-0.1000-0.2000',
+    'ft-0.2000-0.4000',
+    'ft-0.4000-0.8000',
+    'ft-0.8000-inf',
+    'ft-0.0000-0.0500',
+    'ft-0.0000-0.1000',
+    'ft-0.0000-0.2000',
+    'ft-0.0000-0.4000',
+    'ft-0.0500-inf',
+    'ft-0.1000-inf',
+    'ft-0.2000-inf',
+    'ft-0.4000-inf',
+    'wt-0.0000-0.0125',
+    'wt-0.0125-0.0250',
+    'wt-0.0250-0.0500',
+    'wt-0.0500-0.1000',
+    'wt-0.1000-0.2000',
+    'wt-0.2000-0.4000',
+    'wt-0.4000-0.8000',
+    'wt-0.8000-inf',
+    'wt-0.0000-0.0500',
+    'wt-0.0000-0.1000',
+    'wt-0.0000-0.2000',
+    'wt-0.0000-0.4000',
+    'wt-0.0500-inf',
+    'wt-0.1000-inf',
+    'wt-0.2000-inf',
+    'wt-0.4000-inf',
+    'neigh0',
+    'neigh1',
+    'neigh2',
+    'neigh3',
+    'neigh4',
+    'neigh6',
+    'neigh8',
+    'neigh12'
+]
+
+FILTER_NAMES_FANCY = [
     r'FT 0-0.0125$^{\circ}$',
     r'FT 0.0125-0.025$^{\circ}$',
     r'FT 0.025-0.05$^{\circ}$',
@@ -86,26 +133,30 @@ FILTER_NAMES = [
     r'WT 0.1-$\infty^{\circ}$',
     r'WT 0.2-$\infty^{\circ}$',
     r'WT 0.4-$\infty^{\circ}$',
-    '1 x 1 neigh',
-    '3 x 3 neigh',
-    '5 x 5 neigh',
-    '7 x 7 neigh',
-    '9 x 9 neigh',
-    '13 x 13 neigh',
-    '17 x 17 neigh',
-    '25 x 25 neigh'
+    '1-by-1 neigh',
+    '3-by-3 neigh',
+    '5-by-5 neigh',
+    '7-by-7 neigh',
+    '9-by-9 neigh',
+    '13-by-13 neigh',
+    '17-by-17 neigh',
+    '25-by-25 neigh'
 ]
 
 LOSS_FUNCTION_NAMES = [
     'brier', 'fss', 'iou', 'dice', 'csi', 'heidke', 'gerrity', 'peirce'
 ]
 LOSS_FUNCTION_NAMES_FANCY = [
-    'Brier', 'FSS', 'IOU', 'Dice', 'CSI', 'Heidke', 'Gerrity', 'Peirce'
+    'Brier score', 'FSS', 'IOU', 'Dice coeff', 'CSI', 'Heidke score',
+    'Gerrity score', 'Peirce score'
 ]
 NEGATIVELY_ORIENTED_FLAGS = numpy.array(
     [1, 0, 0, 0, 0, 0, 0, 0], dtype=bool
 )
 MODEL_NAME_INDICES_TO_PLOT = numpy.array([0, 1], dtype=int)
+EVAL_FILTER_INDICES_TO_PLOT = numpy.array(
+    [9, 13, 25, 29, 32, 36, 39], dtype=int
+)
 
 LOSS_FUNCTION_KEYS_NEIGH = [
     learning_curves.NEIGH_BRIER_SCORE_KEY, learning_curves.NEIGH_FSS_KEY,
@@ -148,6 +199,7 @@ pyplot.rc('figure', titlesize=DEFAULT_FONT_SIZE)
 FIGURE_WIDTH_INCHES = 15
 FIGURE_HEIGHT_INCHES = 15
 FIGURE_RESOLUTION_DPI = 300
+CONCAT_FIGURE_SIZE_PX = int(1e7)
 
 ALL_EXPERIMENT_DIR_ARG_NAME = 'input_all_experiment_dir_name'
 OUTPUT_DIR_ARG_NAME = 'output_dir_name'
@@ -258,7 +310,7 @@ def _read_scores_one_model(
     )
 
     num_loss_functions = len(LOSS_FUNCTION_NAMES)
-    num_filters = len(FILTER_NAMES)
+    num_filters = len(FILTER_NAMES_FANCY)
     score_matrix = numpy.full((num_loss_functions, num_filters), numpy.nan)
 
     for i in range(num_loss_functions):
@@ -328,14 +380,6 @@ def _plot_grid_one_score(score_matrix, min_colour_value, max_colour_value,
         vmin=min_colour_value, vmax=max_colour_value
     )
 
-    gg_plotting_utils.plot_linear_colour_bar(
-        axes_object_or_matrix=axes_object, data_matrix=score_matrix,
-        colour_map_object=colour_map_object, min_value=min_colour_value,
-        max_value=max_colour_value, orientation_string='vertical',
-        extend_min=False, extend_max=False, font_size=COLOUR_BAR_FONT_SIZE,
-        fraction_of_axis_length=0.3
-    )
-
     return figure_object, axes_object
 
 
@@ -352,7 +396,7 @@ def _add_markers(figure_object, axes_object, best_marker_indices):
 
     figure_width_px = figure_object.get_size_inches()[0] * figure_object.dpi
     marker_size_px = figure_width_px * (
-        BEST_MARKER_SIZE_GRID_CELLS / len(FILTER_NAMES)
+        BEST_MARKER_SIZE_GRID_CELLS / len(FILTER_NAMES_FANCY)
     )
 
     axes_object.plot(
@@ -361,6 +405,69 @@ def _add_markers(figure_object, axes_object, best_marker_indices):
         markersize=marker_size_px, markeredgewidth=0,
         markerfacecolor=MARKER_COLOUR,
         markeredgecolor=MARKER_COLOUR
+    )
+
+
+def _add_colour_bar(
+        figure_file_name, colour_map_object, min_colour_value, max_colour_value,
+        colour_bar_file_name):
+    """Adds colour bar to saved image file.
+
+    :param figure_file_name: Path to saved image file.  Colour bar will be added
+        to this image.
+    :param colour_map_object: Colour scheme (instance of `matplotlib.pyplot.cm`
+        or similar).
+    :param min_colour_value: Minimum value in colour scheme.
+    :param max_colour_value: Max value in colour scheme.
+    :param colour_bar_file_name: Path to output file.  Image with colour bar
+        will be saved here.
+    """
+
+    this_image_matrix = Image.open(figure_file_name)
+    figure_width_px, figure_height_px = this_image_matrix.size
+    figure_width_inches = float(figure_width_px) / FIGURE_RESOLUTION_DPI
+    figure_height_inches = float(figure_height_px) / FIGURE_RESOLUTION_DPI
+
+    extra_figure_object, extra_axes_object = pyplot.subplots(
+        1, 1, figsize=(figure_width_inches, figure_height_inches)
+    )
+    extra_axes_object.axis('off')
+
+    colour_norm_object = matplotlib.colors.Normalize(
+        vmin=min_colour_value, vmax=max_colour_value, clip=False
+    )
+    dummy_values = numpy.array([min_colour_value, max_colour_value])
+
+    colour_bar_object = gg_plotting_utils.plot_colour_bar(
+        axes_object_or_matrix=extra_axes_object, data_matrix=dummy_values,
+        colour_map_object=colour_map_object,
+        colour_norm_object=colour_norm_object,
+        orientation_string='vertical', extend_min=False, extend_max=False,
+        fraction_of_axis_length=1.25
+    )
+
+    tick_values = numpy.array([min_colour_value, max_colour_value])
+    colour_bar_object.set_ticks(tick_values)
+    colour_bar_object.set_ticklabels(['Worst', 'Best'])
+
+    extra_figure_object.savefig(
+        colour_bar_file_name, dpi=FIGURE_RESOLUTION_DPI,
+        pad_inches=0, bbox_inches='tight'
+    )
+    pyplot.close(extra_figure_object)
+
+    print('Concatenating colour bar to: "{0:s}"...'.format(figure_file_name))
+
+    imagemagick_utils.concatenate_images(
+        input_file_names=[figure_file_name, colour_bar_file_name],
+        output_file_name=figure_file_name,
+        num_panel_rows=1, num_panel_columns=2,
+        extra_args_string='-gravity Center'
+    )
+
+    os.remove(colour_bar_file_name)
+    imagemagick_utils.trim_whitespace(
+        input_file_name=figure_file_name, output_file_name=figure_file_name
     )
 
 
@@ -403,68 +510,81 @@ def _run(all_experiment_dir_name, output_dir_name):
 
             score_matrix[i, j, ...] = this_matrix
 
-    print(SEPARATOR_STRING)
+    rank_matrix = numpy.full(score_matrix.shape, numpy.nan)
 
     for i in range(num_loss_functions):
-        mean_value_matrix = numpy.nanmean(
-            score_matrix[MODEL_NAME_INDICES_TO_PLOT, :, i, :], axis=-1
+        for j in range(num_filters):
+            this_score_matrix = score_matrix[..., i, j] + 0.
+
+            if NEGATIVELY_ORIENTED_FLAGS[i]:
+                this_score_matrix[numpy.isnan(this_score_matrix)] = numpy.inf
+                rank_array = rankdata(-1 * this_score_matrix)
+            else:
+                this_score_matrix[numpy.isnan(this_score_matrix)] = -numpy.inf
+                rank_array = rankdata(this_score_matrix)
+
+            rank_matrix[i, j, ...] = numpy.reshape(
+                rank_array, this_score_matrix.shape
+            )
+
+    print(SEPARATOR_STRING)
+    panel_file_names = [''] * num_loss_functions
+
+    for i in range(num_loss_functions):
+        this_rank_matrix = numpy.mean(
+            rank_matrix[MODEL_NAME_INDICES_TO_PLOT, :, i, :], axis=-1
         )
-
-        if NEGATIVELY_ORIENTED_FLAGS[i]:
-            mean_value_matrix[numpy.isnan(mean_value_matrix)] = numpy.inf
-            rank_array = rankdata(-1 * mean_value_matrix)
-        else:
-            mean_value_matrix[numpy.isnan(mean_value_matrix)] = -numpy.inf
-            rank_array = rankdata(mean_value_matrix)
-
-        rank_matrix = numpy.reshape(rank_array, mean_value_matrix.shape)
-
         figure_object, axes_object = _plot_grid_one_score(
-            score_matrix=rank_matrix,
-            min_colour_value=1., max_colour_value=rank_matrix.size,
+            score_matrix=this_rank_matrix,
+            min_colour_value=1., max_colour_value=this_rank_matrix.size,
             colour_map_object=COLOUR_MAP_OBJECT
         )
 
-        x_tick_values = numpy.linspace(
-            0, rank_matrix.shape[1] - 1, num=rank_matrix.shape[1],
-            dtype=float
-        )
         y_tick_values = numpy.linspace(
-            0, rank_matrix.shape[0] - 1, num=rank_matrix.shape[0],
+            0, this_rank_matrix.shape[0] - 1, num=this_rank_matrix.shape[0],
             dtype=float
         )
-        axes_object.set_xticks(x_tick_values, FILTER_NAMES, rotation=90.)
-        axes_object.set_yticks(
+        pyplot.yticks(
             y_tick_values,
             [LOSS_FUNCTION_NAMES_FANCY[k] for k in MODEL_NAME_INDICES_TO_PLOT]
         )
+        axes_object.set_ylabel('Score for LF')
 
-        this_index = numpy.nanargmax(numpy.ravel(rank_matrix))
+        if i == num_loss_functions - 1:
+            x_tick_values = numpy.linspace(
+                0, this_rank_matrix.shape[1] - 1, num=this_rank_matrix.shape[1],
+                dtype=float
+            )
+            pyplot.xticks(x_tick_values, FILTER_NAMES_FANCY, rotation=90.)
+            axes_object.set_xlabel('Filter for LF')
+        else:
+            pyplot.xticks([], [])
+
+        this_index = numpy.nanargmax(numpy.ravel(this_rank_matrix))
         _add_markers(
             figure_object=figure_object, axes_object=axes_object,
             best_marker_indices=
-            numpy.unravel_index(this_index, rank_matrix.shape)
+            numpy.unravel_index(this_index, this_rank_matrix.shape)
         )
 
-        axes_object.set_ylabel('Score for loss function')
-        axes_object.set_xlabel('Filter for loss function')
-
-        score_string = '{0:s} ranking'.format(LOSS_FUNCTION_NAMES_FANCY[i])
+        score_string = 'Mean ranking on LFs with {0:s}'.format(
+            LOSS_FUNCTION_NAMES_FANCY[i]
+        )
         title_string = score_string + ' for different models'
         axes_object.set_title(title_string)
 
-        output_file_name = '{0:s}/{1:s}_ranking.jpg'.format(
+        panel_file_names[i] = '{0:s}/{1:s}_ranking.jpg'.format(
             output_dir_name, LOSS_FUNCTION_NAMES[i]
         )
 
-        print('Saving figure to: "{0:s}"...'.format(output_file_name))
+        print('Saving figure to: "{0:s}"...'.format(panel_file_names[i]))
         figure_object.savefig(
-            output_file_name, dpi=FIGURE_RESOLUTION_DPI,
+            panel_file_names[i], dpi=FIGURE_RESOLUTION_DPI,
             pad_inches=0, bbox_inches='tight'
         )
         pyplot.close(figure_object)
 
-        sort_indices_linear = numpy.argsort(-1 * numpy.ravel(rank_matrix))
+        sort_indices_linear = numpy.argsort(-1 * numpy.ravel(this_rank_matrix))
 
         for k in range(len(sort_indices_linear)):
             loss_index, filter_index = numpy.unravel_index(
@@ -474,19 +594,208 @@ def _run(all_experiment_dir_name, output_dir_name):
 
             model_loss_string = '{0:s} ({1:s})'.format(
                 LOSS_FUNCTION_NAMES_FANCY[loss_index],
-                FILTER_NAMES[filter_index]
+                FILTER_NAMES_FANCY[filter_index]
             )
 
             display_string = (
-                '{0:d}th-best {1:s} rank = {2:.1f} ... model trained with {3:s}'
+                '{0:d}th-best {1:s} = {2:.1f} ... model trained with {3:s}'
             ).format(
-                k + 1, score_string, rank_matrix[loss_index, filter_index],
+                k + 1, score_string, this_rank_matrix[loss_index, filter_index],
                 model_loss_string
             )
 
             print(display_string)
 
         print(SEPARATOR_STRING)
+
+    concat_figure_file_name = '{0:s}/ranking_by_score.jpg'.format(
+        output_dir_name
+    )
+    print('Concatenating panels to: "{0:s}"...'.format(concat_figure_file_name))
+
+    imagemagick_utils.concatenate_images(
+        input_file_names=panel_file_names,
+        output_file_name=concat_figure_file_name,
+        num_panel_rows=len(panel_file_names), num_panel_columns=1
+    )
+    imagemagick_utils.resize_image(
+        input_file_name=concat_figure_file_name,
+        output_file_name=concat_figure_file_name,
+        output_size_pixels=CONCAT_FIGURE_SIZE_PX
+    )
+    _add_colour_bar(
+        figure_file_name=concat_figure_file_name,
+        colour_map_object=COLOUR_MAP_OBJECT,
+        min_colour_value=1., max_colour_value=2.,
+        colour_bar_file_name=
+        '{0:s}/ranking_by_score_cbar.jpg'.format(output_dir_name)
+    )
+    print(SEPARATOR_STRING)
+
+    num_panels = len(EVAL_FILTER_INDICES_TO_PLOT) + 1
+    panel_file_names = [''] * num_panels
+
+    for j in EVAL_FILTER_INDICES_TO_PLOT:
+        this_rank_matrix = numpy.nanmean(
+            rank_matrix[MODEL_NAME_INDICES_TO_PLOT, :, :, j], axis=-1
+        )
+        figure_object, axes_object = _plot_grid_one_score(
+            score_matrix=this_rank_matrix,
+            min_colour_value=1., max_colour_value=this_rank_matrix.size,
+            colour_map_object=COLOUR_MAP_OBJECT
+        )
+
+        y_tick_values = numpy.linspace(
+            0, this_rank_matrix.shape[0] - 1, num=this_rank_matrix.shape[0],
+            dtype=float
+        )
+        pyplot.yticks(
+            y_tick_values,
+            [LOSS_FUNCTION_NAMES_FANCY[k] for k in MODEL_NAME_INDICES_TO_PLOT]
+        )
+        axes_object.set_ylabel('Score for LF')
+
+        pyplot.xticks([], [])
+
+        this_index = numpy.nanargmax(numpy.ravel(this_rank_matrix))
+        _add_markers(
+            figure_object=figure_object, axes_object=axes_object,
+            best_marker_indices=
+            numpy.unravel_index(this_index, this_rank_matrix.shape)
+        )
+
+        score_string = 'Mean ranking on LFs filtered with {0:s}'.format(
+            FILTER_NAMES_FANCY[j]
+        )
+        title_string = score_string + ' for different models'
+        axes_object.set_title(title_string)
+
+        panel_file_names[j] = '{0:s}/{1:s}_ranking.jpg'.format(
+            output_dir_name, FILTER_NAMES[j]
+        )
+
+        print('Saving figure to: "{0:s}"...'.format(panel_file_names[j]))
+        figure_object.savefig(
+            panel_file_names[j], dpi=FIGURE_RESOLUTION_DPI,
+            pad_inches=0, bbox_inches='tight'
+        )
+        pyplot.close(figure_object)
+
+        sort_indices_linear = numpy.argsort(-1 * numpy.ravel(this_rank_matrix))
+
+        for k in range(len(sort_indices_linear)):
+            loss_index, filter_index = numpy.unravel_index(
+                sort_indices_linear[k], (num_loss_functions, num_filters)
+            )
+            loss_index = MODEL_NAME_INDICES_TO_PLOT[loss_index]
+
+            model_loss_string = '{0:s} ({1:s})'.format(
+                LOSS_FUNCTION_NAMES_FANCY[loss_index],
+                FILTER_NAMES_FANCY[filter_index]
+            )
+
+            display_string = (
+                '{0:d}th-best {1:s} = {2:.1f} ... model trained with {3:s}'
+            ).format(
+                k + 1, score_string, this_rank_matrix[loss_index, filter_index],
+                model_loss_string
+            )
+
+            print(display_string)
+
+        print(SEPARATOR_STRING)
+
+    this_rank_matrix = numpy.nanmean(
+        rank_matrix[MODEL_NAME_INDICES_TO_PLOT, ...], axis=(-2, -1)
+    )
+    figure_object, axes_object = _plot_grid_one_score(
+        score_matrix=this_rank_matrix,
+        min_colour_value=1., max_colour_value=this_rank_matrix.size,
+        colour_map_object=COLOUR_MAP_OBJECT
+    )
+
+    y_tick_values = numpy.linspace(
+        0, this_rank_matrix.shape[0] - 1, num=this_rank_matrix.shape[0],
+        dtype=float
+    )
+    pyplot.yticks(
+        y_tick_values,
+        [LOSS_FUNCTION_NAMES_FANCY[k] for k in MODEL_NAME_INDICES_TO_PLOT]
+    )
+    axes_object.set_ylabel('Score for LF')
+
+    x_tick_values = numpy.linspace(
+        0, this_rank_matrix.shape[1] - 1, num=this_rank_matrix.shape[1],
+        dtype=float
+    )
+    pyplot.xticks(x_tick_values, FILTER_NAMES_FANCY, rotation=90.)
+    axes_object.set_xlabel('Filter for LF')
+
+    this_index = numpy.nanargmax(numpy.ravel(this_rank_matrix))
+    _add_markers(
+        figure_object=figure_object, axes_object=axes_object,
+        best_marker_indices=
+        numpy.unravel_index(this_index, this_rank_matrix.shape)
+    )
+
+    score_string = 'Mean ranking on all loss functions'
+    title_string = score_string + ' for different models'
+    axes_object.set_title(title_string)
+
+    panel_file_names[-1] = '{0:s}/overall_ranking.jpg'.format(output_dir_name)
+    print('Saving figure to: "{0:s}"...'.format(panel_file_names[-1]))
+    figure_object.savefig(
+        panel_file_names[-1], dpi=FIGURE_RESOLUTION_DPI,
+        pad_inches=0, bbox_inches='tight'
+    )
+    pyplot.close(figure_object)
+
+    sort_indices_linear = numpy.argsort(-1 * numpy.ravel(this_rank_matrix))
+
+    for k in range(len(sort_indices_linear)):
+        loss_index, filter_index = numpy.unravel_index(
+            sort_indices_linear[k], (num_loss_functions, num_filters)
+        )
+        loss_index = MODEL_NAME_INDICES_TO_PLOT[loss_index]
+
+        model_loss_string = '{0:s} ({1:s})'.format(
+            LOSS_FUNCTION_NAMES_FANCY[loss_index],
+            FILTER_NAMES_FANCY[filter_index]
+        )
+
+        display_string = (
+            '{0:d}th-best {1:s} = {2:.1f} ... model trained with {3:s}'
+        ).format(
+            k + 1, score_string, this_rank_matrix[loss_index, filter_index],
+            model_loss_string
+        )
+
+        print(display_string)
+
+    print(SEPARATOR_STRING)
+
+    concat_figure_file_name = '{0:s}/ranking_by_filter_and_overall.jpg'.format(
+        output_dir_name
+    )
+    print('Concatenating panels to: "{0:s}"...'.format(concat_figure_file_name))
+
+    imagemagick_utils.concatenate_images(
+        input_file_names=panel_file_names,
+        output_file_name=concat_figure_file_name,
+        num_panel_rows=len(panel_file_names), num_panel_columns=1
+    )
+    imagemagick_utils.resize_image(
+        input_file_name=concat_figure_file_name,
+        output_file_name=concat_figure_file_name,
+        output_size_pixels=CONCAT_FIGURE_SIZE_PX
+    )
+    _add_colour_bar(
+        figure_file_name=concat_figure_file_name,
+        colour_map_object=COLOUR_MAP_OBJECT,
+        min_colour_value=1., max_colour_value=2.,
+        colour_bar_file_name=
+        '{0:s}/ranking_by_filter_and_overall_cbar.jpg'.format(output_dir_name)
+    )
 
 
 if __name__ == '__main__':
