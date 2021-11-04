@@ -378,6 +378,10 @@ def _plot_grid_one_score(score_matrix, min_colour_value, max_colour_value,
         max_colour_value, min_colour_value + 1e-6
     ])
 
+    print('MIN AND MAX COLOUR VALUES = {0:.4f}, {1:.4f}'.format(
+        min_colour_value, max_colour_value
+    ))
+
     figure_object, axes_object = pyplot.subplots(
         1, 1, figsize=(FIGURE_WIDTH_INCHES, FIGURE_HEIGHT_INCHES)
     )
@@ -543,7 +547,8 @@ def _run(all_experiment_dir_name, output_dir_name):
         )
         figure_object, axes_object = _plot_grid_one_score(
             score_matrix=this_rank_matrix,
-            min_colour_value=1., max_colour_value=this_rank_matrix.size,
+            min_colour_value=numpy.min(this_rank_matrix),
+            max_colour_value=numpy.max(this_rank_matrix),
             colour_map_object=COLOUR_MAP_OBJECT
         )
 
@@ -647,7 +652,8 @@ def _run(all_experiment_dir_name, output_dir_name):
         )
         figure_object, axes_object = _plot_grid_one_score(
             score_matrix=this_rank_matrix,
-            min_colour_value=1., max_colour_value=this_rank_matrix.size,
+            min_colour_value=numpy.min(this_rank_matrix),
+            max_colour_value=numpy.max(this_rank_matrix),
             colour_map_object=COLOUR_MAP_OBJECT
         )
 
@@ -716,7 +722,8 @@ def _run(all_experiment_dir_name, output_dir_name):
     )
     figure_object, axes_object = _plot_grid_one_score(
         score_matrix=this_rank_matrix,
-        min_colour_value=1., max_colour_value=this_rank_matrix.size,
+        min_colour_value=numpy.min(this_rank_matrix),
+        max_colour_value=numpy.max(this_rank_matrix),
         colour_map_object=COLOUR_MAP_OBJECT
     )
 
