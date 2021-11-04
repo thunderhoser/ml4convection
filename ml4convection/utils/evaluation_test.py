@@ -749,7 +749,7 @@ SUMMED_PROB_MATRIX_UNGRIDDED = (
         TOTAL_COUNT_MATRIX_UNGRIDDED * MEAN_PROB_MATRIX_UNGRIDDED
 )
 POS_COUNT_MATRIX_UNGRIDDED = numpy.array(
-    [16, 0, 0, 0, 0, 0, 0, 0, 0, 0], dtype=int
+    [16, 0, 0, 0, 0, 0, 0, 0, 0, 0], dtype=float
 )
 EVENT_FREQ_MATRIX_UNGRIDDED = numpy.array([
     16. / 56, 0, 0, 0, 0, 0, 0, 0, 0, 0
@@ -785,7 +785,7 @@ NEW_DICT = {
     evaluation.BINNED_SUM_PROBS_KEY:
         (THESE_DIM, SUMMED_PROB_MATRIX_UNGRIDDED + 0.),
     evaluation.BINNED_NUM_POSITIVES_KEY:
-        (THESE_DIM, POS_COUNT_MATRIX_UNGRIDDED + 0)
+        (THESE_DIM, POS_COUNT_MATRIX_UNGRIDDED + 0.)
 }
 MAIN_DICT_UNGRIDDED.update(NEW_DICT)
 
@@ -1151,11 +1151,10 @@ def _compare_basic_score_tables(first_table, second_table):
         ]
         integer_keys += [evaluation.TOTAL_NUM_EXAMPLES_KEY]
     else:
-        float_keys += [evaluation.BINNED_SUM_PROBS_KEY]
-        integer_keys += [
-            evaluation.BINNED_NUM_POSITIVES_KEY,
-            evaluation.BINNED_NUM_EXAMPLES_KEY
+        float_keys += [
+            evaluation.BINNED_SUM_PROBS_KEY, evaluation.BINNED_NUM_POSITIVES_KEY
         ]
+        integer_keys += [evaluation.BINNED_NUM_EXAMPLES_KEY]
 
     for this_key in float_keys:
         if not numpy.allclose(

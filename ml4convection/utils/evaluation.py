@@ -5,6 +5,7 @@ import os.path
 import numpy
 import xarray
 from scipy.signal import convolve2d
+from scipy.ndimage import maximum_filter
 from gewittergefahr.gg_utils import histograms
 from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import number_rounding
@@ -64,6 +65,25 @@ BRIER_SCORE_KEY = 'brier_score'
 RELIABILITY_KEY = 'reliability'
 RESOLUTION_KEY = 'resolution'
 FSS_KEY = 'fractions_skill_score'
+
+
+def _apply_max_filter(input_matrix, half_width_px):
+    """Applies max-filter to 2-D matrix.
+
+    :param input_matrix: 2-D numpy array.
+    :param half_width_px: Half-width of filter (pixels).
+    :return: output_matrix: Max-filtered version of `input_matrix` with same
+        dimensions.
+    """
+
+    structure_matrix = general_utils.get_structure_matrix(half_width_px)
+
+    output_matrix = maximum_filter(
+        input_matrix.astype(float),
+        footprint=structure_matrix, mode='constant', cval=0.
+    )
+
+    return output_matrix.astype(input_matrix.dtype)
 
 
 def _match_actual_convection_one_time(
@@ -149,10 +169,14 @@ def _get_reliability_components_one_time(
         example counts.
     """
 
-    dilated_actual_target_matrix = general_utils.dilate_binary_matrix(
-        binary_matrix=actual_target_matrix,
-        buffer_distance_px=matching_distance_px
-    ).astype(int)
+    dilated_actual_target_matrix = _apply_max_filter(
+        input_matrix=actual_target_matrix, half_width_px=matching_distance_px
+    )
+
+    # dilated_actual_target_matrix = general_utils.dilate_binary_matrix(
+    #     binary_matrix=actual_target_matrix,
+    #     buffer_distance_px=matching_distance_px
+    # ).astype(int)
 
     bin_indices = histograms.create_histogram(
         input_values=numpy.ravel(probability_matrix),
@@ -165,7 +189,7 @@ def _get_reliability_components_one_time(
     these_dim = probability_matrix.shape + (num_bins,)
     example_count_matrix = numpy.full(these_dim, 0, dtype=int)
     summed_probability_matrix = numpy.full(these_dim, numpy.nan)
-    positive_example_count_matrix = numpy.full(these_dim, 0, dtype=int)
+    positive_example_count_matrix = numpy.full(these_dim, 0, dtype=float)
 
     for j in range(num_bins):
         row_indices, column_indices = numpy.where(bin_index_matrix == j)
@@ -262,10 +286,14 @@ def _get_bss_components_one_time(
         `actual_target_matrix`.
     """
 
-    dilated_actual_target_matrix = general_utils.dilate_binary_matrix(
-        binary_matrix=actual_target_matrix,
-        buffer_distance_px=matching_distance_px
-    ).astype(int)
+    dilated_actual_target_matrix = _apply_max_filter(
+        input_matrix=actual_target_matrix, half_width_px=matching_distance_px
+    )
+
+    # dilated_actual_target_matrix = general_utils.dilate_binary_matrix(
+    #     binary_matrix=actual_target_matrix,
+    #     buffer_distance_px=matching_distance_px
+    # ).astype(int)
 
     actual_sse_matrix = (dilated_actual_target_matrix - probability_matrix) ** 2
     climo_sse_matrix = (
@@ -456,7 +484,7 @@ def _init_basic_score_table(
         new_dict = {
             BINNED_NUM_EXAMPLES_KEY: (these_dim, this_integer_array + 0),
             BINNED_SUM_PROBS_KEY: (these_dim, this_float_array + 0.),
-            BINNED_NUM_POSITIVES_KEY: (these_dim, this_integer_array + 0)
+            BINNED_NUM_POSITIVES_KEY: (these_dim, this_float_array + 0.)
         }
         main_data_dict.update(new_dict)
 
@@ -649,6 +677,13 @@ def get_basic_scores_ungridded(
                     j, num_prob_thresholds, valid_time_strings[i]
                 ))
 
+            this_prob_threshold = numpy.minimum(probability_thresholds[j], 1.)
+            this_prob_threshold = numpy.maximum(this_prob_threshold, TOLERANCE)
+
+            this_actual_target_matrix = (
+                prediction_dict[prediction_io.TARGET_MATRIX_KEY][i, ...] >=
+                this_prob_threshold
+            )
             this_predicted_target_matrix = (
                 prediction_dict[prediction_io.PROBABILITY_MATRIX_KEY][i, ...] >=
                 probability_thresholds[j]
@@ -657,8 +692,7 @@ def get_basic_scores_ungridded(
             t = basic_score_table_xarray
 
             this_fancy_prediction_matrix = _match_actual_convection_one_time(
-                actual_target_matrix=
-                prediction_dict[prediction_io.TARGET_MATRIX_KEY][i, ...],
+                actual_target_matrix=this_actual_target_matrix,
                 predicted_target_matrix=this_predicted_target_matrix,
                 matching_distance_px=matching_distance_px,
                 eroded_eval_mask_matrix=eroded_eval_mask_matrix
@@ -672,8 +706,7 @@ def get_basic_scores_ungridded(
             )
 
             this_fancy_target_matrix = _match_predicted_convection_one_time(
-                actual_target_matrix=
-                prediction_dict[prediction_io.TARGET_MATRIX_KEY][i, ...],
+                actual_target_matrix=this_actual_target_matrix,
                 predicted_target_matrix=this_predicted_target_matrix,
                 matching_distance_px=matching_distance_px,
                 eroded_eval_mask_matrix=eroded_eval_mask_matrix
@@ -829,6 +862,13 @@ def get_basic_scores_gridded(
                     j, num_prob_thresholds, valid_time_strings[i]
                 ))
 
+            this_prob_threshold = numpy.minimum(probability_thresholds[j], 1.)
+            this_prob_threshold = numpy.maximum(this_prob_threshold, TOLERANCE)
+
+            this_actual_target_matrix = (
+                prediction_dict[prediction_io.TARGET_MATRIX_KEY][i, ...] >=
+                this_prob_threshold
+            )
             this_predicted_target_matrix = (
                 prediction_dict[prediction_io.PROBABILITY_MATRIX_KEY][i, ...] >=
                 probability_thresholds[j]
@@ -837,8 +877,7 @@ def get_basic_scores_gridded(
             t = basic_score_table_xarray
 
             this_fancy_prediction_matrix = _match_actual_convection_one_time(
-                actual_target_matrix=
-                prediction_dict[prediction_io.TARGET_MATRIX_KEY][i, ...],
+                actual_target_matrix=this_actual_target_matrix,
                 predicted_target_matrix=this_predicted_target_matrix,
                 matching_distance_px=matching_distance_px,
                 eroded_eval_mask_matrix=eroded_eval_mask_matrix
@@ -852,8 +891,7 @@ def get_basic_scores_gridded(
             )
 
             this_fancy_target_matrix = _match_predicted_convection_one_time(
-                actual_target_matrix=
-                prediction_dict[prediction_io.TARGET_MATRIX_KEY][i, ...],
+                actual_target_matrix=this_actual_target_matrix,
                 predicted_target_matrix=this_predicted_target_matrix,
                 matching_distance_px=matching_distance_px,
                 eroded_eval_mask_matrix=eroded_eval_mask_matrix

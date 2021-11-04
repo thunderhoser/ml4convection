@@ -371,6 +371,10 @@ def _plot_grid_one_score(score_matrix, min_colour_value, max_colour_value,
         max_colour_value, min_colour_value + 1e-6
     ])
 
+    print('MIN AND MAX COLOUR VALUES = {0:.4f}, {1:.4f}'.format(
+        min_colour_value, max_colour_value
+    ))
+
     figure_object, axes_object = pyplot.subplots(
         1, 1, figsize=(FIGURE_WIDTH_INCHES, FIGURE_HEIGHT_INCHES)
     )
@@ -523,7 +527,7 @@ def _run(all_experiment_dir_name, output_dir_name):
                 this_score_matrix[numpy.isnan(this_score_matrix)] = -numpy.inf
                 rank_array = rankdata(this_score_matrix)
 
-            rank_matrix[i, j, ...] = numpy.reshape(
+            rank_matrix[..., i, j] = numpy.reshape(
                 rank_array, this_score_matrix.shape
             )
 
@@ -536,7 +540,8 @@ def _run(all_experiment_dir_name, output_dir_name):
         )
         figure_object, axes_object = _plot_grid_one_score(
             score_matrix=this_rank_matrix,
-            min_colour_value=1., max_colour_value=this_rank_matrix.size,
+            min_colour_value=numpy.min(this_rank_matrix),
+            max_colour_value=numpy.max(this_rank_matrix),
             colour_map_object=COLOUR_MAP_OBJECT
         )
 
@@ -632,8 +637,7 @@ def _run(all_experiment_dir_name, output_dir_name):
     )
     print(SEPARATOR_STRING)
 
-    num_panels = len(EVAL_FILTER_INDICES_TO_PLOT) + 1
-    panel_file_names = [''] * num_panels
+    panel_file_names = []
 
     for j in EVAL_FILTER_INDICES_TO_PLOT:
         this_rank_matrix = numpy.nanmean(
@@ -641,7 +645,8 @@ def _run(all_experiment_dir_name, output_dir_name):
         )
         figure_object, axes_object = _plot_grid_one_score(
             score_matrix=this_rank_matrix,
-            min_colour_value=1., max_colour_value=this_rank_matrix.size,
+            min_colour_value=numpy.min(this_rank_matrix),
+            max_colour_value=numpy.max(this_rank_matrix),
             colour_map_object=COLOUR_MAP_OBJECT
         )
 
@@ -670,13 +675,13 @@ def _run(all_experiment_dir_name, output_dir_name):
         title_string = score_string + ' for different models'
         axes_object.set_title(title_string)
 
-        panel_file_names[j] = '{0:s}/{1:s}_ranking.jpg'.format(
-            output_dir_name, FILTER_NAMES[j]
+        panel_file_names.append(
+            '{0:s}/{1:s}_ranking.jpg'.format(output_dir_name, FILTER_NAMES[j])
         )
 
-        print('Saving figure to: "{0:s}"...'.format(panel_file_names[j]))
+        print('Saving figure to: "{0:s}"...'.format(panel_file_names[-1]))
         figure_object.savefig(
-            panel_file_names[j], dpi=FIGURE_RESOLUTION_DPI,
+            panel_file_names[-1], dpi=FIGURE_RESOLUTION_DPI,
             pad_inches=0, bbox_inches='tight'
         )
         pyplot.close(figure_object)
@@ -710,7 +715,8 @@ def _run(all_experiment_dir_name, output_dir_name):
     )
     figure_object, axes_object = _plot_grid_one_score(
         score_matrix=this_rank_matrix,
-        min_colour_value=1., max_colour_value=this_rank_matrix.size,
+        min_colour_value=numpy.min(this_rank_matrix),
+        max_colour_value=numpy.max(this_rank_matrix),
         colour_map_object=COLOUR_MAP_OBJECT
     )
 
@@ -742,7 +748,9 @@ def _run(all_experiment_dir_name, output_dir_name):
     title_string = score_string + ' for different models'
     axes_object.set_title(title_string)
 
-    panel_file_names[-1] = '{0:s}/overall_ranking.jpg'.format(output_dir_name)
+    panel_file_names.append(
+        '{0:s}/overall_ranking.jpg'.format(output_dir_name)
+    )
     print('Saving figure to: "{0:s}"...'.format(panel_file_names[-1]))
     figure_object.savefig(
         panel_file_names[-1], dpi=FIGURE_RESOLUTION_DPI,
