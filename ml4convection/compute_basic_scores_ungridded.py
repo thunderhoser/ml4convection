@@ -4,6 +4,8 @@ import os
 import sys
 import argparse
 import numpy
+import tensorflow
+from tensorflow.keras import backend as K
 
 THIS_DIRECTORY_NAME = os.path.dirname(os.path.realpath(
     os.path.join(os.getcwd(), os.path.expanduser(__file__))
@@ -15,10 +17,19 @@ import error_checking
 import prediction_io
 import evaluation
 import radar_utils
+import fourier_utils
+import wavelet_utils
+import neural_net
+from _wavetf import WaveTFFactory
 
+MINOR_SEPARATOR_STRING = '\n\n' + '-' * 50 + '\n\n'
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 
 NUM_RADARS = len(radar_utils.RADAR_LATITUDES_DEG_N)
+GRID_SPACING_DEG = 0.0125
+TARGET_PERCENTILE_LEVELS_TO_REPORT = numpy.array(
+    [0, 25, 50, 75, 95, 99, 100], dtype=float
+)
 
 INPUT_DIR_ARG_NAME = 'input_prediction_dir_name'
 FIRST_DATE_ARG_NAME = 'first_date_string'
@@ -26,6 +37,7 @@ LAST_DATE_ARG_NAME = 'last_date_string'
 TIME_INTERVAL_ARG_NAME = 'time_interval_steps'
 USE_PARTIAL_GRIDS_ARG_NAME = 'use_partial_grids'
 SMOOTHING_RADIUS_ARG_NAME = 'smoothing_radius_px'
+TRANSFORM_TARGETS_ARG_NAME = 'transform_targets_if_applicable'
 MATCHING_DISTANCES_ARG_NAME = 'matching_distances_px'
 NUM_PROB_THRESHOLDS_ARG_NAME = 'num_prob_thresholds'
 PROB_THRESHOLDS_ARG_NAME = 'prob_thresholds'
@@ -52,6 +64,11 @@ SMOOTHING_RADIUS_HELP_STRING = (
     'want to smooth predictions, leave this alone.'
 ).format(USE_PARTIAL_GRIDS_ARG_NAME)
 
+TRANSFORM_TARGETS_HELP_STRING = (
+    'Boolean flag.  If 1 and neural net was trained with wavelet- or Fourier-'
+    'transformed target values, this script will use the same transform before '
+    'computing scores.'
+)
 MATCHING_DISTANCES_HELP_STRING = (
     'List of matching distances (pixels).  Neighbourhood evaluation will be '
     'done for each matching distance.'
@@ -98,6 +115,10 @@ INPUT_ARG_PARSER.add_argument(
     help=SMOOTHING_RADIUS_HELP_STRING
 )
 INPUT_ARG_PARSER.add_argument(
+    '--' + TRANSFORM_TARGETS_ARG_NAME, type=int, required=True,
+    help=TRANSFORM_TARGETS_HELP_STRING
+)
+INPUT_ARG_PARSER.add_argument(
     '--' + MATCHING_DISTANCES_ARG_NAME, type=float, nargs='+', required=True,
     help=MATCHING_DISTANCES_HELP_STRING
 )
@@ -115,10 +136,162 @@ INPUT_ARG_PARSER.add_argument(
 )
 
 
+def _transform_targets(prediction_dict):
+    """Transforms target values.
+
+    If the neural net was trained with wavelet- or Fourier-transformed target
+    values, this method will apply the same transform.
+
+    :param prediction_dict: Dictionary in format returned by
+        `prediction_io.read_file`.
+    :return: prediction_dict: Same but with transformed target values.
+    """
+
+    model_metafile_name = neural_net.find_metafile(
+        model_file_name=prediction_dict[prediction_io.MODEL_FILE_KEY],
+        raise_error_if_missing=True
+    )
+    model_metadata_dict = neural_net.read_metafile(model_metafile_name)
+    training_option_dict = (
+        model_metadata_dict[neural_net.TRAINING_OPTIONS_KEY]
+    )
+
+    target_matrix = (
+        prediction_dict[prediction_io.TARGET_MATRIX_KEY].astype(float)
+    )
+    num_examples = target_matrix.shape[0]
+
+    if training_option_dict[neural_net.FOURIER_TRANSFORM_KEY]:
+        print(MINOR_SEPARATOR_STRING)
+        for p in TARGET_PERCENTILE_LEVELS_TO_REPORT:
+            print((
+                '{0:.1f}th-percentile target value before Fourier '
+                'transform = {1:.4f}'
+            ).format(
+                p, numpy.percentile(target_matrix, p)
+            ))
+
+        target_matrix = numpy.stack([
+            fourier_utils.taper_spatial_data(target_matrix[i, ...])
+            for i in range(num_examples)
+        ], axis=0)
+
+        blackman_matrix = fourier_utils.apply_blackman_window(
+            numpy.ones(target_matrix.shape[1:])
+        )
+        target_matrix = numpy.stack([
+            target_matrix[i, ...] * blackman_matrix
+            for i in range(num_examples)
+        ], axis=0)
+
+        target_tensor = tensorflow.constant(
+            target_matrix, dtype=tensorflow.complex128
+        )
+        target_weight_tensor = tensorflow.signal.fft2d(target_tensor)
+        target_weight_matrix = K.eval(target_weight_tensor)
+
+        butterworth_matrix = fourier_utils.apply_butterworth_filter(
+            coefficient_matrix=numpy.ones(target_matrix.shape[1:]),
+            filter_order=2, grid_spacing_metres=GRID_SPACING_DEG,
+            min_resolution_metres=
+            training_option_dict[neural_net.MIN_TARGET_RESOLUTION_KEY],
+            max_resolution_metres=
+            training_option_dict[neural_net.MAX_TARGET_RESOLUTION_KEY]
+        )
+
+        target_weight_matrix = numpy.stack([
+            target_weight_matrix[i, ...] * butterworth_matrix
+            for i in range(num_examples)
+        ], axis=0)
+
+        target_weight_tensor = tensorflow.constant(
+            target_weight_matrix, dtype=tensorflow.complex128
+        )
+        target_tensor = tensorflow.signal.ifft2d(target_weight_tensor)
+        target_tensor = tensorflow.math.real(target_tensor)
+        target_matrix = K.eval(target_tensor)
+
+        target_matrix = numpy.stack([
+            fourier_utils.untaper_spatial_data(target_matrix[i, ...])
+            for i in range(num_examples)
+        ], axis=0)
+
+        target_matrix = numpy.maximum(target_matrix, 0.)
+        target_matrix = numpy.minimum(target_matrix, 1.)
+
+        print('\n')
+        for p in TARGET_PERCENTILE_LEVELS_TO_REPORT:
+            print((
+                '{0:.1f}th-percentile target value after Fourier '
+                'transform = {1:.4f}'
+            ).format(
+                p, numpy.percentile(target_matrix, p)
+            ))
+
+        print(MINOR_SEPARATOR_STRING)
+
+    if training_option_dict[neural_net.WAVELET_TRANSFORM_KEY]:
+        print(MINOR_SEPARATOR_STRING)
+        for p in TARGET_PERCENTILE_LEVELS_TO_REPORT:
+            print((
+                '{0:.1f}th-percentile target value before wavelet '
+                'transform = {1:.4f}'
+            ).format(
+                p, numpy.percentile(target_matrix, p)
+            ))
+
+        target_matrix, padding_arg = wavelet_utils.taper_spatial_data(
+            target_matrix
+        )
+
+        coeff_tensor_by_level = wavelet_utils.do_forward_transform(
+            target_matrix
+        )
+        coeff_tensor_by_level = wavelet_utils.filter_coefficients(
+            coeff_tensor_by_level=coeff_tensor_by_level,
+            grid_spacing_metres=GRID_SPACING_DEG,
+            min_resolution_metres=
+            training_option_dict[neural_net.MIN_TARGET_RESOLUTION_KEY],
+            max_resolution_metres=
+            training_option_dict[neural_net.MAX_TARGET_RESOLUTION_KEY],
+            verbose=True
+        )
+
+        inverse_dwt_object = WaveTFFactory().build(
+            'haar', dim=2, inverse=True
+        )
+        target_tensor = inverse_dwt_object.call(
+            coeff_tensor_by_level[0]
+        )
+        target_matrix = K.eval(target_tensor)[..., 0]
+
+        target_matrix = wavelet_utils.untaper_spatial_data(
+            spatial_data_matrix=target_matrix,
+            numpy_pad_width=padding_arg
+        )
+        target_matrix = numpy.maximum(target_matrix, 0.)
+        target_matrix = numpy.minimum(target_matrix, 1.)
+
+        print('\n')
+        for p in TARGET_PERCENTILE_LEVELS_TO_REPORT:
+            print((
+                '{0:.1f}th-percentile target value after wavelet '
+                'transform = {1:.4f}'
+            ).format(
+                p, numpy.percentile(target_matrix, p)
+            ))
+
+        print(MINOR_SEPARATOR_STRING)
+
+    prediction_dict[prediction_io.TARGET_MATRIX_KEY] = target_matrix
+    return prediction_dict
+
+
 def _compute_scores_full_grid(
         top_prediction_dir_name, first_date_string, last_date_string,
-        time_interval_steps, smoothing_radius_px, matching_distances_px,
-        prob_thresholds, top_output_dir_name):
+        time_interval_steps, smoothing_radius_px,
+        transform_targets_if_applicable, matching_distances_px, prob_thresholds,
+        top_output_dir_name):
     """Computes scores on full grid.
 
     :param top_prediction_dir_name: See documentation at top of file.
@@ -126,6 +299,7 @@ def _compute_scores_full_grid(
     :param last_date_string: Same.
     :param time_interval_steps: Same.
     :param smoothing_radius_px: Same.
+    :param transform_targets_if_applicable: Same.
     :param matching_distances_px: Same.
     :param prob_thresholds: Same.
     :param top_output_dir_name: Same.
@@ -165,6 +339,9 @@ def _compute_scores_full_grid(
                 smoothing_radius_px=smoothing_radius_px
             )
 
+        if transform_targets_if_applicable:
+            prediction_dict = _transform_targets(prediction_dict)
+
         for j in range(num_matching_distances):
             print('\n')
 
@@ -197,14 +374,15 @@ def _compute_scores_full_grid(
 
 def _compute_scores_partial_grids(
         top_prediction_dir_name, first_date_string, last_date_string,
-        time_interval_steps, matching_distances_px, prob_thresholds,
-        top_output_dir_name):
+        time_interval_steps, transform_targets_if_applicable,
+        matching_distances_px, prob_thresholds, top_output_dir_name):
     """Computes scores on partial grids.
 
     :param top_prediction_dir_name: See documentation at top of file.
     :param first_date_string: Same.
     :param last_date_string: Same.
     :param time_interval_steps: Same.
+    :param transform_targets_if_applicable: Same.
     :param matching_distances_px: Same.
     :param prob_thresholds: Same.
     :param top_output_dir_name: Same.
@@ -259,6 +437,9 @@ def _compute_scores_partial_grids(
                 prediction_dict=prediction_dict, desired_indices=desired_indices
             )
 
+            if transform_targets_if_applicable:
+                prediction_dict = _transform_targets(prediction_dict)
+
             for j in range(num_matching_distances):
                 print('\n')
 
@@ -295,8 +476,8 @@ def _compute_scores_partial_grids(
 
 def _run(top_prediction_dir_name, first_date_string, last_date_string,
          time_interval_steps, use_partial_grids, smoothing_radius_px,
-         matching_distances_px, num_prob_thresholds, prob_thresholds,
-         top_output_dir_name):
+         transform_targets_if_applicable, matching_distances_px,
+         num_prob_thresholds, prob_thresholds, top_output_dir_name):
     """Computes basic evaluation scores sans grid (combined over full domain).
 
     This is effectively the main method.
@@ -307,6 +488,7 @@ def _run(top_prediction_dir_name, first_date_string, last_date_string,
     :param time_interval_steps: Same.
     :param use_partial_grids: Same.
     :param smoothing_radius_px: Same.
+    :param transform_targets_if_applicable: Same.
     :param matching_distances_px: Same.
     :param num_prob_thresholds: Same.
     :param prob_thresholds: Same.
@@ -330,6 +512,7 @@ def _run(top_prediction_dir_name, first_date_string, last_date_string,
             last_date_string=last_date_string,
             time_interval_steps=time_interval_steps,
             smoothing_radius_px=smoothing_radius_px,
+            transform_targets_if_applicable=transform_targets_if_applicable,
             matching_distances_px=matching_distances_px,
             prob_thresholds=prob_thresholds,
             top_output_dir_name=top_output_dir_name
@@ -342,6 +525,7 @@ def _run(top_prediction_dir_name, first_date_string, last_date_string,
         first_date_string=first_date_string,
         last_date_string=last_date_string,
         time_interval_steps=time_interval_steps,
+        transform_targets_if_applicable=transform_targets_if_applicable,
         matching_distances_px=matching_distances_px,
         prob_thresholds=prob_thresholds,
         top_output_dir_name=top_output_dir_name
@@ -362,6 +546,9 @@ if __name__ == '__main__':
         smoothing_radius_px=getattr(
             INPUT_ARG_OBJECT, SMOOTHING_RADIUS_ARG_NAME
         ),
+        transform_targets_if_applicable=bool(getattr(
+            INPUT_ARG_OBJECT, TRANSFORM_TARGETS_ARG_NAME
+        )),
         matching_distances_px=numpy.array(
             getattr(INPUT_ARG_OBJECT, MATCHING_DISTANCES_ARG_NAME), dtype=float
         ),

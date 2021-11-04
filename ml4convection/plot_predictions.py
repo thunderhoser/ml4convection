@@ -132,7 +132,8 @@ def _plot_predictions_one_example(
         prediction_dict, example_index, border_latitudes_deg_n,
         border_longitudes_deg_e, mask_matrix, plot_deterministic,
         probability_threshold, colour_map_object, colour_norm_object,
-        output_dir_name, title_string=None, font_size=30, cbar_extend_min=True):
+        output_dir_name, title_string=None, font_size=30, cbar_extend_min=True,
+        latlng_visible=True):
     """Plots predictions (and targets) for one example (time step).
 
     M = number of rows in grid
@@ -154,6 +155,7 @@ def _plot_predictions_one_example(
     :param title_string: Figure title.
     :param font_size: Font size.
     :param cbar_extend_min: Boolean flag.
+    :param latlng_visible: Boolean flag.
     :return: output_file_name: Path to output file.
     :return: figure_object: Figure handle.
     :return: axes_object: Axes handle.
@@ -241,6 +243,24 @@ def _plot_predictions_one_example(
     )
 
     axes_object.set_title(title_string, fontsize=font_size)
+
+    if not latlng_visible:
+        axes_object.set_xticklabels(
+            [''] * len(axes_object.get_xticks())
+        )
+        axes_object.set_yticklabels(
+            [''] * len(axes_object.get_xticks())
+        )
+
+        for tick_object in axes_object.get_xticklines():
+            tick_object.set_color(
+                numpy.full(3, 1.)
+            )
+
+        for tick_object in axes_object.get_yticklines():
+            tick_object.set_color(
+                numpy.full(3, 1.)
+            )
 
     if output_dir_name is None:
         return None, figure_object, axes_object
