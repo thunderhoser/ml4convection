@@ -534,7 +534,7 @@ def _run(all_experiment_dir_name, output_dir_name):
                 this_score_matrix[numpy.isnan(this_score_matrix)] = -numpy.inf
                 rank_array = rankdata(this_score_matrix)
 
-            rank_matrix[i, j, ...] = numpy.reshape(
+            rank_matrix[..., i, j] = numpy.reshape(
                 rank_array, this_score_matrix.shape
             )
 
