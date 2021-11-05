@@ -1,0 +1,61 @@
+#!/bin/tcsh
+
+#SBATCH --job-name="make_comparison_figures_20180823_6x1"
+#SBATCH --partition="fge"
+#SBATCH --account="rda-ghpcs"
+#SBATCH --qos="batch"
+#SBATCH --ntasks=1
+#SBATCH --nodes=1
+#SBATCH --cpus-per-task=1
+##SBATCH --nodes=1
+##SBATCH --ntasks=1
+##SBATCH --cpus-per-task=1
+##SBATCH --ntasks-per-node=1
+#SBATCH --time=01:00:00
+#SBATCH --array=1-144
+#SBATCH --exclude=h28n12
+##SBATCH --exclude=h31n03,h28n12
+##SBATCH --exclude=h29n01,h26n05,h28n06,h29n07,h30n03,h30n15
+#SBATCH --mail-type=BEGIN,END,FAIL
+#SBATCH --mail-user=ryan.lagerquist@noaa.gov
+#SBATCH --output=make_comparison_figures_20180823_6x1_%A_%a.out
+
+module load cuda/10.1
+source /scratch2/BMC/gsd-hpcs/Jebb.Q.Stewart/conda3.7/etc/profile.d/conda.csh
+conda activate base
+
+set CODE_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_standalone/ml4convection"
+set ALL_EXPERIMENT_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_models"
+set TOP_RADAR_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_project/radar_data"
+set OUTPUT_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_project/loss_function_paper/experiments4to6_agg/comparison_figures_for_paper/6by1/20180823"
+
+set VALID_TIME_STRINGS=("2018-08-23-0000" "2018-08-23-0010" "2018-08-23-0020" "2018-08-23-0030" "2018-08-23-0040" "2018-08-23-0050" "2018-08-23-0100" "2018-08-23-0110" "2018-08-23-0120" "2018-08-23-0130" "2018-08-23-0140" "2018-08-23-0150" "2018-08-23-0200" "2018-08-23-0210" "2018-08-23-0220" "2018-08-23-0230" "2018-08-23-0240" "2018-08-23-0250" "2018-08-23-0300" "2018-08-23-0310" "2018-08-23-0320" "2018-08-23-0330" "2018-08-23-0340" "2018-08-23-0350" "2018-08-23-0400" "2018-08-23-0410" "2018-08-23-0420" "2018-08-23-0430" "2018-08-23-0440" "2018-08-23-0450" "2018-08-23-0500" "2018-08-23-0510" "2018-08-23-0520" "2018-08-23-0530" "2018-08-23-0540" "2018-08-23-0550" "2018-08-23-0600" "2018-08-23-0610" "2018-08-23-0620" "2018-08-23-0630" "2018-08-23-0640" "2018-08-23-0650" "2018-08-23-0700" "2018-08-23-0710" "2018-08-23-0720" "2018-08-23-0730" "2018-08-23-0740" "2018-08-23-0750" "2018-08-23-0800" "2018-08-23-0810" "2018-08-23-0820" "2018-08-23-0830" "2018-08-23-0840" "2018-08-23-0850" "2018-08-23-0900" "2018-08-23-0910" "2018-08-23-0920" "2018-08-23-0930" "2018-08-23-0940" "2018-08-23-0950" "2018-08-23-1000" "2018-08-23-1010" "2018-08-23-1020" "2018-08-23-1030" "2018-08-23-1040" "2018-08-23-1050" "2018-08-23-1100" "2018-08-23-1110" "2018-08-23-1120" "2018-08-23-1130" "2018-08-23-1140" "2018-08-23-1150" "2018-08-23-1200" "2018-08-23-1210" "2018-08-23-1220" "2018-08-23-1230" "2018-08-23-1240" "2018-08-23-1250" "2018-08-23-1300" "2018-08-23-1310" "2018-08-23-1320" "2018-08-23-1330" "2018-08-23-1340" "2018-08-23-1350" "2018-08-23-1400" "2018-08-23-1410" "2018-08-23-1420" "2018-08-23-1430" "2018-08-23-1440" "2018-08-23-1450" "2018-08-23-1500" "2018-08-23-1510" "2018-08-23-1520" "2018-08-23-1530" "2018-08-23-1540" "2018-08-23-1550" "2018-08-23-1600" "2018-08-23-1610" "2018-08-23-1620" "2018-08-23-1630" "2018-08-23-1640" "2018-08-23-1650" "2018-08-23-1700" "2018-08-23-1710" "2018-08-23-1720" "2018-08-23-1730" "2018-08-23-1740" "2018-08-23-1750" "2018-08-23-1800" "2018-08-23-1810" "2018-08-23-1820" "2018-08-23-1830" "2018-08-23-1840" "2018-08-23-1850" "2018-08-23-1900" "2018-08-23-1910" "2018-08-23-1920" "2018-08-23-1930" "2018-08-23-1940" "2018-08-23-1950" "2018-08-23-2000" "2018-08-23-2010" "2018-08-23-2020" "2018-08-23-2030" "2018-08-23-2040" "2018-08-23-2050" "2018-08-23-2100" "2018-08-23-2110" "2018-08-23-2120" "2018-08-23-2130" "2018-08-23-2140" "2018-08-23-2150" "2018-08-23-2200" "2018-08-23-2210" "2018-08-23-2220" "2018-08-23-2230" "2018-08-23-2240" "2018-08-23-2250" "2018-08-23-2300" "2018-08-23-2310" "2018-08-23-2320" "2018-08-23-2330" "2018-08-23-2340" "2018-08-23-2350")
+set valid_time_string=${VALID_TIME_STRINGS[$SLURM_ARRAY_TASK_ID]}
+
+set SCORE_NAMES=("fss" "fss" "fss" "fss" "fss")
+set FILTER_NAMES=("-neigh0" "-neigh8" "_wavelets1_min-resolution-deg=0.0000_max-resolution-deg=0.0500" "_wavelets1_min-resolution-deg=0.0500_max-resolution-deg=10000000000.0000" "_wavelets0_min-resolution-deg=0.0000_max-resolution-deg=0.2000")
+set SUBEXPERIMENT_ENUMS=("06" "06" "05" "05" "05")
+set MODEL_DESCRIPTIONS_STRING="1-by-1_neigh 17-by-17_neigh WT_0--0.05-deg WT_0.05--inf-deg FT_0--0.2-deg"
+
+set prediction_dir_names_string=""
+set i=1
+
+while ($i <= ${#NEIGH_LOSS_FUNCTIONS_ABBREV})
+    set these_prediction_dir_names={${ALL_EXPERIMENT_DIR_NAME}/lf_experiment${SUBEXPERIMENT_ENUMS[$i]}/${SCORE_NAMES[$i]}${FILTER_NAMES[$i]}/model*/testing_best_validation_loss/full_grids}
+    set this_prediction_dir_name=${these_prediction_dir_names[$#these_prediction_dir_names]}
+    set prediction_dir_names_string="${prediction_dir_names_string} ${this_prediction_dir_name}"
+    
+    @ i = $i + 1
+end
+
+python3 -u "${CODE_DIR_NAME}/make_prediction_comparison_figure.py" \
+--input_prediction_dir_names ${prediction_dir_names_string} \
+--model_description_strings ${MODEL_DESCRIPTIONS_STRING} \
+--valid_time_string="${valid_time_string}" \
+--input_radar_dir_name="${TOP_RADAR_DIR_NAME}" \
+--smoothing_radii_px 2 2 2 2 2 \
+--panel_letters "a" "b" "c" "d" "e" "f" \
+--num_panel_rows=6 \
+--num_panel_columns=1 \
+--radar_panel_index=0 \
+--output_dir_name="${OUTPUT_DIR_NAME}"
