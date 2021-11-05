@@ -12,7 +12,7 @@
 ##SBATCH --cpus-per-task=1
 ##SBATCH --ntasks-per-node=1
 #SBATCH --time=01:00:00
-#SBATCH --array=1-24
+#SBATCH --array=1-40
 #SBATCH --exclude=h28n12
 ##SBATCH --exclude=h31n03,h28n12
 ##SBATCH --exclude=h29n01,h26n05,h28n06,h29n07,h30n03,h30n15
@@ -27,30 +27,27 @@ conda activate base
 set CODE_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_standalone/ml4convection"
 set ALL_EXPERIMENT_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_models"
 
-# set SCORE_NAMES=("brier" "fss" "brier" "fss" "brier" "fss" "brier" "fss" "brier" "fss" "brier" "fss" "brier" "fss" "brier" "fss" "brier" "fss" "brier" "fss" "brier" "fss" "brier" "fss")
-# set FILTER_NAMES=("_wavelets0_min-resolution-deg=0.0000_max-resolution-deg=0.1000" "_wavelets0_min-resolution-deg=0.0000_max-resolution-deg=0.1000" "_wavelets0_min-resolution-deg=0.0000_max-resolution-deg=0.2000" "_wavelets0_min-resolution-deg=0.0000_max-resolution-deg=0.2000" "_wavelets0_min-resolution-deg=0.1000_max-resolution-deg=10000000000.0000" "_wavelets0_min-resolution-deg=0.1000_max-resolution-deg=10000000000.0000" "_wavelets0_min-resolution-deg=0.2000_max-resolution-deg=10000000000.0000" "_wavelets0_min-resolution-deg=0.2000_max-resolution-deg=10000000000.0000" "_wavelets1_min-resolution-deg=0.0000_max-resolution-deg=0.1000" "_wavelets1_min-resolution-deg=0.0000_max-resolution-deg=0.1000" "_wavelets1_min-resolution-deg=0.0000_max-resolution-deg=0.2000" "_wavelets1_min-resolution-deg=0.0000_max-resolution-deg=0.2000" "_wavelets1_min-resolution-deg=0.1000_max-resolution-deg=10000000000.0000" "_wavelets1_min-resolution-deg=0.1000_max-resolution-deg=10000000000.0000" "_wavelets1_min-resolution-deg=0.2000_max-resolution-deg=10000000000.0000" "_wavelets1_min-resolution-deg=0.2000_max-resolution-deg=10000000000.0000" "-neigh0" "-neigh0" "-neigh1" "-neigh1" "-neigh4" "-neigh4" "-neigh12" "-neigh12")
-# set SUBEXPERIMENT_ENUMS=("05" "05" "05" "05" "05" "05" "05" "05" "05" "05" "05" "05" "05" "05" "05" "05" "06" "06" "06" "06" "06" "06" "06" "06")
-# set BEST_PROB_THRESHOLDS=(0.01 0.02 0.03 0.04 0.05 0.06 0.07 0.08 0.09 0.10 0.11 0.12 0.13 0.14 0.15 0.16 0.17 0.18 0.19 0.20 0.21 0.22 0.23 0.24)
+set FIRST_VALIDN_DATE_STRING="20170101"
+set LAST_VALIDN_DATE_STRING="20171224"
+
+set SCORE_NAMES=("fss" "fss" "fss" "fss" "fss" "fss" "fss" "fss" "fss" "fss" "fss" "fss" "fss" "fss" "fss" "fss" "fss" "fss" "fss" "fss" "fss" "fss" "fss" "fss" "fss" "fss" "fss" "fss" "fss" "fss" "fss" "fss" "fss" "fss" "fss" "fss" "fss" "fss" "fss" "fss")
+set FILTER_NAMES=("-neigh0" "-neigh8" "_wavelets1_min-resolution-deg=0.0000_max-resolution-deg=0.0500" "_wavelets1_min-resolution-deg=0.0500_max-resolution-deg=10000000000.0000" "_wavelets0_min-resolution-deg=0.0000_max-resolution-deg=0.2000" "-neigh0" "-neigh8" "_wavelets1_min-resolution-deg=0.0000_max-resolution-deg=0.0500" "_wavelets1_min-resolution-deg=0.0500_max-resolution-deg=10000000000.0000" "_wavelets0_min-resolution-deg=0.0000_max-resolution-deg=0.2000" "-neigh0" "-neigh8" "_wavelets1_min-resolution-deg=0.0000_max-resolution-deg=0.0500" "_wavelets1_min-resolution-deg=0.0500_max-resolution-deg=10000000000.0000" "_wavelets0_min-resolution-deg=0.0000_max-resolution-deg=0.2000" "-neigh0" "-neigh8" "_wavelets1_min-resolution-deg=0.0000_max-resolution-deg=0.0500" "_wavelets1_min-resolution-deg=0.0500_max-resolution-deg=10000000000.0000" "_wavelets0_min-resolution-deg=0.0000_max-resolution-deg=0.2000" "-neigh0" "-neigh8" "_wavelets1_min-resolution-deg=0.0000_max-resolution-deg=0.0500" "_wavelets1_min-resolution-deg=0.0500_max-resolution-deg=10000000000.0000" "_wavelets0_min-resolution-deg=0.0000_max-resolution-deg=0.2000" "-neigh0" "-neigh8" "_wavelets1_min-resolution-deg=0.0000_max-resolution-deg=0.0500" "_wavelets1_min-resolution-deg=0.0500_max-resolution-deg=10000000000.0000" "_wavelets0_min-resolution-deg=0.0000_max-resolution-deg=0.2000" "-neigh0" "-neigh8" "_wavelets1_min-resolution-deg=0.0000_max-resolution-deg=0.0500" "_wavelets1_min-resolution-deg=0.0500_max-resolution-deg=10000000000.0000" "_wavelets0_min-resolution-deg=0.0000_max-resolution-deg=0.2000" "-neigh0" "-neigh8" "_wavelets1_min-resolution-deg=0.0000_max-resolution-deg=0.0500" "_wavelets1_min-resolution-deg=0.0500_max-resolution-deg=10000000000.0000" "_wavelets0_min-resolution-deg=0.0000_max-resolution-deg=0.2000")
+set MATCHING_DISTANCES_PX=(0 0 0 0 0 1 1 1 1 1 2 2 2 2 2 3 3 3 3 3 4 4 4 4 4 6 6 6 6 6 8 8 8 8 8 12 12 12 12 12)
+set SUBEXPERIMENT_ENUMS=("06" "06" "05" "05" "05" "06" "06" "05" "05" "05" "06" "06" "05" "05" "05" "06" "06" "05" "05" "05" "06" "06" "05" "05" "05" "06" "06" "05" "05" "05" "06" "06" "05" "05" "05" "06" "06" "05" "05" "05")
+# set BEST_PROB_THRESHOLDS=(0.01 0.02 0.03 0.04 0.05 0.06 0.07 0.08 0.09 0.10 0.11 0.12 0.13 0.14 0.15 0.16 0.17 0.18 0.19 0.20 0.21 0.22 0.23 0.24 0.25 0.26 0.27 0.28 0.29 0.30 0.31 0.32 0.33 0.34 0.35 0.36 0.37 0.38 0.39 0.40)
 
 set score_name=${SCORE_NAMES[$SLURM_ARRAY_TASK_ID]}
 set filter_name=${FILTER_NAMES[$SLURM_ARRAY_TASK_ID]}
 set subexperiment_enum=${SUBEXPERIMENT_ENUMS[$SLURM_ARRAY_TASK_ID]}
+set matching_distance_px=${MATCHING_DISTANCES_PX[$SLURM_ARRAY_TASK_ID]}
+set matching_distance_string=`printf "%.6f" ${matching_distance_px}`
 set prob_threshold_string=`printf "%.2f" ${BEST_PROB_THRESHOLDS[$SLURM_ARRAY_TASK_ID]}`
 
 set prediction_dir_names={${ALL_EXPERIMENT_DIR_NAME}/lf_experiment${subexperiment_enum}/${score_name}${filter_name}/model*/validation_best_validation_loss/full_grids}
 set prediction_dir_name=${prediction_dir_names[$#prediction_dir_names]}
-
-set MATCHING_DISTANCES_PX=(0 1 2 3 4 6 8 12)
-set i=1
-
-while ($i <= ${#MATCHING_DISTANCES_PX})
-    set matching_distance_string=`printf "%.6f" ${MATCHING_DISTANCES_PX[$i]}`
-    set evaluation_dir_name="${prediction_dir_name}/evaluation/matching_distance_px=${matching_distance_string}"
+set evaluation_dir_name="${prediction_dir_name}/evaluation/matching_distance_px=${matching_distance_string}"
     
-    python3 -u "${CODE_DIR_NAME}/plot_evaluation_by_time.py" \
-    --input_dir_name="${evaluation_dir_name}" \
-    --probability_threshold=${prob_threshold_string} \
-    --output_dir_name="${evaluation_dir_name}"
-    
-    @ i = $i + 1
-end
+python3 -u "${CODE_DIR_NAME}/plot_evaluation_by_time.py" \
+--input_dir_name="${evaluation_dir_name}" \
+--probability_threshold=${prob_threshold_string} \
+--output_dir_name="${evaluation_dir_name}"
