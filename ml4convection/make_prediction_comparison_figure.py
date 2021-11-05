@@ -472,7 +472,6 @@ def _run(top_prediction_dir_names, model_descriptions_abbrev, valid_time_string,
     )
 
     expected_dim = numpy.array([num_panels], dtype=int)
-    print(panel_letters)
     error_checking.assert_is_numpy_array(
         numpy.array(panel_letters), exact_dimensions=expected_dim
     )
