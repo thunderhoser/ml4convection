@@ -40,7 +40,7 @@ set MODEL_DESCRIPTIONS_STRING="1-by-1_neigh 17-by-17_neigh WT_0--0.05-deg WT_0.0
 set prediction_dir_names_string=""
 set i=1
 
-while ($i <= ${#NEIGH_LOSS_FUNCTIONS_ABBREV})
+while ($i <= ${#SCORE_NAMES})
     set these_prediction_dir_names={${ALL_EXPERIMENT_DIR_NAME}/lf_experiment${SUBEXPERIMENT_ENUMS[$i]}/${SCORE_NAMES[$i]}${FILTER_NAMES[$i]}/model*/testing_best_validation_loss/full_grids}
     set this_prediction_dir_name=${these_prediction_dir_names[$#these_prediction_dir_names]}
     set prediction_dir_names_string="${prediction_dir_names_string} ${this_prediction_dir_name}"
