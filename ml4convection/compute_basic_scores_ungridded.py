@@ -1,6 +1,7 @@
 """Computes basic evaluation scores sans grid (combined over full domain)."""
 
 import os
+os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
 import sys
 import argparse
 import numpy
