@@ -616,12 +616,13 @@ def _run(all_experiment_dir_name, output_dir_name):
 
         for k in range(len(sort_indices_linear)):
             loss_index, filter_index = numpy.unravel_index(
-                sort_indices_linear[k], (num_loss_functions, num_filters)
+                sort_indices_linear[k], this_rank_matrix.shape
             )
-            loss_index = MODEL_NAME_INDICES_TO_PLOT[loss_index]
 
             model_loss_string = '{0:s} ({1:s})'.format(
-                LOSS_FUNCTION_NAMES_FANCY[loss_index],
+                LOSS_FUNCTION_NAMES_FANCY[
+                    MODEL_NAME_INDICES_TO_PLOT[loss_index]
+                ],
                 FILTER_NAMES_FANCY[filter_index]
             )
 
@@ -715,12 +716,13 @@ def _run(all_experiment_dir_name, output_dir_name):
 
         for k in range(len(sort_indices_linear)):
             loss_index, filter_index = numpy.unravel_index(
-                sort_indices_linear[k], (num_loss_functions, num_filters)
+                sort_indices_linear[k], this_rank_matrix.shape
             )
-            loss_index = MODEL_NAME_INDICES_TO_PLOT[loss_index]
 
             model_loss_string = '{0:s} ({1:s})'.format(
-                LOSS_FUNCTION_NAMES_FANCY[loss_index],
+                LOSS_FUNCTION_NAMES_FANCY[
+                    MODEL_NAME_INDICES_TO_PLOT[loss_index]
+                ],
                 FILTER_NAMES_FANCY[filter_index]
             )
 
@@ -788,12 +790,11 @@ def _run(all_experiment_dir_name, output_dir_name):
 
     for k in range(len(sort_indices_linear)):
         loss_index, filter_index = numpy.unravel_index(
-            sort_indices_linear[k], (num_loss_functions, num_filters)
+            sort_indices_linear[k], this_rank_matrix.shape
         )
-        loss_index = MODEL_NAME_INDICES_TO_PLOT[loss_index]
 
         model_loss_string = '{0:s} ({1:s})'.format(
-            LOSS_FUNCTION_NAMES_FANCY[loss_index],
+            LOSS_FUNCTION_NAMES_FANCY[MODEL_NAME_INDICES_TO_PLOT[loss_index]],
             FILTER_NAMES_FANCY[filter_index]
         )
 
