@@ -29,7 +29,6 @@ MAX_PLOT_LATITUDE_DEG_N = 25.
 MIN_PLOT_LONGITUDE_DEG_E = 119.
 MAX_PLOT_LONGITUDE_DEG_E = 123.
 
-LATLNG_FONT_SIZE = 50
 FIGURE_WIDTH_INCHES = 15.
 FIGURE_HEIGHT_INCHES = 15.
 FIGURE_RESOLUTION_DPI = 300
@@ -257,7 +256,7 @@ def _plot_reflectivity(
         plot_latitudes_deg_n=latitudes_deg_n,
         plot_longitudes_deg_e=longitudes_deg_e, axes_object=axes_object,
         parallel_spacing_deg=2., meridian_spacing_deg=2.,
-        font_size=LATLNG_FONT_SIZE
+        font_size=font_size
     )
 
     axes_object.set_title('Reflectivity (dBZ)')
@@ -265,7 +264,7 @@ def _plot_reflectivity(
 
 def _plot_predictions_one_model(
         top_prediction_dir_name, border_latitudes_deg_n,
-        border_longitudes_deg_e, valid_time_string, title_string,
+        border_longitudes_deg_e, valid_time_string, title_string, font_size,
         figure_object, axes_object, smoothing_radius_px=None):
     """Plots predictions (and targets) for one model.
 
@@ -279,6 +278,7 @@ def _plot_predictions_one_model(
     :param border_longitudes_deg_e: length-P numpy array of longitudes (deg E).
     :param valid_time_string: See documentation at top of file.
     :param title_string: Figure title.
+    :param font_size: Font size.
     :param figure_object: Will plot on this figure (instance of
         `matplotlib.figure.Figure`).
     :param axes_object: Will plot on these axes (instance of
@@ -397,7 +397,7 @@ def _plot_predictions_one_model(
         plot_latitudes_deg_n=latitudes_deg_n,
         plot_longitudes_deg_e=longitudes_deg_e, axes_object=axes_object,
         parallel_spacing_deg=2., meridian_spacing_deg=2.,
-        font_size=LATLNG_FONT_SIZE
+        font_size=font_size
     )
 
     axes_object.set_title(title_string)

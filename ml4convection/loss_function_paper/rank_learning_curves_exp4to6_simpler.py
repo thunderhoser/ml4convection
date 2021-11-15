@@ -155,7 +155,7 @@ LOSS_FUNCTION_NAMES_FANCY = [
     'Brier score', 'Dice coeff'
 ]
 NEGATIVELY_ORIENTED_FLAGS = numpy.array(
-    [1, 0, 0, 0, 0, 0, 0, 0], dtype=bool
+    [0, 0, 0, 0, 0, 0, 1, 0], dtype=bool
 )
 MODEL_NAME_INDICES_TO_PLOT = numpy.array([0, 6], dtype=int)
 EVAL_FILTER_INDICES_TO_PLOT = numpy.array(
@@ -163,25 +163,25 @@ EVAL_FILTER_INDICES_TO_PLOT = numpy.array(
 )
 
 LOSS_FUNCTION_KEYS_NEIGH = [
-    learning_curves.NEIGH_BRIER_SCORE_KEY, learning_curves.NEIGH_FSS_KEY,
-    learning_curves.NEIGH_IOU_KEY, learning_curves.NEIGH_DICE_COEFF_KEY,
-    learning_curves.NEIGH_CSI_KEY, None, None, None
+    learning_curves.NEIGH_FSS_KEY, learning_curves.NEIGH_IOU_KEY,
+    learning_curves.NEIGH_CSI_KEY, None, None, None,
+    learning_curves.NEIGH_BRIER_SCORE_KEY, learning_curves.NEIGH_DICE_COEFF_KEY
 ]
 LOSS_FUNCTION_KEYS_FOURIER = [
-    learning_curves.FOURIER_BRIER_SCORE_KEY, learning_curves.FOURIER_FSS_KEY,
-    learning_curves.FOURIER_IOU_KEY, learning_curves.FOURIER_DICE_COEFF_KEY,
-    learning_curves.FOURIER_CSI_KEY,
-    learning_curves.FOURIER_HEIDKE_SCORE_KEY,
+    learning_curves.FOURIER_FSS_KEY, learning_curves.FOURIER_IOU_KEY,
+    learning_curves.FOURIER_CSI_KEY, learning_curves.FOURIER_HEIDKE_SCORE_KEY,
     learning_curves.FOURIER_GERRITY_SCORE_KEY,
-    learning_curves.FOURIER_PEIRCE_SCORE_KEY
+    learning_curves.FOURIER_PEIRCE_SCORE_KEY,
+    learning_curves.FOURIER_BRIER_SCORE_KEY,
+    learning_curves.FOURIER_DICE_COEFF_KEY
 ]
 LOSS_FUNCTION_KEYS_WAVELET = [
-    learning_curves.WAVELET_BRIER_SCORE_KEY, learning_curves.WAVELET_FSS_KEY,
-    learning_curves.WAVELET_IOU_KEY, learning_curves.WAVELET_DICE_COEFF_KEY,
-    learning_curves.WAVELET_CSI_KEY,
-    learning_curves.WAVELET_HEIDKE_SCORE_KEY,
+    learning_curves.WAVELET_FSS_KEY, learning_curves.WAVELET_IOU_KEY,
+    learning_curves.WAVELET_CSI_KEY, learning_curves.WAVELET_HEIDKE_SCORE_KEY,
     learning_curves.WAVELET_GERRITY_SCORE_KEY,
-    learning_curves.WAVELET_PEIRCE_SCORE_KEY
+    learning_curves.WAVELET_PEIRCE_SCORE_KEY,
+    learning_curves.WAVELET_BRIER_SCORE_KEY,
+    learning_curves.WAVELET_DICE_COEFF_KEY
 ]
 
 BEST_MARKER_TYPE = '*'
@@ -609,12 +609,13 @@ def _run(all_experiment_dir_name, output_dir_name):
 
         for k in range(len(sort_indices_linear)):
             loss_index, filter_index = numpy.unravel_index(
-                sort_indices_linear[k], (num_loss_functions, num_filters)
+                sort_indices_linear[k], this_rank_matrix.shape
             )
-            loss_index = MODEL_NAME_INDICES_TO_PLOT[loss_index]
 
             model_loss_string = '{0:s} ({1:s})'.format(
-                LOSS_FUNCTION_NAMES_FANCY[loss_index],
+                LOSS_FUNCTION_NAMES_FANCY[
+                    MODEL_NAME_INDICES_TO_PLOT[loss_index]
+                ],
                 FILTER_NAMES_FANCY[filter_index]
             )
 
@@ -708,12 +709,13 @@ def _run(all_experiment_dir_name, output_dir_name):
 
         for k in range(len(sort_indices_linear)):
             loss_index, filter_index = numpy.unravel_index(
-                sort_indices_linear[k], (num_loss_functions, num_filters)
+                sort_indices_linear[k], this_rank_matrix.shape
             )
-            loss_index = MODEL_NAME_INDICES_TO_PLOT[loss_index]
 
             model_loss_string = '{0:s} ({1:s})'.format(
-                LOSS_FUNCTION_NAMES_FANCY[loss_index],
+                LOSS_FUNCTION_NAMES_FANCY[
+                    MODEL_NAME_INDICES_TO_PLOT[loss_index]
+                ],
                 FILTER_NAMES_FANCY[filter_index]
             )
 
@@ -781,12 +783,13 @@ def _run(all_experiment_dir_name, output_dir_name):
 
     for k in range(len(sort_indices_linear)):
         loss_index, filter_index = numpy.unravel_index(
-            sort_indices_linear[k], (num_loss_functions, num_filters)
+            sort_indices_linear[k], this_rank_matrix.shape
         )
-        loss_index = MODEL_NAME_INDICES_TO_PLOT[loss_index]
 
         model_loss_string = '{0:s} ({1:s})'.format(
-            LOSS_FUNCTION_NAMES_FANCY[loss_index],
+            LOSS_FUNCTION_NAMES_FANCY[
+                MODEL_NAME_INDICES_TO_PLOT[loss_index]
+            ],
             FILTER_NAMES_FANCY[filter_index]
         )
 
