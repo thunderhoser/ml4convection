@@ -510,7 +510,7 @@ def _run(top_prediction_dir_names, model_descriptions_abbrev, valid_time_string,
         )
 
         row_index, column_index = numpy.unravel_index(
-            k, (num_panel_rows, num_panel_columns)
+            panel_index, (num_panel_rows, num_panel_columns)
         )
         gg_plotting_utils.label_axes(
             axes_object=axes_object,
