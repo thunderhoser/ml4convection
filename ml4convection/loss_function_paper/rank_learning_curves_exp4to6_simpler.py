@@ -144,6 +144,10 @@ FILTER_NAMES_FANCY = [
     '25-by-25 neigh'
 ]
 
+REFERENCE_LINE_COLOUR = numpy.full(3, 152. / 255)
+REFERENCE_LINE_WIDTH = 3
+REFERENCE_LINE_X_COORDS = numpy.array([15.5, 31.5])
+
 LOSS_FUNCTION_NAMES = [
     'fss', 'iou', 'csi', 'heidke', 'gerrity', 'peirce', 'brier', 'dice'
 ]
@@ -385,6 +389,16 @@ def _plot_grid_one_score(score_matrix, min_colour_value, max_colour_value,
         vmin=min_colour_value, vmax=max_colour_value
     )
 
+    for this_x_coord in REFERENCE_LINE_X_COORDS:
+        these_x_coords = numpy.full(2, this_x_coord)
+        these_y_coords = numpy.array([
+            -0.5, score_matrix.shape[0] - 0.5
+        ])
+        axes_object.plot(
+            these_x_coords, these_y_coords, linewidth=REFERENCE_LINE_WIDTH,
+            linestyle='dashed', color=REFERENCE_LINE_COLOUR
+        )
+
     return figure_object, axes_object
 
 
@@ -534,6 +548,7 @@ def _run(all_experiment_dir_name, output_dir_name):
 
     print(SEPARATOR_STRING)
     panel_file_names = [''] * num_loss_functions
+    panel_letter = chr(ord('a') - 1)
 
     for i in range(num_loss_functions):
         this_rank_matrix = numpy.mean(
@@ -573,10 +588,11 @@ def _run(all_experiment_dir_name, output_dir_name):
             numpy.unravel_index(this_index, this_rank_matrix.shape)
         )
 
+        panel_letter = chr(ord(panel_letter) + 1)
         score_string = 'Mean ranking on metrics with {0:s}'.format(
             LOSS_FUNCTION_NAMES_FANCY[i]
         )
-        title_string = copy.deepcopy(score_string)
+        title_string = '({0:s}) {1:s}'.format(panel_letter, score_string)
         axes_object.set_title(title_string)
 
         panel_file_names[i] = '{0:s}/{1:s}_ranking.jpg'.format(
@@ -639,6 +655,7 @@ def _run(all_experiment_dir_name, output_dir_name):
     print(SEPARATOR_STRING)
 
     panel_file_names = []
+    panel_letter = chr(ord('a') - 1)
 
     for j in EVAL_FILTER_INDICES_TO_PLOT:
         this_rank_matrix = numpy.nanmean(
@@ -670,10 +687,11 @@ def _run(all_experiment_dir_name, output_dir_name):
             numpy.unravel_index(this_index, this_rank_matrix.shape)
         )
 
+        panel_letter = chr(ord(panel_letter) + 1)
         score_string = 'Mean ranking on metrics filtered with {0:s}'.format(
             FILTER_NAMES_FANCY[j]
         )
-        title_string = copy.deepcopy(score_string)
+        title_string = '({0:s}) {1:s}'.format(panel_letter, score_string)
         axes_object.set_title(title_string)
 
         panel_file_names.append(
@@ -745,8 +763,9 @@ def _run(all_experiment_dir_name, output_dir_name):
         numpy.unravel_index(this_index, this_rank_matrix.shape)
     )
 
+    panel_letter = chr(ord(panel_letter) + 1)
     score_string = 'Mean ranking on all metrics'
-    title_string = copy.deepcopy(score_string)
+    title_string = '({0:s}) {1:s}'.format(panel_letter, score_string)
     axes_object.set_title(title_string)
 
     panel_file_names.append(
