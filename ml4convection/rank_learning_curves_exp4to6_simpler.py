@@ -162,7 +162,7 @@ LOSS_FUNCTION_NAMES_FANCY = [
     'Brier score', 'Dice coeff'
 ]
 NEGATIVELY_ORIENTED_FLAGS = numpy.array(
-    [1, 0, 0, 0, 0, 0, 0, 0], dtype=bool
+    [0, 0, 0, 0, 0, 0, 1, 0], dtype=bool
 )
 MODEL_NAME_INDICES_TO_PLOT = numpy.array([0, 6], dtype=int)
 EVAL_FILTER_INDICES_TO_PLOT = numpy.array(
@@ -170,25 +170,25 @@ EVAL_FILTER_INDICES_TO_PLOT = numpy.array(
 )
 
 LOSS_FUNCTION_KEYS_NEIGH = [
-    learning_curves.NEIGH_BRIER_SCORE_KEY, learning_curves.NEIGH_FSS_KEY,
-    learning_curves.NEIGH_IOU_KEY, learning_curves.NEIGH_DICE_COEFF_KEY,
-    learning_curves.NEIGH_CSI_KEY, None, None, None
+    learning_curves.NEIGH_FSS_KEY, learning_curves.NEIGH_IOU_KEY,
+    learning_curves.NEIGH_CSI_KEY, None, None, None,
+    learning_curves.NEIGH_BRIER_SCORE_KEY, learning_curves.NEIGH_DICE_COEFF_KEY
 ]
 LOSS_FUNCTION_KEYS_FOURIER = [
-    learning_curves.FOURIER_BRIER_SCORE_KEY, learning_curves.FOURIER_FSS_KEY,
-    learning_curves.FOURIER_IOU_KEY, learning_curves.FOURIER_DICE_COEFF_KEY,
-    learning_curves.FOURIER_CSI_KEY,
-    learning_curves.FOURIER_HEIDKE_SCORE_KEY,
+    learning_curves.FOURIER_FSS_KEY, learning_curves.FOURIER_IOU_KEY,
+    learning_curves.FOURIER_CSI_KEY, learning_curves.FOURIER_HEIDKE_SCORE_KEY,
     learning_curves.FOURIER_GERRITY_SCORE_KEY,
-    learning_curves.FOURIER_PEIRCE_SCORE_KEY
+    learning_curves.FOURIER_PEIRCE_SCORE_KEY,
+    learning_curves.FOURIER_BRIER_SCORE_KEY,
+    learning_curves.FOURIER_DICE_COEFF_KEY
 ]
 LOSS_FUNCTION_KEYS_WAVELET = [
-    learning_curves.WAVELET_BRIER_SCORE_KEY, learning_curves.WAVELET_FSS_KEY,
-    learning_curves.WAVELET_IOU_KEY, learning_curves.WAVELET_DICE_COEFF_KEY,
-    learning_curves.WAVELET_CSI_KEY,
-    learning_curves.WAVELET_HEIDKE_SCORE_KEY,
+    learning_curves.WAVELET_FSS_KEY, learning_curves.WAVELET_IOU_KEY,
+    learning_curves.WAVELET_CSI_KEY, learning_curves.WAVELET_HEIDKE_SCORE_KEY,
     learning_curves.WAVELET_GERRITY_SCORE_KEY,
-    learning_curves.WAVELET_PEIRCE_SCORE_KEY
+    learning_curves.WAVELET_PEIRCE_SCORE_KEY,
+    learning_curves.WAVELET_BRIER_SCORE_KEY,
+    learning_curves.WAVELET_DICE_COEFF_KEY
 ]
 
 BEST_MARKER_TYPE = '*'
