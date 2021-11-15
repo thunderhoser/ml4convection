@@ -2,6 +2,7 @@
 
 import os
 import sys
+import copy
 import glob
 import argparse
 from PIL import Image
@@ -108,38 +109,38 @@ FILTER_NAMES = [
 ]
 
 FILTER_NAMES_FANCY = [
-    r'FT 0-0.0125$^{\circ}$',
-    r'FT 0.0125-0.025$^{\circ}$',
-    r'FT 0.025-0.05$^{\circ}$',
-    r'FT 0.05-0.1$^{\circ}$',
-    r'FT 0.1-0.2$^{\circ}$',
-    r'FT 0.2-0.4$^{\circ}$',
-    r'FT 0.4-0.8$^{\circ}$',
-    r'FT 0.8-$\infty^{\circ}$',
-    r'FT 0-0.05$^{\circ}$',
-    r'FT 0-0.1$^{\circ}$',
-    r'FT 0-0.2$^{\circ}$',
-    r'FT 0-0.4$^{\circ}$',
-    r'FT 0.05-$\infty^{\circ}$',
-    r'FT 0.1-$\infty^{\circ}$',
-    r'FT 0.2-$\infty^{\circ}$',
-    r'FT 0.4-$\infty^{\circ}$',
-    r'WT 0-0.0125$^{\circ}$',
-    r'WT 0.0125-0.025$^{\circ}$',
-    r'WT 0.025-0.05$^{\circ}$',
-    r'WT 0.05-0.1$^{\circ}$',
-    r'WT 0.1-0.2$^{\circ}$',
-    r'WT 0.2-0.4$^{\circ}$',
-    r'WT 0.4-0.8$^{\circ}$',
-    r'WT 0.8-$\infty^{\circ}$',
-    r'WT 0-0.05$^{\circ}$',
-    r'WT 0-0.1$^{\circ}$',
-    r'WT 0-0.2$^{\circ}$',
-    r'WT 0-0.4$^{\circ}$',
-    r'WT 0.05-$\infty^{\circ}$',
-    r'WT 0.1-$\infty^{\circ}$',
-    r'WT 0.2-$\infty^{\circ}$',
-    r'WT 0.4-$\infty^{\circ}$',
+    r'FD 0-0.025$^{\circ}$',
+    r'FD 0.025-0.05$^{\circ}$',
+    r'FD 0.05-0.1$^{\circ}$',
+    r'FD 0.1-0.2$^{\circ}$',
+    r'FD 0.2-0.4$^{\circ}$',
+    r'FD 0.4-0.8$^{\circ}$',
+    r'FD 0.8-1.6$^{\circ}$',
+    r'FD 1.6-$\infty^{\circ}$',
+    r'FD 0-0.1$^{\circ}$',
+    r'FD 0-0.2$^{\circ}$',
+    r'FD 0-0.4$^{\circ}$',
+    r'FD 0-0.8$^{\circ}$',
+    r'FD 0.1-$\infty^{\circ}$',
+    r'FD 0.2-$\infty^{\circ}$',
+    r'FD 0.4-$\infty^{\circ}$',
+    r'FD 0.8-$\infty^{\circ}$',
+    r'WD 0-0.025$^{\circ}$',
+    r'WD 0.025-0.05$^{\circ}$',
+    r'WD 0.05-0.1$^{\circ}$',
+    r'WD 0.1-0.2$^{\circ}$',
+    r'WD 0.2-0.4$^{\circ}$',
+    r'WD 0.4-0.8$^{\circ}$',
+    r'WD 0.8-1.6$^{\circ}$',
+    r'WD 1.6-$\infty^{\circ}$',
+    r'WD 0-0.1$^{\circ}$',
+    r'WD 0-0.2$^{\circ}$',
+    r'WD 0-0.4$^{\circ}$',
+    r'WD 0-0.8$^{\circ}$',
+    r'WD 0.1-$\infty^{\circ}$',
+    r'WD 0.2-$\infty^{\circ}$',
+    r'WD 0.4-$\infty^{\circ}$',
+    r'WD 0.8-$\infty^{\circ}$',
     '1-by-1 neigh',
     '3-by-3 neigh',
     '5-by-5 neigh',
@@ -151,11 +152,11 @@ FILTER_NAMES_FANCY = [
 ]
 
 LOSS_FUNCTION_NAMES = [
-    'brier', 'fss', 'iou', 'dice', 'csi', 'heidke', 'gerrity', 'peirce'
+    'fss', 'iou', 'csi', 'heidke', 'gerrity', 'peirce', 'brier', 'dice'
 ]
 LOSS_FUNCTION_NAMES_FANCY = [
-    'Brier score', 'FSS', 'IOU', 'Dice coeff', 'CSI', 'Heidke score',
-    'Gerrity score', 'Peirce score'
+    'FSS', 'IOU', 'CSI', 'Heidke score', 'Gerrity score', 'Peirce score',
+    'Brier score', 'Dice coeff'
 ]
 NEGATIVELY_ORIENTED_FLAGS = numpy.array(
     [1, 0, 0, 0, 0, 0, 0, 0], dtype=bool
@@ -560,7 +561,7 @@ def _run(all_experiment_dir_name, output_dir_name):
             y_tick_values,
             [LOSS_FUNCTION_NAMES_FANCY[k] for k in MODEL_NAME_INDICES_TO_PLOT]
         )
-        axes_object.set_ylabel('Score for LF')
+        axes_object.set_ylabel('LF score')
 
         if i == num_loss_functions - 1:
             x_tick_values = numpy.linspace(
@@ -568,7 +569,7 @@ def _run(all_experiment_dir_name, output_dir_name):
                 dtype=float
             )
             pyplot.xticks(x_tick_values, FILTER_NAMES_FANCY, rotation=90.)
-            axes_object.set_xlabel('Filter for LF')
+            axes_object.set_xlabel('LF filter')
         else:
             pyplot.xticks([], [])
 
@@ -579,10 +580,10 @@ def _run(all_experiment_dir_name, output_dir_name):
             numpy.unravel_index(this_index, this_rank_matrix.shape)
         )
 
-        score_string = 'Mean ranking on LFs with {0:s}'.format(
+        score_string = 'Mean ranking on metrics with {0:s}'.format(
             LOSS_FUNCTION_NAMES_FANCY[i]
         )
-        title_string = score_string + ' for different models'
+        title_string = copy.deepcopy(score_string)
         axes_object.set_title(title_string)
 
         panel_file_names[i] = '{0:s}/{1:s}_ranking.jpg'.format(
@@ -665,7 +666,7 @@ def _run(all_experiment_dir_name, output_dir_name):
             y_tick_values,
             [LOSS_FUNCTION_NAMES_FANCY[k] for k in MODEL_NAME_INDICES_TO_PLOT]
         )
-        axes_object.set_ylabel('Score for LF')
+        axes_object.set_ylabel('LF score')
 
         pyplot.xticks([], [])
 
@@ -676,10 +677,10 @@ def _run(all_experiment_dir_name, output_dir_name):
             numpy.unravel_index(this_index, this_rank_matrix.shape)
         )
 
-        score_string = 'Mean ranking on LFs filtered with {0:s}'.format(
+        score_string = 'Mean ranking on metrics filtered with {0:s}'.format(
             FILTER_NAMES_FANCY[j]
         )
-        title_string = score_string + ' for different models'
+        title_string = copy.deepcopy(score_string)
         axes_object.set_title(title_string)
 
         panel_file_names.append(
@@ -735,14 +736,14 @@ def _run(all_experiment_dir_name, output_dir_name):
         y_tick_values,
         [LOSS_FUNCTION_NAMES_FANCY[k] for k in MODEL_NAME_INDICES_TO_PLOT]
     )
-    axes_object.set_ylabel('Score for LF')
+    axes_object.set_ylabel('LF score')
 
     x_tick_values = numpy.linspace(
         0, this_rank_matrix.shape[1] - 1, num=this_rank_matrix.shape[1],
         dtype=float
     )
     pyplot.xticks(x_tick_values, FILTER_NAMES_FANCY, rotation=90.)
-    axes_object.set_xlabel('Filter for LF')
+    axes_object.set_xlabel('LF filter')
 
     this_index = numpy.nanargmax(numpy.ravel(this_rank_matrix))
     _add_markers(
@@ -751,8 +752,8 @@ def _run(all_experiment_dir_name, output_dir_name):
         numpy.unravel_index(this_index, this_rank_matrix.shape)
     )
 
-    score_string = 'Mean ranking on all loss functions'
-    title_string = score_string + ' for different models'
+    score_string = 'Mean ranking on all metrics'
+    title_string = copy.deepcopy(score_string)
     axes_object.set_title(title_string)
 
     panel_file_names.append(

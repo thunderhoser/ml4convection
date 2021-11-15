@@ -36,22 +36,12 @@ MAX_PLOT_LATITUDE_DEG_N = 25.
 MIN_PLOT_LONGITUDE_DEG_E = 119.
 MAX_PLOT_LONGITUDE_DEG_E = 123.
 
+LATLNG_FONT_SIZE = 50
 FIGURE_WIDTH_INCHES = 15.
 FIGURE_HEIGHT_INCHES = 15.
 FIGURE_RESOLUTION_DPI = 300
 PANEL_FIGURE_SIZE_PX = int(3e5)
 CONCAT_FIGURE_SIZE_PX = int(1e7)
-
-DEFAULT_FONT_SIZE = 60
-LATLNG_FONT_SIZE = 50
-
-pyplot.rc('font', size=DEFAULT_FONT_SIZE)
-pyplot.rc('axes', titlesize=DEFAULT_FONT_SIZE)
-pyplot.rc('axes', labelsize=DEFAULT_FONT_SIZE)
-pyplot.rc('xtick', labelsize=DEFAULT_FONT_SIZE)
-pyplot.rc('ytick', labelsize=DEFAULT_FONT_SIZE)
-pyplot.rc('legend', fontsize=DEFAULT_FONT_SIZE)
-pyplot.rc('figure', titlesize=DEFAULT_FONT_SIZE)
 
 PREDICTION_DIRS_ARG_NAME = 'input_prediction_dir_names'
 MODEL_DESCRIPTIONS_ARG_NAME = 'model_description_strings'
@@ -61,6 +51,7 @@ SMOOTHING_RADII_ARG_NAME = 'smoothing_radii_px'
 PANEL_LETTERS_ARG_NAME = 'panel_letters'
 NUM_PANEL_ROWS_ARG_NAME = 'num_panel_rows'
 NUM_PANEL_COLUMNS_ARG_NAME = 'num_panel_columns'
+FONT_SIZE_ARG_NAME = 'font_size'
 RADAR_INDEX_ARG_NAME = 'radar_panel_index'
 OUTPUT_DIR_ARG_NAME = 'output_dir_name'
 
@@ -96,6 +87,8 @@ NUM_PANEL_ROWS_HELP_STRING = (
 NUM_PANEL_COLUMNS_HELP_STRING = 'Same as `{0:s}` but for columns.'.format(
     NUM_PANEL_ROWS_ARG_NAME
 )
+FONT_SIZE_HELP_STRING = 'Font size.'
+
 RADAR_INDEX_HELP_STRING = (
     '[used only if `{0:s}` is specified] Array index of panel with radar data.'
 ).format(RADAR_DIR_ARG_NAME)
@@ -138,6 +131,10 @@ INPUT_ARG_PARSER.add_argument(
     help=NUM_PANEL_COLUMNS_HELP_STRING
 )
 INPUT_ARG_PARSER.add_argument(
+    '--' + FONT_SIZE_ARG_NAME, type=int, required=False, default=60,
+    help=FONT_SIZE_HELP_STRING
+)
+INPUT_ARG_PARSER.add_argument(
     '--' + RADAR_INDEX_ARG_NAME, type=int, required=False, default=-1,
     help=RADAR_INDEX_HELP_STRING
 )
@@ -149,7 +146,7 @@ INPUT_ARG_PARSER.add_argument(
 
 def _plot_reflectivity(
         top_radar_dir_name, border_latitudes_deg_n, border_longitudes_deg_e,
-        target_matrix, mask_matrix, valid_time_string, figure_object,
+        target_matrix, mask_matrix, valid_time_string, font_size, figure_object,
         axes_object):
     """Plots composite reflectivity.
 
@@ -159,6 +156,7 @@ def _plot_reflectivity(
     :param target_matrix: Same.
     :param mask_matrix: Same.
     :param valid_time_string: Same.
+    :param font_size: Same.
     :param figure_object: Same.
     :param axes_object: Same.
     """
@@ -259,7 +257,7 @@ def _plot_reflectivity(
         colour_map_object=colour_map_object,
         colour_norm_object=colour_norm_object,
         orientation_string='vertical', extend_min=False, extend_max=True,
-        font_size=DEFAULT_FONT_SIZE
+        font_size=font_size
     )
 
     plotting_utils.plot_grid_lines(
@@ -416,7 +414,7 @@ def _plot_predictions_one_model(
 
 def _run(top_prediction_dir_names, model_descriptions_abbrev, valid_time_string,
          top_radar_dir_name, smoothing_radii_px, panel_letters, num_panel_rows,
-         num_panel_columns, radar_panel_index, output_dir_name):
+         num_panel_columns, font_size, radar_panel_index, output_dir_name):
     """Makes figure with predictions from different models.
 
     This is effectively the main method.
@@ -429,9 +427,18 @@ def _run(top_prediction_dir_names, model_descriptions_abbrev, valid_time_string,
     :param panel_letters: Same.
     :param num_panel_rows: Same.
     :param num_panel_columns: Same.
+    :param font_size: Same.
     :param radar_panel_index: Same.
     :param output_dir_name: Same.
     """
+
+    pyplot.rc('font', size=font_size)
+    pyplot.rc('axes', titlesize=font_size)
+    pyplot.rc('axes', labelsize=font_size)
+    pyplot.rc('xtick', labelsize=font_size)
+    pyplot.rc('ytick', labelsize=font_size)
+    pyplot.rc('legend', fontsize=font_size)
+    pyplot.rc('figure', titlesize=font_size)
 
     # Process input args.
     model_descriptions_verbose = [
@@ -524,7 +531,7 @@ def _run(top_prediction_dir_names, model_descriptions_abbrev, valid_time_string,
             label_string='({0:s})'.format(
                 panel_letter_matrix[row_index, column_index]
             ),
-            x_coord_normalized=-0.025, font_size=DEFAULT_FONT_SIZE
+            x_coord_normalized=-0.025, font_size=font_size
         )
 
         if k == num_models - 1:
@@ -555,7 +562,7 @@ def _run(top_prediction_dir_names, model_descriptions_abbrev, valid_time_string,
                 colour_map_object=colour_map_object,
                 colour_norm_object=colour_norm_object,
                 orientation_string=orientation_string,
-                extend_min=False, extend_max=False, font_size=DEFAULT_FONT_SIZE
+                extend_min=False, extend_max=False, font_size=font_size
             )
 
         panel_file_names[panel_index] = (
@@ -589,7 +596,7 @@ def _run(top_prediction_dir_names, model_descriptions_abbrev, valid_time_string,
             border_latitudes_deg_n=border_latitudes_deg_n,
             border_longitudes_deg_e=border_longitudes_deg_e,
             target_matrix=target_matrix, mask_matrix=mask_matrix,
-            valid_time_string=valid_time_string,
+            valid_time_string=valid_time_string, font_size=font_size,
             figure_object=figure_object, axes_object=axes_object
         )
 
@@ -601,7 +608,7 @@ def _run(top_prediction_dir_names, model_descriptions_abbrev, valid_time_string,
             label_string='({0:s})'.format(
                 panel_letter_matrix[row_index, column_index]
             ),
-            x_coord_normalized=-0.025, font_size=DEFAULT_FONT_SIZE
+            x_coord_normalized=-0.025, font_size=font_size
         )
 
         panel_file_names[radar_panel_index] = (
@@ -677,6 +684,7 @@ if __name__ == '__main__':
         panel_letters=getattr(INPUT_ARG_OBJECT, PANEL_LETTERS_ARG_NAME),
         num_panel_rows=getattr(INPUT_ARG_OBJECT, NUM_PANEL_ROWS_ARG_NAME),
         num_panel_columns=getattr(INPUT_ARG_OBJECT, NUM_PANEL_COLUMNS_ARG_NAME),
+        font_size=getattr(INPUT_ARG_OBJECT, FONT_SIZE_ARG_NAME),
         radar_panel_index=getattr(INPUT_ARG_OBJECT, RADAR_INDEX_ARG_NAME),
         output_dir_name=getattr(INPUT_ARG_OBJECT, OUTPUT_DIR_ARG_NAME)
     )
