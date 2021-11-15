@@ -1,7 +1,6 @@
 """Ranks learning-curve scores for aggregated experiment."""
 
 import os
-import copy
 import glob
 import argparse
 from PIL import Image
@@ -144,8 +143,8 @@ FILTER_NAMES_FANCY = [
     '25-by-25 neigh'
 ]
 
-REFERENCE_LINE_COLOUR = numpy.full(3, 152. / 255)
-REFERENCE_LINE_WIDTH = 3
+REFERENCE_LINE_COLOUR = numpy.full(3, 0.)
+REFERENCE_LINE_WIDTH = 5
 REFERENCE_LINE_X_COORDS = numpy.array([15.5, 31.5])
 
 LOSS_FUNCTION_NAMES = [
@@ -158,7 +157,7 @@ LOSS_FUNCTION_NAMES_FANCY = [
 NEGATIVELY_ORIENTED_FLAGS = numpy.array(
     [1, 0, 0, 0, 0, 0, 0, 0], dtype=bool
 )
-MODEL_NAME_INDICES_TO_PLOT = numpy.array([0, 1], dtype=int)
+MODEL_NAME_INDICES_TO_PLOT = numpy.array([0, 6], dtype=int)
 EVAL_FILTER_INDICES_TO_PLOT = numpy.array(
     [9, 13, 25, 29, 32, 36, 39], dtype=int
 )
@@ -396,7 +395,7 @@ def _plot_grid_one_score(score_matrix, min_colour_value, max_colour_value,
         ])
         axes_object.plot(
             these_x_coords, these_y_coords, linewidth=REFERENCE_LINE_WIDTH,
-            linestyle='dashed', color=REFERENCE_LINE_COLOUR
+            linestyle='dotted', color=REFERENCE_LINE_COLOUR
         )
 
     return figure_object, axes_object
