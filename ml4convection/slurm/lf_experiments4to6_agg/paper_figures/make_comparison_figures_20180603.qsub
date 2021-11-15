@@ -34,12 +34,12 @@ set valid_time_string=${VALID_TIME_STRINGS[$SLURM_ARRAY_TASK_ID]}
 
 set NEIGH_LOSS_FUNCTIONS_ABBREV=("brier" "fss" "iou" "dice" "csi")
 set NEIGH_FILTER_NAMES_ABBREV=("-neigh0" "-neigh4" "-neigh12")
-set NEIGH_LOSS_FUNCTIONS_FANCY=("Brier_score" "FSS" "IOU" "Dice" "CSI")
+set NEIGH_LOSS_FUNCTIONS_FANCY=("Brier" "FSS" "IOU" "Dice" "CSI")
 set NEIGH_FILTER_NAMES_FANCY=("1-by-1" "9-by-9" "25-by-25")
 
 set TRANSFORM_LOSS_FUNCTIONS_ABBREV=("brier" "fss" "iou" "dice" "csi" "heidke" "gerrity" "peirce")
 set TRANSFORM_FILTER_NAMES_ABBREV=("_wavelets0_min-resolution-deg=0.0000_max-resolution-deg=0.1000" "_wavelets0_min-resolution-deg=0.1000_max-resolution-deg=10000000000.0000" "_wavelets1_min-resolution-deg=0.0000_max-resolution-deg=0.1000" "_wavelets1_min-resolution-deg=0.1000_max-resolution-deg=10000000000.0000")
-set TRANSFORM_LOSS_FUNCTIONS_FANCY=("Brier_score" "FSS" "IOU" "Dice" "CSI" "Heidke" "Gerrity" "Peirce")
+set TRANSFORM_LOSS_FUNCTIONS_FANCY=("Brier" "FSS" "IOU" "Dice" "CSI" "Heidke" "Gerrity" "Peirce")
 set TRANSFORM_FILTER_NAMES_FANCY=("FD_0--0.2-deg" "FD_0.2--inf-deg" "WD_0--0.2-deg" "WD_0.2--inf-deg")
 
 set prediction_dir_names_string=""
