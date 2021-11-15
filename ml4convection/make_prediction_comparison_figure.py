@@ -518,7 +518,7 @@ def _run(top_prediction_dir_names, model_descriptions_abbrev, valid_time_string,
             border_latitudes_deg_n=border_latitudes_deg_n,
             border_longitudes_deg_e=border_longitudes_deg_e,
             valid_time_string=valid_time_string,
-            title_string=model_descriptions_verbose[k],
+            title_string=model_descriptions_verbose[k], font_size=font_size,
             figure_object=figure_object, axes_object=axes_object,
             smoothing_radius_px=smoothing_radii_px[k]
         )
