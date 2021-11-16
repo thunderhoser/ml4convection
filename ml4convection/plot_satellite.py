@@ -139,7 +139,7 @@ def _plot_one_satellite_image(
         ]
     )
 
-    satellite_plotting.plot_2d_grid(
+    satellite_plotting.plot_2d_grid_latlng(
         brightness_temp_matrix_kelvins=brightness_temp_matrix_kelvins,
         axes_object=axes_object,
         min_latitude_deg_n=numpy.min(latitudes_deg_n),
