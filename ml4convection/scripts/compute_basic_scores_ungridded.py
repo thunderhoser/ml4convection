@@ -19,6 +19,7 @@ SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 
 NUM_RADARS = len(radar_utils.RADAR_LATITUDES_DEG_N)
 GRID_SPACING_DEG = 0.0125
+NUM_EXAMPLES_PER_FOURIER_BATCH = 20
 TARGET_PERCENTILE_LEVELS_TO_REPORT = numpy.array(
     [0, 25, 50, 75, 95, 99, 100], dtype=float
 )
@@ -163,6 +164,8 @@ def _transform_targets(prediction_dict):
                 p, numpy.percentile(target_matrix, p)
             ))
 
+        filtered_target_matrix = numpy.full(target_matrix.shape, numpy.nan)
+
         target_matrix = numpy.stack([
             fourier_utils.taper_spatial_data(target_matrix[i, ...])
             for i in range(num_examples)
@@ -176,12 +179,6 @@ def _transform_targets(prediction_dict):
             for i in range(num_examples)
         ], axis=0)
 
-        target_tensor = tensorflow.constant(
-            target_matrix, dtype=tensorflow.complex128
-        )
-        target_weight_tensor = tensorflow.signal.fft2d(target_tensor)
-        target_weight_matrix = K.eval(target_weight_tensor)
-
         butterworth_matrix = fourier_utils.apply_butterworth_filter(
             coefficient_matrix=numpy.ones(target_matrix.shape[1:]),
             filter_order=2, grid_spacing_metres=GRID_SPACING_DEG,
@@ -191,25 +188,43 @@ def _transform_targets(prediction_dict):
             training_option_dict[neural_net.MAX_TARGET_RESOLUTION_KEY]
         )
 
-        target_weight_matrix = numpy.stack([
-            target_weight_matrix[i, ...] * butterworth_matrix
-            for i in range(num_examples)
-        ], axis=0)
+        for i in range(0, num_examples, NUM_EXAMPLES_PER_FOURIER_BATCH):
+            first_index = i
+            last_index = min([
+                i + NUM_EXAMPLES_PER_FOURIER_BATCH, num_examples
+            ])
 
-        target_weight_tensor = tensorflow.constant(
-            target_weight_matrix, dtype=tensorflow.complex128
-        )
-        target_tensor = tensorflow.signal.ifft2d(target_weight_tensor)
-        target_tensor = tensorflow.math.real(target_tensor)
-        target_matrix = K.eval(target_tensor)
+            this_target_tensor = tensorflow.constant(
+                target_matrix[first_index:last_index, ...],
+                dtype=tensorflow.complex128
+            )
+            this_target_weight_tensor = tensorflow.signal.fft2d(
+                this_target_tensor
+            )
+            this_target_weight_matrix = K.eval(this_target_weight_tensor)
 
-        target_matrix = numpy.stack([
-            fourier_utils.untaper_spatial_data(target_matrix[i, ...])
-            for i in range(num_examples)
-        ], axis=0)
+            this_target_weight_matrix = numpy.stack([
+                this_target_weight_matrix[i, ...] * butterworth_matrix
+                for i in range(this_target_weight_matrix.shape[0])
+            ], axis=0)
 
-        target_matrix = numpy.maximum(target_matrix, 0.)
+            this_target_weight_tensor = tensorflow.constant(
+                this_target_weight_matrix, dtype=tensorflow.complex128
+            )
+            this_target_tensor = tensorflow.signal.ifft2d(
+                this_target_weight_tensor
+            )
+            this_target_tensor = tensorflow.math.real(this_target_tensor)
+            this_target_matrix = K.eval(this_target_tensor)
+
+            filtered_target_matrix[first_index:last_index, ...] = numpy.stack([
+                fourier_utils.untaper_spatial_data(this_target_matrix[i, ...])
+                for i in range(this_target_matrix.shape[0])
+            ], axis=0)
+
+        target_matrix = numpy.maximum(filtered_target_matrix, 0.)
         target_matrix = numpy.minimum(target_matrix, 1.)
+        del filtered_target_matrix
 
         print('\n')
         for p in TARGET_PERCENTILE_LEVELS_TO_REPORT:
