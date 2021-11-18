@@ -1,0 +1,55 @@
+#!/bin/tcsh
+
+#SBATCH --job-name="compute_basic_ungridded_scores"
+#SBATCH --partition="fge"
+#SBATCH --account="rda-ghpcs"
+#SBATCH --qos="batch"
+#SBATCH --ntasks=1
+#SBATCH --nodes=1
+#SBATCH --cpus-per-task=1
+##SBATCH --nodes=1
+##SBATCH --ntasks=1
+##SBATCH --cpus-per-task=1
+##SBATCH --ntasks-per-node=1
+#SBATCH --time=30:00:00
+#SBATCH --array=1-60
+#SBATCH --exclude=h28n12
+##SBATCH --exclude=h31n03,h28n12
+##SBATCH --exclude=h29n01,h26n05,h28n06,h29n07,h30n03,h30n15
+#SBATCH --mail-type=BEGIN,END,FAIL
+#SBATCH --mail-user=ryan.lagerquist@noaa.gov
+#SBATCH --output=compute_basic_ungridded_scores_%A_%a.out
+
+module load cuda/10.1
+source /scratch2/BMC/gsd-hpcs/Jebb.Q.Stewart/conda3.7/etc/profile.d/conda.csh
+conda activate base
+
+set CODE_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_standalone/ml4convection"
+set ALL_EXPERIMENT_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_models"
+
+set SCORE_NAMES=("fss" "fss" "fss" "fss" "fss" "fss" "fss" "fss" "fss" "fss" "fss" "fss" "fss" "fss" "fss" "fss" "fss" "fss" "fss" "fss" "fss" "fss" "fss" "fss" "fss" "fss" "fss" "fss" "fss" "fss" "fss" "fss" "fss" "fss" "fss" "fss" "fss" "fss" "fss" "fss" "fss" "fss" "fss" "fss" "fss" "fss" "fss" "fss" "fss" "fss" "fss" "fss" "fss" "fss" "fss" "fss" "fss" "fss" "fss" "fss")
+set FILTER_NAMES=("-neigh0" "-neigh8" "_wavelets1_min-resolution-deg=0.0000_max-resolution-deg=0.0500" "_wavelets1_min-resolution-deg=0.0500_max-resolution-deg=10000000000.0000" "_wavelets0_min-resolution-deg=0.0000_max-resolution-deg=0.2000" "-neigh0" "-neigh8" "_wavelets1_min-resolution-deg=0.0000_max-resolution-deg=0.0500" "_wavelets1_min-resolution-deg=0.0500_max-resolution-deg=10000000000.0000" "_wavelets0_min-resolution-deg=0.0000_max-resolution-deg=0.2000" "-neigh0" "-neigh8" "_wavelets1_min-resolution-deg=0.0000_max-resolution-deg=0.0500" "_wavelets1_min-resolution-deg=0.0500_max-resolution-deg=10000000000.0000" "_wavelets0_min-resolution-deg=0.0000_max-resolution-deg=0.2000" "-neigh0" "-neigh8" "_wavelets1_min-resolution-deg=0.0000_max-resolution-deg=0.0500" "_wavelets1_min-resolution-deg=0.0500_max-resolution-deg=10000000000.0000" "_wavelets0_min-resolution-deg=0.0000_max-resolution-deg=0.2000" "-neigh0" "-neigh8" "_wavelets1_min-resolution-deg=0.0000_max-resolution-deg=0.0500" "_wavelets1_min-resolution-deg=0.0500_max-resolution-deg=10000000000.0000" "_wavelets0_min-resolution-deg=0.0000_max-resolution-deg=0.2000" "-neigh0" "-neigh8" "_wavelets1_min-resolution-deg=0.0000_max-resolution-deg=0.0500" "_wavelets1_min-resolution-deg=0.0500_max-resolution-deg=10000000000.0000" "_wavelets0_min-resolution-deg=0.0000_max-resolution-deg=0.2000" "-neigh0" "-neigh8" "_wavelets1_min-resolution-deg=0.0000_max-resolution-deg=0.0500" "_wavelets1_min-resolution-deg=0.0500_max-resolution-deg=10000000000.0000" "_wavelets0_min-resolution-deg=0.0000_max-resolution-deg=0.2000" "-neigh0" "-neigh8" "_wavelets1_min-resolution-deg=0.0000_max-resolution-deg=0.0500" "_wavelets1_min-resolution-deg=0.0500_max-resolution-deg=10000000000.0000" "_wavelets0_min-resolution-deg=0.0000_max-resolution-deg=0.2000" "-neigh0" "-neigh8" "_wavelets1_min-resolution-deg=0.0000_max-resolution-deg=0.0500" "_wavelets1_min-resolution-deg=0.0500_max-resolution-deg=10000000000.0000" "_wavelets0_min-resolution-deg=0.0000_max-resolution-deg=0.2000" "-neigh0" "-neigh8" "_wavelets1_min-resolution-deg=0.0000_max-resolution-deg=0.0500" "_wavelets1_min-resolution-deg=0.0500_max-resolution-deg=10000000000.0000" "_wavelets0_min-resolution-deg=0.0000_max-resolution-deg=0.2000" "-neigh0" "-neigh8" "_wavelets1_min-resolution-deg=0.0000_max-resolution-deg=0.0500" "_wavelets1_min-resolution-deg=0.0500_max-resolution-deg=10000000000.0000" "_wavelets0_min-resolution-deg=0.0000_max-resolution-deg=0.2000" "-neigh0" "-neigh8" "_wavelets1_min-resolution-deg=0.0000_max-resolution-deg=0.0500" "_wavelets1_min-resolution-deg=0.0500_max-resolution-deg=10000000000.0000" "_wavelets0_min-resolution-deg=0.0000_max-resolution-deg=0.2000")
+set FIRST_DATE_STRINGS=("20170101" "20170101" "20170101" "20170101" "20170101" "20170201" "20170201" "20170201" "20170201" "20170201" "20170301" "20170301" "20170301" "20170301" "20170301" "20170401" "20170401" "20170401" "20170401" "20170401" "20170501" "20170501" "20170501" "20170501" "20170501" "20170601" "20170601" "20170601" "20170601" "20170601" "20170701" "20170701" "20170701" "20170701" "20170701" "20170801" "20170801" "20170801" "20170801" "20170801" "20170901" "20170901" "20170901" "20170901" "20170901" "20171001" "20171001" "20171001" "20171001" "20171001" "20171101" "20171101" "20171101" "20171101" "20171101" "20171201" "20171201" "20171201" "20171201" "20171201")
+set LAST_DATE_STRINGS=("20170131" "20170131" "20170131" "20170131" "20170131" "20170228" "20170228" "20170228" "20170228" "20170228" "20170331" "20170331" "20170331" "20170331" "20170331" "20170430" "20170430" "20170430" "20170430" "20170430" "20170531" "20170531" "20170531" "20170531" "20170531" "20170630" "20170630" "20170630" "20170630" "20170630" "20170731" "20170731" "20170731" "20170731" "20170731" "20170831" "20170831" "20170831" "20170831" "20170831" "20170930" "20170930" "20170930" "20170930" "20170930" "20171031" "20171031" "20171031" "20171031" "20171031" "20171130" "20171130" "20171130" "20171130" "20171130" "20171224" "20171224" "20171224" "20171224" "20171224")
+set SUBEXPERIMENT_ENUMS=("06" "06" "05" "05" "05" "06" "06" "05" "05" "05" "06" "06" "05" "05" "05" "06" "06" "05" "05" "05" "06" "06" "05" "05" "05" "06" "06" "05" "05" "05" "06" "06" "05" "05" "05" "06" "06" "05" "05" "05" "06" "06" "05" "05" "05" "06" "06" "05" "05" "05" "06" "06" "05" "05" "05" "06" "06" "05" "05" "05")
+
+set score_name=${SCORE_NAMES[$SLURM_ARRAY_TASK_ID]}
+set filter_name=${FILTER_NAMES[$SLURM_ARRAY_TASK_ID]}
+set subexperiment_enum=${SUBEXPERIMENT_ENUMS[$SLURM_ARRAY_TASK_ID]}
+set first_date_string=${FIRST_DATE_STRINGS[$SLURM_ARRAY_TASK_ID]}
+set last_date_string=${LAST_DATE_STRINGS[$SLURM_ARRAY_TASK_ID]}
+
+set prediction_dir_names={${ALL_EXPERIMENT_DIR_NAME}/lf_experiment${subexperiment_enum}/${score_name}${filter_name}/model*/validation_best_validation_loss/full_grids}
+set prediction_dir_name=${prediction_dir_names[$#prediction_dir_names]}
+
+python3 -u "${CODE_DIR_NAME}/compute_basic_scores_ungridded.py" \
+--input_prediction_dir_name="${prediction_dir_name}" \
+--first_date_string="${first_date_string}" \
+--last_date_string="${last_date_string}" \
+--time_interval_steps=1 \
+--use_partial_grids=0 \
+--smoothing_radius_px=2 \
+--transform_targets_if_applicable=0 \
+--matching_distances_px 0 1 2 3 4 6 8 12 \
+--num_prob_thresholds=101 \
+--output_dir_name="${prediction_dir_name}/evaluation_sans_filtering"
