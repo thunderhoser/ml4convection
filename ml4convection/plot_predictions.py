@@ -171,12 +171,12 @@ def _plot_predictions_one_example(
     plotting_utils.plot_borders(
         border_latitudes_deg_n=border_latitudes_deg_n,
         border_longitudes_deg_e=border_longitudes_deg_e,
-        axes_object=axes_object
+        axes_object=axes_object, line_width=4
     )
 
     pyplot.contour(
         longitudes_deg_e, latitudes_deg_n, mask_matrix, numpy.array([0.999]),
-        colors=(MASK_OUTLINE_COLOUR,), linewidths=2, linestyles='solid',
+        colors=(MASK_OUTLINE_COLOUR,), linewidths=4, linestyles='solid',
         axes=axes_object
     )
 
