@@ -41,7 +41,7 @@ set panel_letters_string="$panel_letters_string:gas/_/ /"
 set SCORE_NAMES=("fss" "fss" "fss" "fss" "fss")
 set FILTER_NAMES=("-neigh0" "-neigh8" "_wavelets1_min-resolution-deg=0.0000_max-resolution-deg=0.0500" "_wavelets1_min-resolution-deg=0.0500_max-resolution-deg=10000000000.0000" "_wavelets0_min-resolution-deg=0.0000_max-resolution-deg=0.2000")
 set SUBEXPERIMENT_ENUMS=("06" "06" "05" "05" "05")
-set MODEL_DESCRIPTION_STRINGS=("1-by-1_neigh" "17-by-17_neigh" "WD_0-0.1_deg" "WD_0.1-inf_deg" "FD_0-0.4_deg")
+set MODEL_DESCRIPTION_STRINGS=("1x1_neigh" "17x17_neigh" "W0-0.1deg" "W0.1-infdeg" "F0-0.4deg")
 
 set prediction_dir_names_string=""
 set model_descriptions_string=""

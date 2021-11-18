@@ -30,6 +30,8 @@ TIME_FORMAT = '%Y-%m-%d-%H%M'
 COMPOSITE_REFL_NAME = 'reflectivity_column_max_dbz'
 
 MASK_OUTLINE_COLOUR = numpy.full(3, 152. / 255)
+MASK_OUTLINE_WIDTH = 4
+BORDER_WIDTH = 4
 
 MIN_PLOT_LATITUDE_DEG_N = 21.
 MAX_PLOT_LATITUDE_DEG_N = 25.
@@ -223,12 +225,13 @@ def _plot_reflectivity(
     plotting_utils.plot_borders(
         border_latitudes_deg_n=border_latitudes_deg_n,
         border_longitudes_deg_e=border_longitudes_deg_e,
-        axes_object=axes_object
+        axes_object=axes_object, line_width=BORDER_WIDTH
     )
 
     axes_object.contour(
         longitudes_deg_e, latitudes_deg_n, mask_matrix, numpy.array([0.999]),
-        colors=(MASK_OUTLINE_COLOUR,), linewidths=2, linestyles='solid'
+        colors=(MASK_OUTLINE_COLOUR,), linewidths=MASK_OUTLINE_WIDTH,
+        linestyles='solid'
     )
 
     radar_plotting.plot_latlng_grid(
@@ -375,12 +378,13 @@ def _plot_predictions_one_model(
     plotting_utils.plot_borders(
         border_latitudes_deg_n=border_latitudes_deg_n,
         border_longitudes_deg_e=border_longitudes_deg_e,
-        axes_object=axes_object
+        axes_object=axes_object, line_width=BORDER_WIDTH
     )
 
     axes_object.contour(
         longitudes_deg_e, latitudes_deg_n, mask_matrix, numpy.array([0.999]),
-        colors=(MASK_OUTLINE_COLOUR,), linewidths=2, linestyles='solid'
+        colors=(MASK_OUTLINE_COLOUR,), linewidths=MASK_OUTLINE_WIDTH,
+        linestyles='solid'
     )
 
     colour_map_object, colour_norm_object = (
@@ -446,6 +450,9 @@ def _run(top_prediction_dir_names, model_descriptions_abbrev, valid_time_string,
     ]
     model_descriptions_verbose = [
         s.replace('inf', r'$\infty$') for s in model_descriptions_verbose
+    ]
+    model_descriptions_verbose = [
+        s.replace('deg', r'$^{\circ}$') for s in model_descriptions_verbose
     ]
     model_descriptions_abbrev = [
         s.replace('_', '-').lower() for s in model_descriptions_abbrev
