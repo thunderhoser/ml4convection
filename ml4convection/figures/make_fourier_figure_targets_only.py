@@ -35,11 +35,6 @@ CONVERT_EXE_NAME = '/usr/bin/convert'
 TITLE_FONT_SIZE = 200
 TITLE_FONT_NAME = 'DejaVu-Sans-Bold'
 
-TARGET_CONTOUR_LEVELS = numpy.array([
-    0.01, 0.05, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1
-])
-TARGET_COLOUR_MAP_OBJECT = pyplot.get_cmap('spring')
-
 MAX_COLOUR_PERCENTILE = 99.5
 FIGURE_WIDTH_INCHES = 15
 FIGURE_HEIGHT_INCHES = 15
@@ -458,7 +453,7 @@ def _run(top_prediction_dir_name, valid_time_string, radar_number,
     )
     target_matrix = fourier_utils.apply_blackman_window(target_matrix)
 
-    orig_file_name, figure_object, axes_object = (
+    orig_file_name, figure_object = (
         plot_predictions._plot_predictions_one_example(
             prediction_dict=prediction_dict, example_index=0,
             border_latitudes_deg_n=border_latitudes_deg_n,
@@ -469,7 +464,7 @@ def _run(top_prediction_dir_name, valid_time_string, radar_number,
             colour_norm_object=prob_colour_norm_object,
             output_dir_name=None,
             title_string='Windowed probability field', font_size=FONT_SIZE
-        )
+        )[:2]
     )
 
     panel_file_names[6] = '{0:s}/windowed_field.jpg'.format(output_dir_name)
@@ -683,7 +678,7 @@ def _run(top_prediction_dir_name, valid_time_string, radar_number,
         orig_prediction_dict[prediction_io.LONGITUDES_KEY]
     )
 
-    orig_file_name, figure_object, axes_object = (
+    orig_file_name, figure_object = (
         plot_predictions._plot_predictions_one_example(
             prediction_dict=prediction_dict, example_index=0,
             border_latitudes_deg_n=border_latitudes_deg_n,
@@ -694,7 +689,7 @@ def _run(top_prediction_dir_name, valid_time_string, radar_number,
             colour_norm_object=prob_colour_norm_object,
             output_dir_name=None,
             title_string='Filtered probability field', font_size=FONT_SIZE
-        )
+        )[:2]
     )
 
     panel_file_names[-1] = '{0:s}/filtered_field.jpg'.format(output_dir_name)

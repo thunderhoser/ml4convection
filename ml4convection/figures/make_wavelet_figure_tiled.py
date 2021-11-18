@@ -202,24 +202,26 @@ def _plot_coeffs_one_level(coeff_matrix, title_string, output_file_name,
 
     if include_text_markers:
         axes_object.text(
-            0.25 * float(num_rows_in_figure), 0.5 * float(num_rows_in_figure),
-            'LL', fontsize=1.5 * DEFAULT_FONT_SIZE, color='k',
-            horizontalalignment='center', verticalalignment='bottom'
+            0.25 * float(num_rows_in_figure) - 0.5,
+            0.5 * float(num_rows_in_figure),
+            'LL', fontsize=4 * DEFAULT_FONT_SIZE, color='k',
+            horizontalalignment='center', verticalalignment='center'
         )
         axes_object.text(
-            0.75 * float(num_rows_in_figure), 0.5 * float(num_rows_in_figure),
-            'HL', fontsize=1.5 * DEFAULT_FONT_SIZE, color='k',
-            horizontalalignment='center', verticalalignment='bottom'
+            0.75 * float(num_rows_in_figure) - 0.5,
+            0.5 * float(num_rows_in_figure),
+            'HL', fontsize=4 * DEFAULT_FONT_SIZE, color='k',
+            horizontalalignment='center', verticalalignment='center'
         )
         axes_object.text(
-            0.25 * float(num_rows_in_figure), 0,
-            'LH', fontsize=1.5 * DEFAULT_FONT_SIZE, color='k',
-            horizontalalignment='center', verticalalignment='bottom'
+            0.25 * float(num_rows_in_figure) - 0.5, 0,
+            'LH', fontsize=4 * DEFAULT_FONT_SIZE, color='k',
+            horizontalalignment='center', verticalalignment='center'
         )
         axes_object.text(
-            0.75 * float(num_rows_in_figure), 0,
-            'HH', fontsize=1.5 * DEFAULT_FONT_SIZE, color='k',
-            horizontalalignment='center', verticalalignment='bottom'
+            0.75 * float(num_rows_in_figure) - 0.5, 0,
+            'HH', fontsize=4 * DEFAULT_FONT_SIZE, color='k',
+            horizontalalignment='center', verticalalignment='center'
         )
 
     colour_bar_object = gg_plotting_utils.plot_linear_colour_bar(
@@ -481,7 +483,7 @@ def _run(top_prediction_dir_name, valid_time_string, radar_number,
             coeff_matrix=K.eval(coeff_tensor_by_level[k])[0, ...],
             title_string=title_string,
             output_file_name=panel_file_names[k + 2],
-            include_text_markers=k == 0
+            include_text_markers=k == NUM_DECOMP_LEVELS - 1
         )
 
         imagemagick_utils.trim_whitespace(

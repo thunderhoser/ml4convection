@@ -21,6 +21,8 @@ DATE_FORMAT = '%Y%m%d'
 COMPOSITE_REFL_NAME = 'reflectivity_column_max_dbz'
 
 MASK_OUTLINE_COLOUR = numpy.full(3, 152. / 255)
+MASK_OUTLINE_WIDTH = 4
+BORDER_WIDTH = 4
 
 FIGURE_WIDTH_INCHES = 15
 FIGURE_HEIGHT_INCHES = 15
@@ -128,7 +130,7 @@ def _plot_one_satellite_image(
     plotting_utils.plot_borders(
         border_latitudes_deg_n=border_latitudes_deg_n,
         border_longitudes_deg_e=border_longitudes_deg_e,
-        axes_object=axes_object
+        axes_object=axes_object, line_width=BORDER_WIDTH
     )
 
     valid_time_unix_sec = (
@@ -228,13 +230,13 @@ def _plot_radar_one_time(
     plotting_utils.plot_borders(
         border_latitudes_deg_n=border_latitudes_deg_n,
         border_longitudes_deg_e=border_longitudes_deg_e,
-        axes_object=axes_object
+        axes_object=axes_object, line_width=BORDER_WIDTH
     )
 
     matrix_to_plot = numpy.nanmax(reflectivity_matrix_dbz, axis=-1)
     title_string = (
         'Reflectivity (dBZ)' if echo_classifn_dict is None
-        else 'Reflectivity (dBZ) and convection'
+        else 'Reflectivity (dBZ) with labels'
     )
 
     radar_plotting.plot_latlng_grid(
@@ -251,8 +253,8 @@ def _plot_radar_one_time(
             longitudes_deg_e, latitudes_deg_n,
             mask_dict[radar_io.MASK_MATRIX_KEY].astype(int),
             numpy.array([0.999]),
-            colors=(MASK_OUTLINE_COLOUR,), linewidths=4, linestyles='solid',
-            axes=axes_object
+            colors=(MASK_OUTLINE_COLOUR,), linewidths=MASK_OUTLINE_WIDTH,
+            linestyles='solid', axes=axes_object
         )
 
     if echo_classifn_dict is not None:
@@ -271,13 +273,13 @@ def _plot_radar_one_time(
             num_grid_columns=convective_flag_matrix.shape[1]
         )
 
-    if echo_classifn_dict is None:
+    if echo_classifn_dict is not None:
         gg_plotting_utils.plot_colour_bar(
             axes_object_or_matrix=axes_object, data_matrix=matrix_to_plot,
             colour_map_object=colour_map_object,
             colour_norm_object=colour_norm_object,
-            orientation_string='horizontal', extend_min=False, extend_max=True,
-            font_size=FONT_SIZE, padding=0.15
+            orientation_string='vertical', extend_min=False, extend_max=True,
+            font_size=FONT_SIZE
         )
 
     plotting_utils.plot_grid_lines(
@@ -412,7 +414,7 @@ def _run(top_satellite_dir_name, top_reflectivity_dir_name,
 
     panel_file_names[-2] = _plot_radar_one_time(
         reflectivity_dict=reflectivity_dict,
-        echo_classifn_dict=None, mask_dict=None, example_index=0,
+        echo_classifn_dict=None, mask_dict=mask_dict, example_index=0,
         border_latitudes_deg_n=border_latitudes_deg_n,
         border_longitudes_deg_e=border_longitudes_deg_e,
         letter_label=letter_label, output_dir_name=output_dir_name
@@ -422,7 +424,7 @@ def _run(top_satellite_dir_name, top_reflectivity_dir_name,
 
     panel_file_names[-1] = _plot_radar_one_time(
         reflectivity_dict=reflectivity_dict,
-        echo_classifn_dict=echo_classifn_dict, mask_dict=None,
+        echo_classifn_dict=echo_classifn_dict, mask_dict=mask_dict,
         example_index=0, border_latitudes_deg_n=border_latitudes_deg_n,
         border_longitudes_deg_e=border_longitudes_deg_e,
         letter_label=letter_label, output_dir_name=output_dir_name
