@@ -244,7 +244,7 @@ def _plot_radar_one_time(
     matrix_to_plot = numpy.nanmax(reflectivity_matrix_dbz, axis=-1)
     title_string = (
         'Reflectivity (dBZ)' if echo_classifn_dict is None
-        else 'Reflectivity (dBZ) with labels'
+        else 'Reflectivity (dBZ) + labels'
     )
 
     radar_plotting.plot_latlng_grid(
@@ -415,7 +415,7 @@ def _run(top_satellite_dir_name, top_reflectivity_dir_name,
             border_latitudes_deg_n=border_latitudes_deg_n,
             border_longitudes_deg_e=border_longitudes_deg_e,
             letter_label=letter_label, output_dir_name=output_dir_name,
-            cbar_orientation_string='horizontal' if j == num_bands - 1 else None
+            cbar_orientation_string='vertical' if j == num_bands - 1 else None
         )
 
     letter_label = chr(ord(letter_label) + 1)
