@@ -37,14 +37,16 @@ FIGURE_WIDTH_INCHES = 15
 FIGURE_HEIGHT_INCHES = 15
 CONCAT_FIGURE_SIZE_PX = int(1e7)
 
-FONT_SIZE = 50
-pyplot.rc('font', size=FONT_SIZE)
-pyplot.rc('axes', titlesize=FONT_SIZE)
-pyplot.rc('axes', labelsize=FONT_SIZE)
-pyplot.rc('xtick', labelsize=FONT_SIZE)
-pyplot.rc('ytick', labelsize=FONT_SIZE)
-pyplot.rc('legend', fontsize=FONT_SIZE)
-pyplot.rc('figure', titlesize=FONT_SIZE)
+DEFAULT_FONT_SIZE = 50
+PERF_DIAGRAM_ANNOTATION_FONT_SIZE = 45
+
+pyplot.rc('font', size=DEFAULT_FONT_SIZE)
+pyplot.rc('axes', titlesize=DEFAULT_FONT_SIZE)
+pyplot.rc('axes', labelsize=DEFAULT_FONT_SIZE)
+pyplot.rc('xtick', labelsize=DEFAULT_FONT_SIZE)
+pyplot.rc('ytick', labelsize=DEFAULT_FONT_SIZE)
+pyplot.rc('legend', fontsize=DEFAULT_FONT_SIZE)
+pyplot.rc('figure', titlesize=DEFAULT_FONT_SIZE)
 
 INPUT_FILES_ARG_NAME = 'input_advanced_score_file_names'
 MODEL_DESCRIPTIONS_ARG_NAME = 'model_description_strings'
@@ -174,11 +176,7 @@ def _run(advanced_score_file_names, model_descriptions_abbrev, num_panel_rows,
             model_descriptions_verbose[i]
         ))
 
-        annotation_string = (
-            'Brier score = {0:.2g}\n'
-            'Brier skill score = {1:.2g}'
-        ).format(
-            numpy.nanmean(a[evaluation.BRIER_SCORE_KEY].values),
+        annotation_string = 'Brier skill score = {0:.2g}'.format(
             numpy.nanmean(a[evaluation.BRIER_SKILL_SCORE_KEY].values)
         )
         axes_object.text(
@@ -195,7 +193,7 @@ def _run(advanced_score_file_names, model_descriptions_abbrev, num_panel_rows,
         gg_plotting_utils.label_axes(
             axes_object=axes_object,
             label_string='({0:s})'.format(letter_label),
-            x_coord_normalized=-0.025, font_size=FONT_SIZE
+            x_coord_normalized=-0.025, font_size=DEFAULT_FONT_SIZE
         )
 
         panel_file_names[2 * i] = '{0:s}/{1:s}_attributes_diagram.jpg'.format(
@@ -245,20 +243,15 @@ def _run(advanced_score_file_names, model_descriptions_abbrev, num_panel_rows,
         csi_at_best_threshold = mean_csi_values[best_threshold_index]
         bias_at_best_threshold = mean_frequency_biases[best_threshold_index]
 
-        annotation_string = (
-            'Area under curve = {0:.3g}\n'
-            'Best prob threshold = {1:.2g}\n'
-            'CSI = {2:.3g}\n'
-            'Frequency bias = {3:.3g}'
-        ).format(
-            area_under_curve, best_prob_threshold,
-            csi_at_best_threshold, bias_at_best_threshold
+        annotation_string = 'Area under curve = {0:.3g}'.format(
+            area_under_curve
         )
 
         axes_object.text(
-            0.98, 0.98, annotation_string, bbox=BOUNDING_BOX_DICT, color='k',
-            horizontalalignment='right', verticalalignment='top',
-            transform=axes_object.transAxes
+            0.98, 0.02, annotation_string, bbox=BOUNDING_BOX_DICT, color='k',
+            horizontalalignment='right', verticalalignment='bottom',
+            transform=axes_object.transAxes,
+            fontsize=PERF_DIAGRAM_ANNOTATION_FONT_SIZE
         )
 
         mean_success_ratios = numpy.nanmean(
@@ -274,7 +267,7 @@ def _run(advanced_score_file_names, model_descriptions_abbrev, num_panel_rows,
             markeredgecolor=eval_plotting.PERF_DIAGRAM_COLOUR
         )
 
-        axes_object.set_title('Performance diagram for {0:s}'.format(
+        axes_object.set_title('Perf diagram for {0:s}'.format(
             model_descriptions_verbose[i]
         ))
 
@@ -282,7 +275,7 @@ def _run(advanced_score_file_names, model_descriptions_abbrev, num_panel_rows,
         gg_plotting_utils.label_axes(
             axes_object=axes_object,
             label_string='({0:s})'.format(letter_label),
-            x_coord_normalized=-0.025, font_size=FONT_SIZE
+            x_coord_normalized=-0.025, font_size=DEFAULT_FONT_SIZE
         )
 
         panel_file_names[2 * i + 1] = (
