@@ -124,8 +124,8 @@ def _plot_predictions_one_example(
         prediction_dict, example_index, border_latitudes_deg_n,
         border_longitudes_deg_e, mask_matrix, plot_deterministic,
         probability_threshold, colour_map_object, colour_norm_object,
-        output_dir_name, title_string=None, font_size=30, cbar_extend_min=True,
-        latlng_visible=True):
+        output_dir_name, plot_colour_bar=True, title_string=None, font_size=30,
+        cbar_extend_min=True, latlng_visible=True):
     """Plots predictions (and targets) for one example (time step).
 
     M = number of rows in grid
@@ -144,6 +144,7 @@ def _plot_predictions_one_example(
         `prediction_plotting.plot_probabilistic`.
     :param colour_norm_object: Same.
     :param output_dir_name: See documentation at top of file.
+    :param plot_colour_bar: Boolean flag.
     :param title_string: Figure title.
     :param font_size: Font size.
     :param cbar_extend_min: Boolean flag.
@@ -218,13 +219,14 @@ def _plot_predictions_one_example(
                 valid_time_string
             )
 
-        gg_plotting_utils.plot_colour_bar(
-            axes_object_or_matrix=axes_object, data_matrix=probability_matrix,
-            colour_map_object=colour_map_object,
-            colour_norm_object=colour_norm_object,
-            orientation_string='vertical', extend_min=cbar_extend_min,
-            extend_max=False, font_size=font_size
-        )
+        if plot_colour_bar:
+            gg_plotting_utils.plot_colour_bar(
+                axes_object_or_matrix=axes_object, data_matrix=probability_matrix,
+                colour_map_object=colour_map_object,
+                colour_norm_object=colour_norm_object,
+                orientation_string='vertical', extend_min=cbar_extend_min,
+                extend_max=False, font_size=font_size
+            )
 
     plotting_utils.plot_grid_lines(
         plot_latitudes_deg_n=latitudes_deg_n,
