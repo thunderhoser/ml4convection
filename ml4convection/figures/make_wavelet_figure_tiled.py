@@ -564,7 +564,7 @@ def _run(top_prediction_dir_name, valid_time_string, radar_number,
             coeff_matrix=K.eval(coeff_tensor_by_level[k])[0, ...],
             title_string=title_string,
             output_file_name=panel_file_names[k],
-            include_text_markers=k == 0
+            include_text_markers=k == NUM_DECOMP_LEVELS - 1
         )
 
         imagemagick_utils.trim_whitespace(
