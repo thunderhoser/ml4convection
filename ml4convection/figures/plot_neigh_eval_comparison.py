@@ -49,7 +49,6 @@ pyplot.rc('figure', titlesize=FONT_SIZE)
 INPUT_FILES_ARG_NAME = 'input_advanced_score_file_names'
 MODEL_DESCRIPTIONS_ARG_NAME = 'model_description_strings'
 NUM_PANEL_ROWS_ARG_NAME = 'num_panel_rows'
-BEST_PROB_THRESHOLDS_ARG_NAME = 'best_prob_thresholds'
 CONFIDENCE_LEVEL_ARG_NAME = 'confidence_level'
 OUTPUT_DIR_ARG_NAME = 'output_dir_name'
 
@@ -64,9 +63,6 @@ MODEL_DESCRIPTIONS_HELP_STRING = (
 NUM_PANEL_ROWS_HELP_STRING = (
     'Number of panel rows.  If you want number of rows to be determined '
     'automatically, leave this argument alone.'
-)
-BEST_PROB_THRESHOLDS_HELP_STRING = (
-    'List of best probability thresholds, one per model.'
 )
 CONFIDENCE_LEVEL_HELP_STRING = (
     'Confidence intervals (if number of bootstrap replicates > 1) will be '
@@ -90,10 +86,6 @@ INPUT_ARG_PARSER.add_argument(
     help=NUM_PANEL_ROWS_HELP_STRING
 )
 INPUT_ARG_PARSER.add_argument(
-    '--' + BEST_PROB_THRESHOLDS_ARG_NAME, nargs='+', type=float, required=True,
-    help=BEST_PROB_THRESHOLDS_HELP_STRING
-)
-INPUT_ARG_PARSER.add_argument(
     '--' + CONFIDENCE_LEVEL_ARG_NAME, type=float, required=False, default=0.95,
     help=CONFIDENCE_LEVEL_HELP_STRING
 )
@@ -104,7 +96,7 @@ INPUT_ARG_PARSER.add_argument(
 
 
 def _run(advanced_score_file_names, model_descriptions_abbrev, num_panel_rows,
-         best_prob_thresholds, confidence_level, output_dir_name):
+         confidence_level, output_dir_name):
     """Plots figure comparing neigh-based evaluation scores for diff models.
 
     This is effectively the main method.
@@ -112,7 +104,6 @@ def _run(advanced_score_file_names, model_descriptions_abbrev, num_panel_rows,
     :param advanced_score_file_names: See documentation at top of file.
     :param model_descriptions_abbrev: Same.
     :param num_panel_rows: Same.
-    :param best_prob_thresholds: Same.
     :param confidence_level: Same.
     :param output_dir_name: Same.
     """
@@ -136,12 +127,6 @@ def _run(advanced_score_file_names, model_descriptions_abbrev, num_panel_rows,
     model_descriptions_abbrev = [
         s.replace('_', '-').lower() for s in model_descriptions_abbrev
     ]
-
-    error_checking.assert_is_numpy_array(
-        best_prob_thresholds, exact_dimensions=expected_dim
-    )
-    error_checking.assert_is_geq_numpy_array(best_prob_thresholds, 0.)
-    error_checking.assert_is_leq_numpy_array(best_prob_thresholds, 1.)
 
     num_panels = 2 * num_models
     if num_panel_rows <= 0:
@@ -246,11 +231,13 @@ def _run(advanced_score_file_names, model_descriptions_abbrev, num_panel_rows,
         )
         mean_csi_values = numpy.nanmean(a[evaluation.CSI_KEY].values, axis=0)
 
-        threshold_diffs = numpy.absolute(
-            a.coords[evaluation.PROBABILITY_THRESHOLD_DIM].values -
-            best_prob_thresholds[i]
+        best_threshold_index = numpy.nanargmin(
+            numpy.absolute(mean_frequency_biases - 1.)
         )
-        best_threshold_index = numpy.where(threshold_diffs <= TOLERANCE)[0][0]
+        max_csi = numpy.nanmax(mean_csi_values)
+        csi_at_best_threshold = mean_csi_values[best_threshold_index]
+        if csi_at_best_threshold < 0.9 * max_csi:
+            best_threshold_index = numpy.nanargmax(mean_csi_values)
 
         best_prob_threshold = a.coords[
             evaluation.PROBABILITY_THRESHOLD_DIM
@@ -346,10 +333,6 @@ if __name__ == '__main__':
             INPUT_ARG_OBJECT, MODEL_DESCRIPTIONS_ARG_NAME
         ),
         num_panel_rows=getattr(INPUT_ARG_OBJECT, NUM_PANEL_ROWS_ARG_NAME),
-        best_prob_thresholds=numpy.array(
-            getattr(INPUT_ARG_OBJECT, BEST_PROB_THRESHOLDS_ARG_NAME),
-            dtype=float
-        ),
         confidence_level=getattr(INPUT_ARG_OBJECT, CONFIDENCE_LEVEL_ARG_NAME),
         output_dir_name=getattr(INPUT_ARG_OBJECT, OUTPUT_DIR_ARG_NAME)
     )
