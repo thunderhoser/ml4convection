@@ -200,7 +200,8 @@ def _run(advanced_score_file_names, model_descriptions_abbrev, num_panel_rows,
         gg_plotting_utils.label_axes(
             axes_object=axes_object,
             label_string='({0:s})'.format(letter_label),
-            x_coord_normalized=-0.025, font_size=DEFAULT_FONT_SIZE
+            x_coord_normalized=-0.04, y_coord_normalized=-0.025,
+            font_size=DEFAULT_FONT_SIZE
         )
 
         panel_file_names[2 * i] = '{0:s}/{1:s}_attributes_diagram.jpg'.format(
@@ -282,7 +283,8 @@ def _run(advanced_score_file_names, model_descriptions_abbrev, num_panel_rows,
         gg_plotting_utils.label_axes(
             axes_object=axes_object,
             label_string='({0:s})'.format(letter_label),
-            x_coord_normalized=-0.025, font_size=DEFAULT_FONT_SIZE
+            x_coord_normalized=-0.04, y_coord_normalized=-0.025,
+            font_size=DEFAULT_FONT_SIZE
         )
 
         panel_file_names[2 * i + 1] = (
