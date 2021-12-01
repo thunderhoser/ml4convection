@@ -200,7 +200,7 @@ def _run(advanced_score_file_names, model_descriptions_abbrev, num_panel_rows,
         gg_plotting_utils.label_axes(
             axes_object=axes_object,
             label_string='({0:s})'.format(letter_label),
-            x_coord_normalized=-0.025, y_coord_normalized=-0.025,
+            x_coord_normalized=-0.04, y_coord_normalized=-0.025,
             font_size=DEFAULT_FONT_SIZE
         )
 
@@ -283,7 +283,7 @@ def _run(advanced_score_file_names, model_descriptions_abbrev, num_panel_rows,
         gg_plotting_utils.label_axes(
             axes_object=axes_object,
             label_string='({0:s})'.format(letter_label),
-            x_coord_normalized=-0.025, y_coord_normalized=-0.025,
+            x_coord_normalized=-0.04, y_coord_normalized=-0.025,
             font_size=DEFAULT_FONT_SIZE
         )
 
