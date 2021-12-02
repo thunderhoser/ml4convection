@@ -185,7 +185,7 @@ def _run(advanced_score_file_names, model_descriptions_abbrev, num_panel_rows,
         
         bss_values = a[evaluation.BRIER_SKILL_SCORE_KEY].values
 
-        annotation_string = 'BSS = {0:.2g} (CI = {1:.2g} to {2:.2g})'.format(
+        annotation_string = 'BSS = {0:.2g} ({1:.2g} to {2:.2g})'.format(
             numpy.nanmean(bss_values),
             numpy.nanpercentile(bss_values, 50 * (1 - confidence_level)),
             numpy.nanpercentile(bss_values, 50 * (1 + confidence_level))
@@ -259,7 +259,7 @@ def _run(advanced_score_file_names, model_descriptions_abbrev, num_panel_rows,
         csi_at_best_threshold = mean_csi_values[best_threshold_index]
         bias_at_best_threshold = mean_frequency_biases[best_threshold_index]
 
-        annotation_string = 'AUC = {0:.3g} (CI = {1:.3g} to {2:.3g})'.format(
+        annotation_string = 'AUC = {0:.3g} ({1:.3g} to {2:.3g})'.format(
             numpy.mean(areas_under_curve),
             numpy.percentile(areas_under_curve, 50 * (1 - confidence_level)),
             numpy.percentile(areas_under_curve, 50 * (1 + confidence_level))
