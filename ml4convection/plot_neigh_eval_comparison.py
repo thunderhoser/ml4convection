@@ -182,9 +182,13 @@ def _run(advanced_score_file_names, model_descriptions_abbrev, num_panel_rows,
         axes_object.set_title('Attributes diagram for {0:s}'.format(
             model_descriptions_verbose[i]
         ))
+        
+        bss_values = a[evaluation.BRIER_SKILL_SCORE_KEY].values
 
-        annotation_string = 'Brier skill score = {0:.2g}'.format(
-            numpy.nanmean(a[evaluation.BRIER_SKILL_SCORE_KEY].values)
+        annotation_string = 'BSS = {0:.2g} (CI = {1:.2g} to {2:.2g})'.format(
+            numpy.nanmean(bss_values),
+            numpy.nanpercentile(bss_values, 50 * (1 - confidence_level)),
+            numpy.nanpercentile(bss_values, 50 * (1 + confidence_level))
         )
         axes_object.text(
             0.98, 0.02, annotation_string, bbox=BOUNDING_BOX_DICT, color='k',
@@ -225,12 +229,16 @@ def _run(advanced_score_file_names, model_descriptions_abbrev, num_panel_rows,
             confidence_level=confidence_level
         )
 
-        area_under_curve = gg_model_eval.get_area_under_perf_diagram(
-            pod_by_threshold=
-            numpy.nanmean(a[evaluation.POD_KEY].values, axis=0),
-            success_ratio_by_threshold=
-            numpy.nanmean(a[evaluation.SUCCESS_RATIO_KEY].values, axis=0)
-        )
+        num_bootstrap_reps = a[evaluation.POD_KEY].values.shape[0]
+
+        areas_under_curve = numpy.array([
+            gg_model_eval.get_area_under_perf_diagram(
+                pod_by_threshold=a[evaluation.POD_KEY].values[j, :],
+                success_ratio_by_threshold=
+                a[evaluation.SUCCESS_RATIO_KEY].values[j, :]
+            )
+            for j in range(num_bootstrap_reps)
+        ])
 
         mean_frequency_biases = numpy.nanmean(
             a[evaluation.FREQUENCY_BIAS_KEY].values, axis=0
@@ -251,8 +259,10 @@ def _run(advanced_score_file_names, model_descriptions_abbrev, num_panel_rows,
         csi_at_best_threshold = mean_csi_values[best_threshold_index]
         bias_at_best_threshold = mean_frequency_biases[best_threshold_index]
 
-        annotation_string = 'Area under curve = {0:.3g}'.format(
-            area_under_curve
+        annotation_string = 'AUC = {0:.3g} (CI = {1:.3g} to {2:.3g})'.format(
+            numpy.mean(areas_under_curve),
+            numpy.percentile(areas_under_curve, 50 * (1 - confidence_level)),
+            numpy.percentile(areas_under_curve, 50 * (1 + confidence_level))
         )
 
         axes_object.text(
