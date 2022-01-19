@@ -84,3 +84,15 @@ while ($i <= ${#TRANSFORM_FILTER_NAMES_ABBREV})
     
     @ i = $i + 1
 end
+
+python3 -u "${CODE_DIR_NAME}/make_prediction_comparison_figure.py" \
+--input_prediction_dir_names ${prediction_dir_names_string} \
+--model_description_strings ${model_descriptions_string} \
+--valid_time_string="2017-06-02-2200" \
+--input_radar_dir_name="" \
+--smoothing_radii_px 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 \
+--panel_letters "a" "b" "c" "d" "e" "f" "g" "h" "i" "j" "k" "l" "m" "n" "o" "p" \
+--num_panel_rows=4 \
+--num_panel_columns=4 \
+--font_size=80 \
+--output_dir_name="${TOP_OUTPUT_DIR_NAME}/transform_fss"
