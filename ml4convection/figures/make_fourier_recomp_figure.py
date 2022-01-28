@@ -198,7 +198,7 @@ def _run(top_prediction_dir_name, valid_time_string, radar_number,
 
     border_latitudes_deg_n, border_longitudes_deg_e = border_io.read_file()
     prob_colour_map_object, prob_colour_norm_object = (
-        prediction_plotting.get_prob_colour_scheme(
+        prediction_plotting.get_prob_colour_scheme_hail(
             max_probability=1., make_lowest_prob_grey=True
         )
     )

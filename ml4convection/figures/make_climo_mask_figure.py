@@ -100,7 +100,7 @@ def _plot_climo(
     max_colour_value = numpy.nanmax(event_freq_matrix)
 
     colour_map_object, colour_norm_object = (
-        prediction_plotting.get_prob_colour_scheme(
+        prediction_plotting.get_prob_colour_scheme_hail(
             max_probability=max_colour_value, make_lowest_prob_grey=False
         )
     )

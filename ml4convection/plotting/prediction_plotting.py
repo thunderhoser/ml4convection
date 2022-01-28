@@ -147,7 +147,7 @@ def get_prob_colour_scheme_hail(
         main_colour_list[i] = main_colour_list[i].astype(float) / 255
 
     if make_highest_prob_black:
-        main_colour_list[i][-1] = numpy.full(3, 0.)
+        main_colour_list[-1] = numpy.full(3, 0.)
 
     if make_lowest_prob_grey:
         main_colour_list = [numpy.full(3, 152. / 255)] + main_colour_list
