@@ -25,7 +25,7 @@ ACTUAL_MASK_OPACITY = 1.
 PREDICTED_MASK_OPACITY = 0.5
 
 DEFAULT_TARGET_MARKER_TYPE = 'o'
-DEFAULT_TARGET_MARKER_COLOUR = numpy.array([117, 112, 179], dtype=float) / 255
+DEFAULT_TARGET_MARKER_COLOUR = numpy.array([217, 95, 2], dtype=float) / 255
 
 FONT_SIZE = 30
 pyplot.rc('font', size=FONT_SIZE)
@@ -81,15 +81,15 @@ def get_prob_colour_scheme(max_probability=1., make_lowest_prob_grey=False):
     error_checking.assert_is_boolean(make_lowest_prob_grey)
 
     green_colour_map_object = pyplot.get_cmap(name='Greens')
-    data_values = numpy.linspace(0, 1, num=10, dtype=float)
-    main_colour_matrix = green_colour_map_object(
-        data_values[1:]
-    )[:, :-1]
+    data_values = numpy.linspace(0, 1, num=10, dtype=float)[1:]
+    main_colour_matrix = green_colour_map_object(data_values)[:, :-1]
 
     purple_colour_map_object = pyplot.get_cmap(name='Purples')
-    main_colour_matrix = numpy.concatenate((
-        main_colour_matrix, purple_colour_map_object(data_values)[:, :-1]
-    ), axis=0)
+    data_values = numpy.linspace(0.5, 1, num=10, dtype=float)
+    new_colour_matrix = purple_colour_map_object(data_values)[:, :-1]
+    main_colour_matrix = numpy.concatenate(
+        (main_colour_matrix, new_colour_matrix), axis=0
+    )
 
     main_colour_list = [
         main_colour_matrix[i, :] for i in range(main_colour_matrix.shape[0])
