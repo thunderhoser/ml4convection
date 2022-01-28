@@ -67,7 +67,7 @@ python3 -u "${CODE_DIR_NAME}/make_prediction_comparison_figure.py" \
 --valid_time_string="${valid_time_string}" \
 --input_radar_dir_name="${TOP_RADAR_DIR_NAME}" \
 --smoothing_radii_px 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 \
---panel_letters "a" "e" "h" "k" "n" "b" "f" "i" "l" "o" "c" "g" "j" "m" "p" "d" \
+--panel_letters "a" "b" "c" "d" "e" "f" "g" "h" "i" "j" "k" "l" "m" "n" "o" "p" "q" \
 --num_panel_rows=4 \
 --num_panel_columns=5 \
 --radar_panel_index=15 \
@@ -99,7 +99,7 @@ python3 -u "${CODE_DIR_NAME}/make_prediction_comparison_figure.py" \
 --valid_time_string="${valid_time_string}" \
 --input_radar_dir_name="${TOP_RADAR_DIR_NAME}" \
 --smoothing_radii_px 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 \
---panel_letters "a" "f" "j" "n" "r" "v" "z" "ad" "b" "g" "k" "o" "s" "w" "aa" "ae" "c" "h" "l" "p" "t" "x" "ab" "af" "d" "i" "m" "q" "u" "y" "ac" "ag" "e" \
+--panel_letters "a" "b" "c" "d" "e" "f" "g" "h" "i" "j" "k" "l" "m" "n" "o" "p" "q" "r" "s" "t" "u" "v" "w" "x" "y" "z" "aa" "ab" "ac" "ad" "ae" "af" "ag" "ah" \
 --num_panel_rows=5 \
 --num_panel_columns=8 \
 --radar_panel_index=32 \
