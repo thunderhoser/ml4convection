@@ -307,9 +307,6 @@ def _plot_convection_mask(
     longitudes_deg_e = (
         reflectivity_dict[radar_io.LONGITUDES_KEY][good_lng_indices]
     )
-    target_matrix = target_matrix[
-        good_lat_indices, good_lng_indices
-    ].astype(float)
 
     valid_time_unix_sec = time_conversion.string_to_unix_sec(
         valid_time_string, TIME_FORMAT
@@ -322,7 +319,7 @@ def _plot_convection_mask(
         prediction_io.VALID_TIMES_KEY:
             numpy.array([valid_time_unix_sec], dtype=int),
         prediction_io.PROBABILITY_MATRIX_KEY:
-            numpy.expand_dims(target_matrix, axis=0),
+            numpy.expand_dims(target_matrix.astype(float), axis=0),
         prediction_io.TARGET_MATRIX_KEY:
             numpy.full((1,) + target_matrix.shape, 0, dtype=int),
         prediction_io.LATITUDES_KEY: latitudes_deg_n,
