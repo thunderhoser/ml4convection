@@ -21,8 +21,11 @@ import imagemagick_utils
 import satellite_io
 import radar_io
 import border_io
+import prediction_io
+import prediction_plotting
 import plotting_utils
 import satellite_plotting
+import plot_predictions
 
 TIME_FORMAT = '%Y-%m-%d-%H%M'
 DATE_FORMAT = '%Y%m%d'
@@ -50,7 +53,8 @@ SATELLITE_DIR_ARG_NAME = 'input_satellite_dir_name'
 REFLECTIVITY_DIR_ARG_NAME = 'input_reflectivity_dir_name'
 ECHO_CLASSIFN_DIR_ARG_NAME = 'input_echo_classifn_dir_name'
 MASK_FILE_ARG_NAME = 'input_mask_file_name'
-VALID_TIME_ARG_NAME = 'valid_time_string'
+SATELLITE_TIME_ARG_NAME = 'satellite_time_string'
+RADAR_TIME_ARG_NAME = 'radar_time_string'
 OUTPUT_DIR_ARG_NAME = 'output_dir_name'
 
 SATELLITE_DIR_HELP_STRING = (
@@ -71,8 +75,11 @@ MASK_FILE_HELP_STRING = (
     'area will be plotted with grey outline.  If you do not want to plot a '
     'mask, leave this alone.'
 )
-VALID_TIME_HELP_STRING = (
-    'Will plot data for this valid time (format "yyyy-mm-dd-HHMM").'
+SATELLITE_TIME_HELP_STRING = (
+    'Will plot satellite data for this time (format "yyyy-mm-dd-HHMM").'
+)
+RADAR_TIME_HELP_STRING = (
+    'Will plot radar data for this time (format "yyyy-mm-dd-HHMM").'
 )
 OUTPUT_DIR_HELP_STRING = (
     'Name of output directory.  Figures will be saved here.'
@@ -96,8 +103,12 @@ INPUT_ARG_PARSER.add_argument(
     help=MASK_FILE_HELP_STRING
 )
 INPUT_ARG_PARSER.add_argument(
-    '--' + VALID_TIME_ARG_NAME, type=str, required=True,
-    help=VALID_TIME_HELP_STRING
+    '--' + SATELLITE_TIME_ARG_NAME, type=str, required=True,
+    help=SATELLITE_TIME_HELP_STRING
+)
+INPUT_ARG_PARSER.add_argument(
+    '--' + RADAR_TIME_ARG_NAME, type=str, required=True,
+    help=RADAR_TIME_HELP_STRING
 )
 INPUT_ARG_PARSER.add_argument(
     '--' + OUTPUT_DIR_ARG_NAME, type=str, required=True,
@@ -281,7 +292,6 @@ def _plot_radar_one_time(
             num_grid_columns=convective_flag_matrix.shape[1]
         )
 
-    if echo_classifn_dict is not None:
         gg_plotting_utils.plot_colour_bar(
             axes_object_or_matrix=axes_object, data_matrix=matrix_to_plot,
             colour_map_object=colour_map_object,
@@ -318,8 +328,8 @@ def _plot_radar_one_time(
 
 
 def _run(top_satellite_dir_name, top_reflectivity_dir_name,
-         top_echo_classifn_dir_name, mask_file_name, valid_time_string,
-         output_dir_name):
+         top_echo_classifn_dir_name, mask_file_name, satellite_time_string,
+         radar_time_string, output_dir_name):
     """Makes data-overview figure.
 
     This is effectively the main method.
@@ -328,7 +338,8 @@ def _run(top_satellite_dir_name, top_reflectivity_dir_name,
     :param top_reflectivity_dir_name: Same.
     :param top_echo_classifn_dir_name: Same.
     :param mask_file_name: Same.
-    :param valid_time_string: Same.
+    :param satellite_time_string: Same.
+    :param radar_time_string: Same.
     :param output_dir_name: Same.
     """
 
@@ -339,11 +350,18 @@ def _run(top_satellite_dir_name, top_reflectivity_dir_name,
         directory_name=output_dir_name
     )
 
-    valid_time_unix_sec = time_conversion.string_to_unix_sec(
-        valid_time_string, TIME_FORMAT
+    satellite_time_unix_sec = time_conversion.string_to_unix_sec(
+        satellite_time_string, TIME_FORMAT
     )
-    valid_date_string = time_conversion.unix_sec_to_string(
-        valid_time_unix_sec, DATE_FORMAT
+    satellite_date_string = time_conversion.unix_sec_to_string(
+        satellite_time_unix_sec, DATE_FORMAT
+    )
+
+    radar_time_unix_sec = time_conversion.string_to_unix_sec(
+        radar_time_string, TIME_FORMAT
+    )
+    radar_date_string = time_conversion.unix_sec_to_string(
+        radar_time_unix_sec, DATE_FORMAT
     )
 
     border_latitudes_deg_n, border_longitudes_deg_e = border_io.read_file()
@@ -356,18 +374,18 @@ def _run(top_satellite_dir_name, top_reflectivity_dir_name,
 
     satellite_file_name = satellite_io.find_file(
         top_directory_name=top_satellite_dir_name,
-        valid_date_string=valid_date_string, prefer_zipped=False,
+        valid_date_string=satellite_date_string, prefer_zipped=False,
         allow_other_format=True
     )
     reflectivity_file_name = radar_io.find_file(
         top_directory_name=top_reflectivity_dir_name,
-        valid_date_string=valid_date_string,
+        valid_date_string=radar_date_string,
         file_type_string=radar_io.REFL_TYPE_STRING,
         prefer_zipped=False, allow_other_format=True
     )
     echo_classifn_file_name = radar_io.find_file(
         top_directory_name=top_echo_classifn_dir_name,
-        valid_date_string=valid_date_string,
+        valid_date_string=radar_date_string,
         file_type_string=radar_io.ECHO_CLASSIFN_TYPE_STRING,
         prefer_zipped=False, allow_other_format=True
     )
@@ -378,7 +396,7 @@ def _run(top_satellite_dir_name, top_reflectivity_dir_name,
     )
     satellite_dict = satellite_io.subset_by_time(
         satellite_dict=satellite_dict,
-        desired_times_unix_sec=numpy.array([valid_time_unix_sec], dtype=int)
+        desired_times_unix_sec=numpy.array([satellite_time_unix_sec], dtype=int)
     )[0]
 
     print('Reading data from: "{0:s}"...'.format(reflectivity_file_name))
@@ -387,7 +405,7 @@ def _run(top_satellite_dir_name, top_reflectivity_dir_name,
     )
     reflectivity_dict = radar_io.subset_by_time(
         refl_or_echo_classifn_dict=reflectivity_dict,
-        desired_times_unix_sec=numpy.array([valid_time_unix_sec], dtype=int)
+        desired_times_unix_sec=numpy.array([radar_time_unix_sec], dtype=int)
     )[0]
 
     print('Reading data from: "{0:s}"...'.format(echo_classifn_file_name))
@@ -396,7 +414,7 @@ def _run(top_satellite_dir_name, top_reflectivity_dir_name,
     )
     echo_classifn_dict = radar_io.subset_by_time(
         refl_or_echo_classifn_dict=echo_classifn_dict,
-        desired_times_unix_sec=numpy.array([valid_time_unix_sec], dtype=int)
+        desired_times_unix_sec=numpy.array([radar_time_unix_sec], dtype=int)
     )[0]
 
     num_bands = len(satellite_dict[satellite_io.BAND_NUMBERS_KEY])
@@ -430,16 +448,56 @@ def _run(top_satellite_dir_name, top_reflectivity_dir_name,
 
     letter_label = chr(ord(letter_label) + 1)
 
-    panel_file_names[-1] = _plot_radar_one_time(
-        reflectivity_dict=reflectivity_dict,
-        echo_classifn_dict=echo_classifn_dict, mask_dict=mask_dict,
-        example_index=0, border_latitudes_deg_n=border_latitudes_deg_n,
-        border_longitudes_deg_e=border_longitudes_deg_e,
-        letter_label=letter_label, output_dir_name=output_dir_name
+    target_matrix = (
+        echo_classifn_dict[radar_io.CONVECTIVE_FLAGS_KEY][0, ...]
+    ).astype(float)
+
+    mask_matrix = numpy.full(target_matrix.shape, 1, dtype=bool)
+
+    prob_colour_map_object, prob_colour_norm_object = (
+        prediction_plotting.get_prob_colour_scheme_hail()
     )
 
-    concat_figure_file_name = '{0:s}/data_overview_{1:s}.jpg'.format(
-        output_dir_name, valid_time_string
+    dummy_prediction_dict = {
+        prediction_io.VALID_TIMES_KEY:
+            numpy.array([radar_time_unix_sec], dtype=int),
+        prediction_io.PROBABILITY_MATRIX_KEY:
+            numpy.expand_dims(target_matrix, axis=0),
+        prediction_io.TARGET_MATRIX_KEY:
+            numpy.full((1,) + target_matrix.shape, 0, dtype=int),
+        prediction_io.LATITUDES_KEY: reflectivity_dict[radar_io.LATITUDES_KEY],
+        prediction_io.LONGITUDES_KEY: reflectivity_dict[radar_io.LONGITUDES_KEY]
+    }
+
+    figure_object, axes_object = plot_predictions._plot_predictions_one_example(
+        prediction_dict=dummy_prediction_dict, example_index=0,
+        border_latitudes_deg_n=border_latitudes_deg_n,
+        border_longitudes_deg_e=border_longitudes_deg_e,
+        mask_matrix=mask_matrix,
+        plot_deterministic=False, probability_threshold=None,
+        colour_map_object=prob_colour_map_object,
+        colour_norm_object=prob_colour_norm_object,
+        plot_colour_bar=False, output_dir_name=None,
+        font_size=FONT_SIZE, latlng_visible=True
+    )[1:]
+
+    axes_object.set_title('Convection mask', fontsize=FONT_SIZE)
+    gg_plotting_utils.label_axes(
+        axes_object=axes_object, label_string='({0:s})'.format(letter_label)
+    )
+    panel_file_names[-1] = '{0:s}/convection_mask_{1:s}.jpg'.format(
+        output_dir_name, radar_time_string
+    )
+
+    print('Saving figure to file: "{0:s}"...'.format(panel_file_names[-1]))
+    figure_object.savefig(
+        panel_file_names[-1], dpi=FIGURE_RESOLUTION_DPI,
+        pad_inches=0, bbox_inches='tight'
+    )
+    pyplot.close(figure_object)
+
+    concat_figure_file_name = '{0:s}/data_overview_{1:s}_{2:s}.jpg'.format(
+        output_dir_name, satellite_time_string, radar_time_string
     )
     print('Concatenating panels to: "{0:s}"...'.format(concat_figure_file_name))
 
@@ -473,6 +531,9 @@ if __name__ == '__main__':
             INPUT_ARG_OBJECT, ECHO_CLASSIFN_DIR_ARG_NAME
         ),
         mask_file_name=getattr(INPUT_ARG_OBJECT, MASK_FILE_ARG_NAME),
-        valid_time_string=getattr(INPUT_ARG_OBJECT, VALID_TIME_ARG_NAME),
+        satellite_time_string=getattr(
+            INPUT_ARG_OBJECT, SATELLITE_TIME_ARG_NAME
+        ),
+        radar_time_string=getattr(INPUT_ARG_OBJECT, RADAR_TIME_ARG_NAME),
         output_dir_name=getattr(INPUT_ARG_OBJECT, OUTPUT_DIR_ARG_NAME)
     )
