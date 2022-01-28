@@ -182,7 +182,7 @@ def _run(advanced_score_file_names, model_descriptions_abbrev, num_panel_rows,
         axes_object.set_title('Attributes diagram for {0:s}'.format(
             model_descriptions_verbose[i]
         ))
-        
+
         bss_values = a[evaluation.BRIER_SKILL_SCORE_KEY].values
 
         annotation_string = 'BSS = {0:.2g} ({1:.2g} to {2:.2g})'.format(
