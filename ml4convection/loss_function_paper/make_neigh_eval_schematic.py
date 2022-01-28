@@ -176,13 +176,15 @@ def _plot_one_panel(
 
         if use_square_neigh:
             center_coords = (
-                x_center - MATCHING_DISTANCE_PX, y_center - MATCHING_DISTANCE_PX
+                x_center - MATCHING_DISTANCE_PX - 0.5,
+                y_center - MATCHING_DISTANCE_PX - 0.5
             )
 
             shape_object = matplotlib.patches.Rectangle(
-                xy=center_coords, width=2 * MATCHING_DISTANCE_PX,
-                height=2 * MATCHING_DISTANCE_PX,
-                lw=2, ec=CIRCLE_EDGE_COLOUR, fc=LARGE_CIRCLE_FACE_COLOUR
+                xy=center_coords, width=2 * MATCHING_DISTANCE_PX + 1,
+                height=2 * MATCHING_DISTANCE_PX + 1,
+                lw=4, ec=CIRCLE_EDGE_COLOUR, fc=LARGE_CIRCLE_FACE_COLOUR,
+                zorder=1e12
             )
         else:
             shape_object = pyplot.Circle(
@@ -197,14 +199,15 @@ def _plot_one_panel(
         ):
             if use_square_neigh:
                 center_coords = (
-                    x_center - MATCHING_DISTANCE_PX,
-                    y_center - MATCHING_DISTANCE_PX
+                    x_center - MATCHING_DISTANCE_PX - 0.5,
+                    y_center - MATCHING_DISTANCE_PX - 0.5
                 )
 
                 shape_object = matplotlib.patches.Rectangle(
-                    xy=center_coords, width=2 * MATCHING_DISTANCE_PX,
-                    height=2 * MATCHING_DISTANCE_PX,
-                    lw=2, ec=CIRCLE_EDGE_COLOUR, fc=LARGE_CIRCLE_FACE_COLOUR
+                    xy=center_coords, width=2 * MATCHING_DISTANCE_PX + 1,
+                    height=2 * MATCHING_DISTANCE_PX + 1,
+                    lw=4, ec=CIRCLE_EDGE_COLOUR, fc=LARGE_CIRCLE_FACE_COLOUR,
+                    zorder=1e12
                 )
             else:
                 shape_object = pyplot.Circle(
