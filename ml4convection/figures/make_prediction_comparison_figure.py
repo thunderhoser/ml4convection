@@ -300,22 +300,21 @@ def _plot_convection_mask(
     longitudes_deg_e = (
         reflectivity_dict[radar_io.LONGITUDES_KEY][good_lng_indices]
     )
-    target_matrix = target_matrix[
-        good_lat_indices, good_lng_indices
-    ].astype(float)
 
     valid_time_unix_sec = time_conversion.string_to_unix_sec(
         valid_time_string, TIME_FORMAT
     )
     prob_colour_map_object, prob_colour_norm_object = (
-        prediction_plotting.get_prob_colour_scheme_hail()
+        prediction_plotting.get_prob_colour_scheme_hail(
+            make_highest_prob_black=True
+        )
     )
 
     dummy_prediction_dict = {
         prediction_io.VALID_TIMES_KEY:
             numpy.array([valid_time_unix_sec], dtype=int),
         prediction_io.PROBABILITY_MATRIX_KEY:
-            numpy.expand_dims(target_matrix, axis=0),
+            numpy.expand_dims(target_matrix.astype(float), axis=0),
         prediction_io.TARGET_MATRIX_KEY:
             numpy.full((1,) + target_matrix.shape, 0, dtype=int),
         prediction_io.LATITUDES_KEY: latitudes_deg_n,
@@ -532,7 +531,7 @@ def _run(top_prediction_dir_names, model_descriptions_abbrev, valid_time_string,
 
     if top_radar_dir_name is not None:
         error_checking.assert_is_geq(radar_panel_index, 0)
-        error_checking.assert_is_less_than(radar_panel_index, num_panels)
+        error_checking.assert_is_less_than(radar_panel_index, num_panels - 1)
 
     if num_panel_rows < 0:
         num_panel_rows = int(numpy.ceil(
@@ -614,27 +613,12 @@ def _run(top_prediction_dir_names, model_descriptions_abbrev, valid_time_string,
                 )
             )
 
-            if top_radar_dir_name is None:
-                orientation_string = 'vertical'
-            else:
-                radar_row_index, radar_column_index = numpy.unravel_index(
-                    radar_panel_index, (num_panel_rows, num_panel_columns)
-                )
-
-                if (
-                        radar_row_index == row_index and
-                        radar_column_index == column_index + 1
-                ):
-                    orientation_string = 'horizontal'
-                else:
-                    orientation_string = 'vertical'
-
             gg_plotting_utils.plot_colour_bar(
                 axes_object_or_matrix=axes_object,
                 data_matrix=numpy.array([0, 1], dtype=float),
                 colour_map_object=colour_map_object,
                 colour_norm_object=colour_norm_object,
-                orientation_string=orientation_string,
+                orientation_string='vertical',
                 extend_min=False, extend_max=False, font_size=font_size
             )
 

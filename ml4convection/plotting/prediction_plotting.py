@@ -111,12 +111,15 @@ def get_prob_colour_scheme(max_probability=1., make_lowest_prob_grey=False):
 
 
 def get_prob_colour_scheme_hail(
-        max_probability=1., make_lowest_prob_grey=False):
+        max_probability=1., make_lowest_prob_grey=False,
+        make_highest_prob_black=False):
     """Returns colour scheme for probabilities.
 
     :param max_probability: Max probability in colour bar.
     :param make_lowest_prob_grey: Boolean flag.  If True (False), will make
         lowest probabilities grey (white).
+    :param make_highest_prob_black: Boolean flag.  If True (False), will make
+        highest probabilities grey (black).
     :return: colour_map_object: See doc for `_get_deterministic_colour_scheme`.
     :return: colour_norm_object: Same.
     """
@@ -124,6 +127,7 @@ def get_prob_colour_scheme_hail(
     error_checking.assert_is_greater(max_probability, 0.)
     error_checking.assert_is_leq(max_probability, 1.)
     error_checking.assert_is_boolean(make_lowest_prob_grey)
+    error_checking.assert_is_boolean(make_highest_prob_black)
 
     main_colour_list = [
         # numpy.array([0, 90, 50]),
@@ -141,6 +145,9 @@ def get_prob_colour_scheme_hail(
 
     for i in range(len(main_colour_list)):
         main_colour_list[i] = main_colour_list[i].astype(float) / 255
+
+    if make_highest_prob_black:
+        main_colour_list[i][-1] = numpy.full(3, 0.)
 
     if make_lowest_prob_grey:
         main_colour_list = [numpy.full(3, 152. / 255)] + main_colour_list
