@@ -359,7 +359,9 @@ def _plot_convection_mask_one_time(
     ).astype(float)
 
     prob_colour_map_object, prob_colour_norm_object = (
-        prediction_plotting.get_prob_colour_scheme_hail()
+        prediction_plotting.get_prob_colour_scheme_hail(
+            make_highest_prob_black=True
+        )
     )
 
     dummy_prediction_dict = {
