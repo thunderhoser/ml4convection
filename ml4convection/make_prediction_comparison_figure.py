@@ -312,7 +312,9 @@ def _plot_convection_mask(
         valid_time_string, TIME_FORMAT
     )
     prob_colour_map_object, prob_colour_norm_object = (
-        prediction_plotting.get_prob_colour_scheme_hail()
+        prediction_plotting.get_prob_colour_scheme_hail(
+            make_highest_prob_black=True
+        )
     )
 
     dummy_prediction_dict = {
@@ -618,27 +620,12 @@ def _run(top_prediction_dir_names, model_descriptions_abbrev, valid_time_string,
                 )
             )
 
-            if top_radar_dir_name is None:
-                orientation_string = 'vertical'
-            else:
-                radar_row_index, radar_column_index = numpy.unravel_index(
-                    radar_panel_index, (num_panel_rows, num_panel_columns)
-                )
-
-                if (
-                        radar_row_index == row_index and
-                        radar_column_index == column_index + 1
-                ):
-                    orientation_string = 'horizontal'
-                else:
-                    orientation_string = 'vertical'
-
             gg_plotting_utils.plot_colour_bar(
                 axes_object_or_matrix=axes_object,
                 data_matrix=numpy.array([0, 1], dtype=float),
                 colour_map_object=colour_map_object,
                 colour_norm_object=colour_norm_object,
-                orientation_string=orientation_string,
+                orientation_string='vertical',
                 extend_min=False, extend_max=False, font_size=font_size
             )
 
