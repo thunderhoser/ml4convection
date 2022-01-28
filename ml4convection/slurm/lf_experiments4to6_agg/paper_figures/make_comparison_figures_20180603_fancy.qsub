@@ -64,6 +64,6 @@ python3 -u "${CODE_DIR_NAME}/make_prediction_comparison_figure.py" \
 --smoothing_radii_px 2 2 2 2 2 \
 --panel_letters ${panel_letters_string} \
 --num_panel_rows=2 \
---num_panel_columns=3 \
---radar_panel_index=0 \
+--num_panel_columns=4 \
+--radar_panel_index=5 \
 --output_dir_name="${OUTPUT_DIR_NAME}"

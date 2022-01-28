@@ -19,7 +19,7 @@ import error_checking
 BACKGROUND_COLOUR = numpy.full(3, 1.)
 NO_MASK_COLOUR = numpy.full(3, 1.)
 ACTUAL_MASK_COLOUR = numpy.array([247, 129, 191], dtype=float) / 255
-PREDICTED_MASK_COLOUR = numpy.full(3, 153. / 255)
+PREDICTED_MASK_COLOUR = numpy.full(3, 152. / 255)
 
 ACTUAL_MASK_OPACITY = 1.
 PREDICTED_MASK_OPACITY = 0.5
