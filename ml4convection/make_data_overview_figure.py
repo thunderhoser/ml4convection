@@ -292,13 +292,13 @@ def _plot_radar_one_time(
             num_grid_columns=convective_flag_matrix.shape[1]
         )
 
-        gg_plotting_utils.plot_colour_bar(
-            axes_object_or_matrix=axes_object, data_matrix=matrix_to_plot,
-            colour_map_object=colour_map_object,
-            colour_norm_object=colour_norm_object,
-            orientation_string='vertical', extend_min=False, extend_max=True,
-            font_size=FONT_SIZE
-        )
+    gg_plotting_utils.plot_colour_bar(
+        axes_object_or_matrix=axes_object, data_matrix=matrix_to_plot,
+        colour_map_object=colour_map_object,
+        colour_norm_object=colour_norm_object,
+        orientation_string='vertical', extend_min=False, extend_max=True,
+        font_size=FONT_SIZE
+    )
 
     plotting_utils.plot_grid_lines(
         plot_latitudes_deg_n=latitudes_deg_n,
@@ -315,6 +315,91 @@ def _plot_radar_one_time(
         output_dir_name,
         'reflectivity' if echo_classifn_dict else 'echo_classifn',
         valid_time_string
+    )
+
+    print('Saving figure to file: "{0:s}"...'.format(output_file_name))
+    figure_object.savefig(
+        output_file_name, dpi=FIGURE_RESOLUTION_DPI,
+        pad_inches=0, bbox_inches='tight'
+    )
+    pyplot.close(figure_object)
+
+    return output_file_name
+
+
+def _plot_convection_mask_one_time(
+        reflectivity_dict, echo_classifn_dict, mask_dict, example_index,
+        border_latitudes_deg_n, border_longitudes_deg_e, letter_label,
+        output_dir_name):
+    """Plots convection mask for one time step.
+
+    :param reflectivity_dict: See doc for `plot_radar._plot_radar_one_day`.
+    :param echo_classifn_dict: Same.
+    :param mask_dict: Same.
+    :param example_index: Will plot [i]th example, where i = `example_index`.
+    :param border_latitudes_deg_n: See doc for `plot_radar._plot_radar_one_day`.
+    :param border_longitudes_deg_e: Same.
+    :param letter_label: Letter label.
+    :param output_dir_name: Name of output directory.  Figure will be saved
+        here.
+    :return: output_file_name: Path to output file.
+    """
+
+    latitudes_deg_n = reflectivity_dict[radar_io.LATITUDES_KEY]
+    longitudes_deg_e = reflectivity_dict[radar_io.LONGITUDES_KEY]
+    valid_time_unix_sec = (
+        reflectivity_dict[radar_io.VALID_TIMES_KEY][example_index]
+    )
+    valid_time_string = time_conversion.unix_sec_to_string(
+        valid_time_unix_sec, TIME_FORMAT
+    )
+
+    target_matrix = (
+        echo_classifn_dict[radar_io.CONVECTIVE_FLAGS_KEY][0, ...]
+    ).astype(float)
+
+    prob_colour_map_object, prob_colour_norm_object = (
+        prediction_plotting.get_prob_colour_scheme_hail()
+    )
+
+    dummy_prediction_dict = {
+        prediction_io.VALID_TIMES_KEY:
+            numpy.array([valid_time_unix_sec], dtype=int),
+        prediction_io.PROBABILITY_MATRIX_KEY:
+            numpy.expand_dims(target_matrix, axis=0),
+        prediction_io.TARGET_MATRIX_KEY:
+            numpy.full((1,) + target_matrix.shape, 0, dtype=int),
+        prediction_io.LATITUDES_KEY: latitudes_deg_n,
+        prediction_io.LONGITUDES_KEY: longitudes_deg_e
+    }
+
+    figure_object, axes_object = plot_predictions._plot_predictions_one_example(
+        prediction_dict=dummy_prediction_dict, example_index=0,
+        border_latitudes_deg_n=border_latitudes_deg_n,
+        border_longitudes_deg_e=border_longitudes_deg_e,
+        mask_matrix=numpy.full(target_matrix.shape, 1, dtype=bool),
+        plot_deterministic=False, probability_threshold=None,
+        colour_map_object=prob_colour_map_object,
+        colour_norm_object=prob_colour_norm_object,
+        plot_colour_bar=False, output_dir_name=None,
+        font_size=FONT_SIZE, latlng_visible=True
+    )[1:]
+
+    pyplot.contour(
+        reflectivity_dict[radar_io.LONGITUDES_KEY],
+        reflectivity_dict[radar_io.LATITUDES_KEY],
+        mask_dict[radar_io.MASK_MATRIX_KEY].astype(int),
+        numpy.array([0.999]),
+        colors=(MASK_OUTLINE_COLOUR,), linewidths=MASK_OUTLINE_WIDTH,
+        linestyles='solid', axes=axes_object
+    )
+
+    axes_object.set_title('Convection mask', fontsize=FONT_SIZE)
+    gg_plotting_utils.label_axes(
+        axes_object=axes_object, label_string='({0:s})'.format(letter_label)
+    )
+    output_file_name = '{0:s}/convection_mask_{1:s}.jpg'.format(
+        output_dir_name, valid_time_string
     )
 
     print('Saving figure to file: "{0:s}"...'.format(output_file_name))
@@ -448,53 +533,14 @@ def _run(top_satellite_dir_name, top_reflectivity_dir_name,
 
     letter_label = chr(ord(letter_label) + 1)
 
-    target_matrix = (
-        echo_classifn_dict[radar_io.CONVECTIVE_FLAGS_KEY][0, ...]
-    ).astype(float)
-
-    mask_matrix = numpy.full(target_matrix.shape, 1, dtype=bool)
-
-    prob_colour_map_object, prob_colour_norm_object = (
-        prediction_plotting.get_prob_colour_scheme_hail()
-    )
-
-    dummy_prediction_dict = {
-        prediction_io.VALID_TIMES_KEY:
-            numpy.array([radar_time_unix_sec], dtype=int),
-        prediction_io.PROBABILITY_MATRIX_KEY:
-            numpy.expand_dims(target_matrix, axis=0),
-        prediction_io.TARGET_MATRIX_KEY:
-            numpy.full((1,) + target_matrix.shape, 0, dtype=int),
-        prediction_io.LATITUDES_KEY: reflectivity_dict[radar_io.LATITUDES_KEY],
-        prediction_io.LONGITUDES_KEY: reflectivity_dict[radar_io.LONGITUDES_KEY]
-    }
-
-    figure_object, axes_object = plot_predictions._plot_predictions_one_example(
-        prediction_dict=dummy_prediction_dict, example_index=0,
+    panel_file_names[-1] = _plot_convection_mask_one_time(
+        reflectivity_dict=reflectivity_dict,
+        echo_classifn_dict=echo_classifn_dict,
+        mask_dict=mask_dict, example_index=0,
         border_latitudes_deg_n=border_latitudes_deg_n,
         border_longitudes_deg_e=border_longitudes_deg_e,
-        mask_matrix=mask_matrix,
-        plot_deterministic=False, probability_threshold=None,
-        colour_map_object=prob_colour_map_object,
-        colour_norm_object=prob_colour_norm_object,
-        plot_colour_bar=False, output_dir_name=None,
-        font_size=FONT_SIZE, latlng_visible=True
-    )[1:]
-
-    axes_object.set_title('Convection mask', fontsize=FONT_SIZE)
-    gg_plotting_utils.label_axes(
-        axes_object=axes_object, label_string='({0:s})'.format(letter_label)
+        letter_label=letter_label, output_dir_name=output_dir_name
     )
-    panel_file_names[-1] = '{0:s}/convection_mask_{1:s}.jpg'.format(
-        output_dir_name, radar_time_string
-    )
-
-    print('Saving figure to file: "{0:s}"...'.format(panel_file_names[-1]))
-    figure_object.savefig(
-        panel_file_names[-1], dpi=FIGURE_RESOLUTION_DPI,
-        pad_inches=0, bbox_inches='tight'
-    )
-    pyplot.close(figure_object)
 
     concat_figure_file_name = '{0:s}/data_overview_{1:s}_{2:s}.jpg'.format(
         output_dir_name, satellite_time_string, radar_time_string
