@@ -37,5 +37,6 @@ python3 -u "${CODE_DIR_NAME}/make_data_overview_figure.py" \
 --input_reflectivity_dir_name="${TOP_REFLECTIVITY_DIR_NAME}" \
 --input_echo_classifn_dir_name="${TOP_ECHO_CLASSIFN_DIR_NAME}" \
 --input_mask_file_name="${MASK_FILE_NAME}" \
---valid_time_string="2017-06-02-2200" \
+--satellite_time_string="2017-06-02-2100" \
+--radar_time_string="2017-06-02-2200" \
 --output_dir_name="${OUTPUT_DIR_NAME}"
