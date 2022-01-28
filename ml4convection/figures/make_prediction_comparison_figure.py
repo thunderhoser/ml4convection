@@ -18,6 +18,7 @@ from ml4convection.io import prediction_io
 from ml4convection.machine_learning import neural_net
 from ml4convection.plotting import plotting_utils
 from ml4convection.plotting import prediction_plotting
+from ml4convection.scripts import plot_predictions
 
 TIME_FORMAT = '%Y-%m-%d-%H%M'
 COMPOSITE_REFL_NAME = 'reflectivity_column_max_dbz'
@@ -140,18 +141,15 @@ INPUT_ARG_PARSER.add_argument(
 
 def _plot_reflectivity(
         top_radar_dir_name, border_latitudes_deg_n, border_longitudes_deg_e,
-        target_matrix, mask_matrix, valid_time_string, font_size, figure_object,
-        axes_object):
+        mask_matrix, valid_time_string, font_size, axes_object):
     """Plots composite reflectivity.
 
     :param top_radar_dir_name: See documentation at top of file.
     :param border_latitudes_deg_n: See doc for `_plot_predictions_one_model`.
     :param border_longitudes_deg_e: Same.
-    :param target_matrix: Same.
     :param mask_matrix: Same.
     :param valid_time_string: Same.
     :param font_size: Same.
-    :param figure_object: Same.
     :param axes_object: Same.
     """
 
@@ -236,17 +234,6 @@ def _plot_reflectivity(
         longitude_spacing_deg=numpy.diff(longitudes_deg_e[:2])[0]
     )
 
-    row_indices, column_indices = numpy.where(target_matrix)
-    positive_latitudes_deg_n = latitudes_deg_n[row_indices]
-    positive_longitudes_deg_e = longitudes_deg_e[column_indices]
-
-    plotting_utils.plot_stippling(
-        x_coords=positive_longitudes_deg_e,
-        y_coords=positive_latitudes_deg_n,
-        figure_object=figure_object, axes_object=axes_object,
-        num_grid_columns=target_matrix.shape[1]
-    )
-
     gg_plotting_utils.plot_colour_bar(
         axes_object_or_matrix=axes_object, data_matrix=reflectivity_matrix_dbz,
         colour_map_object=colour_map_object,
@@ -263,6 +250,92 @@ def _plot_reflectivity(
     )
 
     axes_object.set_title('Reflectivity (dBZ)')
+
+
+def _plot_convection_mask(
+        top_radar_dir_name, target_matrix, border_latitudes_deg_n,
+        border_longitudes_deg_e, mask_matrix, valid_time_string, font_size):
+    """Plots composite reflectivity.
+
+    :param top_radar_dir_name: See documentation at top of file.
+    :param target_matrix: M-by-N numpy array of integers in 0...1, where
+        M = number of grid rows and N = number of grid columns.
+    :param border_latitudes_deg_n: See doc for `_plot_predictions_one_model`.
+    :param border_longitudes_deg_e: Same.
+    :param mask_matrix: Same.
+    :param valid_time_string: Same.
+    :param font_size: Same.
+    :return: figure_object: Figure handle (instance of
+        `matplotlib.figure.Figure`).
+    :return: axes_object: Axes handle (instance of
+        `matplotlib.axes._subplots.AxesSubplot`).
+    """
+
+    reflectivity_file_name = radar_io.find_file(
+        top_directory_name=top_radar_dir_name,
+        valid_date_string=valid_time_string[:10].replace('-', ''),
+        file_type_string=radar_io.REFL_TYPE_STRING,
+        prefer_zipped=True, allow_other_format=True,
+        raise_error_if_missing=True
+    )
+
+    print('Reading data from: "{0:s}"...'.format(reflectivity_file_name))
+    reflectivity_dict = radar_io.read_reflectivity_file(
+        reflectivity_file_name
+    )
+
+    good_lat_indices = numpy.where(numpy.logical_and(
+        reflectivity_dict[radar_io.LATITUDES_KEY] >= MIN_PLOT_LATITUDE_DEG_N,
+        reflectivity_dict[radar_io.LATITUDES_KEY] <= MAX_PLOT_LATITUDE_DEG_N
+    ))[0]
+
+    good_lng_indices = numpy.where(numpy.logical_and(
+        reflectivity_dict[radar_io.LONGITUDES_KEY] >= MIN_PLOT_LONGITUDE_DEG_E,
+        reflectivity_dict[radar_io.LONGITUDES_KEY] <= MAX_PLOT_LONGITUDE_DEG_E
+    ))[0]
+
+    latitudes_deg_n = (
+        reflectivity_dict[radar_io.LATITUDES_KEY][good_lat_indices]
+    )
+    longitudes_deg_e = (
+        reflectivity_dict[radar_io.LONGITUDES_KEY][good_lng_indices]
+    )
+    target_matrix = target_matrix[
+        good_lat_indices, good_lng_indices
+    ].astype(float)
+
+    valid_time_unix_sec = time_conversion.string_to_unix_sec(
+        valid_time_string, TIME_FORMAT
+    )
+    prob_colour_map_object, prob_colour_norm_object = (
+        prediction_plotting.get_prob_colour_scheme_hail()
+    )
+
+    dummy_prediction_dict = {
+        prediction_io.VALID_TIMES_KEY:
+            numpy.array([valid_time_unix_sec], dtype=int),
+        prediction_io.PROBABILITY_MATRIX_KEY:
+            numpy.expand_dims(target_matrix, axis=0),
+        prediction_io.TARGET_MATRIX_KEY:
+            numpy.full((1,) + target_matrix.shape, 0, dtype=int),
+        prediction_io.LATITUDES_KEY: latitudes_deg_n,
+        prediction_io.LONGITUDES_KEY: longitudes_deg_e
+    }
+
+    figure_object, axes_object = plot_predictions._plot_predictions_one_example(
+        prediction_dict=dummy_prediction_dict, example_index=0,
+        border_latitudes_deg_n=border_latitudes_deg_n,
+        border_longitudes_deg_e=border_longitudes_deg_e,
+        mask_matrix=mask_matrix,
+        plot_deterministic=False, probability_threshold=None,
+        colour_map_object=prob_colour_map_object,
+        colour_norm_object=prob_colour_norm_object,
+        plot_colour_bar=False, output_dir_name=None,
+        font_size=font_size, latlng_visible=True
+    )[1:]
+
+    axes_object.set_title('Convection mask')
+    return figure_object, axes_object
 
 
 def _plot_predictions_one_model(
@@ -455,7 +528,7 @@ def _run(top_prediction_dir_names, model_descriptions_abbrev, valid_time_string,
         top_radar_dir_name = None
 
     num_models = len(top_prediction_dir_names)
-    num_panels = num_models + int(top_radar_dir_name is not None)
+    num_panels = num_models + 2 * int(top_radar_dir_name is not None)
 
     if top_radar_dir_name is not None:
         error_checking.assert_is_geq(radar_panel_index, 0)
@@ -505,7 +578,7 @@ def _run(top_prediction_dir_names, model_descriptions_abbrev, valid_time_string,
 
     for k in range(num_models):
         if top_radar_dir_name is not None and k >= radar_panel_index:
-            panel_index = k + 1
+            panel_index = k + 2
         else:
             panel_index = k + 0
 
@@ -590,14 +663,12 @@ def _run(top_prediction_dir_names, model_descriptions_abbrev, valid_time_string,
         figure_object, axes_object = pyplot.subplots(
             1, 1, figsize=(FIGURE_WIDTH_INCHES, FIGURE_HEIGHT_INCHES)
         )
-
         _plot_reflectivity(
             top_radar_dir_name=top_radar_dir_name,
             border_latitudes_deg_n=border_latitudes_deg_n,
             border_longitudes_deg_e=border_longitudes_deg_e,
-            target_matrix=target_matrix, mask_matrix=mask_matrix,
-            valid_time_string=valid_time_string, font_size=font_size,
-            figure_object=figure_object, axes_object=axes_object
+            mask_matrix=mask_matrix, valid_time_string=valid_time_string,
+            font_size=font_size, axes_object=axes_object
         )
 
         row_index, column_index = numpy.unravel_index(
@@ -627,6 +698,44 @@ def _run(top_prediction_dir_names, model_descriptions_abbrev, valid_time_string,
         imagemagick_utils.resize_image(
             input_file_name=panel_file_names[radar_panel_index],
             output_file_name=panel_file_names[radar_panel_index],
+            output_size_pixels=PANEL_FIGURE_SIZE_PX
+        )
+
+        figure_object, axes_object = _plot_convection_mask(
+            top_radar_dir_name=top_radar_dir_name, target_matrix=target_matrix,
+            border_latitudes_deg_n=border_latitudes_deg_n,
+            border_longitudes_deg_e=border_longitudes_deg_e,
+            mask_matrix=mask_matrix, valid_time_string=valid_time_string,
+            font_size=font_size
+        )
+
+        row_index, column_index = numpy.unravel_index(
+            radar_panel_index + 1, (num_panel_rows, num_panel_columns)
+        )
+        gg_plotting_utils.label_axes(
+            axes_object=axes_object,
+            label_string='({0:s})'.format(
+                panel_letter_matrix[row_index, column_index]
+            ),
+            x_coord_normalized=-0.025, font_size=font_size
+        )
+
+        panel_file_names[radar_panel_index + 1] = (
+            '{0:s}/predictions_{1:s}_targets.jpg'
+        ).format(output_dir_name, valid_time_string)
+
+        print('Saving figure to file: "{0:s}"...'.format(
+            panel_file_names[radar_panel_index + 1]
+        ))
+        figure_object.savefig(
+            panel_file_names[radar_panel_index + 1], dpi=FIGURE_RESOLUTION_DPI,
+            pad_inches=0, bbox_inches='tight'
+        )
+        pyplot.close(figure_object)
+
+        imagemagick_utils.resize_image(
+            input_file_name=panel_file_names[radar_panel_index + 1],
+            output_file_name=panel_file_names[radar_panel_index + 1],
             output_size_pixels=PANEL_FIGURE_SIZE_PX
         )
 
