@@ -40,6 +40,7 @@ FIGURE_HEIGHT_INCHES = 15
 FIGURE_RESOLUTION_DPI = 300
 CONCAT_FIGURE_SIZE_PX = int(1e7)
 
+TITLE_FONT_SIZE = 40
 FONT_SIZE = 50
 pyplot.rc('font', size=FONT_SIZE)
 pyplot.rc('axes', titlesize=FONT_SIZE)
@@ -187,7 +188,7 @@ def _plot_one_satellite_image(
         parallel_spacing_deg=2., meridian_spacing_deg=2., font_size=FONT_SIZE
     )
 
-    axes_object.set_title(title_string, fontsize=FONT_SIZE)
+    axes_object.set_title(title_string, fontsize=TITLE_FONT_SIZE)
     gg_plotting_utils.label_axes(
         axes_object=axes_object, label_string='({0:s})'.format(letter_label)
     )
@@ -307,7 +308,7 @@ def _plot_radar_one_time(
         parallel_spacing_deg=2., meridian_spacing_deg=2., font_size=FONT_SIZE
     )
 
-    axes_object.set_title(title_string, fontsize=FONT_SIZE)
+    axes_object.set_title(title_string, fontsize=TITLE_FONT_SIZE)
     gg_plotting_utils.label_axes(
         axes_object=axes_object, label_string='({0:s})'.format(letter_label)
     )
@@ -399,7 +400,7 @@ def _plot_convection_mask_one_time(
 
     axes_object.set_title(
         'Convection mask, {0:s} UTC'.format(valid_time_string[-4:]),
-        fontsize=FONT_SIZE
+        fontsize=TITLE_FONT_SIZE
     )
     gg_plotting_utils.label_axes(
         axes_object=axes_object, label_string='({0:s})'.format(letter_label)
