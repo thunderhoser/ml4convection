@@ -161,9 +161,9 @@ def _plot_one_satellite_image(
     band_number = satellite_dict[satellite_io.BAND_NUMBERS_KEY][band_index]
 
     if title_string is None:
-        title_string = 'Band-{0:d} brightness temp (K)'.format(
-            band_number
-        )
+        title_string = 'Band-{0:d} '.format(band_number)
+        title_string += r'$T_b$'
+        title_string += ' (Kelvins), {0:s} UTC'.format(valid_time_string[-4:])
 
     brightness_temp_matrix_kelvins = (
         satellite_dict[satellite_io.BRIGHTNESS_TEMP_KEY][
@@ -257,6 +257,7 @@ def _plot_radar_one_time(
         'Reflectivity (dBZ)' if echo_classifn_dict is None
         else 'Reflectivity (dBZ) + labels'
     )
+    title_string += ', {0:s} UTC'.format(valid_time_string[-4:])
 
     radar_plotting.plot_latlng_grid(
         field_matrix=matrix_to_plot, field_name=COMPOSITE_REFL_NAME,
@@ -396,7 +397,10 @@ def _plot_convection_mask_one_time(
         linestyles='solid', axes=axes_object
     )
 
-    axes_object.set_title('Convection mask', fontsize=FONT_SIZE)
+    axes_object.set_title(
+        'Convection mask, {0:s} UTC'.format(valid_time_string[-4:]),
+        fontsize=FONT_SIZE
+    )
     gg_plotting_utils.label_axes(
         axes_object=axes_object, label_string='({0:s})'.format(letter_label)
     )
