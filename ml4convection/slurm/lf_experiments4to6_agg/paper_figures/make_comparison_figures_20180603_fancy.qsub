@@ -31,7 +31,7 @@ set OUTPUT_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_pr
 
 set VALID_TIME_STRINGS=("2018-06-03-0120" "2018-06-03-0720" "2018-06-03-1420" "2018-06-03-1720")
 set TIME_OF_DAY_STRINGS=("0120_UTC,_" "0720_UTC,_" "1420_UTC,_" "1720_UTC,_")
-set PANEL_LETTERS_STRINGS=("a_b_c_d_e_f_g" "h_i_j_k_l_m_n" "a_b_c_d_e_f_g" "h_i_j_k_l_m_n")
+set PANEL_LETTERS_STRINGS=("a_b_c_d_e_f_g_h" "i_j_k_l_m_n_o_p" "a_b_c_d_e_f_g_h" "i_j_k_l_m_n_o_p")
 
 set valid_time_string=${VALID_TIME_STRINGS[$SLURM_ARRAY_TASK_ID]}
 set time_of_day_string=${TIME_OF_DAY_STRINGS[$SLURM_ARRAY_TASK_ID]}
