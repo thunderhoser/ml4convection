@@ -1,6 +1,6 @@
 #!/bin/tcsh
 
-#SBATCH --job-name="make_comparison_figures_20180125_fancy"
+#SBATCH --job-name="make_comparison_figures_20180603_fancy"
 #SBATCH --partition="fge"
 #SBATCH --account="rda-ghpcs"
 #SBATCH --qos="batch"
@@ -12,13 +12,13 @@
 ##SBATCH --cpus-per-task=1
 ##SBATCH --ntasks-per-node=1
 #SBATCH --time=01:00:00
-#SBATCH --array=1-2
+#SBATCH --array=1-4
 #SBATCH --exclude=h28n12
 ##SBATCH --exclude=h31n03,h28n12
 ##SBATCH --exclude=h29n01,h26n05,h28n06,h29n07,h30n03,h30n15
 #SBATCH --mail-type=BEGIN,END,FAIL
 #SBATCH --mail-user=ryan.lagerquist@noaa.gov
-#SBATCH --output=make_comparison_figures_20180125_fancy_%A_%a.out
+#SBATCH --output=make_comparison_figures_20180603_fancy_%A_%a.out
 
 module load cuda/10.1
 source /scratch2/BMC/gsd-hpcs/Jebb.Q.Stewart/conda3.7/etc/profile.d/conda.csh
@@ -27,21 +27,21 @@ conda activate base
 set CODE_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_standalone/ml4convection"
 set ALL_EXPERIMENT_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_models"
 set TOP_RADAR_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_project/radar_data"
-set OUTPUT_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_project/loss_function_paper/experiments4to6_agg/comparison_figures_for_paper/fancy/20180125"
+set OUTPUT_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_project/loss_function_paper/experiments4to6_agg/comparison_figures_for_paper/fancy/20180603"
 
-set VALID_TIME_STRINGS=("2018-01-25-1230" "2018-01-25-2230")
-set TIME_OF_DAY_STRINGS=("1230_UTC,_" "2230_UTC,_")
-set PANEL_LETTERS_STRINGS=("a_b_c_d_e_f_g_h" "i_j_k_l_m_n_o_p")
+set VALID_TIME_STRINGS=("2018-06-03-0120" "2018-06-03-0720" "2018-06-03-1420" "2018-06-03-1720")
+set TIME_OF_DAY_STRINGS=("0120_UTC,_" "0720_UTC,_" "1420_UTC,_" "1720_UTC,_")
+set PANEL_LETTERS_STRINGS=("a_b_c_d_e_f_g" "h_i_j_k_l_m_n" "a_b_c_d_e_f_g" "h_i_j_k_l_m_n")
 
 set valid_time_string=${VALID_TIME_STRINGS[$SLURM_ARRAY_TASK_ID]}
 set time_of_day_string=${TIME_OF_DAY_STRINGS[$SLURM_ARRAY_TASK_ID]}
 set panel_letters_string=${PANEL_LETTERS_STRINGS[$SLURM_ARRAY_TASK_ID]}
 set panel_letters_string="$panel_letters_string:gas/_/ /"
 
-set SCORE_NAMES=("fss" "fss" "fss" "fss" "fss" "fss")
-set FILTER_NAMES=("-neigh0" "-neigh8" "_wavelets0_min-resolution-deg=0.0000_max-resolution-deg=0.0500" "_wavelets0_min-resolution-deg=0.0500_max-resolution-deg=10000000000.0000" "_wavelets1_min-resolution-deg=0.0000_max-resolution-deg=0.0500" "_wavelets1_min-resolution-deg=0.0500_max-resolution-deg=10000000000.0000")
-set SUBEXPERIMENT_ENUMS=("06" "06" "05" "05" "05" "05")
-set MODEL_DESCRIPTION_STRINGS=("pixelwise_FSS" "17-by-17_FSS" "F0-0.1deg_FSS" "F0.1-infdeg_FSS" "W0-0.1deg_FSS" "W0.1-infdeg_FSS")
+set SCORE_NAMES=("fss" "fss" "fss" "fss" "fss")
+set FILTER_NAMES=("-neigh0" "-neigh8" "_wavelets1_min-resolution-deg=0.0000_max-resolution-deg=0.0500" "_wavelets1_min-resolution-deg=0.0500_max-resolution-deg=10000000000.0000" "_wavelets0_min-resolution-deg=0.0000_max-resolution-deg=0.2000")
+set SUBEXPERIMENT_ENUMS=("06" "06" "05" "05" "05")
+set MODEL_DESCRIPTION_STRINGS=("pixelwise_FSS" "17-by-17_FSS" "W0-0.1deg_FSS" "W0.1-infdeg_FSS" "F0-0.4deg_FSS")
 
 set prediction_dir_names_string=""
 set model_descriptions_string=""
@@ -61,9 +61,9 @@ python3 -u "${CODE_DIR_NAME}/make_prediction_comparison_figure.py" \
 --model_description_strings ${model_descriptions_string} \
 --valid_time_string="${valid_time_string}" \
 --input_radar_dir_name="${TOP_RADAR_DIR_NAME}" \
---smoothing_radii_px 2 2 2 2 2 2 \
+--smoothing_radii_px 2 2 2 2 2 \
 --panel_letters ${panel_letters_string} \
 --num_panel_rows=2 \
 --num_panel_columns=4 \
---radar_panel_index=6 \
+--radar_panel_index=5 \
 --output_dir_name="${OUTPUT_DIR_NAME}"
