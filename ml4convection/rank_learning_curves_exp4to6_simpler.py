@@ -165,9 +165,10 @@ NEGATIVELY_ORIENTED_FLAGS = numpy.array(
     [0, 0, 0, 0, 0, 0, 1, 0], dtype=bool
 )
 MODEL_NAME_INDICES_TO_PLOT = numpy.array([0, 6], dtype=int)
-EVAL_FILTER_INDICES_TO_PLOT = numpy.array(
-    [9, 13, 25, 29, 32, 36, 39], dtype=int
-)
+# EVAL_FILTER_INDICES_TO_PLOT = numpy.array(
+#     [9, 13, 25, 29, 32, 36, 39], dtype=int
+# )
+EVAL_FILTER_INDICES_TO_PLOT = numpy.linspace(0, 39, num=40, dtype=int)
 
 LOSS_FUNCTION_KEYS_NEIGH = [
     learning_curves.NEIGH_FSS_KEY, learning_curves.NEIGH_IOU_KEY,
