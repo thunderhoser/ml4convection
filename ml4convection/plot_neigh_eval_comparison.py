@@ -352,6 +352,8 @@ def _run(advanced_score_file_names, model_descriptions_abbrev, num_panel_rows,
             axes_object.set_ylabel('')
 
         if this_column != num_panel_columns - 1:
+            print(figure_object.axes)
+
             try:
                 axes_object.images[-1].colorbar.remove()
             except:
