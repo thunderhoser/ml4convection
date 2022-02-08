@@ -329,16 +329,6 @@ def _run(advanced_score_file_names, model_descriptions_abbrev, num_panel_rows,
         a = advanced_score_table_xarray
 
         # Plot performance diagram for [i]th model.
-        figure_object, axes_object = pyplot.subplots(
-            1, 1, figsize=(FIGURE_WIDTH_INCHES, FIGURE_HEIGHT_INCHES)
-        )
-        eval_plotting.plot_performance_diagram(
-            axes_object=axes_object,
-            pod_matrix=a[evaluation.POD_KEY].values,
-            success_ratio_matrix=a[evaluation.SUCCESS_RATIO_KEY].values,
-            confidence_level=confidence_level
-        )
-
         this_row = int(numpy.floor(
             float(i) / num_panel_columns
         ))
@@ -346,18 +336,21 @@ def _run(advanced_score_file_names, model_descriptions_abbrev, num_panel_rows,
             numpy.mod(i, num_panel_columns)
         ))
 
+        figure_object, axes_object = pyplot.subplots(
+            1, 1, figsize=(FIGURE_WIDTH_INCHES, FIGURE_HEIGHT_INCHES)
+        )
+        eval_plotting.plot_performance_diagram(
+            axes_object=axes_object,
+            pod_matrix=a[evaluation.POD_KEY].values,
+            success_ratio_matrix=a[evaluation.SUCCESS_RATIO_KEY].values,
+            confidence_level=confidence_level,
+            plot_colour_bar=this_column == num_panel_columns - 1
+        )
+
         if this_column != 0:
             num_y_ticks = len(axes_object.get_yticks())
             axes_object.set_yticklabels([''] * num_y_ticks)
             axes_object.set_ylabel('')
-
-        if this_column != num_panel_columns - 1:
-            print(figure_object.axes)
-
-            try:
-                axes_object.images[-1].colorbar.remove()
-            except:
-                axes_object.collections[-1].colorbar.remove()
 
         if this_row != num_panel_rows - 1:
             num_x_ticks = len(axes_object.get_xticks())
