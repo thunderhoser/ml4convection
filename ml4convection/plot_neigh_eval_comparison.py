@@ -246,7 +246,7 @@ def _run(advanced_score_file_names, model_descriptions_abbrev, num_panel_rows,
             ))
 
         annotation_string = (
-            'REL = {0:.3f} ({1:.3f} to {2:.3f})\n'
+            'REL = {0:.5f} ({1:.5f} to {2:.5f})\n'
             'BSS = {3:.3f} ({4:.3f} to {5:.3f})'
         ).format(
             numpy.nanmean(reliability_values_by_model[i]),
@@ -338,6 +338,26 @@ def _run(advanced_score_file_names, model_descriptions_abbrev, num_panel_rows,
             success_ratio_matrix=a[evaluation.SUCCESS_RATIO_KEY].values,
             confidence_level=confidence_level
         )
+
+        this_row = int(numpy.floor(
+            float(i) / num_panel_columns
+        ))
+        this_column = int(numpy.round(
+            numpy.mod(i, num_panel_columns)
+        ))
+
+        if this_column != 0:
+            num_y_ticks = len(axes_object.get_yticks())
+            axes_object.set_yticklabels([''] * num_y_ticks)
+            axes_object.set_ylabel('')
+
+        if this_column != num_panel_columns - 1:
+            axes_object.images[-1].colorbar.remove()
+
+        if this_row != num_panel_rows - 1:
+            num_x_ticks = len(axes_object.get_xticks())
+            axes_object.set_xticklabels([''] * num_x_ticks)
+            axes_object.set_xlabel('')
 
         num_bootstrap_reps = a[evaluation.POD_KEY].values.shape[0]
 
@@ -476,8 +496,8 @@ def _run(advanced_score_file_names, model_descriptions_abbrev, num_panel_rows,
         num_panel_rows=2, num_panel_columns=1
     )
     imagemagick_utils.trim_whitespace(
-        input_file_name=perf_figure_file_name,
-        output_file_name=perf_figure_file_name
+        input_file_name=concat_figure_file_name,
+        output_file_name=concat_figure_file_name
     )
 
 
