@@ -673,7 +673,7 @@ def plot_roc_curve(
 def plot_performance_diagram(
         axes_object, pod_matrix, success_ratio_matrix, confidence_level=0.95,
         line_colour=PERF_DIAGRAM_COLOUR, plot_background=True,
-        plot_csi_in_grey=False):
+        plot_colour_bar=True, plot_csi_in_grey=False):
     """Plots performance diagram.
 
     T = number of probability thresholds
@@ -687,6 +687,8 @@ def plot_performance_diagram(
     :param line_colour: Line colour.
     :param plot_background: Boolean flag.  If True, will plot background
         (frequency-bias and CSI contours).
+    :param plot_colour_bar: Boolean flag.  If True, will plot colour bar for
+        CSI.
     :param plot_csi_in_grey: Boolean flag.  If True (False), will plot CSI in
         grey (blue) colour scheme.
     :return: line_handle: Line handle for ROC curve.
@@ -708,6 +710,7 @@ def plot_performance_diagram(
     )
 
     error_checking.assert_is_boolean(plot_background)
+    error_checking.assert_is_boolean(plot_colour_bar)
     error_checking.assert_is_boolean(plot_csi_in_grey)
 
     if plot_background:
@@ -730,14 +733,15 @@ def plot_performance_diagram(
             vmax=1., axes=axes_object
         )
 
-        colour_bar_object = plotting_utils.plot_colour_bar(
-            axes_object_or_matrix=axes_object, data_matrix=csi_matrix,
-            colour_map_object=this_colour_map_object,
-            colour_norm_object=this_colour_norm_object,
-            orientation_string='vertical', extend_min=False, extend_max=False,
-            font_size=FONT_SIZE
-        )
-        colour_bar_object.set_label('CSI (critical success index)')
+        if plot_colour_bar:
+            colour_bar_object = plotting_utils.plot_colour_bar(
+                axes_object_or_matrix=axes_object, data_matrix=csi_matrix,
+                colour_map_object=this_colour_map_object,
+                colour_norm_object=this_colour_norm_object,
+                orientation_string='vertical',
+                extend_min=False, extend_max=False, font_size=FONT_SIZE
+            )
+            colour_bar_object.set_label('CSI (critical success index)')
 
         if plot_csi_in_grey:
             bias_colour_tuple = (0., 0., 0.)
