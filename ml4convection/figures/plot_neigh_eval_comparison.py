@@ -10,6 +10,7 @@ import numpy
 import matplotlib
 matplotlib.use('agg')
 from matplotlib import pyplot
+from scipy.stats import percentileofscore
 from gewittergefahr.gg_utils import model_evaluation as gg_model_eval
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
@@ -38,7 +39,7 @@ FIGURE_HEIGHT_INCHES = 15
 CONCAT_FIGURE_SIZE_PX = int(1e7)
 
 DEFAULT_FONT_SIZE = 50
-PERF_DIAGRAM_ANNOTATION_FONT_SIZE = 45
+ANNOTATION_FONT_SIZE = 42.5
 
 pyplot.rc('font', size=DEFAULT_FONT_SIZE)
 pyplot.rc('axes', titlesize=DEFAULT_FONT_SIZE)
@@ -130,7 +131,7 @@ def _run(advanced_score_file_names, model_descriptions_abbrev, num_panel_rows,
         s.replace('_', '-').lower() for s in model_descriptions_abbrev
     ]
 
-    num_panels = 2 * num_models
+    num_panels = 1 * num_models
     if num_panel_rows <= 0:
         num_panel_rows = int(numpy.floor(
             numpy.sqrt(num_panels)
@@ -147,6 +148,9 @@ def _run(advanced_score_file_names, model_descriptions_abbrev, num_panel_rows,
     # Do actual stuff.
     panel_file_names = [''] * num_panels
     letter_label = None
+
+    bss_values_by_model = [numpy.array([])] * num_models
+    reliability_values_by_model = [numpy.array([])] * num_models
 
     for i in range(num_models):
         print('Reading data from: "{0:s}"...'.format(
@@ -172,21 +176,91 @@ def _run(advanced_score_file_names, model_descriptions_abbrev, num_panel_rows,
             min_value_to_plot=0., max_value_to_plot=1.
         )
 
-        axes_object.set_title('Attributes diagram for {0:s}'.format(
+        this_row = int(numpy.floor(
+            float(i) / num_panel_columns
+        ))
+        this_column = int(numpy.round(
+            numpy.mod(i, num_panel_columns)
+        ))
+
+        if this_column != 0:
+            num_y_ticks = len(axes_object.get_yticks())
+            axes_object.set_yticklabels([''] * num_y_ticks)
+            axes_object.set_ylabel('')
+
+        if this_row != num_panel_rows - 1:
+            num_x_ticks = len(axes_object.get_xticks())
+            axes_object.set_xticklabels([''] * num_x_ticks)
+            axes_object.set_xlabel('')
+
+        axes_object.set_title('Attrib diagram for {0:s}'.format(
             model_descriptions_verbose[i]
         ))
 
-        bss_values = a[evaluation.BRIER_SKILL_SCORE_KEY].values
+        bss_values_by_model[i] = a[evaluation.BRIER_SKILL_SCORE_KEY].values
+        reliability_values_by_model[i] = a[evaluation.RELIABILITY_KEY].values
 
-        annotation_string = 'BSS = {0:.2g} ({1:.2g} to {2:.2g})'.format(
-            numpy.nanmean(bss_values),
-            numpy.nanpercentile(bss_values, 50 * (1 - confidence_level)),
-            numpy.nanpercentile(bss_values, 50 * (1 + confidence_level))
+        for j in range(i):
+            percentile_level = 0.01 * percentileofscore(
+                a=bss_values_by_model[i] - bss_values_by_model[j],
+                score=0., kind='mean'
+            )
+            if percentile_level > 0.5:
+                percentile_level = 1 - percentile_level
+
+            p_value = 2 * percentile_level
+
+            print((
+                'p-value for BSS difference between models {0:s} and {1:s} = '
+                '{2:.4f}'
+            ).format(
+                model_descriptions_abbrev[i], model_descriptions_abbrev[j],
+                p_value
+            ))
+
+            percentile_level = 0.01 * percentileofscore(
+                a=(
+                        reliability_values_by_model[i] -
+                        reliability_values_by_model[j]
+                ),
+                score=0., kind='mean'
+            )
+            if percentile_level > 0.5:
+                percentile_level = 1 - percentile_level
+
+            p_value = 2 * percentile_level
+
+            print((
+                'p-value for REL difference between models {0:s} and {1:s} = '
+                '{2:.4f}'
+            ).format(
+                model_descriptions_abbrev[i], model_descriptions_abbrev[j],
+                p_value
+            ))
+
+        annotation_string = (
+            'REL = {0:.3f} ({1:.3f} to {2:.3f})\n'
+            'BSS = {3:.3f} ({4:.3f} to {5:.3f})'
+        ).format(
+            numpy.nanmean(reliability_values_by_model[i]),
+            numpy.nanpercentile(
+                reliability_values_by_model[i], 50 * (1 - confidence_level)
+            ),
+            numpy.nanpercentile(
+                reliability_values_by_model[i], 50 * (1 + confidence_level)
+            ),
+            numpy.nanmean(bss_values_by_model[i]),
+            numpy.nanpercentile(
+                bss_values_by_model[i], 50 * (1 - confidence_level)
+            ),
+            numpy.nanpercentile(
+                bss_values_by_model[i], 50 * (1 + confidence_level)
+            )
         )
         axes_object.text(
             0.98, 0.02, annotation_string, bbox=BOUNDING_BOX_DICT, color='k',
             horizontalalignment='right', verticalalignment='bottom',
-            transform=axes_object.transAxes
+            transform=axes_object.transAxes, fontsize=ANNOTATION_FONT_SIZE
         )
 
         if letter_label is None:
@@ -211,6 +285,42 @@ def _run(advanced_score_file_names, model_descriptions_abbrev, num_panel_rows,
         )
         pyplot.close(figure_object)
 
+    attrib_figure_file_name = '{0:s}/neigh_eval_attrib_diagrams.jpg'.format(
+        output_dir_name
+    )
+    print('Concatenating panels to: "{0:s}"...'.format(attrib_figure_file_name))
+
+    imagemagick_utils.concatenate_images(
+        input_file_names=panel_file_names,
+        output_file_name=attrib_figure_file_name,
+        num_panel_rows=num_panel_rows, num_panel_columns=num_panel_columns
+    )
+    imagemagick_utils.trim_whitespace(
+        input_file_name=attrib_figure_file_name,
+        output_file_name=attrib_figure_file_name,
+        border_width_pixels=100
+    )
+    imagemagick_utils.resize_image(
+        input_file_name=attrib_figure_file_name,
+        output_file_name=attrib_figure_file_name,
+        output_size_pixels=CONCAT_FIGURE_SIZE_PX
+    )
+
+    for k in range(num_panels):
+        os.remove(panel_file_names[k])
+
+    panel_file_names = [''] * num_panels
+    auc_values_by_model = [numpy.array([])] * num_models
+
+    for i in range(num_models):
+        print('Reading data from: "{0:s}"...'.format(
+            advanced_score_file_names[i]
+        ))
+        advanced_score_table_xarray = evaluation.read_advanced_score_file(
+            advanced_score_file_names[i]
+        )
+        a = advanced_score_table_xarray
+
         # Plot performance diagram for [i]th model.
         figure_object, axes_object = pyplot.subplots(
             1, 1, figsize=(FIGURE_WIDTH_INCHES, FIGURE_HEIGHT_INCHES)
@@ -224,7 +334,7 @@ def _run(advanced_score_file_names, model_descriptions_abbrev, num_panel_rows,
 
         num_bootstrap_reps = a[evaluation.POD_KEY].values.shape[0]
 
-        areas_under_curve = numpy.array([
+        auc_values_by_model[i] = numpy.array([
             gg_model_eval.get_area_under_perf_diagram(
                 pod_by_threshold=a[evaluation.POD_KEY].values[j, :],
                 success_ratio_by_threshold=
@@ -232,6 +342,24 @@ def _run(advanced_score_file_names, model_descriptions_abbrev, num_panel_rows,
             )
             for j in range(num_bootstrap_reps)
         ])
+
+        for j in range(i):
+            percentile_level = 0.01 * percentileofscore(
+                a=auc_values_by_model[i] - auc_values_by_model[j],
+                score=0., kind='mean'
+            )
+            if percentile_level > 0.5:
+                percentile_level = 1 - percentile_level
+
+            p_value = 2 * percentile_level
+
+            print((
+                'p-value for AUC difference between models {0:s} and {1:s} = '
+                '{2:.4f}'
+            ).format(
+                model_descriptions_abbrev[i], model_descriptions_abbrev[j],
+                p_value
+            ))
 
         mean_frequency_biases = numpy.nanmean(
             a[evaluation.FREQUENCY_BIAS_KEY].values, axis=0
@@ -252,31 +380,34 @@ def _run(advanced_score_file_names, model_descriptions_abbrev, num_panel_rows,
         csi_at_best_threshold = mean_csi_values[best_threshold_index]
         bias_at_best_threshold = mean_frequency_biases[best_threshold_index]
 
-        annotation_string = 'AUC = {0:.3g} ({1:.3g} to {2:.3g})'.format(
-            numpy.mean(areas_under_curve),
-            numpy.percentile(areas_under_curve, 50 * (1 - confidence_level)),
-            numpy.percentile(areas_under_curve, 50 * (1 + confidence_level))
+        annotation_string = 'AUC = {0:.3f} ({1:.3f} to {2:.3f})'.format(
+            numpy.mean(auc_values_by_model[i]),
+            numpy.percentile(
+                auc_values_by_model[i], 50 * (1 - confidence_level)
+            ),
+            numpy.percentile(
+                auc_values_by_model[i], 50 * (1 + confidence_level)
+            )
         )
 
         axes_object.text(
             0.98, 0.02, annotation_string, bbox=BOUNDING_BOX_DICT, color='k',
             horizontalalignment='right', verticalalignment='bottom',
-            transform=axes_object.transAxes,
-            fontsize=PERF_DIAGRAM_ANNOTATION_FONT_SIZE
+            transform=axes_object.transAxes, fontsize=ANNOTATION_FONT_SIZE
         )
 
         mean_success_ratios = numpy.nanmean(
             a[evaluation.SUCCESS_RATIO_KEY].values, axis=0
         )
         mean_pod_values = numpy.nanmean(a[evaluation.POD_KEY].values, axis=0)
-        axes_object.plot(
-            mean_success_ratios[best_threshold_index],
-            mean_pod_values[best_threshold_index],
-            linestyle='None', marker=MARKER_TYPE, markersize=MARKER_SIZE,
-            markeredgewidth=MARKER_EDGE_WIDTH,
-            markerfacecolor=eval_plotting.PERF_DIAGRAM_COLOUR,
-            markeredgecolor=eval_plotting.PERF_DIAGRAM_COLOUR
-        )
+        # axes_object.plot(
+        #     mean_success_ratios[best_threshold_index],
+        #     mean_pod_values[best_threshold_index],
+        #     linestyle='None', marker=MARKER_TYPE, markersize=MARKER_SIZE,
+        #     markeredgewidth=MARKER_EDGE_WIDTH,
+        #     markerfacecolor=eval_plotting.PERF_DIAGRAM_COLOUR,
+        #     markeredgecolor=eval_plotting.PERF_DIAGRAM_COLOUR
+        # )
 
         axes_object.set_title('Perf diagram for {0:s}'.format(
             model_descriptions_verbose[i]
@@ -303,28 +434,44 @@ def _run(advanced_score_file_names, model_descriptions_abbrev, num_panel_rows,
         )
         pyplot.close(figure_object)
 
+    perf_figure_file_name = '{0:s}/neigh_eval_perf_diagrams.jpg'.format(
+        output_dir_name
+    )
+    print('Concatenating panels to: "{0:s}"...'.format(perf_figure_file_name))
+
+    imagemagick_utils.concatenate_images(
+        input_file_names=panel_file_names,
+        output_file_name=perf_figure_file_name,
+        num_panel_rows=num_panel_rows, num_panel_columns=num_panel_columns
+    )
+    imagemagick_utils.trim_whitespace(
+        input_file_name=perf_figure_file_name,
+        output_file_name=perf_figure_file_name,
+        border_width_pixels=100
+    )
+    imagemagick_utils.resize_image(
+        input_file_name=perf_figure_file_name,
+        output_file_name=perf_figure_file_name,
+        output_size_pixels=CONCAT_FIGURE_SIZE_PX
+    )
+
+    for k in range(num_panels):
+        os.remove(panel_file_names[k])
+
     concat_figure_file_name = '{0:s}/neigh_eval_comparison.jpg'.format(
         output_dir_name
     )
     print('Concatenating panels to: "{0:s}"...'.format(concat_figure_file_name))
 
     imagemagick_utils.concatenate_images(
-        input_file_names=panel_file_names,
+        input_file_names=[attrib_figure_file_name, perf_figure_file_name],
         output_file_name=concat_figure_file_name,
-        num_panel_rows=num_panel_rows, num_panel_columns=num_panel_columns,
+        num_panel_rows=2, num_panel_columns=1
     )
     imagemagick_utils.trim_whitespace(
-        input_file_name=concat_figure_file_name,
-        output_file_name=concat_figure_file_name
+        input_file_name=perf_figure_file_name,
+        output_file_name=perf_figure_file_name
     )
-    imagemagick_utils.resize_image(
-        input_file_name=concat_figure_file_name,
-        output_file_name=concat_figure_file_name,
-        output_size_pixels=CONCAT_FIGURE_SIZE_PX
-    )
-
-    for k in range(num_panels):
-        os.remove(panel_file_names[k])
 
 
 if __name__ == '__main__':
