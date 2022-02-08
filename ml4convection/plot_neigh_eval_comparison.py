@@ -352,7 +352,10 @@ def _run(advanced_score_file_names, model_descriptions_abbrev, num_panel_rows,
             axes_object.set_ylabel('')
 
         if this_column != num_panel_columns - 1:
-            axes_object.images[-1].colorbar.remove()
+            try:
+                axes_object.images[-1].colorbar.remove()
+            except:
+                axes_object.collection[-1].colorbar.remove()
 
         if this_row != num_panel_rows - 1:
             num_x_ticks = len(axes_object.get_xticks())
