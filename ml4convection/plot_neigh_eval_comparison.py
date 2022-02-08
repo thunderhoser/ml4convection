@@ -282,12 +282,12 @@ def _run(advanced_score_file_names, model_descriptions_abbrev, num_panel_rows,
             font_size=DEFAULT_FONT_SIZE
         )
 
-        panel_file_names[2 * i] = '{0:s}/{1:s}_attributes_diagram.jpg'.format(
+        panel_file_names[i] = '{0:s}/{1:s}_attributes_diagram.jpg'.format(
             output_dir_name, model_descriptions_abbrev[i]
         )
-        print('Saving figure to: "{0:s}"...'.format(panel_file_names[2 * i]))
+        print('Saving figure to: "{0:s}"...'.format(panel_file_names[i]))
         figure_object.savefig(
-            panel_file_names[2 * i], dpi=FIGURE_RESOLUTION_DPI,
+            panel_file_names[i], dpi=FIGURE_RESOLUTION_DPI,
             pad_inches=0, bbox_inches='tight'
         )
         pyplot.close(figure_object)
@@ -428,15 +428,15 @@ def _run(advanced_score_file_names, model_descriptions_abbrev, num_panel_rows,
             font_size=DEFAULT_FONT_SIZE
         )
 
-        panel_file_names[2 * i + 1] = (
+        panel_file_names[i] = (
             '{0:s}/{1:s}_performance_diagram.jpg'
         ).format(output_dir_name, model_descriptions_abbrev[i])
 
         print('Saving figure to: "{0:s}"...'.format(
-            panel_file_names[2 * i + 1]
+            panel_file_names[i]
         ))
         figure_object.savefig(
-            panel_file_names[2 * i + 1], dpi=FIGURE_RESOLUTION_DPI,
+            panel_file_names[i], dpi=FIGURE_RESOLUTION_DPI,
             pad_inches=0, bbox_inches='tight'
         )
         pyplot.close(figure_object)
