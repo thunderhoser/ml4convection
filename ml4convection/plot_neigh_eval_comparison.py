@@ -355,7 +355,7 @@ def _run(advanced_score_file_names, model_descriptions_abbrev, num_panel_rows,
             try:
                 axes_object.images[-1].colorbar.remove()
             except:
-                axes_object.collection[-1].colorbar.remove()
+                axes_object.collections[-1].colorbar.remove()
 
         if this_row != num_panel_rows - 1:
             num_x_ticks = len(axes_object.get_xticks())
