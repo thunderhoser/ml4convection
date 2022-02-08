@@ -1,6 +1,6 @@
 #!/bin/tcsh
 
-#SBATCH --job-name="compute_advanced_ungridded_scores"
+#SBATCH --job-name="compute_advanced_ungridded_scores_small_neigh"
 #SBATCH --partition="fge"
 #SBATCH --account="rda-ghpcs"
 #SBATCH --qos="batch"
@@ -12,13 +12,13 @@
 ##SBATCH --cpus-per-task=1
 ##SBATCH --ntasks-per-node=1
 #SBATCH --time=30:00:00
-#SBATCH --array=1-48
+#SBATCH --array=1-5,9-13,17-21,25-29,33-37,41-45
 #SBATCH --exclude=h28n12
 ##SBATCH --exclude=h31n03,h28n12
 ##SBATCH --exclude=h29n01,h26n05,h28n06,h29n07,h30n03,h30n15
 #SBATCH --mail-type=BEGIN,END,FAIL
 #SBATCH --mail-user=ryan.lagerquist@noaa.gov
-#SBATCH --output=compute_advanced_ungridded_scores_%A_%a.out
+#SBATCH --output=compute_advanced_ungridded_scores_small_neigh_%A_%a.out
 
 module load cuda/10.1
 source /scratch2/BMC/gsd-hpcs/Jebb.Q.Stewart/conda3.7/etc/profile.d/conda.csh
