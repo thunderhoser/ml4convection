@@ -200,7 +200,10 @@ def _run(advanced_score_file_names, model_descriptions_abbrev, num_panel_rows,
             axes_object.set_xticklabels([''] * num_x_ticks)
             axes_object.set_xlabel('')
 
-        axes_object.set_title('Attrib diagram for {0:s}'.format(
+        # axes_object.set_title('Attrib diagram for {0:s}'.format(
+        #     model_descriptions_verbose[i]
+        # ))
+        axes_object.set_title('{0:s}'.format(
             model_descriptions_verbose[i]
         ))
 
@@ -434,7 +437,10 @@ def _run(advanced_score_file_names, model_descriptions_abbrev, num_panel_rows,
         #     markeredgecolor=eval_plotting.PERF_DIAGRAM_COLOUR
         # )
 
-        axes_object.set_title('Perf diagram for {0:s}'.format(
+        # axes_object.set_title('Perf diagram for {0:s}'.format(
+        #     model_descriptions_verbose[i]
+        # ))
+        axes_object.set_title('{0:s}'.format(
             model_descriptions_verbose[i]
         ))
 
