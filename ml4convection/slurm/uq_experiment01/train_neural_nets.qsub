@@ -1,0 +1,70 @@
+#!/bin/tcsh
+
+#SBATCH --job-name="train_neural_nets"
+#SBATCH --partition="fge"
+#SBATCH --account="rda-ghpcs"
+#SBATCH --qos="batch"
+#SBATCH --nodes=1
+#SBATCH --ntasks=8           # 8 tasks per node
+#SBATCH --cpus-per-task=2
+#SBATCH --ntasks-per-node=8  # 8 GPUs per node
+#SBATCH --exclusive
+#SBATCH --time=30:00:00
+#SBATCH --array=1-125%70
+#SBATCH --exclude=h28n12
+##SBATCH --exclude=h31n03,h28n12
+##SBATCH --exclude=h29n01,h26n05,h28n06,h29n07,h30n03,h30n15
+#SBATCH --mail-type=BEGIN,END,FAIL
+#SBATCH --mail-user=ryan.lagerquist@noaa.gov
+#SBATCH --output=train_neural_nets_%A_%a.out
+
+module load cuda/10.1
+source /scratch2/BMC/gsd-hpcs/Jebb.Q.Stewart/conda3.7/etc/profile.d/conda.csh
+conda activate base
+
+set CODE_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_standalone/ml4convection"
+set TOP_TEMPLATE_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_models/uq_experiment01/templates"
+set TOP_OUTPUT_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_models/uq_experiment01"
+
+set BATCH_SIZE=60
+
+set TRAINING_PREDICTOR_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_project/predictors/quality_controlled/partial_grids"
+set VALIDN_PREDICTOR_DIR_NAME="${TRAINING_PREDICTOR_DIR_NAME}"
+set TRAINING_TARGET_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_project/targets/new_echo_classification/no_tracking/omit_north_radar/partial_grids"
+set VALIDN_TARGET_DIR_NAME="${TRAINING_TARGET_DIR_NAME}"
+
+set TOP_LEVEL_SKIP_DROPOUT_RATES=(0.000 0.000 0.000 0.000 0.000 0.125 0.125 0.125 0.125 0.125 0.250 0.250 0.250 0.250 0.250 0.375 0.375 0.375 0.375 0.375 0.500 0.500 0.500 0.500 0.500 0.000 0.000 0.000 0.000 0.000 0.125 0.125 0.125 0.125 0.125 0.250 0.250 0.250 0.250 0.250 0.375 0.375 0.375 0.375 0.375 0.500 0.500 0.500 0.500 0.500 0.000 0.000 0.000 0.000 0.000 0.125 0.125 0.125 0.125 0.125 0.250 0.250 0.250 0.250 0.250 0.375 0.375 0.375 0.375 0.375 0.500 0.500 0.500 0.500 0.500 0.000 0.000 0.000 0.000 0.000 0.125 0.125 0.125 0.125 0.125 0.250 0.250 0.250 0.250 0.250 0.375 0.375 0.375 0.375 0.375 0.500 0.500 0.500 0.500 0.500 0.000 0.000 0.000 0.000 0.000 0.125 0.125 0.125 0.125 0.125 0.250 0.250 0.250 0.250 0.250 0.375 0.375 0.375 0.375 0.375 0.500 0.500 0.500 0.500 0.500)
+set PENULTIMATE_LAYER_DROPOUT_RATES=(0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.125 0.125 0.125 0.125 0.125 0.125 0.125 0.125 0.125 0.125 0.125 0.125 0.125 0.125 0.125 0.125 0.125 0.125 0.125 0.125 0.125 0.125 0.125 0.125 0.125 0.250 0.250 0.250 0.250 0.250 0.250 0.250 0.250 0.250 0.250 0.250 0.250 0.250 0.250 0.250 0.250 0.250 0.250 0.250 0.250 0.250 0.250 0.250 0.250 0.250 0.375 0.375 0.375 0.375 0.375 0.375 0.375 0.375 0.375 0.375 0.375 0.375 0.375 0.375 0.375 0.375 0.375 0.375 0.375 0.375 0.375 0.375 0.375 0.375 0.375 0.500 0.500 0.500 0.500 0.500 0.500 0.500 0.500 0.500 0.500 0.500 0.500 0.500 0.500 0.500 0.500 0.500 0.500 0.500 0.500 0.500 0.500 0.500 0.500 0.500)
+set OUTPUT_LAYER_DROPOUT_RATES=(0.000 0.125 0.250 0.375 0.500 0.000 0.125 0.250 0.375 0.500 0.000 0.125 0.250 0.375 0.500 0.000 0.125 0.250 0.375 0.500 0.000 0.125 0.250 0.375 0.500 0.000 0.125 0.250 0.375 0.500 0.000 0.125 0.250 0.375 0.500 0.000 0.125 0.250 0.375 0.500 0.000 0.125 0.250 0.375 0.500 0.000 0.125 0.250 0.375 0.500 0.000 0.125 0.250 0.375 0.500 0.000 0.125 0.250 0.375 0.500 0.000 0.125 0.250 0.375 0.500 0.000 0.125 0.250 0.375 0.500 0.000 0.125 0.250 0.375 0.500 0.000 0.125 0.250 0.375 0.500 0.000 0.125 0.250 0.375 0.500 0.000 0.125 0.250 0.375 0.500 0.000 0.125 0.250 0.375 0.500 0.000 0.125 0.250 0.375 0.500 0.000 0.125 0.250 0.375 0.500 0.000 0.125 0.250 0.375 0.500 0.000 0.125 0.250 0.375 0.500 0.000 0.125 0.250 0.375 0.500 0.000 0.125 0.250 0.375 0.500)
+
+set top_level_skip_dropout_rate=${TOP_LEVEL_SKIP_DROPOUT_RATES[$SLURM_ARRAY_TASK_ID]}
+set penultimate_layer_dropout_rate=${PENULTIMATE_LAYER_DROPOUT_RATES[$SLURM_ARRAY_TASK_ID]}
+set output_layer_dropout_rate=${OUTPUT_LAYER_DROPOUT_RATES[$SLURM_ARRAY_TASK_ID]}
+
+set top_level_skip_dropout_rate=`printf "%.3f" $top_level_skip_dropout_rate`
+set penultimate_layer_dropout_rate=`printf "%.3f" $penultimate_layer_dropout_rate`
+set output_layer_dropout_rate=`printf "%.3f" $output_layer_dropout_rate`
+
+set template_file_name="${TOP_TEMPLATE_DIR_NAME}/top-level-skip-dropout=${top_level_skip_dropout_rate}_penultimate-layer-dropout=${penultimate_layer_dropout_rate}_output_layer_dropout_rate=${output_layer_dropout_rate}/model.h5"
+set output_dir_name="${TOP_OUTPUT_DIR_NAME}/top-level-skip-dropout=${top_level_skip_dropout_rate}_penultimate-layer-dropout=${penultimate_layer_dropout_rate}_output_layer_dropout_rate=${output_layer_dropout_rate}"
+echo $output_dir_name
+
+python3 -u "${CODE_DIR_NAME}/train_neural_net.py" \
+--training_predictor_dir_name="${TRAINING_PREDICTOR_DIR_NAME}" \
+--validn_predictor_dir_name="${VALIDN_PREDICTOR_DIR_NAME}" \
+--training_target_dir_name="${TRAINING_TARGET_DIR_NAME}" \
+--validn_target_dir_name="${VALIDN_TARGET_DIR_NAME}" \
+--input_model_file_name="${template_file_name}" \
+--output_model_dir_name="${output_dir_name}" \
+--lead_time_seconds=3600 \
+--lag_times_seconds 0 1200 2400 \
+--include_time_dimension=0 \
+--omit_north_radar=1 \
+--normalize=1 \
+--uniformize=1 \
+--num_examples_per_batch=${BATCH_SIZE} \
+--max_examples_per_day_in_batch=`expr $BATCH_SIZE / 8` \
+--use_partial_grids=1 \
+--num_epochs=1000 \
+--num_training_batches_per_epoch=64 \
+--num_validn_batches_per_epoch=32
