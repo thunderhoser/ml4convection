@@ -4,7 +4,6 @@ import os
 import sys
 import numpy
 import keras
-from keras import backend as K
 
 THIS_DIRECTORY_NAME = os.path.dirname(os.path.realpath(
     os.path.join(os.getcwd(), os.path.expanduser(__file__))
@@ -13,17 +12,22 @@ sys.path.append(os.path.normpath(os.path.join(THIS_DIRECTORY_NAME, '..')))
 
 import error_checking
 import architecture_utils
-import upconvnet
 import neural_net
 import coord_conv
 
 INPUT_DIMENSIONS_KEY = 'input_dimensions'
 NUM_LEVELS_KEY = 'num_levels'
-NUM_CONV_LAYERS_KEY = 'num_conv_layers_per_level'
-CONV_LAYER_CHANNEL_COUNTS_KEY = 'conv_layer_channel_counts'
-CONV_LAYER_DROPOUT_RATES_KEY = 'conv_layer_dropout_rates'
-UPCONV_LAYER_DROPOUT_RATES_KEY = 'upconv_layer_dropout_rates'
-SKIP_LAYER_DROPOUT_RATES_KEY = 'skip_layer_dropout_rates'
+CONV_LAYER_COUNTS_KEY = 'num_conv_layers_by_level'
+OUTPUT_CHANNEL_COUNTS_KEY = 'num_output_channels_by_level'
+CONV_DROPOUT_RATES_KEY = 'conv_dropout_rates_by_level'
+UPCONV_DROPOUT_RATES_KEY = 'upconv_dropout_rate_by_level'
+SKIP_DROPOUT_RATES_KEY = 'skip_dropout_rates_by_level'
+SKIP_DROPOUT_MC_FLAGS_KEY = 'skip_dropout_mc_flags_by_level'
+INCLUDE_PENULTIMATE_KEY = 'include_penultimate_conv'
+PENULTIMATE_DROPOUT_RATE_KEY = 'penultimate_conv_dropout_rate'
+PENULTIMATE_DROPOUT_MC_FLAG_KEY = 'penultimate_conv_dropout_mc_flag'
+OUTPUT_DROPOUT_RATE_KEY = 'output_layer_dropout_rate'
+OUTPUT_DROPOUT_MC_FLAG_KEY = 'output_layer_dropout_mc_flag'
 INNER_ACTIV_FUNCTION_KEY = 'inner_activ_function_name'
 INNER_ACTIV_FUNCTION_ALPHA_KEY = 'inner_activ_function_alpha'
 OUTPUT_ACTIV_FUNCTION_KEY = 'output_activ_function_name'
@@ -32,17 +36,21 @@ L1_WEIGHT_KEY = 'l1_weight'
 L2_WEIGHT_KEY = 'l2_weight'
 USE_BATCH_NORM_KEY = 'use_batch_normalization'
 USE_COORD_CONV_KEY = 'use_coord_conv'
-SMOOTHING_RADIUS_KEY = 'smoothing_radius_px'
 
 DEFAULT_ARCHITECTURE_OPTION_DICT = {
     NUM_LEVELS_KEY: 7,
-    NUM_CONV_LAYERS_KEY: 2,
-    CONV_LAYER_CHANNEL_COUNTS_KEY:
+    CONV_LAYER_COUNTS_KEY: numpy.full(8, 2, dtype=int),
+    OUTPUT_CHANNEL_COUNTS_KEY:
         numpy.array([16, 24, 32, 48, 64, 96, 128, 192], dtype=int),
-        # numpy.array([16, 32, 64, 128, 256, 512, 1024, 2048], dtype=int),
-    CONV_LAYER_DROPOUT_RATES_KEY: numpy.full(8, 0.5),
-    UPCONV_LAYER_DROPOUT_RATES_KEY: numpy.full(7, 0.),
-    SKIP_LAYER_DROPOUT_RATES_KEY: numpy.full(7, 0.),
+    CONV_DROPOUT_RATES_KEY: [numpy.full(2, 0.)] * 8,
+    UPCONV_DROPOUT_RATES_KEY: numpy.full(7, 0.),
+    SKIP_DROPOUT_RATES_KEY: [numpy.full(2, 0.)] * 7,
+    SKIP_DROPOUT_MC_FLAGS_KEY: [numpy.full(2, 0, dtype=bool)] * 7,
+    INCLUDE_PENULTIMATE_KEY: True,
+    PENULTIMATE_DROPOUT_RATE_KEY: 0.,
+    PENULTIMATE_DROPOUT_MC_FLAG_KEY: False,
+    OUTPUT_DROPOUT_RATE_KEY: 0.,
+    OUTPUT_DROPOUT_MC_FLAG_KEY: False,
     INNER_ACTIV_FUNCTION_KEY: architecture_utils.RELU_FUNCTION_STRING,
     INNER_ACTIV_FUNCTION_ALPHA_KEY: 0.2,
     OUTPUT_ACTIV_FUNCTION_KEY: architecture_utils.SIGMOID_FUNCTION_STRING,
@@ -50,8 +58,7 @@ DEFAULT_ARCHITECTURE_OPTION_DICT = {
     L1_WEIGHT_KEY: 0.,
     L2_WEIGHT_KEY: 0.001,
     USE_BATCH_NORM_KEY: True,
-    USE_COORD_CONV_KEY: False,
-    SMOOTHING_RADIUS_KEY: None
+    USE_COORD_CONV_KEY: False
 }
 
 
@@ -65,36 +72,49 @@ def _check_architecture_args(option_dict):
     option_dict['input_dimensions']: length-3 numpy array with input dimensions
         (num_rows, num_columns, num_channels).
     option_dict['num_levels']: L in the above discussion.
-    option_dict['num_conv_layers_per_level']: Number of conv layers per level.
-    option_dict['conv_layer_channel_counts']:length-(L + 1) numpy array with
-        number of channels (filters) produced by each conv layer.
-    option_dict['conv_layer_dropout_rates']: length-(L + 1) numpy array with
-        dropout rate for each conv layer.  To omit dropout for a particular
-        layer, use NaN or a number <= 0.
-    option_dict['upconv_layer_dropout_rates']: Same as above, except for upconv
-        layers and array has length L.
-    option_dict['skip_layer_dropout_rates']: Same as above, except for skip
-        layers and array has length L.
+    option_dict['num_conv_layers_by_level']: length-(L + 1) numpy array with
+        number of conv layers at each level.
+    option_dict['num_output_channels_by_level']: length-(L + 1) numpy array with
+        number of output channels at each level.
+    option_dict['conv_dropout_rates_by_level']: length-(L + 1) list, where each
+        list item is a 1-D numpy array of dropout rates.  The [k]th list item
+        should be an array with length = number of conv layers at the [k]th
+        level.  Use values <= 0 to omit dropout.
+    option_dict['upconv_dropout_rate_by_level']: length-L numpy array of dropout
+        rates for upconv layers.
+    option_dict['skip_dropout_rates_by_level']: length-L list, where each list
+        item is a 1-D numpy array of dropout rates.  The [k]th list item
+        should be an array with length = number of conv layers at the [k]th
+        level.  Use values <= 0 to omit dropout.
+    option_dict['skip_dropout_mc_flags_by_level']: Same as above, but each list
+        item is a numpy array of Boolean flags, not dropout rates.  The Boolean
+        flags tell the model whether or not to use Monte Carlo dropout, i.e.,
+        dropout at inference time.
+    option_dict['include_penultimate_conv']: Boolean flag.  If True, will put in
+        extra conv layer (with 3 x 3 filter) before final pixelwise conv.
+    option_dict['penultimate_conv_dropout_rate']: Dropout rate for penultimate
+        conv layer.
+    option_dict['penultimate_conv_dropout_mc_flag']: Boolean flag, telling the
+        model whether or not to use Monte Carlo dropout in the penultimate conv
+        layer.
+    option_dict['output_layer_dropout_rate']: Dropout rate for output layer.
+    option_dict['output_layer_dropout_mc_flag']: Boolean flag, telling the
+        model whether or not to use Monte Carlo dropout in the output layer.
     option_dict['inner_activ_function_name']: Name of activation function for
         all inner (non-output) layers.  Must be accepted by
         `architecture_utils.check_activation_function`.
     option_dict['inner_activ_function_alpha']: Alpha (slope parameter) for
         activation function for all inner layers.  Applies only to ReLU and eLU.
     option_dict['output_activ_function_name']: Same as
-        `inner_activ_function_name` but for output layers (profiles and
-        scalars).
+        `inner_activ_function_name` but for output layer.
     option_dict['output_activ_function_alpha']: Same as
-        `inner_activ_function_alpha` but for output layers (profiles and
-        scalars).
+        `inner_activ_function_alpha` but for output layer.
     option_dict['l1_weight']: Weight for L_1 regularization.
     option_dict['l2_weight']: Weight for L_2 regularization.
     option_dict['use_batch_normalization']: Boolean flag.  If True, will use
         batch normalization after each inner (non-output) layer.
     option_dict['use_coord_conv']: Boolean flag.  If True, will use coord-conv
         in each convolutional layer.
-    option_dict['smoothing_radius_px']: e-folding radius (pixels) for Gaussian
-        smoother for predictions.  If you do not want to smooth predictions,
-        make this None.
 
     :return: option_dict: Same as input, except defaults may have been added.
     """
@@ -103,90 +123,112 @@ def _check_architecture_args(option_dict):
     option_dict = DEFAULT_ARCHITECTURE_OPTION_DICT.copy()
     option_dict.update(orig_option_dict)
 
-    input_dimensions = option_dict[INPUT_DIMENSIONS_KEY]
     error_checking.assert_is_numpy_array(
-        input_dimensions, exact_dimensions=numpy.array([3], dtype=int)
+        option_dict[INPUT_DIMENSIONS_KEY],
+        exact_dimensions=numpy.array([3], dtype=int)
     )
-    error_checking.assert_is_integer_numpy_array(input_dimensions)
-    error_checking.assert_is_greater_numpy_array(input_dimensions, 0)
+    error_checking.assert_is_integer_numpy_array(
+        option_dict[INPUT_DIMENSIONS_KEY]
+    )
+    error_checking.assert_is_greater_numpy_array(
+        option_dict[INPUT_DIMENSIONS_KEY], 0
+    )
 
     error_checking.assert_is_integer(option_dict[NUM_LEVELS_KEY])
     error_checking.assert_is_geq(option_dict[NUM_LEVELS_KEY], 2)
-    error_checking.assert_is_integer(option_dict[NUM_CONV_LAYERS_KEY])
-    error_checking.assert_is_geq(option_dict[NUM_CONV_LAYERS_KEY], 1)
-
-    num_levels = option_dict[NUM_LEVELS_KEY]
-    expected_dim = numpy.array([num_levels + 1], dtype=int)
+    expected_dim = numpy.array([option_dict[NUM_LEVELS_KEY] + 1], dtype=int)
 
     error_checking.assert_is_numpy_array(
-        option_dict[CONV_LAYER_CHANNEL_COUNTS_KEY],
-        exact_dimensions=expected_dim
+        option_dict[CONV_LAYER_COUNTS_KEY], exact_dimensions=expected_dim
     )
     error_checking.assert_is_integer_numpy_array(
-        option_dict[CONV_LAYER_CHANNEL_COUNTS_KEY]
+        option_dict[CONV_LAYER_COUNTS_KEY]
+    )
+    error_checking.assert_is_greater_numpy_array(
+        option_dict[CONV_LAYER_COUNTS_KEY], 0
+    )
+
+    error_checking.assert_is_numpy_array(
+        option_dict[OUTPUT_CHANNEL_COUNTS_KEY], exact_dimensions=expected_dim
+    )
+    error_checking.assert_is_integer_numpy_array(
+        option_dict[OUTPUT_CHANNEL_COUNTS_KEY]
     )
     error_checking.assert_is_geq_numpy_array(
-        option_dict[CONV_LAYER_CHANNEL_COUNTS_KEY], 2
+        option_dict[OUTPUT_CHANNEL_COUNTS_KEY], 2
     )
+
+    assert (
+        len(option_dict[CONV_DROPOUT_RATES_KEY]) ==
+        option_dict[NUM_LEVELS_KEY] + 1
+    )
+
+    for k in range(option_dict[NUM_LEVELS_KEY] + 1):
+        these_dim = numpy.array(
+            [option_dict[CONV_LAYER_COUNTS_KEY][k]], dtype=int
+        )
+        error_checking.assert_is_numpy_array(
+            option_dict[CONV_DROPOUT_RATES_KEY][k], exact_dimensions=these_dim
+        )
+        error_checking.assert_is_leq_numpy_array(
+            option_dict[CONV_DROPOUT_RATES_KEY][k], 1., allow_nan=True
+        )
+
+    expected_dim = numpy.array([option_dict[NUM_LEVELS_KEY]], dtype=int)
 
     error_checking.assert_is_numpy_array(
-        option_dict[CONV_LAYER_DROPOUT_RATES_KEY], exact_dimensions=expected_dim
+        option_dict[UPCONV_DROPOUT_RATES_KEY], exact_dimensions=expected_dim
     )
     error_checking.assert_is_leq_numpy_array(
-        option_dict[CONV_LAYER_DROPOUT_RATES_KEY], 1., allow_nan=True
+        option_dict[UPCONV_DROPOUT_RATES_KEY], 1., allow_nan=True
     )
 
-    expected_dim = numpy.array([num_levels], dtype=int)
+    assert (
+        len(option_dict[SKIP_DROPOUT_RATES_KEY]) ==
+        option_dict[NUM_LEVELS_KEY]
+    )
+    assert (
+        len(option_dict[SKIP_DROPOUT_MC_FLAGS_KEY]) ==
+        option_dict[NUM_LEVELS_KEY]
+    )
 
-    error_checking.assert_is_numpy_array(
-        option_dict[UPCONV_LAYER_DROPOUT_RATES_KEY],
-        exact_dimensions=expected_dim
-    )
-    error_checking.assert_is_leq_numpy_array(
-        option_dict[UPCONV_LAYER_DROPOUT_RATES_KEY], 1., allow_nan=True
-    )
+    for k in range(option_dict[NUM_LEVELS_KEY]):
+        these_dim = numpy.array(
+            [option_dict[CONV_LAYER_COUNTS_KEY][k]], dtype=int
+        )
+        error_checking.assert_is_numpy_array(
+            option_dict[SKIP_DROPOUT_RATES_KEY][k], exact_dimensions=these_dim
+        )
+        error_checking.assert_is_leq_numpy_array(
+            option_dict[SKIP_DROPOUT_RATES_KEY][k], 1., allow_nan=True
+        )
 
-    error_checking.assert_is_numpy_array(
-        option_dict[SKIP_LAYER_DROPOUT_RATES_KEY], exact_dimensions=expected_dim
+        error_checking.assert_is_numpy_array(
+            option_dict[SKIP_DROPOUT_MC_FLAGS_KEY][k],
+            exact_dimensions=these_dim
+        )
+        error_checking.assert_is_boolean_numpy_array(
+            option_dict[SKIP_DROPOUT_MC_FLAGS_KEY][k]
+        )
+
+    error_checking.assert_is_boolean(option_dict[INCLUDE_PENULTIMATE_KEY])
+    error_checking.assert_is_leq(
+        option_dict[PENULTIMATE_DROPOUT_RATE_KEY], 1., allow_nan=True
     )
-    error_checking.assert_is_leq_numpy_array(
-        option_dict[SKIP_LAYER_DROPOUT_RATES_KEY], 1., allow_nan=True
+    error_checking.assert_is_boolean(
+        option_dict[PENULTIMATE_DROPOUT_MC_FLAG_KEY]
     )
+    error_checking.assert_is_leq(
+        option_dict[OUTPUT_DROPOUT_RATE_KEY], 1., allow_nan=True
+    )
+    error_checking.assert_is_boolean(option_dict[OUTPUT_DROPOUT_MC_FLAG_KEY])
 
     error_checking.assert_is_geq(option_dict[L1_WEIGHT_KEY], 0.)
     error_checking.assert_is_geq(option_dict[L2_WEIGHT_KEY], 0.)
     error_checking.assert_is_boolean(option_dict[USE_BATCH_NORM_KEY])
     error_checking.assert_is_boolean(option_dict[USE_COORD_CONV_KEY])
 
-    if option_dict[SMOOTHING_RADIUS_KEY] is not None:
-        error_checking.assert_is_greater(option_dict[SMOOTHING_RADIUS_KEY], 0.)
-
     return option_dict
-
-
-def _make_smoothing_function(weight_matrix):
-    """Returns function that applies smoother.
-
-    M = number of rows in smoothing window
-    N = number of columns in smoothing window
-
-    :param weight_matrix: M-by-N numpy array of smoothing weights.
-    :return: smoothing_function: Function handle (see below).
-    """
-
-    def smoothing_function(orig_tensor):
-        """Smooths tensor.
-
-        :param orig_tensor: Keras tensor before smoothing.
-        :return: smoothed_tensor: Keras tensor after smoothing.
-        """
-
-        return K.conv2d(
-            x=orig_tensor, kernel=weight_matrix,
-            padding='same', strides=(1, 1), data_format='channels_last'
-        )
-
-    return smoothing_function
 
 
 def create_model(option_dict, loss_function, mask_matrix, metric_names):
@@ -218,11 +260,19 @@ def create_model(option_dict, loss_function, mask_matrix, metric_names):
 
     input_dimensions = option_dict[INPUT_DIMENSIONS_KEY]
     num_levels = option_dict[NUM_LEVELS_KEY]
-    num_conv_layers_per_level = option_dict[NUM_CONV_LAYERS_KEY]
-    conv_layer_channel_counts = option_dict[CONV_LAYER_CHANNEL_COUNTS_KEY]
-    conv_layer_dropout_rates = option_dict[CONV_LAYER_DROPOUT_RATES_KEY]
-    upconv_layer_dropout_rates = option_dict[UPCONV_LAYER_DROPOUT_RATES_KEY]
-    skip_layer_dropout_rates = option_dict[SKIP_LAYER_DROPOUT_RATES_KEY]
+    num_conv_layers_by_level = option_dict[CONV_LAYER_COUNTS_KEY]
+    num_output_channels_by_level = option_dict[OUTPUT_CHANNEL_COUNTS_KEY]
+    conv_dropout_rates_by_level = option_dict[CONV_DROPOUT_RATES_KEY]
+    upconv_dropout_rate_by_level = option_dict[UPCONV_DROPOUT_RATES_KEY]
+    skip_dropout_rates_by_level = option_dict[SKIP_DROPOUT_RATES_KEY]
+    skip_dropout_mc_flags_by_level = option_dict[SKIP_DROPOUT_MC_FLAGS_KEY]
+    include_penultimate_conv = option_dict[INCLUDE_PENULTIMATE_KEY]
+    penultimate_conv_dropout_rate = option_dict[PENULTIMATE_DROPOUT_RATE_KEY]
+    penultimate_conv_dropout_mc_flag = (
+        option_dict[PENULTIMATE_DROPOUT_MC_FLAG_KEY]
+    )
+    output_layer_dropout_rate = option_dict[OUTPUT_DROPOUT_RATE_KEY]
+    output_layer_dropout_mc_flag = option_dict[OUTPUT_DROPOUT_MC_FLAG_KEY]
     inner_activ_function_name = option_dict[INNER_ACTIV_FUNCTION_KEY]
     inner_activ_function_alpha = option_dict[INNER_ACTIV_FUNCTION_ALPHA_KEY]
     output_activ_function_name = option_dict[OUTPUT_ACTIV_FUNCTION_KEY]
@@ -231,7 +281,6 @@ def create_model(option_dict, loss_function, mask_matrix, metric_names):
     l2_weight = option_dict[L2_WEIGHT_KEY]
     use_batch_normalization = option_dict[USE_BATCH_NORM_KEY]
     use_coord_conv = option_dict[USE_COORD_CONV_KEY]
-    smoothing_radius_px = option_dict[SMOOTHING_RADIUS_KEY]
 
     input_layer_object = keras.layers.Input(
         shape=tuple(input_dimensions.tolist())
@@ -244,7 +293,7 @@ def create_model(option_dict, loss_function, mask_matrix, metric_names):
     pooling_layer_by_level = [None] * num_levels
 
     for i in range(num_levels + 1):
-        for j in range(num_conv_layers_per_level):
+        for j in range(num_conv_layers_by_level[i]):
             if j == 0:
                 if i == 0:
                     this_input_layer_object = input_layer_object
@@ -261,7 +310,7 @@ def create_model(option_dict, loss_function, mask_matrix, metric_names):
             conv_layer_by_level[i] = architecture_utils.get_2d_conv_layer(
                 num_kernel_rows=3, num_kernel_columns=3,
                 num_rows_per_stride=1, num_columns_per_stride=1,
-                num_filters=conv_layer_channel_counts[i],
+                num_filters=num_output_channels_by_level[i],
                 padding_type_string=architecture_utils.YES_PADDING_STRING,
                 weight_regularizer=regularizer_object
             )(this_input_layer_object)
@@ -272,9 +321,9 @@ def create_model(option_dict, loss_function, mask_matrix, metric_names):
                 alpha_for_elu=inner_activ_function_alpha
             )(conv_layer_by_level[i])
 
-            if conv_layer_dropout_rates[i] > 0:
+            if conv_dropout_rates_by_level[i][j] > 0:
                 conv_layer_by_level[i] = architecture_utils.get_dropout_layer(
-                    dropout_fraction=conv_layer_dropout_rates[i]
+                    dropout_fraction=conv_dropout_rates_by_level[i][j]
                 )(conv_layer_by_level[i])
 
             if use_batch_normalization:
@@ -313,14 +362,14 @@ def create_model(option_dict, loss_function, mask_matrix, metric_names):
     upconv_layer_by_level[i] = architecture_utils.get_2d_conv_layer(
         num_kernel_rows=2, num_kernel_columns=2,
         num_rows_per_stride=1, num_columns_per_stride=1,
-        num_filters=conv_layer_channel_counts[i],
+        num_filters=num_output_channels_by_level[i],
         padding_type_string=architecture_utils.YES_PADDING_STRING,
         weight_regularizer=regularizer_object
     )(this_layer_object)
 
-    if upconv_layer_dropout_rates[i] > 0:
+    if upconv_dropout_rate_by_level[i] > 0:
         upconv_layer_by_level[i] = architecture_utils.get_dropout_layer(
-            dropout_fraction=upconv_layer_dropout_rates[i]
+            dropout_fraction=upconv_dropout_rate_by_level[i]
         )(upconv_layer_by_level[i])
 
     num_upconv_rows = upconv_layer_by_level[i].get_shape()[1]
@@ -347,7 +396,7 @@ def create_model(option_dict, loss_function, mask_matrix, metric_names):
     )[::-1]
 
     for i in level_indices:
-        for j in range(num_conv_layers_per_level):
+        for j in range(num_conv_layers_by_level[i]):
             if j == 0:
                 this_input_layer_object = merged_layer_by_level[i]
             else:
@@ -361,7 +410,7 @@ def create_model(option_dict, loss_function, mask_matrix, metric_names):
             skip_layer_by_level[i] = architecture_utils.get_2d_conv_layer(
                 num_kernel_rows=3, num_kernel_columns=3,
                 num_rows_per_stride=1, num_columns_per_stride=1,
-                num_filters=conv_layer_channel_counts[i],
+                num_filters=num_output_channels_by_level[i],
                 padding_type_string=architecture_utils.YES_PADDING_STRING,
                 weight_regularizer=regularizer_object
             )(this_input_layer_object)
@@ -372,10 +421,14 @@ def create_model(option_dict, loss_function, mask_matrix, metric_names):
                 alpha_for_elu=inner_activ_function_alpha
             )(skip_layer_by_level[i])
 
-            if skip_layer_dropout_rates[i] > 0:
+            this_dropout_rate = skip_dropout_rates_by_level[i][j]
+
+            if this_dropout_rate > 0:
+                this_mc_flag = skip_dropout_mc_flags_by_level[i][j]
+
                 skip_layer_by_level[i] = architecture_utils.get_dropout_layer(
-                    dropout_fraction=skip_layer_dropout_rates[i]
-                )(skip_layer_by_level[i])
+                    dropout_fraction=this_dropout_rate
+                )(skip_layer_by_level[i], training=this_mc_flag)
 
             if use_batch_normalization:
                 skip_layer_by_level[i] = (
@@ -384,7 +437,7 @@ def create_model(option_dict, loss_function, mask_matrix, metric_names):
                     )
                 )
 
-        if i == 0:
+        if i == 0 and include_penultimate_conv:
             if use_coord_conv:
                 skip_layer_by_level[i] = coord_conv.add_spatial_coords_2d(
                     skip_layer_by_level[i]
@@ -402,6 +455,14 @@ def create_model(option_dict, loss_function, mask_matrix, metric_names):
                 alpha_for_relu=inner_activ_function_alpha,
                 alpha_for_elu=inner_activ_function_alpha
             )(skip_layer_by_level[i])
+
+            if penultimate_conv_dropout_rate > 0:
+                skip_layer_by_level[i] = architecture_utils.get_dropout_layer(
+                    dropout_fraction=penultimate_conv_dropout_rate
+                )(
+                    skip_layer_by_level[i],
+                    training=penultimate_conv_dropout_mc_flag
+                )
 
             if use_batch_normalization:
                 skip_layer_by_level[i] = (
@@ -429,14 +490,14 @@ def create_model(option_dict, loss_function, mask_matrix, metric_names):
         upconv_layer_by_level[i - 1] = architecture_utils.get_2d_conv_layer(
             num_kernel_rows=2, num_kernel_columns=2,
             num_rows_per_stride=1, num_columns_per_stride=1,
-            num_filters=conv_layer_channel_counts[i - 1],
+            num_filters=num_output_channels_by_level[i - 1],
             padding_type_string=architecture_utils.YES_PADDING_STRING,
             weight_regularizer=regularizer_object
         )(this_layer_object)
 
-        if upconv_layer_dropout_rates[i - 1] > 0:
+        if upconv_dropout_rate_by_level[i - 1] > 0:
             upconv_layer_by_level[i - 1] = architecture_utils.get_dropout_layer(
-                dropout_fraction=upconv_layer_dropout_rates[i - 1]
+                dropout_fraction=upconv_dropout_rate_by_level[i - 1]
             )(upconv_layer_by_level[i - 1])
 
         num_upconv_rows = upconv_layer_by_level[i - 1].get_shape()[1]
@@ -470,23 +531,19 @@ def create_model(option_dict, loss_function, mask_matrix, metric_names):
         weight_regularizer=regularizer_object
     )(skip_layer_by_level[0])
 
-    if smoothing_radius_px is not None:
-        half_window_size_px = int(numpy.ceil(smoothing_radius_px * 2))
-        weight_matrix = upconvnet.create_smoothing_filter(
-            num_channels=1, smoothing_radius_px=smoothing_radius_px,
-            num_half_filter_rows=half_window_size_px,
-            num_half_filter_columns=half_window_size_px
-        )
-
-        skip_layer_by_level[0] = keras.layers.Lambda(
-            _make_smoothing_function(weight_matrix), name='smoothing'
-        )(skip_layer_by_level[0])
-
     skip_layer_by_level[0] = architecture_utils.get_activation_layer(
         activation_function_string=output_activ_function_name,
         alpha_for_relu=output_activ_function_alpha,
         alpha_for_elu=output_activ_function_alpha
     )(skip_layer_by_level[0])
+
+    if output_layer_dropout_rate > 0:
+        skip_layer_by_level[0] = architecture_utils.get_dropout_layer(
+            dropout_fraction=output_layer_dropout_rate
+        )(
+            skip_layer_by_level[0],
+            training=output_layer_dropout_mc_flag
+        )
 
     if mask_matrix is not None:
         this_matrix = numpy.expand_dims(
