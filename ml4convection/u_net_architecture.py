@@ -424,10 +424,7 @@ def create_model(option_dict, loss_function, mask_matrix, metric_names):
             this_dropout_rate = skip_dropout_rates_by_level[i][j]
 
             if this_dropout_rate > 0:
-                this_mc_flag = skip_dropout_mc_flags_by_level[i][j]
-                print('\n\n\nSKIP MC FLAG\n\n\n')
-                print(this_mc_flag)
-                print(type(this_mc_flag))
+                this_mc_flag = bool(skip_dropout_mc_flags_by_level[i][j])
 
                 skip_layer_by_level[i] = architecture_utils.get_dropout_layer(
                     dropout_fraction=this_dropout_rate
@@ -460,10 +457,6 @@ def create_model(option_dict, loss_function, mask_matrix, metric_names):
             )(skip_layer_by_level[i])
 
             if penultimate_conv_dropout_rate > 0:
-                print('\n\n\nPENULTIMATE MC FLAG\n\n\n')
-                print(penultimate_conv_dropout_mc_flag)
-                print(type(penultimate_conv_dropout_mc_flag))
-
                 skip_layer_by_level[i] = architecture_utils.get_dropout_layer(
                     dropout_fraction=penultimate_conv_dropout_rate
                 )(
@@ -545,10 +538,6 @@ def create_model(option_dict, loss_function, mask_matrix, metric_names):
     )(skip_layer_by_level[0])
 
     if output_layer_dropout_rate > 0:
-        print('\n\n\nOUTPUT MC FLAG\n\n\n')
-        print(output_layer_dropout_mc_flag)
-        print(type(output_layer_dropout_mc_flag))
-
         skip_layer_by_level[0] = architecture_utils.get_dropout_layer(
             dropout_fraction=output_layer_dropout_rate
         )(
