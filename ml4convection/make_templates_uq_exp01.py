@@ -111,7 +111,7 @@ def _run():
                 this_model_file_name = (
                     '{0:s}/top-level-skip-dropout={1:.3f}_'
                     'penultimate-layer-dropout={2:.3f}_'
-                    'output-layer-dropout={3:.3f}/model.h5'
+                    'output-layer-dropout={3:.3f}'
                 ).format(
                     OUTPUT_DIR_NAME,
                     TOP_LEVEL_SKIP_DROPOUT_RATES[i],
