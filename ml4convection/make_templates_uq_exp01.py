@@ -85,8 +85,7 @@ def _run():
         use_as_loss_function=True
     )[0][0]
 
-    # for i in range(len(TOP_LEVEL_SKIP_DROPOUT_RATES)):
-    for i in range(1, len(TOP_LEVEL_SKIP_DROPOUT_RATES)):
+    for i in range(len(TOP_LEVEL_SKIP_DROPOUT_RATES)):
         for j in range(len(PENULTIMATE_LAYER_DROPOUT_RATES)):
             for k in range(len(OUTPUT_LAYER_DROPOUT_RATES)):
                 print(SEPARATOR_STRING)
@@ -112,7 +111,7 @@ def _run():
                 this_model_file_name = (
                     '{0:s}/top-level-skip-dropout={1:.3f}_'
                     'penultimate-layer-dropout={2:.3f}_'
-                    'output-layer-dropout={3:.3f}'
+                    'output-layer-dropout={3:.3f}/model.h5'
                 ).format(
                     OUTPUT_DIR_NAME,
                     TOP_LEVEL_SKIP_DROPOUT_RATES[i],

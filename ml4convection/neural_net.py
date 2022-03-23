@@ -2239,7 +2239,7 @@ def read_model(hdf5_file_name, for_mirrored_training=False):
     :return: model_object: Instance of `keras.models.Model`.
     """
 
-    # error_checking.assert_file_exists(hdf5_file_name)
+    error_checking.assert_file_exists(hdf5_file_name)
     error_checking.assert_is_boolean(for_mirrored_training)
 
     metafile_name = find_metafile(
