@@ -12,9 +12,9 @@ NUM_LEVELS_KEY = 'num_levels'
 CONV_LAYER_COUNTS_KEY = 'num_conv_layers_by_level'
 OUTPUT_CHANNEL_COUNTS_KEY = 'num_output_channels_by_level'
 CONV_DROPOUT_RATES_KEY = 'conv_dropout_rates_by_level'
-CONV_DROPOUT_MC_FLAGS_KEY = 'conv_dropout_mc_flags_by_level'
 UPCONV_DROPOUT_RATES_KEY = 'upconv_dropout_rate_by_level'
-SKIP_DROPOUT_RATES_KEY = 'skip_dropout_rate_by_level'
+SKIP_DROPOUT_RATES_KEY = 'skip_dropout_rates_by_level'
+SKIP_DROPOUT_MC_FLAGS_KEY = 'skip_dropout_mc_flags_by_level'
 INCLUDE_PENULTIMATE_KEY = 'include_penultimate_conv'
 PENULTIMATE_DROPOUT_RATE_KEY = 'penultimate_conv_dropout_rate'
 PENULTIMATE_DROPOUT_MC_FLAG_KEY = 'penultimate_conv_dropout_mc_flag'
@@ -36,7 +36,8 @@ DEFAULT_ARCHITECTURE_OPTION_DICT = {
         numpy.array([16, 24, 32, 48, 64, 96, 128, 192], dtype=int),
     CONV_DROPOUT_RATES_KEY: [numpy.full(2, 0.)] * 8,
     UPCONV_DROPOUT_RATES_KEY: numpy.full(7, 0.),
-    SKIP_DROPOUT_RATES_KEY: numpy.full(7, 0.),
+    SKIP_DROPOUT_RATES_KEY: [numpy.full(2, 0.)] * 7,
+    SKIP_DROPOUT_MC_FLAGS_KEY: [numpy.full(2, 0, dtype=bool)] * 7,
     INCLUDE_PENULTIMATE_KEY: True,
     PENULTIMATE_DROPOUT_RATE_KEY: 0.,
     PENULTIMATE_DROPOUT_MC_FLAG_KEY: False,
@@ -71,14 +72,16 @@ def _check_architecture_args(option_dict):
         list item is a 1-D numpy array of dropout rates.  The [k]th list item
         should be an array with length = number of conv layers at the [k]th
         level.  Use values <= 0 to omit dropout.
-    option_dict['conv_dropout_mc_flags_by_level']: Same as above, but each list
+    option_dict['upconv_dropout_rate_by_level']: length-L numpy array of dropout
+        rates for upconv layers.
+    option_dict['skip_dropout_rates_by_level']: length-L list, where each list
+        item is a 1-D numpy array of dropout rates.  The [k]th list item
+        should be an array with length = number of conv layers at the [k]th
+        level.  Use values <= 0 to omit dropout.
+    option_dict['skip_dropout_mc_flags_by_level']: Same as above, but each list
         item is a numpy array of Boolean flags, not dropout rates.  The Boolean
         flags tell the model whether or not to use Monte Carlo dropout, i.e.,
         dropout at inference time.
-    option_dict['upconv_dropout_rate_by_level']: length-L numpy array of dropout
-        rates for upconv layers.
-    option_dict['skip_dropout_rate_by_level']: length-L numpy array of dropout
-        rates for skip connections.
     option_dict['include_penultimate_conv']: Boolean flag.  If True, will put in
         extra conv layer (with 3 x 3 filter) before final pixelwise conv.
     option_dict['penultimate_conv_dropout_rate']: Dropout rate for penultimate
@@ -163,14 +166,6 @@ def _check_architecture_args(option_dict):
             option_dict[CONV_DROPOUT_RATES_KEY][k], 1., allow_nan=True
         )
 
-        error_checking.assert_is_numpy_array(
-            option_dict[CONV_DROPOUT_MC_FLAGS_KEY][k],
-            exact_dimensions=these_dim
-        )
-        error_checking.assert_is_boolean_numpy_array(
-            option_dict[CONV_DROPOUT_MC_FLAGS_KEY][k]
-        )
-
     expected_dim = numpy.array([option_dict[NUM_LEVELS_KEY]], dtype=int)
 
     error_checking.assert_is_numpy_array(
@@ -180,12 +175,33 @@ def _check_architecture_args(option_dict):
         option_dict[UPCONV_DROPOUT_RATES_KEY], 1., allow_nan=True
     )
 
-    error_checking.assert_is_numpy_array(
-        option_dict[SKIP_DROPOUT_RATES_KEY], exact_dimensions=expected_dim
+    assert (
+        len(option_dict[SKIP_DROPOUT_RATES_KEY]) ==
+        option_dict[NUM_LEVELS_KEY]
     )
-    error_checking.assert_is_leq_numpy_array(
-        option_dict[SKIP_DROPOUT_RATES_KEY], 1., allow_nan=True
+    assert (
+        len(option_dict[SKIP_DROPOUT_MC_FLAGS_KEY]) ==
+        option_dict[NUM_LEVELS_KEY]
     )
+
+    for k in range(option_dict[NUM_LEVELS_KEY]):
+        these_dim = numpy.array(
+            [option_dict[CONV_LAYER_COUNTS_KEY][k]], dtype=int
+        )
+        error_checking.assert_is_numpy_array(
+            option_dict[SKIP_DROPOUT_RATES_KEY][k], exact_dimensions=these_dim
+        )
+        error_checking.assert_is_leq_numpy_array(
+            option_dict[SKIP_DROPOUT_RATES_KEY][k], 1., allow_nan=True
+        )
+
+        error_checking.assert_is_numpy_array(
+            option_dict[SKIP_DROPOUT_MC_FLAGS_KEY][k],
+            exact_dimensions=these_dim
+        )
+        error_checking.assert_is_boolean_numpy_array(
+            option_dict[SKIP_DROPOUT_MC_FLAGS_KEY][k]
+        )
 
     error_checking.assert_is_boolean(option_dict[INCLUDE_PENULTIMATE_KEY])
     error_checking.assert_is_leq(
@@ -239,9 +255,9 @@ def create_model(option_dict, loss_function, mask_matrix, metric_names):
     num_conv_layers_by_level = option_dict[CONV_LAYER_COUNTS_KEY]
     num_output_channels_by_level = option_dict[OUTPUT_CHANNEL_COUNTS_KEY]
     conv_dropout_rates_by_level = option_dict[CONV_DROPOUT_RATES_KEY]
-    conv_dropout_mc_flags_by_level = option_dict[CONV_DROPOUT_MC_FLAGS_KEY]
     upconv_dropout_rate_by_level = option_dict[UPCONV_DROPOUT_RATES_KEY]
-    skip_dropout_rate_by_level = option_dict[SKIP_DROPOUT_RATES_KEY]
+    skip_dropout_rates_by_level = option_dict[SKIP_DROPOUT_RATES_KEY]
+    skip_dropout_mc_flags_by_level = option_dict[SKIP_DROPOUT_MC_FLAGS_KEY]
     include_penultimate_conv = option_dict[INCLUDE_PENULTIMATE_KEY]
     penultimate_conv_dropout_rate = option_dict[PENULTIMATE_DROPOUT_RATE_KEY]
     penultimate_conv_dropout_mc_flag = (
@@ -297,14 +313,10 @@ def create_model(option_dict, loss_function, mask_matrix, metric_names):
                 alpha_for_elu=inner_activ_function_alpha
             )(conv_layer_by_level[i])
 
-            this_dropout_rate = conv_dropout_rates_by_level[i][j]
-
-            if this_dropout_rate > 0:
-                this_mc_flag = conv_dropout_mc_flags_by_level[i][j]
-
+            if conv_dropout_rates_by_level[i][j] > 0:
                 conv_layer_by_level[i] = architecture_utils.get_dropout_layer(
-                    dropout_fraction=this_dropout_rate
-                )(conv_layer_by_level[i], training=this_mc_flag)
+                    dropout_fraction=conv_dropout_rates_by_level[i][j]
+                )(conv_layer_by_level[i])
 
             if use_batch_normalization:
                 conv_layer_by_level[i] = (
@@ -401,10 +413,14 @@ def create_model(option_dict, loss_function, mask_matrix, metric_names):
                 alpha_for_elu=inner_activ_function_alpha
             )(skip_layer_by_level[i])
 
-            if skip_dropout_rate_by_level[i] > 0:
+            this_dropout_rate = skip_dropout_rates_by_level[i][j]
+
+            if this_dropout_rate > 0:
+                this_mc_flag = skip_dropout_mc_flags_by_level[i][j]
+
                 skip_layer_by_level[i] = architecture_utils.get_dropout_layer(
-                    dropout_fraction=skip_dropout_rate_by_level[i]
-                )(skip_layer_by_level[i])
+                    dropout_fraction=this_dropout_rate
+                )(skip_layer_by_level[i], training=this_mc_flag)
 
             if use_batch_normalization:
                 skip_layer_by_level[i] = (
