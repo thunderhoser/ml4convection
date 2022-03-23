@@ -425,6 +425,8 @@ def create_model(option_dict, loss_function, mask_matrix, metric_names):
 
             if this_dropout_rate > 0:
                 this_mc_flag = skip_dropout_mc_flags_by_level[i][j]
+                print('\n\n\nMC FLAG\n\n\n')
+                print(this_mc_flag)
 
                 skip_layer_by_level[i] = architecture_utils.get_dropout_layer(
                     dropout_fraction=this_dropout_rate

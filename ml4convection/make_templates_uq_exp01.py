@@ -85,7 +85,8 @@ def _run():
         use_as_loss_function=True
     )[0][0]
 
-    for i in range(len(TOP_LEVEL_SKIP_DROPOUT_RATES)):
+    # for i in range(len(TOP_LEVEL_SKIP_DROPOUT_RATES)):
+    for i in range(1, len(TOP_LEVEL_SKIP_DROPOUT_RATES)):
         for j in range(len(PENULTIMATE_LAYER_DROPOUT_RATES)):
             for k in range(len(OUTPUT_LAYER_DROPOUT_RATES)):
                 print(SEPARATOR_STRING)
