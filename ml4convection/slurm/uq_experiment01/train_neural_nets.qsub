@@ -45,8 +45,8 @@ set top_level_skip_dropout_rate=`printf "%.3f" $top_level_skip_dropout_rate`
 set penultimate_layer_dropout_rate=`printf "%.3f" $penultimate_layer_dropout_rate`
 set output_layer_dropout_rate=`printf "%.3f" $output_layer_dropout_rate`
 
-set template_file_name="${TOP_TEMPLATE_DIR_NAME}/top-level-skip-dropout=${top_level_skip_dropout_rate}_penultimate-layer-dropout=${penultimate_layer_dropout_rate}_output_layer_dropout_rate=${output_layer_dropout_rate}/model.h5"
-set output_dir_name="${TOP_OUTPUT_DIR_NAME}/top-level-skip-dropout=${top_level_skip_dropout_rate}_penultimate-layer-dropout=${penultimate_layer_dropout_rate}_output_layer_dropout_rate=${output_layer_dropout_rate}"
+set template_file_name="${TOP_TEMPLATE_DIR_NAME}/top-level-skip-dropout=${top_level_skip_dropout_rate}_penultimate-layer-dropout=${penultimate_layer_dropout_rate}_output-layer-dropout=${output_layer_dropout_rate}/model.h5"
+set output_dir_name="${TOP_OUTPUT_DIR_NAME}/top-level-skip-dropout=${top_level_skip_dropout_rate}_penultimate-layer-dropout=${penultimate_layer_dropout_rate}_output-layer-dropout=${output_layer_dropout_rate}"
 echo $output_dir_name
 
 python3 -u "${CODE_DIR_NAME}/train_neural_net.py" \
