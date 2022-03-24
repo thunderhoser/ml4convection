@@ -32,11 +32,7 @@ PARTIAL_MASK_FILE_NAME = (
 ).format(HOME_DIR_NAME)
 
 LOSS_FUNCTION_NAME = 'fss_neigh0'
-METRIC_NAMES = [
-    'fss_neigh0', 'fss_neigh1', 'fss_neigh2', 'fss_neigh3',
-    'csi_neigh0', 'csi_neigh1', 'csi_neigh2', 'csi_neigh3',
-    'bias_neigh0', 'bias_neigh1', 'bias_neigh2', 'bias_neigh3'
-]
+METRIC_NAMES = ['fss_neigh0']
 
 TOP_LEVEL_SKIP_DROPOUT_RATES = numpy.linspace(0, 0.5, num=5)
 PENULTIMATE_LAYER_DROPOUT_RATES = numpy.linspace(0, 0.5, num=5)
