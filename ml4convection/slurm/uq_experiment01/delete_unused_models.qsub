@@ -9,7 +9,7 @@
 #SBATCH --cpus-per-task=2
 #SBATCH --ntasks-per-node=8  # 8 GPUs per node
 #SBATCH --exclusive
-#SBATCH --time=30:00:00
+#SBATCH --time=12:00:00
 #SBATCH --array=1-125
 #SBATCH --exclude=h28n12
 ##SBATCH --exclude=h31n03,h28n12
