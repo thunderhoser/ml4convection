@@ -623,7 +623,7 @@ def _read_inputs_one_day(
         ))
 
     data_dict = {
-        PREDICTOR_MATRIX_KEY: predictor_matrix.astype('float64'),
+        PREDICTOR_MATRIX_KEY: predictor_matrix.astype('float16'),
         TARGET_MATRIX_KEY: numpy.expand_dims(target_matrix, axis=-1),
         VALID_TIMES_KEY: valid_times_unix_sec,
         LATITUDES_KEY: None,
@@ -1851,8 +1851,8 @@ def generator_full_grid(option_dict):
 
             num_examples_in_memory = predictor_matrix.shape[0]
 
-        predictor_matrix = predictor_matrix.astype('float64')
-        target_matrix = target_matrix.astype('float64')
+        predictor_matrix = predictor_matrix.astype('float16')
+        target_matrix = target_matrix.astype('float16')
         yield predictor_matrix, target_matrix
 
 
@@ -2045,8 +2045,8 @@ def generator_partial_grids(option_dict):
 
             num_examples_in_memory = predictor_matrix.shape[0]
 
-        predictor_matrix = predictor_matrix.astype('float64')
-        target_matrix = target_matrix.astype('float64')
+        predictor_matrix = predictor_matrix.astype('float16')
+        target_matrix = target_matrix.astype('float16')
         yield predictor_matrix, target_matrix
 
 
@@ -2471,9 +2471,9 @@ def apply_model_full_grid(
                 this_first_index + 1, this_last_index + 1, num_examples
             ))
 
-        this_prob_matrix = model_object.predict(
-            predictor_matrix[these_indices, ...], batch_size=len(these_indices)
-        )
+        this_prob_matrix = model_object(
+            predictor_matrix[these_indices, ...], training=True
+        ).numpy()
 
         if forecast_prob_matrix is None:
             dimensions = (num_examples,) + this_prob_matrix.shape[1:3]
@@ -2594,9 +2594,9 @@ def apply_model_partial_grids(
                 :
             ]
 
-            this_prob_matrix = model_object.predict(
-                this_predictor_matrix, batch_size=this_predictor_matrix.shape[0]
-            )[..., 0]
+            this_prob_matrix = model_object(
+                this_predictor_matrix, training=True
+            ).numpy()
 
             this_prob_matrix = numpy.maximum(this_prob_matrix, 0.)
             this_prob_matrix = numpy.minimum(this_prob_matrix, 1.)
