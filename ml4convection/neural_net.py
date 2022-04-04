@@ -2452,7 +2452,16 @@ def apply_model_full_grid(
 
     for layer_object in model_object.layers:
         if 'Batch' in layer_object.name or 'batch' in layer_object.name:
+            print('Layer "{0:s}" set to NON-TRAINABLE!'.format(
+                layer_object.name
+            ))
             layer_object.trainable = False
+
+        if 'Dropout' in layer_object.name or 'dropout' in layer_object.name:
+            print('Layer "{0:s}" set to TRAINABLE!'.format(
+                layer_object.name
+            ))
+            layer_object.trainable = True
 
     forecast_prob_matrix = None
     num_examples = predictor_matrix.shape[0]
@@ -2515,7 +2524,16 @@ def apply_model_partial_grids(
 
     for layer_object in model_object.layers:
         if 'Batch' in layer_object.name or 'batch' in layer_object.name:
+            print('Layer "{0:s}" set to NON-TRAINABLE!'.format(
+                layer_object.name
+            ))
             layer_object.trainable = False
+
+        if 'Dropout' in layer_object.name or 'dropout' in layer_object.name:
+            print('Layer "{0:s}" set to TRAINABLE!'.format(
+                layer_object.name
+            ))
+            layer_object.trainable = True
 
     these_dim = model_object.layers[-1].output.get_shape().as_list()
     num_partial_grid_rows = these_dim[1]
