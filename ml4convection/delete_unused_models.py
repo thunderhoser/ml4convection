@@ -44,7 +44,7 @@ def _run(model_dir_name):
             continue
 
         print('Deleting file: "{0:s}"...'.format(model_file_names[i]))
-        # os.remove(model_file_names[i])
+        os.remove(model_file_names[i])
 
     best_model_file_name = '{0:s}/model.h5'.format(model_dir_name)
 
