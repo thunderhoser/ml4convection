@@ -2450,6 +2450,10 @@ def apply_model_full_grid(
         num_examples_per_batch=num_examples_per_batch, verbose=verbose
     )
 
+    for layer_object in model_object.layers:
+        if 'Batch' in layer_object.name or 'batch' in layer_object.name:
+            layer_object.trainable = False
+
     forecast_prob_matrix = None
     num_examples = predictor_matrix.shape[0]
 
@@ -2508,6 +2512,10 @@ def apply_model_partial_grids(
         predictor_matrix=predictor_matrix,
         num_examples_per_batch=num_examples_per_batch, verbose=verbose
     )
+
+    for layer_object in model_object.layers:
+        if 'Batch' in layer_object.name or 'batch' in layer_object.name:
+            layer_object.trainable = False
 
     these_dim = model_object.layers[-1].output.get_shape().as_list()
     num_partial_grid_rows = these_dim[1]
