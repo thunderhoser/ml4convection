@@ -276,7 +276,7 @@ def write_file(
     dataset_object.variables[TARGET_MATRIX_KEY][:] = target_matrix
 
     dataset_object.createVariable(
-        PROBABILITY_MATRIX_KEY, datatype=numpy.float32, dimensions=these_dim
+        PROBABILITY_MATRIX_KEY, datatype=numpy.float64, dimensions=these_dim
     )
     dataset_object.variables[PROBABILITY_MATRIX_KEY][:] = (
         forecast_probability_matrix
