@@ -623,7 +623,7 @@ def _read_inputs_one_day(
         ))
 
     data_dict = {
-        PREDICTOR_MATRIX_KEY: predictor_matrix.astype('float16'),
+        PREDICTOR_MATRIX_KEY: predictor_matrix.astype('float64'),
         TARGET_MATRIX_KEY: numpy.expand_dims(target_matrix, axis=-1),
         VALID_TIMES_KEY: valid_times_unix_sec,
         LATITUDES_KEY: None,
@@ -1851,8 +1851,8 @@ def generator_full_grid(option_dict):
 
             num_examples_in_memory = predictor_matrix.shape[0]
 
-        predictor_matrix = predictor_matrix.astype('float16')
-        target_matrix = target_matrix.astype('float16')
+        predictor_matrix = predictor_matrix.astype('float64')
+        target_matrix = target_matrix.astype('float64')
         yield predictor_matrix, target_matrix
 
 
@@ -2045,8 +2045,8 @@ def generator_partial_grids(option_dict):
 
             num_examples_in_memory = predictor_matrix.shape[0]
 
-        predictor_matrix = predictor_matrix.astype('float16')
-        target_matrix = target_matrix.astype('float16')
+        predictor_matrix = predictor_matrix.astype('float64')
+        target_matrix = target_matrix.astype('float64')
         yield predictor_matrix, target_matrix
 
 
