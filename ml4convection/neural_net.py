@@ -2484,6 +2484,8 @@ def apply_model_full_grid(
     if verbose:
         print('Have applied model to all {0:d} examples!'.format(num_examples))
 
+    forecast_prob_matrix = numpy.maximum(forecast_prob_matrix, 0.)
+    forecast_prob_matrix = numpy.minimum(forecast_prob_matrix, 1.)
     return forecast_prob_matrix
 
 
@@ -2595,6 +2597,9 @@ def apply_model_partial_grids(
             this_prob_matrix = model_object.predict(
                 this_predictor_matrix, batch_size=this_predictor_matrix.shape[0]
             )[..., 0]
+
+            this_prob_matrix = numpy.maximum(this_prob_matrix, 0.)
+            this_prob_matrix = numpy.minimum(this_prob_matrix, 1.)
 
             if verbose:
                 print((
