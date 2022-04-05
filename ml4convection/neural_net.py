@@ -2457,11 +2457,11 @@ def apply_model_full_grid(
             ))
             layer_object.trainable = False
 
-        if 'dropout' in layer_object.name.lower():
-            print('Layer "{0:s}" set to TRAINABLE!'.format(
-                layer_object.name
-            ))
-            layer_object.trainable = True
+        # if 'dropout' in layer_object.name.lower():
+        #     print('Layer "{0:s}" set to TRAINABLE!'.format(
+        #         layer_object.name
+        #     ))
+        #     layer_object.trainable = True
 
     config_dict = model_object.get_config()
     for layer_dict in config_dict['layers']:
@@ -2489,6 +2489,7 @@ def apply_model_full_grid(
                 this_first_index + 1, this_last_index + 1, num_examples
             ))
 
+        # TODO(thunderhoser): Make this an input arg.
         this_prob_matrix = model_object(
             predictor_matrix[these_indices, ...], training=True
         ).numpy()
@@ -2534,11 +2535,11 @@ def apply_model_partial_grids(
             ))
             layer_object.trainable = False
 
-        if 'dropout' in layer_object.name.lower():
-            print('Layer "{0:s}" set to TRAINABLE!'.format(
-                layer_object.name
-            ))
-            layer_object.trainable = True
+        # if 'dropout' in layer_object.name.lower():
+        #     print('Layer "{0:s}" set to TRAINABLE!'.format(
+        #         layer_object.name
+        #     ))
+        #     layer_object.trainable = True
 
     config_dict = model_object.get_config()
     for layer_dict in config_dict['layers']:
@@ -2630,6 +2631,7 @@ def apply_model_partial_grids(
                 :
             ]
 
+            # TODO(thunderhoser): Make this an input arg.
             this_prob_matrix = model_object(
                 this_predictor_matrix, training=True
             ).numpy()
