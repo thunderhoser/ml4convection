@@ -1157,6 +1157,22 @@ def read_predictor_file(netcdf_file_name, read_unnormalized, read_normalized,
                     read_unif_normalized=read_unif_normalized
                 )
 
+    if netcdf_file_name.endswith(TAR_FILE_EXTENSION):
+        tar_handle = tarfile.open(netcdf_file_name)
+
+        for member_handle in tar_handle.getmembers():
+            file_handle = tar_handle.extractfile(member_handle)
+
+            with netCDF4.Dataset(
+                    'dummy', mode='r', memory=file_handle.read()
+            ) as dataset_object:
+                return _read_predictors(
+                    dataset_object=dataset_object,
+                    read_unnormalized=read_unnormalized,
+                    read_normalized=read_normalized,
+                    read_unif_normalized=read_unif_normalized
+                )
+
     dataset_object = netCDF4.Dataset(netcdf_file_name)
 
     predictor_dict = _read_predictors(
@@ -1295,6 +1311,17 @@ def read_target_file(netcdf_file_name):
         with gzip.open(netcdf_file_name) as gzip_handle:
             with netCDF4.Dataset(
                     'dummy', mode='r', memory=gzip_handle.read()
+            ) as dataset_object:
+                return _read_targets(dataset_object)
+
+    if netcdf_file_name.endswith(TAR_FILE_EXTENSION):
+        tar_handle = tarfile.open(netcdf_file_name)
+
+        for member_handle in tar_handle.getmembers():
+            file_handle = tar_handle.extractfile(member_handle)
+
+            with netCDF4.Dataset(
+                    'dummy', mode='r', memory=file_handle.read()
             ) as dataset_object:
                 return _read_targets(dataset_object)
 
