@@ -416,7 +416,7 @@ def create_model(option_dict, loss_function, mask_matrix, metric_names):
             this_dropout_rate = skip_dropout_rates_by_level[i][j]
 
             if this_dropout_rate > 0:
-                this_mc_flag = skip_dropout_mc_flags_by_level[i][j]
+                this_mc_flag = bool(skip_dropout_mc_flags_by_level[i][j])
 
                 skip_layer_by_level[i] = architecture_utils.get_dropout_layer(
                     dropout_fraction=this_dropout_rate
@@ -523,12 +523,6 @@ def create_model(option_dict, loss_function, mask_matrix, metric_names):
         weight_regularizer=regularizer_object
     )(skip_layer_by_level[0])
 
-    skip_layer_by_level[0] = architecture_utils.get_activation_layer(
-        activation_function_string=output_activ_function_name,
-        alpha_for_relu=output_activ_function_alpha,
-        alpha_for_elu=output_activ_function_alpha
-    )(skip_layer_by_level[0])
-
     if output_layer_dropout_rate > 0:
         skip_layer_by_level[0] = architecture_utils.get_dropout_layer(
             dropout_fraction=output_layer_dropout_rate
@@ -536,6 +530,12 @@ def create_model(option_dict, loss_function, mask_matrix, metric_names):
             skip_layer_by_level[0],
             training=output_layer_dropout_mc_flag
         )
+
+    skip_layer_by_level[0] = architecture_utils.get_activation_layer(
+        activation_function_string=output_activ_function_name,
+        alpha_for_relu=output_activ_function_alpha,
+        alpha_for_elu=output_activ_function_alpha
+    )(skip_layer_by_level[0])
 
     if mask_matrix is not None:
         this_matrix = numpy.expand_dims(

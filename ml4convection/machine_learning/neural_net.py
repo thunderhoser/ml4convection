@@ -2050,7 +2050,7 @@ def train_model(
         mask_matrix, full_mask_matrix, loss_function_name, metric_names,
         do_early_stopping=True,
         plateau_lr_multiplier=DEFAULT_LEARNING_RATE_MULTIPLIER,
-        save_every_epoch=True):
+        save_every_epoch=False):
     """Trains neural net on either full grid or partial grids.
 
     M = number of rows in full grid
@@ -2443,6 +2443,24 @@ def apply_model_full_grid(
         num_examples_per_batch=num_examples_per_batch, verbose=verbose
     )
 
+    for layer_object in model_object.layers:
+        if 'batch' in layer_object.name.lower():
+            print('Layer "{0:s}" set to NON-TRAINABLE!'.format(
+                layer_object.name
+            ))
+            layer_object.trainable = False
+
+        # if 'dropout' in layer_object.name.lower():
+        #     print('Layer "{0:s}" set to TRAINABLE!'.format(
+        #         layer_object.name
+        #     ))
+        #     layer_object.trainable = True
+
+    config_dict = model_object.get_config()
+    for layer_dict in config_dict['layers']:
+        if 'dropout' in layer_dict['class_name'].lower():
+            print(layer_dict)
+
     forecast_prob_matrix = None
     num_examples = predictor_matrix.shape[0]
 
@@ -2464,9 +2482,10 @@ def apply_model_full_grid(
                 this_first_index + 1, this_last_index + 1, num_examples
             ))
 
-        this_prob_matrix = model_object.predict(
-            predictor_matrix[these_indices, ...], batch_size=len(these_indices)
-        )
+        # TODO(thunderhoser): Make this an input arg.
+        this_prob_matrix = model_object(
+            predictor_matrix[these_indices, ...], training=True
+        ).numpy()
 
         if forecast_prob_matrix is None:
             dimensions = (num_examples,) + this_prob_matrix.shape[1:3]
@@ -2477,6 +2496,8 @@ def apply_model_full_grid(
     if verbose:
         print('Have applied model to all {0:d} examples!'.format(num_examples))
 
+    forecast_prob_matrix = numpy.maximum(forecast_prob_matrix, 0.)
+    forecast_prob_matrix = numpy.minimum(forecast_prob_matrix, 1.)
     return forecast_prob_matrix
 
 
@@ -2499,6 +2520,24 @@ def apply_model_partial_grids(
         predictor_matrix=predictor_matrix,
         num_examples_per_batch=num_examples_per_batch, verbose=verbose
     )
+
+    for layer_object in model_object.layers:
+        if 'batch' in layer_object.name.lower():
+            print('Layer "{0:s}" set to NON-TRAINABLE!'.format(
+                layer_object.name
+            ))
+            layer_object.trainable = False
+
+        # if 'dropout' in layer_object.name.lower():
+        #     print('Layer "{0:s}" set to TRAINABLE!'.format(
+        #         layer_object.name
+        #     ))
+        #     layer_object.trainable = True
+
+    config_dict = model_object.get_config()
+    for layer_dict in config_dict['layers']:
+        if 'dropout' in layer_dict['class_name'].lower():
+            print(layer_dict)
 
     these_dim = model_object.layers[-1].output.get_shape().as_list()
     num_partial_grid_rows = these_dim[1]
@@ -2585,9 +2624,13 @@ def apply_model_partial_grids(
                 :
             ]
 
-            this_prob_matrix = model_object.predict(
-                this_predictor_matrix, batch_size=this_predictor_matrix.shape[0]
-            )[..., 0]
+            # TODO(thunderhoser): Make this an input arg.
+            this_prob_matrix = model_object(
+                this_predictor_matrix, training=True
+            ).numpy()
+
+            this_prob_matrix = numpy.maximum(this_prob_matrix, 0.)
+            this_prob_matrix = numpy.minimum(this_prob_matrix, 1.)
 
             if verbose:
                 print((
