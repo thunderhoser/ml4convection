@@ -2057,7 +2057,7 @@ def train_model(
         mask_matrix, full_mask_matrix, loss_function_name, metric_names,
         do_early_stopping=True,
         plateau_lr_multiplier=DEFAULT_LEARNING_RATE_MULTIPLIER,
-        save_every_epoch=True):
+        save_every_epoch=False):
     """Trains neural net on either full grid or partial grids.
 
     M = number of rows in full grid

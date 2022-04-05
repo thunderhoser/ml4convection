@@ -126,7 +126,7 @@ def _run(training_predictor_dir_name, training_target_dir_name,
         full_mask_matrix=metadata_dict[neural_net.FULL_MASK_MATRIX_KEY],
         do_early_stopping=True, plateau_lr_multiplier=plateau_lr_multiplier,
         loss_function_name=metadata_dict[neural_net.LOSS_FUNCTION_KEY],
-        metric_names=metadata_dict[neural_net.METRIC_NAMES_KEY],
+        metric_names=metadata_dict[neural_net.METRIC_NAMES_KEY]
     )
 
 
