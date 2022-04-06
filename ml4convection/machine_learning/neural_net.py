@@ -5,10 +5,10 @@ import time
 import os.path
 import dill
 import numpy
-numpy.random.seed(6695)
+# numpy.random.seed(6695)
 import keras
 import tensorflow
-tensorflow.random.set_seed(6695)
+# tensorflow.random.set_seed(6695)
 import tensorflow.keras as tf_keras
 from tensorflow.keras import backend as K
 from tensorflow.python.keras import backend as python_K
@@ -793,15 +793,17 @@ def _get_predict_func_with_dropout(model_object):
     :return: predict_function: Function object.
     """
 
-    this_seed = int(numpy.round(
-        4e8 * numpy.mod(time.time(), 1)
-    ))
-    numpy.random.seed(this_seed)
+    # TODO(thunderhoser): Still need to investigate what happens with batch norm
 
-    this_seed = int(numpy.round(
-        4e8 * numpy.mod(time.time(), 1)
-    ))
-    tensorflow.random.set_seed(this_seed)
+    # this_seed = int(numpy.round(
+    #     4e8 * numpy.mod(time.time(), 1)
+    # ))
+    # numpy.random.seed(this_seed)
+    #
+    # this_seed = int(numpy.round(
+    #     4e8 * numpy.mod(time.time(), 1)
+    # ))
+    # tensorflow.random.set_seed(this_seed)
 
     for layer_object in model_object.layers:
         if 'batch' in layer_object.name.lower():
@@ -2509,10 +2511,10 @@ def apply_model_full_grid(
     )
 
     error_checking.assert_is_boolean(use_dropout)
-    if use_dropout:
-        predict_function = _get_predict_func_with_dropout(model_object)
-    else:
-        predict_function = None
+    # if use_dropout:
+    #     predict_function = _get_predict_func_with_dropout(model_object)
+    # else:
+    #     predict_function = None
 
     forecast_prob_matrix = None
     num_examples = predictor_matrix.shape[0]
@@ -2536,13 +2538,13 @@ def apply_model_full_grid(
             ))
 
         if use_dropout:
-            this_prob_matrix = predict_function(
-                [predictor_matrix[these_indices, ...], True]
-            )[0]
+            # this_prob_matrix = predict_function(
+            #     [predictor_matrix[these_indices, ...], True]
+            # )[0]
 
-            # this_prob_matrix = model_object(
-            #     predictor_matrix[these_indices, ...], training=True
-            # ).numpy()
+            this_prob_matrix = model_object(
+                predictor_matrix[these_indices, ...], training=True
+            ).numpy()
         else:
             this_prob_matrix = model_object.predict_on_batch(
                 predictor_matrix[these_indices, ...]
@@ -2584,10 +2586,10 @@ def apply_model_partial_grids(
     )
 
     error_checking.assert_is_boolean(use_dropout)
-    if use_dropout:
-        predict_function = _get_predict_func_with_dropout(model_object)
-    else:
-        predict_function = None
+    # if use_dropout:
+    #     predict_function = _get_predict_func_with_dropout(model_object)
+    # else:
+    #     predict_function = None
 
     these_dim = model_object.layers[-1].output.get_shape().as_list()
     num_partial_grid_rows = these_dim[1]
@@ -2675,13 +2677,13 @@ def apply_model_partial_grids(
             ]
 
             if use_dropout:
-                this_prob_matrix = predict_function(
-                    [this_predictor_matrix, True]
-                )[0]
+                # this_prob_matrix = predict_function(
+                #     [this_predictor_matrix, True]
+                # )[0]
 
-                # this_prob_matrix = model_object(
-                #     this_predictor_matrix, training=True
-                # ).numpy()
+                this_prob_matrix = model_object(
+                    this_predictor_matrix, training=True
+                ).numpy()
             else:
                 this_prob_matrix = model_object.predict_on_batch(
                     this_predictor_matrix

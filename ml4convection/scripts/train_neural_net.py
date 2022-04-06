@@ -2,9 +2,9 @@
 
 import argparse
 import numpy
-numpy.random.seed(6695)
+# numpy.random.seed(6695)
 import tensorflow
-tensorflow.random.set_seed(6695)
+# tensorflow.random.set_seed(6695)
 from ml4convection.machine_learning import neural_net
 from ml4convection.scripts import training_args
 
