@@ -2470,7 +2470,7 @@ def apply_model_full_grid(
             if 'dropout' in layer_dict['inbound_nodes'][0][0][0].lower():
                 layer_dict['inbound_nodes'][0][0][-1]['training'] = True
         except:
-            print(layer_dict['inbound_nodes'])
+            print(layer_dict)
             print('\n\n\n*************\n\n\n')
 
     for layer_dict in config_dict['layers']:
