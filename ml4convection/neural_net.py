@@ -2532,11 +2532,11 @@ def apply_model_full_grid(
             if 'batch' in layer_dict['class_name'].lower():
                 these_weights = K.eval(
                     model_object.get_layer(
-                        name=layer_dict['class_name']
+                        name=layer_dict['config']['name']
                     ).weights[0]
                 )
 
-                print(layer_dict['class_name'])
+                print(layer_dict['config']['name'])
                 print(these_weights)
                 break
 
@@ -2595,11 +2595,11 @@ def apply_model_full_grid(
             if 'batch' in layer_dict['class_name'].lower():
                 these_weights = K.eval(
                     model_object.get_layer(
-                        name=layer_dict['class_name']
+                        name=layer_dict['config']['name']
                     ).weights[0]
                 )
 
-                print(layer_dict['class_name'])
+                print(layer_dict['config']['name'])
                 print(these_weights)
                 break
 
