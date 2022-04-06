@@ -6,10 +6,10 @@ import copy
 import time
 import pickle
 import numpy
-numpy.random.seed(6695)
+# numpy.random.seed(6695)
 import keras
 import tensorflow
-tensorflow.random.set_seed(6695)
+# tensorflow.random.set_seed(6695)
 import tensorflow.keras as tf_keras
 from tensorflow.keras import backend as K
 from tensorflow.python.keras import backend as python_K
@@ -803,12 +803,12 @@ def _get_predict_func_with_dropout(model_object):
     this_seed = int(numpy.round(
         4e8 * numpy.mod(time.time(), 1)
     ))
-    numpy.random.seed(this_seed)
+    # numpy.random.seed(this_seed)
 
     this_seed = int(numpy.round(
         4e8 * numpy.mod(time.time(), 1)
     ))
-    tensorflow.random.set_seed(this_seed)
+    # tensorflow.random.set_seed(this_seed)
 
     for layer_object in model_object.layers:
         if 'batch' in layer_object.name.lower():
