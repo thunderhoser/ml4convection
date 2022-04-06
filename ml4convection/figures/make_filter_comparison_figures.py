@@ -28,9 +28,14 @@ from wavetf import WaveTFFactory
 TIME_FORMAT = '%Y-%m-%d-%H%M'
 DATE_FORMAT = prediction_io.DATE_FORMAT
 
-MIN_RESOLUTIONS_DEG = numpy.array([0, 0.1, 0.0125, 0.2, 0.025, 0.4, 0.05, 0.8])
+# MIN_RESOLUTIONS_DEG = numpy.array([0, 0.0125, 0.025,  0.05, 0.1, 0.2, 0.4, 0.8])
+# MAX_RESOLUTIONS_DEG = numpy.array([
+#     0.0125, 0.025,  0.05, 0.1, 0.2, 0.4, 0.8, numpy.inf
+# ])
+
+MIN_RESOLUTIONS_DEG = numpy.array([0, 0, 0, 0, 0.05, 0.1, 0.2, 0.4])
 MAX_RESOLUTIONS_DEG = numpy.array([
-    0.0125, 0.2, 0.025, 0.4, 0.05, 0.8, 0.1, numpy.inf
+    0.05, 0.1, 0.2, 0.4, numpy.inf, numpy.inf, numpy.inf, numpy.inf
 ])
 HALF_WINDOW_SIZES_PX = numpy.array([2, 2, 4, 4, 6, 6, 8, 8], dtype=int)
 MAX_FILTER_FLAGS = numpy.array([1, 0, 1, 0, 1, 0, 1, 0], dtype=int)
@@ -50,7 +55,7 @@ LARGE_BORDER_WIDTH_PX = 225
 SMALL_BORDER_WIDTH_PX = 10
 CONCAT_FIGURE_SIZE_PX = int(1e7)
 
-DEFAULT_FONT_SIZE = 55
+DEFAULT_FONT_SIZE = 69
 pyplot.rc('font', size=DEFAULT_FONT_SIZE)
 pyplot.rc('axes', titlesize=DEFAULT_FONT_SIZE)
 pyplot.rc('axes', labelsize=DEFAULT_FONT_SIZE)
@@ -217,7 +222,7 @@ def _run(top_prediction_dir_name, valid_time_string, output_dir_name):
 
     border_latitudes_deg_n, border_longitudes_deg_e = border_io.read_file()
 
-    # Plot original predictions.
+    # Copy original predictions.
     good_row_indices = numpy.where(numpy.logical_and(
         prediction_dict[prediction_io.LATITUDES_KEY] >= MIN_LATITUDE_DEG_N,
         prediction_dict[prediction_io.LATITUDES_KEY] <= MAX_LATITUDE_DEG_N
@@ -235,19 +240,25 @@ def _run(top_prediction_dir_name, valid_time_string, output_dir_name):
     )
 
     orig_prediction_dict = copy.deepcopy(prediction_dict)
+    orig_target_matrix = (
+        orig_prediction_dict[prediction_io.TARGET_MATRIX_KEY][
+            :, good_row_indices, :
+        ]
+    )
+    orig_target_matrix = orig_target_matrix[..., good_column_indices]
 
     mask_matrix = numpy.full(
         (len(good_row_indices), len(good_column_indices)), 1, dtype=bool
     )
     prob_colour_map_object, prob_colour_norm_object = (
-        prediction_plotting.get_prob_colour_scheme_hail(
+        prediction_plotting.get_prob_colour_scheme(
             max_probability=1., make_lowest_prob_grey=True
         )
     )
 
     num_bands = len(MIN_RESOLUTIONS_DEG)
     panel_file_names = [''] * num_bands
-    letter_labels = ['a', 'e', 'b', 'f', 'c', 'g', 'd', 'h']
+    letter_labels = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h']
 
     for j in range(num_bands):
         target_matrix = (
@@ -303,16 +314,14 @@ def _run(top_prediction_dir_name, valid_time_string, output_dir_name):
         target_matrix = target_matrix[:, good_row_indices, :]
         target_matrix = target_matrix[..., good_column_indices]
         prediction_dict[prediction_io.PROBABILITY_MATRIX_KEY] = target_matrix
-        prediction_dict[prediction_io.TARGET_MATRIX_KEY] = numpy.full(
-            target_matrix.shape, 0, dtype=int
-        )
+        prediction_dict[prediction_io.TARGET_MATRIX_KEY] = orig_target_matrix
 
-        title_string = 'F{0:.3f}-{1:.3f}'.format(
+        title_string = '  Fourier {0:.2g}-{1:.2g}'.format(
             2 * MIN_RESOLUTIONS_DEG[j], 2 * MAX_RESOLUTIONS_DEG[j]
         )
         title_string = title_string.replace('inf', r'$\infty$')
         title_string += r'$^{\circ}$'
-        title_string += ' (sum = {0:.1f})'.format(numpy.sum(target_matrix))
+        title_string += '\n  (sum = {0:.1f})'.format(numpy.sum(target_matrix))
 
         orig_file_name = plot_predictions._plot_predictions_one_example(
             prediction_dict=prediction_dict, example_index=0,
@@ -324,7 +333,7 @@ def _run(top_prediction_dir_name, valid_time_string, output_dir_name):
             colour_norm_object=prob_colour_norm_object,
             output_dir_name=output_dir_name,
             title_string=title_string, font_size=DEFAULT_FONT_SIZE,
-            plot_colour_bar=False
+            plot_colour_bar=False, latlng_visible=False
         )[0]
 
         panel_file_names[j] = (
@@ -336,11 +345,18 @@ def _run(top_prediction_dir_name, valid_time_string, output_dir_name):
         )
         shutil.move(orig_file_name, panel_file_names[j])
 
-        imagemagick_utils.trim_whitespace(
-            input_file_name=panel_file_names[j],
-            output_file_name=panel_file_names[j],
-            border_width_pixels=LARGE_BORDER_WIDTH_PX
-        )
+        # imagemagick_utils.trim_whitespace(
+        #     input_file_name=panel_file_names[j],
+        #     output_file_name=panel_file_names[j],
+        #     border_width_pixels=LARGE_BORDER_WIDTH_PX
+        # )
+        # _overlay_text(
+        #     image_file_name=panel_file_names[j],
+        #     x_offset_from_left_px=0,
+        #     y_offset_from_top_px=LARGE_BORDER_WIDTH_PX,
+        #     text_string='({0:s})'.format(letter_labels[j])
+        # )
+
         _overlay_text(
             image_file_name=panel_file_names[j],
             x_offset_from_left_px=0,
@@ -363,7 +379,7 @@ def _run(top_prediction_dir_name, valid_time_string, output_dir_name):
     imagemagick_utils.concatenate_images(
         input_file_names=panel_file_names,
         output_file_name=concat_fourier_file_name,
-        num_panel_rows=4, num_panel_columns=2
+        num_panel_rows=2, num_panel_columns=4
     )
     imagemagick_utils.resize_image(
         input_file_name=concat_fourier_file_name,
@@ -377,7 +393,7 @@ def _run(top_prediction_dir_name, valid_time_string, output_dir_name):
     )
 
     panel_file_names = [''] * num_bands
-    letter_labels = ['i', 'm', 'j', 'n', 'k', 'o', 'l', 'p']
+    letter_labels = ['i', 'j', 'k', 'l', 'm', 'n', 'o', 'p']
 
     for j in range(num_bands):
         target_matrix = (
@@ -410,16 +426,14 @@ def _run(top_prediction_dir_name, valid_time_string, output_dir_name):
         target_matrix = target_matrix[:, good_row_indices, :]
         target_matrix = target_matrix[..., good_column_indices]
         prediction_dict[prediction_io.PROBABILITY_MATRIX_KEY] = target_matrix
-        prediction_dict[prediction_io.TARGET_MATRIX_KEY] = numpy.full(
-            target_matrix.shape, 0, dtype=int
-        )
+        prediction_dict[prediction_io.TARGET_MATRIX_KEY] = orig_target_matrix
 
-        title_string = 'W{0:.3f}-{1:.3f}'.format(
+        title_string = '   Wavelet {0:.2g}-{1:.2g}'.format(
             2 * MIN_RESOLUTIONS_DEG[j], 2 * MAX_RESOLUTIONS_DEG[j]
         )
         title_string = title_string.replace('inf', r'$\infty$')
         title_string += r'$^{\circ}$'
-        title_string += ' (sum = {0:.1f})'.format(numpy.sum(target_matrix))
+        title_string += '\n   (sum = {0:.1f})'.format(numpy.sum(target_matrix))
 
         orig_file_name = plot_predictions._plot_predictions_one_example(
             prediction_dict=prediction_dict, example_index=0,
@@ -431,7 +445,7 @@ def _run(top_prediction_dir_name, valid_time_string, output_dir_name):
             colour_norm_object=prob_colour_norm_object,
             output_dir_name=output_dir_name,
             title_string=title_string, font_size=DEFAULT_FONT_SIZE,
-            plot_colour_bar=False
+            plot_colour_bar=False, latlng_visible=j == 4
         )[0]
 
         panel_file_names[j] = (
@@ -443,11 +457,18 @@ def _run(top_prediction_dir_name, valid_time_string, output_dir_name):
         )
         shutil.move(orig_file_name, panel_file_names[j])
 
-        imagemagick_utils.trim_whitespace(
-            input_file_name=panel_file_names[j],
-            output_file_name=panel_file_names[j],
-            border_width_pixels=LARGE_BORDER_WIDTH_PX
-        )
+        # imagemagick_utils.trim_whitespace(
+        #     input_file_name=panel_file_names[j],
+        #     output_file_name=panel_file_names[j],
+        #     border_width_pixels=LARGE_BORDER_WIDTH_PX
+        # )
+        # _overlay_text(
+        #     image_file_name=panel_file_names[j],
+        #     x_offset_from_left_px=0,
+        #     y_offset_from_top_px=LARGE_BORDER_WIDTH_PX,
+        #     text_string='({0:s})'.format(letter_labels[j])
+        # )
+
         _overlay_text(
             image_file_name=panel_file_names[j],
             x_offset_from_left_px=0,
@@ -470,7 +491,7 @@ def _run(top_prediction_dir_name, valid_time_string, output_dir_name):
     imagemagick_utils.concatenate_images(
         input_file_names=panel_file_names,
         output_file_name=concat_wavelet_file_name,
-        num_panel_rows=4, num_panel_columns=2
+        num_panel_rows=2, num_panel_columns=4
     )
     imagemagick_utils.resize_image(
         input_file_name=concat_wavelet_file_name,
@@ -491,7 +512,7 @@ def _run(top_prediction_dir_name, valid_time_string, output_dir_name):
     imagemagick_utils.concatenate_images(
         input_file_names=[concat_fourier_file_name, concat_wavelet_file_name],
         output_file_name=concat_figure_file_name,
-        num_panel_rows=1, num_panel_columns=2
+        num_panel_rows=2, num_panel_columns=1
     )
     _add_colour_bar(
         figure_file_name=concat_figure_file_name,
@@ -542,11 +563,9 @@ def _run(top_prediction_dir_name, valid_time_string, output_dir_name):
         target_matrix = target_matrix[:, good_row_indices, :]
         target_matrix = target_matrix[..., good_column_indices]
         prediction_dict[prediction_io.PROBABILITY_MATRIX_KEY] = target_matrix
-        prediction_dict[prediction_io.TARGET_MATRIX_KEY] = numpy.full(
-            target_matrix.shape, 0, dtype=int
-        )
+        prediction_dict[prediction_io.TARGET_MATRIX_KEY] = orig_target_matrix
 
-        title_string = '{0:d}x{0:d} {1:s} filter (sum = {2:.1f})'.format(
+        title_string = '{0:d}x{0:d} {1:s} filter\n(sum = {2:.1f})'.format(
             2 * HALF_WINDOW_SIZES_PX[j] + 1,
             'MAX' if MAX_FILTER_FLAGS[j] else 'MEAN',
             numpy.sum(target_matrix)
@@ -562,7 +581,7 @@ def _run(top_prediction_dir_name, valid_time_string, output_dir_name):
             colour_norm_object=prob_colour_norm_object,
             output_dir_name=output_dir_name,
             title_string=title_string, font_size=DEFAULT_FONT_SIZE,
-            plot_colour_bar=False
+            plot_colour_bar=False, latlng_visible=j == 6
         )[0]
 
         panel_file_names[j] = '{0:s}/{1:s}_filter_neigh{2:d}.jpg'.format(
@@ -572,11 +591,18 @@ def _run(top_prediction_dir_name, valid_time_string, output_dir_name):
         )
         shutil.move(orig_file_name, panel_file_names[j])
 
-        imagemagick_utils.trim_whitespace(
-            input_file_name=panel_file_names[j],
-            output_file_name=panel_file_names[j],
-            border_width_pixels=LARGE_BORDER_WIDTH_PX
-        )
+        # imagemagick_utils.trim_whitespace(
+        #     input_file_name=panel_file_names[j],
+        #     output_file_name=panel_file_names[j],
+        #     border_width_pixels=LARGE_BORDER_WIDTH_PX
+        # )
+        # _overlay_text(
+        #     image_file_name=panel_file_names[j],
+        #     x_offset_from_left_px=0,
+        #     y_offset_from_top_px=LARGE_BORDER_WIDTH_PX,
+        #     text_string='({0:s})'.format(letter_labels[j])
+        # )
+
         _overlay_text(
             image_file_name=panel_file_names[j],
             x_offset_from_left_px=0,
