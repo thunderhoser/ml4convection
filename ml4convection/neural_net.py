@@ -2464,21 +2464,25 @@ def apply_model_full_grid(
         #     ))
         #     layer_object.trainable = True
 
-    predict_function = K.function(
-        [model_object.layers[0].input, python_K.symbolic_learning_phase()],
-        [model_object.output]
-    )
-
     config_dict = model_object.get_config()
+    for layer_dict in config_dict['layers']:
+        if 'dropout' in layer_dict['inbound_nodes'][0][0][0].lower():
+            layer_dict['inbound_nodes'][0][0][-1]['training'] = True
+
     for layer_dict in config_dict['layers']:
         if 'dropout' in layer_dict['class_name'].lower():
             print(layer_dict)
 
-    print('\n\n\n************************\n\n\n')
-
-    for layer_dict in config_dict['layers']:
-        if 'dropout' not in layer_dict['class_name'].lower():
+        if 'dropout' in layer_dict['inbound_nodes'][0][0][0].lower():
             print(layer_dict)
+
+    new_model_object = keras.models.Model.from_config(config_dict)
+    new_model_object.set_weights(model_object.get_weights())
+
+    predict_function = K.function(
+        [new_model_object.layers[0].input, python_K.symbolic_learning_phase()],
+        [new_model_object.output]
+    )
 
     forecast_prob_matrix = None
     num_examples = predictor_matrix.shape[0]
@@ -2557,21 +2561,25 @@ def apply_model_partial_grids(
         #     ))
         #     layer_object.trainable = True
 
-    predict_function = K.function(
-        [model_object.layers[0].input, python_K.symbolic_learning_phase()],
-        [model_object.output]
-    )
-
     config_dict = model_object.get_config()
+    for layer_dict in config_dict['layers']:
+        if 'dropout' in layer_dict['inbound_nodes'][0][0][0].lower():
+            layer_dict['inbound_nodes'][0][0][-1]['training'] = True
+
     for layer_dict in config_dict['layers']:
         if 'dropout' in layer_dict['class_name'].lower():
             print(layer_dict)
 
-    print('\n\n\n************************\n\n\n')
-
-    for layer_dict in config_dict['layers']:
-        if 'dropout' not in layer_dict['class_name'].lower():
+        if 'dropout' in layer_dict['inbound_nodes'][0][0][0].lower():
             print(layer_dict)
+
+    new_model_object = keras.models.Model.from_config(config_dict)
+    new_model_object.set_weights(model_object.get_weights())
+
+    predict_function = K.function(
+        [new_model_object.layers[0].input, python_K.symbolic_learning_phase()],
+        [new_model_object.output]
+    )
 
     these_dim = model_object.layers[-1].output.get_shape().as_list()
     num_partial_grid_rows = these_dim[1]
