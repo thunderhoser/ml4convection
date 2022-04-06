@@ -2526,6 +2526,13 @@ def apply_model_full_grid(
     #             layer_object.trainable = False
 
     if use_dropout:
+        for layer_object in model_object.layers:
+            if 'batch' in layer_object.name.lower():
+                print('Layer "{0:s}" set to NON-TRAINABLE!'.format(
+                    layer_object.name
+                ))
+                layer_object.trainable = False
+
         config_dict = model_object.get_config()
 
         for layer_dict in config_dict['layers']:
