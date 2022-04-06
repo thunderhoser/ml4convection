@@ -80,7 +80,10 @@ RADAR_NUMBER_HELP_STRING = (
     'Radar number (non-negative integer).  This script handles only partial '
     'grids.'
 )
-PLOT_TARGETS_HELP_STRING = 'Boolean flag.  If 1 (0), will (not) plot targets.'
+PLOT_TARGETS_HELP_STRING = (
+    'Boolean flag.  If 1 (0), will plot target convection mask (forecast '
+    'probabilities).'
+)
 MIN_RESOLUTION_HELP_STRING = (
     'Minimum spatial resolution to allow through band-pass filter.'
 )
@@ -283,8 +286,12 @@ def _run(top_prediction_dir_name, valid_time_string, radar_number, plot_targets,
         desired_times_unix_sec=numpy.array([valid_time_unix_sec], dtype=int)
     )[0]
 
-    if not plot_targets:
-        prediction_dict[prediction_io.TARGET_MATRIX_KEY][:] = 0
+    if plot_targets:
+        prediction_dict[prediction_io.PROBABILITY_MATRIX_KEY] = (
+            prediction_dict[prediction_io.TARGET_MATRIX_KEY].astype(float)
+        )
+
+    prediction_dict[prediction_io.TARGET_MATRIX_KEY][:] = 0
 
     border_latitudes_deg_n, border_longitudes_deg_e = border_io.read_file()
 
@@ -309,7 +316,10 @@ def _run(top_prediction_dir_name, valid_time_string, radar_number, plot_targets,
         colour_map_object=prob_colour_map_object,
         colour_norm_object=prob_colour_norm_object,
         output_dir_name=output_dir_name,
-        title_string='Original probability field', font_size=FONT_SIZE
+        title_string='Original {0:s}'.format(
+            'targets' if plot_targets else 'probabilities'
+        ),
+        font_size=FONT_SIZE, latlng_visible=False
     )[0]
 
     new_file_name = '{0:s}/original_field.jpg'.format(output_dir_name)
@@ -326,12 +336,12 @@ def _run(top_prediction_dir_name, valid_time_string, radar_number, plot_targets,
         output_file_name=panel_file_names[0],
         border_width_pixels=SMALL_BORDER_WIDTH_PX
     )
-    _overlay_text(
-        image_file_name=panel_file_names[0],
-        x_offset_from_left_px=0,
-        y_offset_from_top_px=LARGE_BORDER_WIDTH_PX,
-        text_string='({0:s})'.format(letter_label)
-    )
+    # _overlay_text(
+    #     image_file_name=panel_file_names[0],
+    #     x_offset_from_left_px=0,
+    #     y_offset_from_top_px=LARGE_BORDER_WIDTH_PX,
+    #     text_string='({0:s})'.format(letter_label)
+    # )
 
     # Plot tapered predictions.
     probability_matrix = fourier_utils.taper_spatial_data(
@@ -386,7 +396,10 @@ def _run(top_prediction_dir_name, valid_time_string, radar_number, plot_targets,
         colour_map_object=prob_colour_map_object,
         colour_norm_object=prob_colour_norm_object,
         output_dir_name=output_dir_name,
-        title_string='Tapered probability field', font_size=FONT_SIZE
+        title_string='Tapered {0:s}'.format(
+            'targets' if plot_targets else 'probabilities'
+        ),
+        font_size=FONT_SIZE, latlng_visible=False
     )[0]
 
     new_file_name = '{0:s}/tapered_field.jpg'.format(output_dir_name)
@@ -400,12 +413,12 @@ def _run(top_prediction_dir_name, valid_time_string, radar_number, plot_targets,
         output_file_name=panel_file_names[2],
         border_width_pixels=SMALL_BORDER_WIDTH_PX
     )
-    _overlay_text(
-        image_file_name=panel_file_names[2],
-        x_offset_from_left_px=0,
-        y_offset_from_top_px=LARGE_BORDER_WIDTH_PX,
-        text_string='({0:s})'.format(letter_label)
-    )
+    # _overlay_text(
+    #     image_file_name=panel_file_names[2],
+    #     x_offset_from_left_px=0,
+    #     y_offset_from_top_px=LARGE_BORDER_WIDTH_PX,
+    #     text_string='({0:s})'.format(letter_label)
+    # )
 
     # Plot Blackman-Harris window.
     probability_matrix = (
@@ -450,12 +463,12 @@ def _run(top_prediction_dir_name, valid_time_string, radar_number, plot_targets,
         output_file_name=panel_file_names[4],
         border_width_pixels=SMALL_BORDER_WIDTH_PX
     )
-    _overlay_text(
-        image_file_name=panel_file_names[4],
-        x_offset_from_left_px=0,
-        y_offset_from_top_px=LARGE_BORDER_WIDTH_PX,
-        text_string='({0:s})'.format(letter_label)
-    )
+    # _overlay_text(
+    #     image_file_name=panel_file_names[4],
+    #     x_offset_from_left_px=0,
+    #     y_offset_from_top_px=LARGE_BORDER_WIDTH_PX,
+    #     text_string='({0:s})'.format(letter_label)
+    # )
 
     # Plot windowed predictions.
     prediction_dict[prediction_io.PROBABILITY_MATRIX_KEY][0, ...] = (
@@ -473,23 +486,12 @@ def _run(top_prediction_dir_name, valid_time_string, radar_number, plot_targets,
             colour_map_object=prob_colour_map_object,
             colour_norm_object=prob_colour_norm_object,
             output_dir_name=None,
-            title_string='Windowed probability field', font_size=FONT_SIZE
+            title_string='Windowed {0:s}'.format(
+                'targets' if plot_targets else 'probabilities'
+            ),
+            font_size=FONT_SIZE, latlng_visible=False
         )
     )
-
-    if plot_targets:
-        target_contour_object = axes_object.contour(
-            prediction_dict[prediction_io.LONGITUDES_KEY],
-            prediction_dict[prediction_io.LATITUDES_KEY],
-            target_matrix, TARGET_CONTOUR_LEVELS,
-            cmap=TARGET_COLOUR_MAP_OBJECT,
-            vmin=numpy.min(TARGET_CONTOUR_LEVELS),
-            vmax=numpy.max(TARGET_CONTOUR_LEVELS),
-            linewidths=2, linestyles='solid', zorder=1e12
-        )
-        pyplot.clabel(
-            target_contour_object, inline=True, fmt='%.1g', fontsize=FONT_SIZE
-        )
 
     panel_file_names[6] = '{0:s}/windowed_field.jpg'.format(output_dir_name)
 
@@ -507,12 +509,12 @@ def _run(top_prediction_dir_name, valid_time_string, radar_number, plot_targets,
         output_file_name=panel_file_names[6],
         border_width_pixels=SMALL_BORDER_WIDTH_PX
     )
-    _overlay_text(
-        image_file_name=panel_file_names[6],
-        x_offset_from_left_px=0,
-        y_offset_from_top_px=LARGE_BORDER_WIDTH_PX,
-        text_string='({0:s})'.format(letter_label)
-    )
+    # _overlay_text(
+    #     image_file_name=panel_file_names[6],
+    #     x_offset_from_left_px=0,
+    #     y_offset_from_top_px=LARGE_BORDER_WIDTH_PX,
+    #     text_string='({0:s})'.format(letter_label)
+    # )
 
     # Plot original Fourier weights.
     probability_tensor = tensorflow.constant(
@@ -543,7 +545,7 @@ def _run(top_prediction_dir_name, valid_time_string, radar_number, plot_targets,
         weight_matrix=weight_matrix,
         colour_map_object=WEIGHT_COLOUR_MAP_OBJECT,
         colour_norm_object=this_colour_norm_object,
-        title_string='Original Fourier spectrum',
+        title_string='Original Fourier coeffs',
         output_file_name=panel_file_names[1]
     )
 
@@ -554,12 +556,12 @@ def _run(top_prediction_dir_name, valid_time_string, radar_number, plot_targets,
         output_file_name=panel_file_names[1],
         border_width_pixels=LARGE_BORDER_WIDTH_PX
     )
-    _overlay_text(
-        image_file_name=panel_file_names[1],
-        x_offset_from_left_px=0,
-        y_offset_from_top_px=2 * LARGE_BORDER_WIDTH_PX,
-        text_string='({0:s})'.format(letter_label)
-    )
+    # _overlay_text(
+    #     image_file_name=panel_file_names[1],
+    #     x_offset_from_left_px=0,
+    #     y_offset_from_top_px=2 * LARGE_BORDER_WIDTH_PX,
+    #     text_string='({0:s})'.format(letter_label)
+    # )
     imagemagick_utils.trim_whitespace(
         input_file_name=panel_file_names[1],
         output_file_name=panel_file_names[1],
@@ -592,12 +594,12 @@ def _run(top_prediction_dir_name, valid_time_string, radar_number, plot_targets,
         output_file_name=panel_file_names[3],
         border_width_pixels=LARGE_BORDER_WIDTH_PX
     )
-    _overlay_text(
-        image_file_name=panel_file_names[3],
-        x_offset_from_left_px=0,
-        y_offset_from_top_px=2 * LARGE_BORDER_WIDTH_PX,
-        text_string='({0:s})'.format(letter_label)
-    )
+    # _overlay_text(
+    #     image_file_name=panel_file_names[3],
+    #     x_offset_from_left_px=0,
+    #     y_offset_from_top_px=2 * LARGE_BORDER_WIDTH_PX,
+    #     text_string='({0:s})'.format(letter_label)
+    # )
     imagemagick_utils.trim_whitespace(
         input_file_name=panel_file_names[3],
         output_file_name=panel_file_names[3],
@@ -633,7 +635,7 @@ def _run(top_prediction_dir_name, valid_time_string, radar_number, plot_targets,
         weight_matrix=weight_matrix,
         colour_map_object=WEIGHT_COLOUR_MAP_OBJECT,
         colour_norm_object=this_colour_norm_object,
-        title_string='Filtered Fourier spectrum',
+        title_string='Filtered Fourier coeffs',
         output_file_name=panel_file_names[5]
     )
 
@@ -644,12 +646,12 @@ def _run(top_prediction_dir_name, valid_time_string, radar_number, plot_targets,
         output_file_name=panel_file_names[5],
         border_width_pixels=LARGE_BORDER_WIDTH_PX
     )
-    _overlay_text(
-        image_file_name=panel_file_names[5],
-        x_offset_from_left_px=0,
-        y_offset_from_top_px=2 * LARGE_BORDER_WIDTH_PX,
-        text_string='({0:s})'.format(letter_label)
-    )
+    # _overlay_text(
+    #     image_file_name=panel_file_names[5],
+    #     x_offset_from_left_px=0,
+    #     y_offset_from_top_px=2 * LARGE_BORDER_WIDTH_PX,
+    #     text_string='({0:s})'.format(letter_label)
+    # )
     imagemagick_utils.trim_whitespace(
         input_file_name=panel_file_names[5],
         output_file_name=panel_file_names[5],
@@ -712,23 +714,12 @@ def _run(top_prediction_dir_name, valid_time_string, radar_number, plot_targets,
             colour_map_object=prob_colour_map_object,
             colour_norm_object=prob_colour_norm_object,
             output_dir_name=None,
-            title_string='Filtered probability field', font_size=FONT_SIZE
+            title_string='Filtered {0:s}'.format(
+                'targets' if plot_targets else 'probabilities'
+            ),
+            font_size=FONT_SIZE, latlng_visible=False
         )
     )
-
-    if plot_targets:
-        target_contour_object = axes_object.contour(
-            prediction_dict[prediction_io.LONGITUDES_KEY],
-            prediction_dict[prediction_io.LATITUDES_KEY],
-            target_matrix, TARGET_CONTOUR_LEVELS,
-            cmap=TARGET_COLOUR_MAP_OBJECT,
-            vmin=numpy.min(TARGET_CONTOUR_LEVELS),
-            vmax=numpy.max(TARGET_CONTOUR_LEVELS),
-            linewidths=2, linestyles='solid', zorder=1e12
-        )
-        pyplot.clabel(
-            target_contour_object, inline=True, fmt='%.1g', fontsize=FONT_SIZE
-        )
 
     panel_file_names[-1] = '{0:s}/filtered_field.jpg'.format(output_dir_name)
 
@@ -746,12 +737,12 @@ def _run(top_prediction_dir_name, valid_time_string, radar_number, plot_targets,
         output_file_name=panel_file_names[-1],
         border_width_pixels=LARGE_BORDER_WIDTH_PX
     )
-    _overlay_text(
-        image_file_name=panel_file_names[-1],
-        x_offset_from_left_px=0,
-        y_offset_from_top_px=2 * LARGE_BORDER_WIDTH_PX,
-        text_string='({0:s})'.format(letter_label)
-    )
+    # _overlay_text(
+    #     image_file_name=panel_file_names[-1],
+    #     x_offset_from_left_px=0,
+    #     y_offset_from_top_px=2 * LARGE_BORDER_WIDTH_PX,
+    #     text_string='({0:s})'.format(letter_label)
+    # )
     imagemagick_utils.trim_whitespace(
         input_file_name=panel_file_names[-1],
         output_file_name=panel_file_names[-1],
