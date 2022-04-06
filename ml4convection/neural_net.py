@@ -11,6 +11,7 @@ import tensorflow
 tensorflow.random.set_seed(6695)
 import tensorflow.keras as tf_keras
 from tensorflow.keras import backend as K
+from tensorflow.python.keras import backend as python_K
 
 THIS_DIRECTORY_NAME = os.path.dirname(os.path.realpath(
     os.path.join(os.getcwd(), os.path.expanduser(__file__))
@@ -2464,7 +2465,7 @@ def apply_model_full_grid(
         #     layer_object.trainable = True
 
     predict_function = K.function(
-        [model_object.layers[0].input, K.learning_phase()],
+        [model_object.layers[0].input, python_K.symbolic_learning_phase()],
         [model_object.layers[-1].output]
     )
 
@@ -2551,7 +2552,7 @@ def apply_model_partial_grids(
         #     layer_object.trainable = True
 
     predict_function = K.function(
-        [model_object.layers[0].input, K.learning_phase()],
+        [model_object.layers[0].input, python_K.symbolic_learning_phase()],
         [model_object.layers[-1].output]
     )
 
