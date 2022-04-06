@@ -187,7 +187,7 @@ def _run(top_prediction_dir_name, first_date_string, last_date_string,
 
         these_probs = (
             this_prediction_dict[prediction_io.PROBABILITY_MATRIX_KEY][
-                :, grid_row, grid_column
+                :, grid_row, grid_column, :
             ]
         )
 

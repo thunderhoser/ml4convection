@@ -1,7 +1,6 @@
 """Methods for training and applying neural nets."""
 
 import copy
-import time
 import os.path
 import dill
 import numpy
@@ -2511,6 +2510,14 @@ def apply_model_full_grid(
     )
 
     error_checking.assert_is_boolean(use_dropout)
+    if use_dropout:
+        for layer_object in model_object.layers:
+            if 'batch' in layer_object.name.lower():
+                print('Layer "{0:s}" set to NON-TRAINABLE!'.format(
+                    layer_object.name
+                ))
+                layer_object.trainable = False
+
     # if use_dropout:
     #     predict_function = _get_predict_func_with_dropout(model_object)
     # else:
@@ -2586,6 +2593,14 @@ def apply_model_partial_grids(
     )
 
     error_checking.assert_is_boolean(use_dropout)
+    if use_dropout:
+        for layer_object in model_object.layers:
+            if 'batch' in layer_object.name.lower():
+                print('Layer "{0:s}" set to NON-TRAINABLE!'.format(
+                    layer_object.name
+                ))
+                layer_object.trainable = False
+
     # if use_dropout:
     #     predict_function = _get_predict_func_with_dropout(model_object)
     # else:

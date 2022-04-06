@@ -313,7 +313,9 @@ def _run(top_prediction_dir_name, valid_time_string, output_dir_name):
         target_matrix = numpy.minimum(target_matrix, 1.)
         target_matrix = target_matrix[:, good_row_indices, :]
         target_matrix = target_matrix[..., good_column_indices]
-        prediction_dict[prediction_io.PROBABILITY_MATRIX_KEY] = target_matrix
+        prediction_dict[prediction_io.PROBABILITY_MATRIX_KEY] = (
+            numpy.expand_dims(target_matrix, axis=-1)
+        )
         prediction_dict[prediction_io.TARGET_MATRIX_KEY] = orig_target_matrix
 
         title_string = '  Fourier {0:.2g}-{1:.2g}'.format(
@@ -425,7 +427,9 @@ def _run(top_prediction_dir_name, valid_time_string, output_dir_name):
         target_matrix = numpy.minimum(target_matrix, 1.)
         target_matrix = target_matrix[:, good_row_indices, :]
         target_matrix = target_matrix[..., good_column_indices]
-        prediction_dict[prediction_io.PROBABILITY_MATRIX_KEY] = target_matrix
+        prediction_dict[prediction_io.PROBABILITY_MATRIX_KEY] = (
+            numpy.expand_dims(target_matrix, axis=-1)
+        )
         prediction_dict[prediction_io.TARGET_MATRIX_KEY] = orig_target_matrix
 
         title_string = '   Wavelet {0:.2g}-{1:.2g}'.format(
@@ -562,7 +566,9 @@ def _run(top_prediction_dir_name, valid_time_string, output_dir_name):
         target_matrix = numpy.minimum(target_matrix, 1.)
         target_matrix = target_matrix[:, good_row_indices, :]
         target_matrix = target_matrix[..., good_column_indices]
-        prediction_dict[prediction_io.PROBABILITY_MATRIX_KEY] = target_matrix
+        prediction_dict[prediction_io.PROBABILITY_MATRIX_KEY] = (
+            numpy.expand_dims(target_matrix, axis=-1)
+        )
         prediction_dict[prediction_io.TARGET_MATRIX_KEY] = orig_target_matrix
 
         title_string = '{0:d}x{0:d} {1:s} filter\n(sum = {2:.1f})'.format(

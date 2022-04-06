@@ -288,7 +288,10 @@ def _run(top_prediction_dir_name, valid_time_string, radar_number, plot_targets,
 
     if plot_targets:
         prediction_dict[prediction_io.PROBABILITY_MATRIX_KEY] = (
-            prediction_dict[prediction_io.TARGET_MATRIX_KEY].astype(float)
+            numpy.expand_dims(
+                prediction_dict[prediction_io.TARGET_MATRIX_KEY].astype(float),
+                axis=-1
+            )
         )
 
     prediction_dict[prediction_io.TARGET_MATRIX_KEY][:] = 0
@@ -344,12 +347,10 @@ def _run(top_prediction_dir_name, valid_time_string, radar_number, plot_targets,
     # )
 
     # Plot tapered predictions.
-    probability_matrix = fourier_utils.taper_spatial_data(
-        prediction_dict[prediction_io.PROBABILITY_MATRIX_KEY][0, ...]
-    )
-    probability_matrix = numpy.expand_dims(probability_matrix, axis=0)
-    prediction_dict[prediction_io.PROBABILITY_MATRIX_KEY] = (
-        probability_matrix
+    prediction_dict[prediction_io.PROBABILITY_MATRIX_KEY][0, ..., 0] = (
+        fourier_utils.taper_spatial_data(
+            prediction_dict[prediction_io.PROBABILITY_MATRIX_KEY][0, ..., 0]
+        )
     )
 
     target_matrix = fourier_utils.taper_spatial_data(
@@ -422,7 +423,7 @@ def _run(top_prediction_dir_name, valid_time_string, radar_number, plot_targets,
 
     # Plot Blackman-Harris window.
     probability_matrix = (
-        prediction_dict[prediction_io.PROBABILITY_MATRIX_KEY][0, ...] + 0.
+        prediction_dict[prediction_io.PROBABILITY_MATRIX_KEY][0, ..., 0] + 0.
     )
     target_matrix = (
         prediction_dict[prediction_io.TARGET_MATRIX_KEY][0, ...].astype(float)
@@ -435,7 +436,7 @@ def _run(top_prediction_dir_name, valid_time_string, radar_number, plot_targets,
     bh_window_matrix = numpy.maximum(bh_window_matrix, 0.)
     bh_window_matrix = numpy.minimum(bh_window_matrix, 1.)
 
-    prediction_dict[prediction_io.PROBABILITY_MATRIX_KEY][0, ...] = (
+    prediction_dict[prediction_io.PROBABILITY_MATRIX_KEY][0, ..., 0] = (
         bh_window_matrix + 0.
     )
 
@@ -471,7 +472,7 @@ def _run(top_prediction_dir_name, valid_time_string, radar_number, plot_targets,
     # )
 
     # Plot windowed predictions.
-    prediction_dict[prediction_io.PROBABILITY_MATRIX_KEY][0, ...] = (
+    prediction_dict[prediction_io.PROBABILITY_MATRIX_KEY][0, ..., 0] = (
         fourier_utils.apply_blackman_window(probability_matrix)
     )
     target_matrix = fourier_utils.apply_blackman_window(target_matrix)
@@ -518,7 +519,7 @@ def _run(top_prediction_dir_name, valid_time_string, radar_number, plot_targets,
 
     # Plot original Fourier weights.
     probability_tensor = tensorflow.constant(
-        prediction_dict[prediction_io.PROBABILITY_MATRIX_KEY],
+        prediction_dict[prediction_io.PROBABILITY_MATRIX_KEY][..., 0],
         dtype=tensorflow.complex128
     )
     weight_tensor = tensorflow.signal.fft2d(probability_tensor)
@@ -686,10 +687,10 @@ def _run(top_prediction_dir_name, valid_time_string, radar_number, plot_targets,
     target_matrix = numpy.minimum(target_matrix, 1.)
 
     prediction_dict[prediction_io.PROBABILITY_MATRIX_KEY] = numpy.expand_dims(
-        probability_matrix, axis=0
+        probability_matrix, axis=(0, -1)
     )
     prediction_dict[prediction_io.TARGET_MATRIX_KEY] = numpy.full(
-        prediction_dict[prediction_io.PROBABILITY_MATRIX_KEY].shape,
+        prediction_dict[prediction_io.PROBABILITY_MATRIX_KEY].shape[:-1],
         0, dtype=int
     )
     mask_matrix = numpy.full(

@@ -193,8 +193,9 @@ def _run(top_prediction_dir_name, valid_time_string, min_resolutions_deg,
 
     # Plot original predictions.
     orig_prediction_dict = copy.deepcopy(prediction_dict)
-    prediction_dict[prediction_io.PROBABILITY_MATRIX_KEY] = (
-        prediction_dict[prediction_io.TARGET_MATRIX_KEY].astype(float) + 0.
+    prediction_dict[prediction_io.PROBABILITY_MATRIX_KEY] = numpy.expand_dims(
+        prediction_dict[prediction_io.TARGET_MATRIX_KEY].astype(float),
+        axis=-1
     )
     prediction_dict[prediction_io.TARGET_MATRIX_KEY][:] = 0
 
@@ -205,7 +206,7 @@ def _run(top_prediction_dir_name, valid_time_string, min_resolutions_deg,
 
     prediction_dict[prediction_io.PROBABILITY_MATRIX_KEY] = (
         prediction_dict[prediction_io.PROBABILITY_MATRIX_KEY][
-            :, good_row_indices, :
+            :, good_row_indices, ...
         ]
     )
     prediction_dict[prediction_io.TARGET_MATRIX_KEY] = (
@@ -222,7 +223,7 @@ def _run(top_prediction_dir_name, valid_time_string, min_resolutions_deg,
 
     prediction_dict[prediction_io.PROBABILITY_MATRIX_KEY] = (
         prediction_dict[prediction_io.PROBABILITY_MATRIX_KEY][
-            ..., good_column_indices
+            :, :, good_column_indices, ...
         ]
     )
     prediction_dict[prediction_io.TARGET_MATRIX_KEY] = (
@@ -364,7 +365,10 @@ def _run(top_prediction_dir_name, valid_time_string, min_resolutions_deg,
         target_matrix = target_matrix[:, good_row_indices, :]
         target_matrix = target_matrix[..., good_column_indices]
 
-        prediction_dict[prediction_io.PROBABILITY_MATRIX_KEY] = target_matrix
+        prediction_dict[prediction_io.PROBABILITY_MATRIX_KEY] = (
+            numpy.expand_dims(target_matrix.astype(float), axis=-1)
+        )
+
         title_string = r'$\lambda \in$ ['
         title_string += '{0:.3f}-{1:.3f}'.format(
             2 * min_resolutions_deg[j], 2 * max_resolutions_deg[j]

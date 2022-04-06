@@ -239,10 +239,10 @@ def _run(top_prediction_dir_name, valid_time_string, radar_number,
 
     # Apply window to original field.
     probability_matrix = fourier_utils.taper_spatial_data(
-        prediction_dict[prediction_io.PROBABILITY_MATRIX_KEY][0, ...]
+        prediction_dict[prediction_io.PROBABILITY_MATRIX_KEY][0, ..., 0]
     )
     probability_matrix = fourier_utils.apply_blackman_window(probability_matrix)
-    probability_matrix = numpy.expand_dims(probability_matrix, axis=0)
+    probability_matrix = numpy.expand_dims(probability_matrix, axis=(0, 1))
     prediction_dict[prediction_io.PROBABILITY_MATRIX_KEY] = (
         probability_matrix
     )
@@ -253,7 +253,9 @@ def _run(top_prediction_dir_name, valid_time_string, radar_number,
 
     for k in range(num_bands):
         this_prob_tensor = tensorflow.constant(
-            tapered_prediction_dict[prediction_io.PROBABILITY_MATRIX_KEY],
+            tapered_prediction_dict[prediction_io.PROBABILITY_MATRIX_KEY][
+                ..., 0
+            ],
             dtype=tensorflow.complex128
         )
 
@@ -282,7 +284,7 @@ def _run(top_prediction_dir_name, valid_time_string, radar_number,
 
         prediction_dict_by_band[k] = copy.deepcopy(orig_prediction_dict)
         prediction_dict_by_band[k][prediction_io.PROBABILITY_MATRIX_KEY] = (
-            numpy.expand_dims(this_prob_matrix, axis=0)
+            numpy.expand_dims(this_prob_matrix, axis=(0, -1))
         )
 
         this_title_string = (

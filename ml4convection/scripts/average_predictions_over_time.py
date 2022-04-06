@@ -97,6 +97,10 @@ def _run(top_input_dir_name, first_date_string, last_date_string,
         #     this_prediction_dict[prediction_io.TARGET_MATRIX_KEY],
         #     axis=0, keepdims=True
         # )
+
+        this_prediction_dict[prediction_io.PROBABILITY_MATRIX_KEY] = numpy.mean(
+            this_prediction_dict[prediction_io.PROBABILITY_MATRIX_KEY], axis=-1
+        )
         this_prediction_dict[prediction_io.PROBABILITY_MATRIX_KEY] = numpy.sum(
             this_prediction_dict[prediction_io.PROBABILITY_MATRIX_KEY],
             axis=0, keepdims=True

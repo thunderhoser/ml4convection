@@ -313,11 +313,13 @@ def _run(top_prediction_dir_name, valid_time_string, radar_number,
     # Plot tapered predictions.
 
     # TODO(thunderhoser): Modularize tapering.
-    prediction_dict[prediction_io.PROBABILITY_MATRIX_KEY], padding_arg = (
-        wavelet_utils.taper_spatial_data(
-            prediction_dict[prediction_io.PROBABILITY_MATRIX_KEY]
-        )
+    (
+        prediction_dict[prediction_io.PROBABILITY_MATRIX_KEY][..., 0],
+        padding_arg
+    ) = wavelet_utils.taper_spatial_data(
+        prediction_dict[prediction_io.PROBABILITY_MATRIX_KEY][..., 0]
     )
+
     prediction_dict[prediction_io.TARGET_MATRIX_KEY] = (
         wavelet_utils.taper_spatial_data(
             prediction_dict[prediction_io.TARGET_MATRIX_KEY]
@@ -397,7 +399,7 @@ def _run(top_prediction_dir_name, valid_time_string, radar_number,
 
     # Plot unfiltered WT coefficients.
     coeff_tensor_by_level = wavelet_utils.do_forward_transform(
-        prediction_dict[prediction_io.PROBABILITY_MATRIX_KEY]
+        prediction_dict[prediction_io.PROBABILITY_MATRIX_KEY][..., 0]
     )
 
     (
@@ -572,7 +574,7 @@ def _run(top_prediction_dir_name, valid_time_string, radar_number,
     inverse_dwt_object = WaveTFFactory().build('haar', dim=2, inverse=True)
     probability_tensor = inverse_dwt_object.call(coeff_tensor_by_level[0])
     prediction_dict[prediction_io.PROBABILITY_MATRIX_KEY] = (
-        K.eval(probability_tensor)[..., 0]
+        K.eval(probability_tensor)
     )
     prediction_dict[prediction_io.PROBABILITY_MATRIX_KEY] = numpy.maximum(
         prediction_dict[prediction_io.PROBABILITY_MATRIX_KEY], 0.
@@ -581,10 +583,10 @@ def _run(top_prediction_dir_name, valid_time_string, radar_number,
         prediction_dict[prediction_io.PROBABILITY_MATRIX_KEY], 1.
     )
 
-    prediction_dict[prediction_io.PROBABILITY_MATRIX_KEY] = (
+    prediction_dict[prediction_io.PROBABILITY_MATRIX_KEY][..., 0] = (
         wavelet_utils.untaper_spatial_data(
             spatial_data_matrix=
-            prediction_dict[prediction_io.PROBABILITY_MATRIX_KEY],
+            prediction_dict[prediction_io.PROBABILITY_MATRIX_KEY][..., 0],
             numpy_pad_width=padding_arg
         )
     )
