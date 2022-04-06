@@ -2466,12 +2466,12 @@ def apply_model_full_grid(
 
     config_dict = model_object.get_config()
     for layer_dict in config_dict['layers']:
-        if 'dropout' in layer_dict['inbound_nodes'][0][0][0].lower():
-            try:
+        try:
+            if 'dropout' in layer_dict['inbound_nodes'][0][0][0].lower():
                 layer_dict['inbound_nodes'][0][0][-1]['training'] = True
-            except:
-                print(layer_dict['inbound_nodes'])
-                print('\n\n\n*******************\n\n\n')
+        except:
+            print(layer_dict['inbound_nodes'])
+            print('\n\n\n*************\n\n\n')
 
     for layer_dict in config_dict['layers']:
         if 'dropout' in layer_dict['class_name'].lower():
