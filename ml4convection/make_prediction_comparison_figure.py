@@ -321,7 +321,7 @@ def _plot_convection_mask(
         prediction_io.VALID_TIMES_KEY:
             numpy.array([valid_time_unix_sec], dtype=int),
         prediction_io.PROBABILITY_MATRIX_KEY:
-            numpy.expand_dims(target_matrix.astype(float), axis=0),
+            numpy.expand_dims(target_matrix.astype(float), axis=(0, -1)),
         prediction_io.TARGET_MATRIX_KEY:
             numpy.full((1,) + target_matrix.shape, 0, dtype=int),
         prediction_io.LATITUDES_KEY: latitudes_deg_n,
@@ -414,10 +414,10 @@ def _plot_predictions_one_model(
     ]
     for this_key in these_keys:
         prediction_dict[this_key] = (
-            prediction_dict[this_key][:, good_lat_indices, :]
+            prediction_dict[this_key][:, good_lat_indices, ...]
         )
         prediction_dict[this_key] = (
-            prediction_dict[this_key][..., good_lng_indices]
+            prediction_dict[this_key][:, :, good_lng_indices, ...]
         )
 
     if smoothing_radius_px is not None:
@@ -441,7 +441,7 @@ def _plot_predictions_one_model(
     target_matrix = prediction_dict[prediction_io.TARGET_MATRIX_KEY][0, ...]
     target_matrix[mask_matrix == False] = 0
     probability_matrix = (
-        prediction_dict[prediction_io.PROBABILITY_MATRIX_KEY][0, ...]
+        prediction_dict[prediction_io.PROBABILITY_MATRIX_KEY][0, ..., 0]
     )
 
     latitudes_deg_n = prediction_dict[prediction_io.LATITUDES_KEY]

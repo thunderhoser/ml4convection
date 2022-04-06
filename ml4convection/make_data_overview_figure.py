@@ -42,6 +42,7 @@ CONCAT_FIGURE_SIZE_PX = int(1e7)
 
 TITLE_FONT_SIZE = 40
 FONT_SIZE = 50
+
 pyplot.rc('font', size=FONT_SIZE)
 pyplot.rc('axes', titlesize=FONT_SIZE)
 pyplot.rc('axes', labelsize=FONT_SIZE)
@@ -370,7 +371,7 @@ def _plot_convection_mask_one_time(
         prediction_io.VALID_TIMES_KEY:
             numpy.array([valid_time_unix_sec], dtype=int),
         prediction_io.PROBABILITY_MATRIX_KEY:
-            numpy.expand_dims(target_matrix, axis=0),
+            numpy.expand_dims(target_matrix, axis=(0, -1)),
         prediction_io.TARGET_MATRIX_KEY:
             numpy.full((1,) + target_matrix.shape, 0, dtype=int),
         prediction_io.LATITUDES_KEY: latitudes_deg_n,
