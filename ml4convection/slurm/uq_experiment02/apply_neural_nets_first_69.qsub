@@ -59,4 +59,5 @@ python3 -u "${CODE_DIR_NAME}/apply_neural_net.py" \
 --apply_to_full_grids=0 \
 --first_valid_date_string="${FIRST_VALIDN_DATE_STRING}" \
 --last_valid_date_string="${LAST_VALIDN_DATE_STRING}" \
+--use_dropout=1 \
 --output_dir_name="${prediction_dir_name}"

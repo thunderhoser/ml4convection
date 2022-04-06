@@ -27,6 +27,7 @@ FULL_GRIDS_ARG_NAME = 'apply_to_full_grids'
 OVERLAP_SIZE_ARG_NAME = 'overlap_size_px'
 FIRST_DATE_ARG_NAME = 'first_valid_date_string'
 LAST_DATE_ARG_NAME = 'last_valid_date_string'
+USE_DROPOUT_ARG_NAME = 'use_dropout'
 OUTPUT_DIR_ARG_NAME = 'output_dir_name'
 
 MODEL_FILE_HELP_STRING = (
@@ -56,6 +57,10 @@ DATE_HELP_STRING = (
     ' times) from the period `{0:s}`...`{1:s}`.'
 ).format(FIRST_DATE_ARG_NAME, LAST_DATE_ARG_NAME)
 
+USE_DROPOUT_HELP_STRING = (
+    'Boolean flag.  If 1, will keep dropout in all layers turned on.  Using '
+    'dropout at inference time is called "Monte Carlo dropout".'
+)
 OUTPUT_DIR_HELP_STRING = (
     'Name of output directory.  Predictions will be written by '
     '`prediction_io.write_file`, to exact locations therein determined by '
@@ -90,6 +95,10 @@ INPUT_ARG_PARSER.add_argument(
     '--' + LAST_DATE_ARG_NAME, type=str, required=True, help=DATE_HELP_STRING
 )
 INPUT_ARG_PARSER.add_argument(
+    '--' + USE_DROPOUT_ARG_NAME, type=int, required=False, default=0,
+    help=USE_DROPOUT_HELP_STRING
+)
+INPUT_ARG_PARSER.add_argument(
     '--' + OUTPUT_DIR_ARG_NAME, type=str, required=True,
     help=OUTPUT_DIR_HELP_STRING
 )
@@ -97,7 +106,7 @@ INPUT_ARG_PARSER.add_argument(
 
 def _apply_to_full_grid_one_day(
         model_object, base_option_dict, trained_on_partial_grids,
-        overlap_size_px, valid_date_string, model_file_name,
+        overlap_size_px, valid_date_string, model_file_name, use_dropout,
         top_output_dir_name):
     """Applies trained neural net to full grid for one day.
 
@@ -110,6 +119,7 @@ def _apply_to_full_grid_one_day(
     :param overlap_size_px: See documentation at top of file.
     :param valid_date_string: Valid date (radar date), in format "yyyymmdd").
     :param model_file_name: See documentation at top of file.
+    :param use_dropout: Same.
     :param top_output_dir_name: Same.
     """
 
@@ -128,13 +138,15 @@ def _apply_to_full_grid_one_day(
             model_object=model_object,
             predictor_matrix=data_dict[neural_net.PREDICTOR_MATRIX_KEY],
             num_examples_per_batch=NUM_EXAMPLES_PER_BATCH,
-            overlap_size_px=overlap_size_px, verbose=True
+            overlap_size_px=overlap_size_px,
+            use_dropout=use_dropout, verbose=True
         )
     else:
         forecast_probability_matrix = neural_net.apply_model_full_grid(
             model_object=model_object,
             predictor_matrix=data_dict[neural_net.PREDICTOR_MATRIX_KEY],
-            num_examples_per_batch=NUM_EXAMPLES_PER_BATCH, verbose=True
+            num_examples_per_batch=NUM_EXAMPLES_PER_BATCH,
+            use_dropout=use_dropout, verbose=True
         )
 
     these_percentiles = numpy.array(
@@ -166,13 +178,14 @@ def _apply_to_full_grid_one_day(
 
 def _apply_to_partial_grids_one_day(
         model_object, base_option_dict, valid_date_string, model_file_name,
-        top_output_dir_name):
+        use_dropout, top_output_dir_name):
     """Applies trained neural net to partial grids for one day.
 
     :param model_object: See doc for `_apply_to_full_grid_one_day`.
     :param base_option_dict: Same.
     :param valid_date_string: Same.
     :param model_file_name: Same.
+    :param use_dropout: Same.
     :param top_output_dir_name: Same.
     """
 
@@ -195,7 +208,8 @@ def _apply_to_partial_grids_one_day(
         forecast_probability_matrix = neural_net.apply_model_full_grid(
             model_object=model_object,
             predictor_matrix=data_dicts[k][neural_net.PREDICTOR_MATRIX_KEY],
-            num_examples_per_batch=NUM_EXAMPLES_PER_BATCH, verbose=True
+            num_examples_per_batch=NUM_EXAMPLES_PER_BATCH,
+            use_dropout=use_dropout, verbose=True
         )
 
         these_percentiles = numpy.array(
@@ -227,7 +241,7 @@ def _apply_to_partial_grids_one_day(
 
 def _run(model_file_name, top_predictor_dir_name, top_target_dir_name,
          apply_to_full_grids, overlap_size_px, first_valid_date_string,
-         last_valid_date_string, top_output_dir_name):
+         last_valid_date_string, use_dropout, top_output_dir_name):
     """Applies trained neural net in inference mode.
 
     This is effectively the main method.
@@ -239,6 +253,7 @@ def _run(model_file_name, top_predictor_dir_name, top_target_dir_name,
     :param overlap_size_px: Same.
     :param first_valid_date_string: Same.
     :param last_valid_date_string: Same.
+    :param use_dropout: Same.
     :param top_output_dir_name: Same.
     """
 
@@ -314,14 +329,14 @@ def _run(model_file_name, top_predictor_dir_name, top_target_dir_name,
                 trained_on_partial_grids=trained_on_partial_grids,
                 overlap_size_px=overlap_size_px,
                 valid_date_string=valid_date_strings[i],
-                model_file_name=model_file_name,
+                model_file_name=model_file_name, use_dropout=use_dropout,
                 top_output_dir_name=top_output_dir_name
             )
         else:
             _apply_to_partial_grids_one_day(
                 model_object=model_object, base_option_dict=base_option_dict,
                 valid_date_string=valid_date_strings[i],
-                model_file_name=model_file_name,
+                model_file_name=model_file_name, use_dropout=use_dropout,
                 top_output_dir_name=top_output_dir_name
             )
 
@@ -344,5 +359,6 @@ if __name__ == '__main__':
         overlap_size_px=getattr(INPUT_ARG_OBJECT, OVERLAP_SIZE_ARG_NAME),
         first_valid_date_string=getattr(INPUT_ARG_OBJECT, FIRST_DATE_ARG_NAME),
         last_valid_date_string=getattr(INPUT_ARG_OBJECT, LAST_DATE_ARG_NAME),
+        use_dropout=bool(getattr(INPUT_ARG_OBJECT, USE_DROPOUT_ARG_NAME)),
         top_output_dir_name=getattr(INPUT_ARG_OBJECT, OUTPUT_DIR_ARG_NAME)
     )
