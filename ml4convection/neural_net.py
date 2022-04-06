@@ -2466,7 +2466,7 @@ def apply_model_full_grid(
 
     predict_function = K.function(
         [model_object.layers[0].input, python_K.symbolic_learning_phase()],
-        [model_object.layers[-1].output]
+        [model_object.output]
     )
 
     config_dict = model_object.get_config()
@@ -2553,7 +2553,7 @@ def apply_model_partial_grids(
 
     predict_function = K.function(
         [model_object.layers[0].input, python_K.symbolic_learning_phase()],
-        [model_object.layers[-1].output]
+        [model_object.output]
     )
 
     config_dict = model_object.get_config()
