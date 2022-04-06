@@ -3,6 +3,7 @@
 import os
 import sys
 import copy
+import time
 import pickle
 import numpy
 numpy.random.seed(6695)
@@ -789,6 +790,65 @@ def _get_input_px_for_partial_grid(partial_grid_dict):
     partial_grid_dict[LAST_INPUT_COLUMN_KEY] = last_input_column
 
     return partial_grid_dict
+
+
+def _get_predict_func_with_dropout(model_object):
+    """Returns prediction function that uses Monte Carlo dropout.
+
+    :param model_object: Trained instance of `keras.models.Model` or
+        `keras.models.Sequential`.
+    :return: predict_function: Function object.
+    """
+
+    this_seed = int(numpy.round(
+        4e8 * numpy.mod(time.time(), 1)
+    ))
+    numpy.random.seed(this_seed)
+
+    this_seed = int(numpy.round(
+        4e8 * numpy.mod(time.time(), 1)
+    ))
+    tensorflow.random.set_seed(this_seed)
+
+    for layer_object in model_object.layers:
+        if 'batch' in layer_object.name.lower():
+            print('Layer "{0:s}" set to NON-TRAINABLE!'.format(
+                layer_object.name
+            ))
+            layer_object.trainable = False
+
+        # if 'dropout' in layer_object.name.lower():
+        #     print('Layer "{0:s}" set to TRAINABLE!'.format(
+        #         layer_object.name
+        #     ))
+        #     layer_object.trainable = True
+
+    config_dict = model_object.get_config()
+
+    for layer_dict in config_dict['layers']:
+        if len(layer_dict['inbound_nodes']) == 0:
+            continue
+
+        if 'dropout' in layer_dict['inbound_nodes'][0][0][0].lower():
+            layer_dict['inbound_nodes'][0][0][-1]['training'] = True
+
+    for layer_dict in config_dict['layers']:
+        if 'dropout' in layer_dict['class_name'].lower():
+            print(layer_dict)
+
+        if len(layer_dict['inbound_nodes']) == 0:
+            continue
+
+        if 'dropout' in layer_dict['inbound_nodes'][0][0][0].lower():
+            print(layer_dict)
+
+    new_model_object = keras.models.Model.from_config(config_dict)
+    new_model_object.set_weights(model_object.get_weights())
+
+    these_inputs = [
+        new_model_object.layers[0].input, python_K.symbolic_learning_phase()
+    ]
+    return K.function(these_inputs, [new_model_object.output])
 
 
 def predictor_matrix_to_keras(predictor_matrix, num_lag_times,
@@ -2429,7 +2489,8 @@ def read_metafile(dill_file_name):
 
 
 def apply_model_full_grid(
-        model_object, predictor_matrix, num_examples_per_batch, verbose=False):
+        model_object, predictor_matrix, num_examples_per_batch,
+        use_dropout=False, verbose=False):
     """Applies trained neural net to full grid.
 
     E = number of examples
@@ -2441,6 +2502,9 @@ def apply_model_full_grid(
     :param predictor_matrix: See output doc for
         `generator_full_grid`.
     :param num_examples_per_batch: Batch size.
+    :param use_dropout: Boolean flag.  If True, will keep dropout in all layers
+        turned on.  Using dropout at inference time is called "Monte Carlo
+        dropout".
     :param verbose: Boolean flag.  If True, will print progress messages.
     :return: forecast_prob_matrix: E-by-M-by-N numpy array of forecast event
         probabilities.
@@ -2451,44 +2515,11 @@ def apply_model_full_grid(
         num_examples_per_batch=num_examples_per_batch, verbose=verbose
     )
 
-    for layer_object in model_object.layers:
-        if 'batch' in layer_object.name.lower():
-            print('Layer "{0:s}" set to NON-TRAINABLE!'.format(
-                layer_object.name
-            ))
-            layer_object.trainable = False
-
-        # if 'dropout' in layer_object.name.lower():
-        #     print('Layer "{0:s}" set to TRAINABLE!'.format(
-        #         layer_object.name
-        #     ))
-        #     layer_object.trainable = True
-
-    config_dict = model_object.get_config()
-    for layer_dict in config_dict['layers']:
-        if len(layer_dict['inbound_nodes']) == 0:
-            continue
-
-        if 'dropout' in layer_dict['inbound_nodes'][0][0][0].lower():
-            layer_dict['inbound_nodes'][0][0][-1]['training'] = True
-
-    for layer_dict in config_dict['layers']:
-        if 'dropout' in layer_dict['class_name'].lower():
-            print(layer_dict)
-
-        if len(layer_dict['inbound_nodes']) == 0:
-            continue
-
-        if 'dropout' in layer_dict['inbound_nodes'][0][0][0].lower():
-            print(layer_dict)
-
-    new_model_object = keras.models.Model.from_config(config_dict)
-    new_model_object.set_weights(model_object.get_weights())
-
-    predict_function = K.function(
-        [new_model_object.layers[0].input, python_K.symbolic_learning_phase()],
-        [new_model_object.output]
-    )
+    error_checking.assert_is_boolean(use_dropout)
+    if use_dropout:
+        predict_function = _get_predict_func_with_dropout(model_object)
+    else:
+        predict_function = None
 
     forecast_prob_matrix = None
     num_examples = predictor_matrix.shape[0]
@@ -2511,20 +2542,18 @@ def apply_model_full_grid(
                 this_first_index + 1, this_last_index + 1, num_examples
             ))
 
-        # TODO(thunderhoser): Make this an input arg.
-        for _ in range(5):
-            this_prob_matrix = predict_function([
-                predictor_matrix[these_indices, ...], True
-            ])[0]
+        if use_dropout:
+            this_prob_matrix = predict_function(
+                [predictor_matrix[these_indices, ...], True]
+            )[0]
 
-            these_percentiles = numpy.array(
-                [50, 75, 90, 95, 96, 97, 98, 99, 100], dtype=float
+            # this_prob_matrix = model_object(
+            #     predictor_matrix[these_indices, ...], training=True
+            # ).numpy()
+        else:
+            this_prob_matrix = model_object.predict_on_batch(
+                predictor_matrix[these_indices, ...]
             )
-            print(numpy.percentile(this_prob_matrix, these_percentiles))
-
-        # this_prob_matrix = model_object(
-        #     predictor_matrix[these_indices, ...], training=True
-        # ).numpy()
 
         if forecast_prob_matrix is None:
             dimensions = (num_examples,) + this_prob_matrix.shape[1:3]
@@ -2542,7 +2571,7 @@ def apply_model_full_grid(
 
 def apply_model_partial_grids(
         model_object, predictor_matrix, num_examples_per_batch, overlap_size_px,
-        verbose=False):
+        use_dropout=False, verbose=False):
     """Applies trained NN to full grid, predicting one partial grid at a time.
 
     :param model_object: See doc for `apply_model_full_grid`.
@@ -2550,7 +2579,8 @@ def apply_model_partial_grids(
     :param num_examples_per_batch: Same.
     :param overlap_size_px: Overlap between adjacent partial grids (number of
         pixels).
-    :param verbose: See doc for `apply_model_full_grid`.
+    :param use_dropout: See doc for `apply_model_full_grid`.
+    :param verbose: Same.
     :return: forecast_prob_matrix: Same.
     """
 
@@ -2560,44 +2590,11 @@ def apply_model_partial_grids(
         num_examples_per_batch=num_examples_per_batch, verbose=verbose
     )
 
-    for layer_object in model_object.layers:
-        if 'batch' in layer_object.name.lower():
-            print('Layer "{0:s}" set to NON-TRAINABLE!'.format(
-                layer_object.name
-            ))
-            layer_object.trainable = False
-
-        # if 'dropout' in layer_object.name.lower():
-        #     print('Layer "{0:s}" set to TRAINABLE!'.format(
-        #         layer_object.name
-        #     ))
-        #     layer_object.trainable = True
-
-    config_dict = model_object.get_config()
-    for layer_dict in config_dict['layers']:
-        if len(layer_dict['inbound_nodes']) == 0:
-            continue
-
-        if 'dropout' in layer_dict['inbound_nodes'][0][0][0].lower():
-            layer_dict['inbound_nodes'][0][0][-1]['training'] = True
-
-    for layer_dict in config_dict['layers']:
-        if 'dropout' in layer_dict['class_name'].lower():
-            print(layer_dict)
-
-        if len(layer_dict['inbound_nodes']) == 0:
-            continue
-
-        if 'dropout' in layer_dict['inbound_nodes'][0][0][0].lower():
-            print(layer_dict)
-
-    new_model_object = keras.models.Model.from_config(config_dict)
-    new_model_object.set_weights(model_object.get_weights())
-
-    predict_function = K.function(
-        [new_model_object.layers[0].input, python_K.symbolic_learning_phase()],
-        [new_model_object.output]
-    )
+    error_checking.assert_is_boolean(use_dropout)
+    if use_dropout:
+        predict_function = _get_predict_func_with_dropout(model_object)
+    else:
+        predict_function = None
 
     these_dim = model_object.layers[-1].output.get_shape().as_list()
     num_partial_grid_rows = these_dim[1]
@@ -2684,14 +2681,18 @@ def apply_model_partial_grids(
                 :
             ]
 
-            # TODO(thunderhoser): Make this an input arg.
-            this_prob_matrix = predict_function(
-                [this_predictor_matrix, True]
-            )[0]
+            if use_dropout:
+                this_prob_matrix = predict_function(
+                    [this_predictor_matrix, True]
+                )[0]
 
-            # this_prob_matrix = model_object(
-            #     this_predictor_matrix, training=True
-            # ).numpy()
+                # this_prob_matrix = model_object(
+                #     this_predictor_matrix, training=True
+                # ).numpy()
+            else:
+                this_prob_matrix = model_object.predict_on_batch(
+                    this_predictor_matrix
+                )
 
             this_prob_matrix = numpy.maximum(this_prob_matrix, 0.)
             this_prob_matrix = numpy.minimum(this_prob_matrix, 1.)
