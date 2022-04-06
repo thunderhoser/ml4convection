@@ -2512,9 +2512,15 @@ def apply_model_full_grid(
             ))
 
         # TODO(thunderhoser): Make this an input arg.
-        this_prob_matrix = predict_function([
-            predictor_matrix[these_indices, ...], True
-        ])[0]
+        for _ in range(5):
+            this_prob_matrix = predict_function([
+                predictor_matrix[these_indices, ...], True
+            ])[0]
+
+            these_percentiles = numpy.array(
+                [50, 75, 90, 95, 96, 97, 98, 99, 100], dtype=float
+            )
+            print(numpy.percentile(this_prob_matrix, these_percentiles))
 
         # this_prob_matrix = model_object(
         #     predictor_matrix[these_indices, ...], training=True
