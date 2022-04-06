@@ -2517,14 +2517,6 @@ def apply_model_full_grid(
     )
 
     error_checking.assert_is_boolean(use_dropout)
-    # if use_dropout:
-    #     for layer_object in model_object.layers:
-    #         if 'batch' in layer_object.name.lower():
-    #             print('Layer "{0:s}" set to NON-TRAINABLE!'.format(
-    #                 layer_object.name
-    #             ))
-    #             layer_object.trainable = False
-
     if use_dropout:
         for layer_object in model_object.layers:
             if 'batch' in layer_object.name.lower():
@@ -2532,21 +2524,6 @@ def apply_model_full_grid(
                     layer_object.name
                 ))
                 layer_object.trainable = False
-
-        config_dict = model_object.get_config()
-
-        for layer_dict in config_dict['layers']:
-            if 'batch' in layer_dict['class_name'].lower():
-                these_weights = K.eval(
-                    model_object.get_layer(
-                        name=layer_dict['config']['name']
-                    ).weights
-                )
-
-                print(layer_dict['config']['name'])
-                print(these_weights)
-                print('\n\n\n****************************\n\n\n')
-                break
 
     # if use_dropout:
     #     predict_function = _get_predict_func_with_dropout(model_object)
@@ -2596,22 +2573,6 @@ def apply_model_full_grid(
     if verbose:
         print('Have applied model to all {0:d} examples!'.format(num_examples))
 
-    if use_dropout:
-        config_dict = model_object.get_config()
-
-        for layer_dict in config_dict['layers']:
-            if 'batch' in layer_dict['class_name'].lower():
-                these_weights = K.eval(
-                    model_object.get_layer(
-                        name=layer_dict['config']['name']
-                    ).weights
-                )
-
-                print(layer_dict['config']['name'])
-                print(these_weights)
-                print('\n\n\n****************************\n\n\n')
-                break
-
     forecast_prob_matrix = numpy.maximum(forecast_prob_matrix, 0.)
     forecast_prob_matrix = numpy.minimum(forecast_prob_matrix, 1.)
     return forecast_prob_matrix
@@ -2639,13 +2600,13 @@ def apply_model_partial_grids(
     )
 
     error_checking.assert_is_boolean(use_dropout)
-    # if use_dropout:
-    #     for layer_object in model_object.layers:
-    #         if 'batch' in layer_object.name.lower():
-    #             print('Layer "{0:s}" set to NON-TRAINABLE!'.format(
-    #                 layer_object.name
-    #             ))
-    #             layer_object.trainable = False
+    if use_dropout:
+        for layer_object in model_object.layers:
+            if 'batch' in layer_object.name.lower():
+                print('Layer "{0:s}" set to NON-TRAINABLE!'.format(
+                    layer_object.name
+                ))
+                layer_object.trainable = False
 
     # if use_dropout:
     #     predict_function = _get_predict_func_with_dropout(model_object)

@@ -24,6 +24,7 @@ GZIP_FILE_EXTENSION = '.gz'
 EXAMPLE_DIMENSION_KEY = 'example'
 GRID_ROW_DIMENSION_KEY = 'row'
 GRID_COLUMN_DIMENSION_KEY = 'column'
+PREDICTION_SET_DIMENSION_KEY = 'prediction_set'
 
 PROBABILITY_MATRIX_KEY = 'forecast_probability_matrix'
 TARGET_MATRIX_KEY = 'target_matrix'
@@ -199,12 +200,13 @@ def write_file(
     E = number of examples (times)
     M = number of rows in grid
     N = number of columns in grid
+    S = number of prediction sets
 
     :param netcdf_file_name: Path to output file.
     :param target_matrix: E-by-M-by-N numpy array of true classes (integers in
         0...1).
-    :param forecast_probability_matrix: E-by-M-by-N numpy array of forecast
-        event probabilities (the "event" is when class = 1).
+    :param forecast_probability_matrix: E-by-M-by-N or E-by-M-by-N-by-S numpy
+        array of forecast event probabilities (the "event" is when class = 1).
     :param valid_times_unix_sec: length-E numpy array of valid times.
     :param latitudes_deg_n: length-M numpy array of latitudes (deg N).
     :param longitudes_deg_e: length-N numpy array of longitudes (deg E).
@@ -222,8 +224,14 @@ def write_file(
     error_checking.assert_is_geq_numpy_array(target_matrix, 0)
     error_checking.assert_is_leq_numpy_array(target_matrix, 1)
 
+    error_checking.assert_is_numpy_array(forecast_probability_matrix)
+    if len(forecast_probability_matrix.shape) == 3:
+        forecast_probability_matrix = numpy.expand_dims(
+            forecast_probability_matrix, axis=-1
+        )
+
     error_checking.assert_is_numpy_array(
-        forecast_probability_matrix,
+        forecast_probability_matrix[..., 0],
         exact_dimensions=numpy.array(target_matrix.shape, dtype=int)
     )
     error_checking.assert_is_geq_numpy_array(forecast_probability_matrix, 0.)
@@ -232,6 +240,7 @@ def write_file(
     num_examples = target_matrix.shape[0]
     num_grid_rows = target_matrix.shape[1]
     num_grid_columns = target_matrix.shape[2]
+    num_prediction_sets = forecast_probability_matrix.shape[3]
 
     error_checking.assert_is_integer_numpy_array(valid_times_unix_sec)
     error_checking.assert_is_numpy_array(
@@ -266,6 +275,9 @@ def write_file(
     dataset_object.createDimension(EXAMPLE_DIMENSION_KEY, num_examples)
     dataset_object.createDimension(GRID_ROW_DIMENSION_KEY, num_grid_rows)
     dataset_object.createDimension(GRID_COLUMN_DIMENSION_KEY, num_grid_columns)
+    dataset_object.createDimension(
+        PREDICTION_SET_DIMENSION_KEY, num_prediction_sets
+    )
 
     these_dim = (
         EXAMPLE_DIMENSION_KEY, GRID_ROW_DIMENSION_KEY, GRID_COLUMN_DIMENSION_KEY
@@ -275,6 +287,10 @@ def write_file(
     )
     dataset_object.variables[TARGET_MATRIX_KEY][:] = target_matrix
 
+    these_dim = (
+        EXAMPLE_DIMENSION_KEY, GRID_ROW_DIMENSION_KEY,
+        GRID_COLUMN_DIMENSION_KEY, PREDICTION_SET_DIMENSION_KEY
+    )
     dataset_object.createVariable(
         PROBABILITY_MATRIX_KEY, datatype=numpy.float32, dimensions=these_dim
     )
@@ -319,7 +335,7 @@ def read_file(netcdf_file_name):
             with netCDF4.Dataset(
                     'dummy', mode='r', memory=gzip_handle.read()
             ) as dataset_object:
-                return {
+                prediction_dict = {
                     TARGET_MATRIX_KEY:
                         dataset_object.variables[TARGET_MATRIX_KEY][:],
                     PROBABILITY_MATRIX_KEY:
@@ -330,6 +346,13 @@ def read_file(netcdf_file_name):
                     LONGITUDES_KEY: dataset_object.variables[LONGITUDES_KEY][:],
                     MODEL_FILE_KEY: str(getattr(dataset_object, MODEL_FILE_KEY))
                 }
+
+                if len(prediction_dict[PROBABILITY_MATRIX_KEY].shape) == 3:
+                    prediction_dict[PROBABILITY_MATRIX_KEY] = numpy.expand_dims(
+                        prediction_dict[PROBABILITY_MATRIX_KEY], axis=-1
+                    )
+
+                return prediction_dict
 
     dataset_object = netCDF4.Dataset(netcdf_file_name)
 
@@ -344,6 +367,12 @@ def read_file(netcdf_file_name):
     }
 
     dataset_object.close()
+
+    if len(prediction_dict[PROBABILITY_MATRIX_KEY].shape) == 3:
+        prediction_dict[PROBABILITY_MATRIX_KEY] = numpy.expand_dims(
+            prediction_dict[PROBABILITY_MATRIX_KEY], axis=-1
+        )
+
     return prediction_dict
 
 
@@ -423,6 +452,7 @@ def smooth_probabilities(prediction_dict, smoothing_radius_px):
 
     probability_matrix = prediction_dict[PROBABILITY_MATRIX_KEY]
     num_times = probability_matrix.shape[0]
+    num_prediction_sets = probability_matrix.shape[1]
 
     print((
         'Applying Gaussian smoother with e-folding radius = {0:f} pixels...'
@@ -431,10 +461,13 @@ def smooth_probabilities(prediction_dict, smoothing_radius_px):
     ))
 
     for i in range(num_times):
-        probability_matrix[i, ...] = gg_general_utils.apply_gaussian_filter(
-            input_matrix=probability_matrix[i, ...],
-            e_folding_radius_grid_cells=smoothing_radius_px
-        )
+        for j in range(num_prediction_sets):
+            probability_matrix[i, ..., j] = (
+                gg_general_utils.apply_gaussian_filter(
+                    input_matrix=probability_matrix[i, ..., j],
+                    e_folding_radius_grid_cells=smoothing_radius_px
+                )
+            )
 
     prediction_dict[PROBABILITY_MATRIX_KEY] = probability_matrix
     return prediction_dict

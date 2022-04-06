@@ -835,8 +835,9 @@ def get_basic_scores(
     b = basic_score_table_xarray
 
     if num_neigh_distances > 0:
-        this_matrix = (
-            prediction_dict[prediction_io.PROBABILITY_MATRIX_KEY][0, ...]
+        this_matrix = numpy.mean(
+            prediction_dict[prediction_io.PROBABILITY_MATRIX_KEY][0, ...],
+            axis=-1
         )
 
         num_grid_rows = this_matrix.shape[0]
@@ -861,9 +862,9 @@ def get_basic_scores(
                     i + 1, num_times
                 ))
 
-            this_prob_matrix = (
-                prediction_dict[prediction_io.PROBABILITY_MATRIX_KEY][i, ...]
-                + 0.
+            this_prob_matrix = numpy.mean(
+                prediction_dict[prediction_io.PROBABILITY_MATRIX_KEY][i, ...],
+                axis=-1
             )
             this_target_matrix = (
                 prediction_dict[prediction_io.TARGET_MATRIX_KEY][i, ...] + 0
@@ -933,7 +934,7 @@ def get_basic_scores(
     if num_filter_bands > 0:
         these_dim = (
             (num_filter_bands,) +
-            prediction_dict[prediction_io.PROBABILITY_MATRIX_KEY].shape
+            prediction_dict[prediction_io.PROBABILITY_MATRIX_KEY].shape[:-1]
         )
         fourier_forecast_matrix = numpy.full(these_dim, numpy.nan)
         fourier_target_matrix = numpy.full(these_dim, numpy.nan)
@@ -941,14 +942,14 @@ def get_basic_scores(
         wavelet_target_matrix = numpy.full(these_dim, numpy.nan)
 
         this_matrix = fourier_utils.taper_spatial_data(
-            prediction_dict[prediction_io.PROBABILITY_MATRIX_KEY][0, ...]
+            prediction_dict[prediction_io.PROBABILITY_MATRIX_KEY][0, ..., 0]
         )
         these_dim = (num_filter_bands, num_times) + this_matrix.shape
         fourier_forecast_coeff_matrix = numpy.full(these_dim, numpy.nan)
         fourier_target_coeff_matrix = numpy.full(these_dim, numpy.nan)
 
         this_matrix = wavelet_utils.taper_spatial_data(
-            prediction_dict[prediction_io.PROBABILITY_MATRIX_KEY][[0], ...]
+            prediction_dict[prediction_io.PROBABILITY_MATRIX_KEY][[0], ..., 0]
         )[0]
         these_dim = (num_filter_bands, num_times) + this_matrix.shape[1:]
         wavelet_forecast_mean_coeff_matrix = numpy.full(these_dim, numpy.nan)
@@ -963,8 +964,10 @@ def get_basic_scores(
                 fourier_forecast_matrix[k, ...],
                 fourier_forecast_coeff_matrix[k, ...]
             ) = _apply_fourier_filter(
-                orig_data_matrix=
-                prediction_dict[prediction_io.PROBABILITY_MATRIX_KEY] + 0.,
+                orig_data_matrix=numpy.mean(
+                    prediction_dict[prediction_io.PROBABILITY_MATRIX_KEY],
+                    axis=-1
+                ),
                 min_resolution_deg=min_resolutions_deg[k],
                 max_resolution_deg=max_resolutions_deg[k]
             )
@@ -984,8 +987,10 @@ def get_basic_scores(
                 wavelet_forecast_mean_coeff_matrix[k, ...],
                 wavelet_forecast_detail_coeff_matrix[k, ...]
             ) = _apply_wavelet_filter(
-                orig_data_matrix=
-                prediction_dict[prediction_io.PROBABILITY_MATRIX_KEY] + 0.,
+                orig_data_matrix=numpy.mean(
+                    prediction_dict[prediction_io.PROBABILITY_MATRIX_KEY],
+                    axis=-1
+                ),
                 min_resolution_deg=min_resolutions_deg[k],
                 max_resolution_deg=max_resolutions_deg[k]
             )

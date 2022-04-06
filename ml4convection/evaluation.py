@@ -528,7 +528,7 @@ def _find_eval_mask(prediction_dict):
     """
 
     forecast_prob_matrix = (
-        prediction_dict[prediction_io.PROBABILITY_MATRIX_KEY]
+        prediction_dict[prediction_io.PROBABILITY_MATRIX_KEY][..., 0]
     )
     num_pixels = numpy.prod(forecast_prob_matrix.shape[1:])
 
@@ -632,6 +632,11 @@ def get_basic_scores_ungridded(
     num_prob_thresholds = len(probability_thresholds)
 
     for i in range(num_times):
+        current_prob_matrix = numpy.mean(
+            prediction_dict[prediction_io.PROBABILITY_MATRIX_KEY][i, ...],
+            axis=-1
+        )
+
         (
             this_example_count_matrix,
             this_summed_prob_matrix,
@@ -639,8 +644,7 @@ def get_basic_scores_ungridded(
         ) = _get_reliability_components_one_time(
             actual_target_matrix=
             prediction_dict[prediction_io.TARGET_MATRIX_KEY][i, ...],
-            probability_matrix=
-            prediction_dict[prediction_io.PROBABILITY_MATRIX_KEY][i, ...],
+            probability_matrix=current_prob_matrix,
             matching_distance_px=matching_distance_px,
             num_bins=num_bins_for_reliability,
             eroded_eval_mask_matrix=eroded_eval_mask_matrix
@@ -660,8 +664,7 @@ def get_basic_scores_ungridded(
             _get_fss_components_one_time(
                 actual_target_matrix=
                 prediction_dict[prediction_io.TARGET_MATRIX_KEY][i, ...],
-                probability_matrix=
-                prediction_dict[prediction_io.PROBABILITY_MATRIX_KEY][i, ...],
+                probability_matrix=current_prob_matrix,
                 matching_distance_px=matching_distance_px,
                 eroded_eval_mask_matrix=eroded_eval_mask_matrix,
                 square_filter=square_fss_filter
@@ -692,8 +695,7 @@ def get_basic_scores_ungridded(
                 this_prob_threshold
             )
             this_predicted_target_matrix = (
-                prediction_dict[prediction_io.PROBABILITY_MATRIX_KEY][i, ...] >=
-                probability_thresholds[j]
+                current_prob_matrix >= probability_thresholds[j]
             )
 
             t = basic_score_table_xarray
@@ -816,14 +818,18 @@ def get_basic_scores_gridded(
     num_prob_thresholds = len(probability_thresholds)
 
     for i in range(num_times):
+        current_prob_matrix = numpy.mean(
+            prediction_dict[prediction_io.PROBABILITY_MATRIX_KEY][i, ...],
+            axis=-1
+        )
+
         (
             basic_score_table_xarray[ACTUAL_SSE_FOR_FSS_KEY].values[i, ...],
             basic_score_table_xarray[REFERENCE_SSE_FOR_FSS_KEY].values[i, ...]
         ) = _get_fss_components_one_time(
             actual_target_matrix=
             prediction_dict[prediction_io.TARGET_MATRIX_KEY][i, ...],
-            probability_matrix=
-            prediction_dict[prediction_io.PROBABILITY_MATRIX_KEY][i, ...],
+            probability_matrix=current_prob_matrix,
             matching_distance_px=matching_distance_px,
             eroded_eval_mask_matrix=eroded_eval_mask_matrix,
             square_filter=square_fss_filter
@@ -836,8 +842,7 @@ def get_basic_scores_gridded(
         ) = _get_bss_components_one_time(
             actual_target_matrix=
             prediction_dict[prediction_io.TARGET_MATRIX_KEY][i, ...],
-            probability_matrix=
-            prediction_dict[prediction_io.PROBABILITY_MATRIX_KEY][i, ...],
+            probability_matrix=current_prob_matrix,
             training_event_freq_matrix=
             basic_score_table_xarray[TRAINING_EVENT_FREQ_KEY].values,
             matching_distance_px=matching_distance_px,
@@ -852,9 +857,7 @@ def get_basic_scores_gridded(
             this_count_matrix + 0
         )
 
-        this_prob_matrix = (
-            prediction_dict[prediction_io.PROBABILITY_MATRIX_KEY][i, ...] + 0.
-        )
+        this_prob_matrix = current_prob_matrix + 0.
         this_prob_matrix[eroded_eval_mask_matrix == False] = numpy.nan
         basic_score_table_xarray[MEAN_FORECAST_PROBS_KEY].values[i, ...] = (
             this_prob_matrix + 0.
@@ -877,8 +880,7 @@ def get_basic_scores_gridded(
                 this_prob_threshold
             )
             this_predicted_target_matrix = (
-                prediction_dict[prediction_io.PROBABILITY_MATRIX_KEY][i, ...] >=
-                probability_thresholds[j]
+                current_prob_matrix >= probability_thresholds[j]
             )
 
             t = basic_score_table_xarray

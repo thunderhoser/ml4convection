@@ -188,8 +188,9 @@ def _plot_predictions_one_example(
     )
 
     target_matrix = prediction_dict[prediction_io.TARGET_MATRIX_KEY][i, ...]
-    probability_matrix = (
-        prediction_dict[prediction_io.PROBABILITY_MATRIX_KEY][i, ...]
+    probability_matrix = numpy.mean(
+        prediction_dict[prediction_io.PROBABILITY_MATRIX_KEY][i, ...],
+        axis=-1
     )
 
     if plot_deterministic:
