@@ -4,9 +4,9 @@ import os
 import sys
 import argparse
 import numpy
-numpy.random.seed(6695)
+# numpy.random.seed(6695)
 import tensorflow
-tensorflow.random.set_seed(6695)
+# tensorflow.random.set_seed(6695)
 
 THIS_DIRECTORY_NAME = os.path.dirname(os.path.realpath(
     os.path.join(os.getcwd(), os.path.expanduser(__file__))
