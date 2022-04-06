@@ -476,7 +476,7 @@ def _run(top_prediction_dir_name, valid_time_string, radar_number, plot_targets,
     )
     target_matrix = fourier_utils.apply_blackman_window(target_matrix)
 
-    orig_file_name, figure_object, axes_object = (
+    orig_file_name, figure_object = (
         plot_predictions._plot_predictions_one_example(
             prediction_dict=prediction_dict, example_index=0,
             border_latitudes_deg_n=border_latitudes_deg_n,
@@ -490,7 +490,7 @@ def _run(top_prediction_dir_name, valid_time_string, radar_number, plot_targets,
                 'targets' if plot_targets else 'probabilities'
             ),
             font_size=FONT_SIZE, latlng_visible=False
-        )
+        )[:2]
     )
 
     panel_file_names[6] = '{0:s}/windowed_field.jpg'.format(output_dir_name)
@@ -704,7 +704,7 @@ def _run(top_prediction_dir_name, valid_time_string, radar_number, plot_targets,
         orig_prediction_dict[prediction_io.LONGITUDES_KEY]
     )
 
-    orig_file_name, figure_object, axes_object = (
+    orig_file_name, figure_object = (
         plot_predictions._plot_predictions_one_example(
             prediction_dict=prediction_dict, example_index=0,
             border_latitudes_deg_n=border_latitudes_deg_n,
@@ -718,7 +718,7 @@ def _run(top_prediction_dir_name, valid_time_string, radar_number, plot_targets,
                 'targets' if plot_targets else 'probabilities'
             ),
             font_size=FONT_SIZE, latlng_visible=False
-        )
+        )[:2]
     )
 
     panel_file_names[-1] = '{0:s}/filtered_field.jpg'.format(output_dir_name)

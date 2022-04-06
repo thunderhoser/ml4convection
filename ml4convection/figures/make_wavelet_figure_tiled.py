@@ -46,7 +46,7 @@ NUM_PANEL_ROWS = 5
 NUM_PANEL_COLUMNS = 2
 CONCAT_FIGURE_SIZE_PX = int(1e7)
 
-TITLE_FONT_SIZE = 36
+TITLE_FONT_SIZE = 50
 DEFAULT_FONT_SIZE = 50
 
 pyplot.rc('font', size=DEFAULT_FONT_SIZE)
@@ -60,6 +60,7 @@ pyplot.rc('figure', titlesize=DEFAULT_FONT_SIZE)
 PREDICTION_DIR_ARG_NAME = 'input_prediction_dir_name'
 VALID_TIME_ARG_NAME = 'valid_time_string'
 RADAR_NUMBER_ARG_NAME = 'radar_number'
+PLOT_TARGETS_ARG_NAME = 'plot_targets'
 MIN_RESOLUTION_ARG_NAME = 'min_resolution_deg'
 MAX_RESOLUTION_ARG_NAME = 'max_resolution_deg'
 OUTPUT_DIR_ARG_NAME = 'output_dir_name'
@@ -75,6 +76,10 @@ VALID_TIME_HELP_STRING = (
 RADAR_NUMBER_HELP_STRING = (
     'Radar number (non-negative integer).  This script handles only partial '
     'grids.'
+)
+PLOT_TARGETS_HELP_STRING = (
+    'Boolean flag.  If 1 (0), will plot target convection mask (forecast '
+    'probabilities).'
 )
 MIN_RESOLUTION_HELP_STRING = (
     'Minimum spatial resolution to allow through band-pass filter.'
@@ -98,6 +103,10 @@ INPUT_ARG_PARSER.add_argument(
 INPUT_ARG_PARSER.add_argument(
     '--' + RADAR_NUMBER_ARG_NAME, type=int, required=True,
     help=RADAR_NUMBER_HELP_STRING
+)
+INPUT_ARG_PARSER.add_argument(
+    '--' + PLOT_TARGETS_ARG_NAME, type=int, required=False, default=0,
+    help=PLOT_TARGETS_HELP_STRING
 )
 INPUT_ARG_PARSER.add_argument(
     '--' + MIN_RESOLUTION_ARG_NAME, type=float, required=True,
@@ -170,7 +179,7 @@ def _plot_coeffs_one_level(coeff_matrix, title_string, output_file_name,
         numpy.hstack((coeff_matrix[..., 0], coeff_matrix[..., 2]))
     ))
 
-    max_colour_value = numpy.percentile(numpy.absolute(matrix_to_plot), 95)
+    max_colour_value = numpy.percentile(numpy.absolute(matrix_to_plot), 99)
     min_colour_value = -1 * max_colour_value
 
     axes_object.imshow(
@@ -251,7 +260,7 @@ def _plot_coeffs_one_level(coeff_matrix, title_string, output_file_name,
     )
 
 
-def _run(top_prediction_dir_name, valid_time_string, radar_number,
+def _run(top_prediction_dir_name, valid_time_string, radar_number, plot_targets,
          min_resolution_deg, max_resolution_deg, top_output_dir_name):
     """Makes schematic with tiled figures to show wavelet decomposition.
 
@@ -260,6 +269,7 @@ def _run(top_prediction_dir_name, valid_time_string, radar_number,
     :param top_prediction_dir_name: See documentation at top of file.
     :param valid_time_string: Same.
     :param radar_number: Same.
+    :param plot_targets: Same.
     :param min_resolution_deg: Same.
     :param max_resolution_deg: Same.
     :param top_output_dir_name: Same.
@@ -296,8 +306,13 @@ def _run(top_prediction_dir_name, valid_time_string, radar_number,
         prediction_dict=prediction_dict,
         desired_times_unix_sec=numpy.array([valid_time_unix_sec], dtype=int)
     )[0]
-    prediction_dict[prediction_io.TARGET_MATRIX_KEY][:] = 0
 
+    if plot_targets:
+        prediction_dict[prediction_io.PROBABILITY_MATRIX_KEY] = (
+            prediction_dict[prediction_io.TARGET_MATRIX_KEY].astype(float)
+        )
+
+    prediction_dict[prediction_io.TARGET_MATRIX_KEY][:] = 0
     border_latitudes_deg_n, border_longitudes_deg_e = border_io.read_file()
 
     # Plot original predictions.
@@ -324,9 +339,10 @@ def _run(top_prediction_dir_name, valid_time_string, radar_number,
         font_size=DEFAULT_FONT_SIZE, latlng_visible=False
     )[1:]
 
-    axes_object.set_title(
-        'Original probability field', fontsize=TITLE_FONT_SIZE
+    title_string = 'Original {0:s}'.format(
+        'targets' if plot_targets else 'probabilities'
     )
+    axes_object.set_title(title_string, fontsize=TITLE_FONT_SIZE)
 
     panel_file_names = [''] * (2 + NUM_DECOMP_LEVELS)
     panel_file_names[0] = '{0:s}/original_field.jpg'.format(
@@ -345,11 +361,11 @@ def _run(top_prediction_dir_name, valid_time_string, radar_number,
         output_file_name=panel_file_names[0],
         border_width_pixels=LARGE_BORDER_WIDTH_PX + 50
     )
-    _overlay_text(
-        image_file_name=panel_file_names[0],
-        x_offset_from_left_px=0,
-        y_offset_from_top_px=LARGE_BORDER_WIDTH_PX * 2, text_string='(a)'
-    )
+    # _overlay_text(
+    #     image_file_name=panel_file_names[0],
+    #     x_offset_from_left_px=0,
+    #     y_offset_from_top_px=LARGE_BORDER_WIDTH_PX * 2, text_string='(a)'
+    # )
     imagemagick_utils.trim_whitespace(
         input_file_name=panel_file_names[0],
         output_file_name=panel_file_names[0]
@@ -425,13 +441,14 @@ def _run(top_prediction_dir_name, valid_time_string, radar_number,
         font_size=DEFAULT_FONT_SIZE, latlng_visible=False
     )[1:]
 
-    axes_object.set_title(
-        'Tapered probability field', fontsize=TITLE_FONT_SIZE
+    title_string = 'Tapered {0:s}'.format(
+        'targets' if plot_targets else 'probabilities'
     )
+    axes_object.set_title(title_string, fontsize=TITLE_FONT_SIZE)
+
     panel_file_names[1] = '{0:s}/tapered_field.jpg'.format(
         before_output_dir_name
     )
-
     print('Saving figure to file: "{0:s}"...'.format(panel_file_names[1]))
     figure_object.savefig(
         panel_file_names[1], dpi=FIGURE_RESOLUTION_DPI,
@@ -444,11 +461,11 @@ def _run(top_prediction_dir_name, valid_time_string, radar_number,
         output_file_name=panel_file_names[1],
         border_width_pixels=LARGE_BORDER_WIDTH_PX + 50
     )
-    _overlay_text(
-        image_file_name=panel_file_names[1],
-        x_offset_from_left_px=0,
-        y_offset_from_top_px=LARGE_BORDER_WIDTH_PX * 2, text_string='(b)'
-    )
+    # _overlay_text(
+    #     image_file_name=panel_file_names[1],
+    #     x_offset_from_left_px=0,
+    #     y_offset_from_top_px=LARGE_BORDER_WIDTH_PX * 2, text_string='(b)'
+    # )
     imagemagick_utils.trim_whitespace(
         input_file_name=panel_file_names[1],
         output_file_name=panel_file_names[1]
@@ -464,8 +481,9 @@ def _run(top_prediction_dir_name, valid_time_string, radar_number,
     panel_letter = 'b'
 
     for k in range(NUM_DECOMP_LEVELS):
-        title_string = 'Level-{0:d} coeffs'.format(k + 1)
-        title_string += r' ($\lambda$ = '
+        title_string = 'Lvl-{0:d} coeffs'.format(k + 1)
+        # title_string += r' ($\lambda$ = '
+        title_string += ' ('
         title_string += '{0:.2g}'.format(
             GRID_SPACING_DEG * numpy.power(2, k + 1)
         )
@@ -493,12 +511,12 @@ def _run(top_prediction_dir_name, valid_time_string, radar_number,
         )
 
         panel_letter = chr(ord(panel_letter) + 1)
-        _overlay_text(
-            image_file_name=panel_file_names[k + 2],
-            x_offset_from_left_px=0,
-            y_offset_from_top_px=LARGE_BORDER_WIDTH_PX * 2,
-            text_string='({0:s})'.format(panel_letter)
-        )
+        # _overlay_text(
+        #     image_file_name=panel_file_names[k + 2],
+        #     x_offset_from_left_px=0,
+        #     y_offset_from_top_px=LARGE_BORDER_WIDTH_PX * 2,
+        #     text_string='({0:s})'.format(panel_letter)
+        # )
 
         imagemagick_utils.trim_whitespace(
             input_file_name=panel_file_names[k + 2],
@@ -545,8 +563,9 @@ def _run(top_prediction_dir_name, valid_time_string, radar_number,
     panel_file_names = [''] * (NUM_DECOMP_LEVELS + 2)
 
     for k in range(NUM_DECOMP_LEVELS):
-        title_string = 'Level-{0:d} coeffs'.format(k + 1)
-        title_string += r' ($\lambda$ = '
+        title_string = 'Lvl-{0:d} coeffs'.format(k + 1)
+        # title_string += r' ($\lambda$ = '
+        title_string += ' ('
         title_string += '{0:.2g}'.format(
             GRID_SPACING_DEG * numpy.power(2, k + 1)
         )
@@ -574,12 +593,12 @@ def _run(top_prediction_dir_name, valid_time_string, radar_number,
         )
 
         panel_letter = chr(ord(panel_letter) + 1)
-        _overlay_text(
-            image_file_name=panel_file_names[k],
-            x_offset_from_left_px=0,
-            y_offset_from_top_px=LARGE_BORDER_WIDTH_PX * 2,
-            text_string='({0:s})'.format(panel_letter)
-        )
+        # _overlay_text(
+        #     image_file_name=panel_file_names[k],
+        #     x_offset_from_left_px=0,
+        #     y_offset_from_top_px=LARGE_BORDER_WIDTH_PX * 2,
+        #     text_string='({0:s})'.format(panel_letter)
+        # )
 
         imagemagick_utils.trim_whitespace(
             input_file_name=panel_file_names[k],
@@ -610,13 +629,14 @@ def _run(top_prediction_dir_name, valid_time_string, radar_number,
         font_size=DEFAULT_FONT_SIZE, latlng_visible=False
     )[1:]
 
-    axes_object.set_title(
-        'Reconstructed probs with tapering', fontsize=TITLE_FONT_SIZE
+    title_string = 'Filtered, tapered {0:s}'.format(
+        'targets' if plot_targets else 'probabilities'
     )
+    axes_object.set_title(title_string, fontsize=TITLE_FONT_SIZE)
+
     panel_file_names[-2] = '{0:s}/tapered_field.jpg'.format(
         after_output_dir_name
     )
-
     print('Saving figure to file: "{0:s}"...'.format(panel_file_names[-2]))
     figure_object.savefig(
         panel_file_names[-2], dpi=FIGURE_RESOLUTION_DPI,
@@ -630,12 +650,12 @@ def _run(top_prediction_dir_name, valid_time_string, radar_number,
         border_width_pixels=LARGE_BORDER_WIDTH_PX + 50
     )
     panel_letter = chr(ord(panel_letter) + 1)
-    _overlay_text(
-        image_file_name=panel_file_names[-2],
-        x_offset_from_left_px=0,
-        y_offset_from_top_px=LARGE_BORDER_WIDTH_PX * 2,
-        text_string='({0:s})'.format(panel_letter)
-    )
+    # _overlay_text(
+    #     image_file_name=panel_file_names[-2],
+    #     x_offset_from_left_px=0,
+    #     y_offset_from_top_px=LARGE_BORDER_WIDTH_PX * 2,
+    #     text_string='({0:s})'.format(panel_letter)
+    # )
     imagemagick_utils.trim_whitespace(
         input_file_name=panel_file_names[-2],
         output_file_name=panel_file_names[-2]
@@ -688,13 +708,14 @@ def _run(top_prediction_dir_name, valid_time_string, radar_number,
         font_size=DEFAULT_FONT_SIZE, latlng_visible=False
     )[1:]
 
-    axes_object.set_title(
-        'Reconstructed probs without tapering', fontsize=TITLE_FONT_SIZE
+    title_string = 'Filtered {0:s}'.format(
+        'targets' if plot_targets else 'probabilities'
     )
+    axes_object.set_title(title_string, fontsize=TITLE_FONT_SIZE)
+
     panel_file_names[-1] = '{0:s}/untapered_field.jpg'.format(
         after_output_dir_name
     )
-
     print('Saving figure to file: "{0:s}"...'.format(panel_file_names[-1]))
     figure_object.savefig(
         panel_file_names[-1], dpi=FIGURE_RESOLUTION_DPI,
@@ -708,12 +729,12 @@ def _run(top_prediction_dir_name, valid_time_string, radar_number,
         border_width_pixels=LARGE_BORDER_WIDTH_PX + 50
     )
     panel_letter = chr(ord(panel_letter) + 1)
-    _overlay_text(
-        image_file_name=panel_file_names[-1],
-        x_offset_from_left_px=0,
-        y_offset_from_top_px=LARGE_BORDER_WIDTH_PX * 2,
-        text_string='({0:s})'.format(panel_letter)
-    )
+    # _overlay_text(
+    #     image_file_name=panel_file_names[-1],
+    #     x_offset_from_left_px=0,
+    #     y_offset_from_top_px=LARGE_BORDER_WIDTH_PX * 2,
+    #     text_string='({0:s})'.format(panel_letter)
+    # )
     imagemagick_utils.trim_whitespace(
         input_file_name=panel_file_names[-1],
         output_file_name=panel_file_names[-1]
@@ -751,6 +772,7 @@ if __name__ == '__main__':
         ),
         valid_time_string=getattr(INPUT_ARG_OBJECT, VALID_TIME_ARG_NAME),
         radar_number=getattr(INPUT_ARG_OBJECT, RADAR_NUMBER_ARG_NAME),
+        plot_targets=bool(getattr(INPUT_ARG_OBJECT, PLOT_TARGETS_ARG_NAME)),
         min_resolution_deg=getattr(INPUT_ARG_OBJECT, MIN_RESOLUTION_ARG_NAME),
         max_resolution_deg=getattr(INPUT_ARG_OBJECT, MAX_RESOLUTION_ARG_NAME),
         top_output_dir_name=getattr(INPUT_ARG_OBJECT, OUTPUT_DIR_ARG_NAME)
