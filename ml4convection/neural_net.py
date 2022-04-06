@@ -2474,6 +2474,12 @@ def apply_model_full_grid(
         if 'dropout' in layer_dict['class_name'].lower():
             print(layer_dict)
 
+    print('\n\n\n************************\n\n\n')
+
+    for layer_dict in config_dict['layers']:
+        if 'dropout' not in layer_dict['class_name'].lower():
+            print(layer_dict)
+
     forecast_prob_matrix = None
     num_examples = predictor_matrix.shape[0]
 
@@ -2559,6 +2565,12 @@ def apply_model_partial_grids(
     config_dict = model_object.get_config()
     for layer_dict in config_dict['layers']:
         if 'dropout' in layer_dict['class_name'].lower():
+            print(layer_dict)
+
+    print('\n\n\n************************\n\n\n')
+
+    for layer_dict in config_dict['layers']:
+        if 'dropout' not in layer_dict['class_name'].lower():
             print(layer_dict)
 
     these_dim = model_object.layers[-1].output.get_shape().as_list()
