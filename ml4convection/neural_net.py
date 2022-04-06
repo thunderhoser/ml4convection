@@ -2495,9 +2495,9 @@ def apply_model_full_grid(
             ))
 
         # TODO(thunderhoser): Make this an input arg.
-        this_prob_matrix = predict_function(
+        this_prob_matrix = predict_function([
             predictor_matrix[these_indices, ...], 1
-        )[0]
+        ])[0]
 
         # this_prob_matrix = model_object(
         #     predictor_matrix[these_indices, ...], training=True
@@ -2646,7 +2646,7 @@ def apply_model_partial_grids(
             ]
 
             # TODO(thunderhoser): Make this an input arg.
-            this_prob_matrix = predict_function(this_predictor_matrix, 1)[0]
+            this_prob_matrix = predict_function([this_predictor_matrix, 1])[0]
 
             # this_prob_matrix = model_object(
             #     this_predictor_matrix, training=True
