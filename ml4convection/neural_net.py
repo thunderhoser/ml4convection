@@ -2525,6 +2525,21 @@ def apply_model_full_grid(
     #             ))
     #             layer_object.trainable = False
 
+    if use_dropout:
+        config_dict = model_object.get_config()
+
+        for layer_dict in config_dict['layers']:
+            if 'batch' in layer_dict['class_name'].lower():
+                these_weights = K.eval(
+                    model_object.get_layer(
+                        name=layer_dict['class_name']
+                    ).weights[0]
+                )
+
+                print(layer_dict['class_name'])
+                print(these_weights)
+                break
+
     # if use_dropout:
     #     predict_function = _get_predict_func_with_dropout(model_object)
     # else:
@@ -2572,6 +2587,21 @@ def apply_model_full_grid(
 
     if verbose:
         print('Have applied model to all {0:d} examples!'.format(num_examples))
+
+    if use_dropout:
+        config_dict = model_object.get_config()
+
+        for layer_dict in config_dict['layers']:
+            if 'batch' in layer_dict['class_name'].lower():
+                these_weights = K.eval(
+                    model_object.get_layer(
+                        name=layer_dict['class_name']
+                    ).weights[0]
+                )
+
+                print(layer_dict['class_name'])
+                print(these_weights)
+                break
 
     forecast_prob_matrix = numpy.maximum(forecast_prob_matrix, 0.)
     forecast_prob_matrix = numpy.minimum(forecast_prob_matrix, 1.)
