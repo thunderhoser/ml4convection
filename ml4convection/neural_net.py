@@ -2466,16 +2466,18 @@ def apply_model_full_grid(
 
     config_dict = model_object.get_config()
     for layer_dict in config_dict['layers']:
-        try:
-            if 'dropout' in layer_dict['inbound_nodes'][0][0][0].lower():
-                layer_dict['inbound_nodes'][0][0][-1]['training'] = True
-        except:
-            print(layer_dict)
-            print('\n\n\n*************\n\n\n')
+        if len(layer_dict['inbound_nodes']) == 0:
+            continue
+
+        if 'dropout' in layer_dict['inbound_nodes'][0][0][0].lower():
+            layer_dict['inbound_nodes'][0][0][-1]['training'] = True
 
     for layer_dict in config_dict['layers']:
         if 'dropout' in layer_dict['class_name'].lower():
             print(layer_dict)
+
+        if len(layer_dict['inbound_nodes']) == 0:
+            continue
 
         if 'dropout' in layer_dict['inbound_nodes'][0][0][0].lower():
             print(layer_dict)
@@ -2567,12 +2569,18 @@ def apply_model_partial_grids(
 
     config_dict = model_object.get_config()
     for layer_dict in config_dict['layers']:
+        if len(layer_dict['inbound_nodes']) == 0:
+            continue
+
         if 'dropout' in layer_dict['inbound_nodes'][0][0][0].lower():
             layer_dict['inbound_nodes'][0][0][-1]['training'] = True
 
     for layer_dict in config_dict['layers']:
         if 'dropout' in layer_dict['class_name'].lower():
             print(layer_dict)
+
+        if len(layer_dict['inbound_nodes']) == 0:
+            continue
 
         if 'dropout' in layer_dict['inbound_nodes'][0][0][0].lower():
             print(layer_dict)
