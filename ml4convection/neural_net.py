@@ -2533,11 +2533,12 @@ def apply_model_full_grid(
                 these_weights = K.eval(
                     model_object.get_layer(
                         name=layer_dict['config']['name']
-                    ).weights[0]
+                    ).weights
                 )
 
                 print(layer_dict['config']['name'])
                 print(these_weights)
+                print('\n\n\n****************************\n\n\n')
                 break
 
     # if use_dropout:
@@ -2596,11 +2597,12 @@ def apply_model_full_grid(
                 these_weights = K.eval(
                     model_object.get_layer(
                         name=layer_dict['config']['name']
-                    ).weights[0]
+                    ).weights
                 )
 
                 print(layer_dict['config']['name'])
                 print(these_weights)
+                print('\n\n\n****************************\n\n\n')
                 break
 
     forecast_prob_matrix = numpy.maximum(forecast_prob_matrix, 0.)
