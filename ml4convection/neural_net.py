@@ -2463,6 +2463,11 @@ def apply_model_full_grid(
         #     ))
         #     layer_object.trainable = True
 
+    predict_function = K.function(
+        [model_object.layers[0].input, K.learning_phase()],
+        [model_object.layers[-1].output]
+    )
+
     config_dict = model_object.get_config()
     for layer_dict in config_dict['layers']:
         if 'dropout' in layer_dict['class_name'].lower():
@@ -2490,9 +2495,13 @@ def apply_model_full_grid(
             ))
 
         # TODO(thunderhoser): Make this an input arg.
-        this_prob_matrix = model_object(
-            predictor_matrix[these_indices, ...], training=True
-        ).numpy()
+        this_prob_matrix = predict_function(
+            predictor_matrix[these_indices, ...], 1
+        )[0]
+
+        # this_prob_matrix = model_object(
+        #     predictor_matrix[these_indices, ...], training=True
+        # ).numpy()
 
         if forecast_prob_matrix is None:
             dimensions = (num_examples,) + this_prob_matrix.shape[1:3]
@@ -2540,6 +2549,11 @@ def apply_model_partial_grids(
         #         layer_object.name
         #     ))
         #     layer_object.trainable = True
+
+    predict_function = K.function(
+        [model_object.layers[0].input, K.learning_phase()],
+        [model_object.layers[-1].output]
+    )
 
     config_dict = model_object.get_config()
     for layer_dict in config_dict['layers']:
@@ -2632,9 +2646,11 @@ def apply_model_partial_grids(
             ]
 
             # TODO(thunderhoser): Make this an input arg.
-            this_prob_matrix = model_object(
-                this_predictor_matrix, training=True
-            ).numpy()
+            this_prob_matrix = predict_function(this_predictor_matrix, 1)[0]
+
+            # this_prob_matrix = model_object(
+            #     this_predictor_matrix, training=True
+            # ).numpy()
 
             this_prob_matrix = numpy.maximum(this_prob_matrix, 0.)
             this_prob_matrix = numpy.minimum(this_prob_matrix, 1.)
