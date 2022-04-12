@@ -1,22 +1,24 @@
 #!/bin/tcsh
 
-#SBATCH --job-name="delete_unused_models"
+#SBATCH --job-name="delete_basic_ungridded_scores"
 #SBATCH --partition="fge"
 #SBATCH --account="rda-ghpcs"
 #SBATCH --qos="batch"
+#SBATCH --ntasks=1
 #SBATCH --nodes=1
-#SBATCH --ntasks=8           # 8 tasks per node
-#SBATCH --cpus-per-task=2
-#SBATCH --ntasks-per-node=8  # 8 GPUs per node
-#SBATCH --exclusive
-#SBATCH --time=12:00:00
+#SBATCH --cpus-per-task=1
+##SBATCH --nodes=1
+##SBATCH --ntasks=1
+##SBATCH --cpus-per-task=1
+##SBATCH --ntasks-per-node=1
+#SBATCH --time=01:00:00
 #SBATCH --array=1-125
 #SBATCH --exclude=h28n12
 ##SBATCH --exclude=h31n03,h28n12
 ##SBATCH --exclude=h29n01,h26n05,h28n06,h29n07,h30n03,h30n15
 #SBATCH --mail-type=BEGIN,END,FAIL
 #SBATCH --mail-user=ryan.lagerquist@noaa.gov
-#SBATCH --output=delete_unused_models_%A_%a.out
+#SBATCH --output=delete_basic_ungridded_scores_%A_%a.out
 
 module load cuda/10.1
 source /scratch2/BMC/gsd-hpcs/Jebb.Q.Stewart/conda3.7/etc/profile.d/conda.csh
@@ -38,7 +40,19 @@ set penultimate_layer_dropout_rate=`printf "%.3f" $penultimate_layer_dropout_rat
 set output_layer_dropout_rate=`printf "%.3f" $output_layer_dropout_rate`
 
 set model_dir_name="${TOP_MODEL_DIR_NAME}/top-level-skip-dropout=${top_level_skip_dropout_rate}_penultimate-layer-dropout=${penultimate_layer_dropout_rate}_output-layer-dropout=${output_layer_dropout_rate}"
-echo $model_dir_name
 
-python3 -u "${CODE_DIR_NAME}/delete_unused_models.py" \
---model_dir_name="${model_dir_name}"
+set MATCHING_DISTANCES_PX=("0.000000" "2.000000" "4.000000")
+set j=1
+
+while ($j <= ${#MATCHING_DISTANCES_PX})
+    set evaluation_dir_name="${model_dir_name}/validation/partial_grids/evaluation/matching_distance_px=${MATCHING_DISTANCES_PX[$j]}"
+    
+    python3 -u "${CODE_DIR_NAME}/delete_basic_scores.py" \
+    --evaluation_dir_name="${evaluation_dir_name}" \
+    --first_date_string="20170101" \
+    --last_date_string="20171224" \
+    --gridded=0 \
+    --use_partial_grids=1
+
+    @ j = $j + 1
+end
