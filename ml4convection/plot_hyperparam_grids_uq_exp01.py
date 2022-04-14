@@ -210,7 +210,7 @@ def _run(experiment_dir_name, matching_distance_px, output_dir_name):
                     '{0:s}/top-level-skip-dropout={1:.3f}_'
                     'penultimate-layer-dropout={2:.3f}_'
                     'output-layer-dropout={3:.3f}/'
-                    'validation/partial_grids/evaluation/'
+                    'validation_sans_dropout/partial_grids/evaluation/'
                     'matching_distance_px={4:.6f}/'
                     'advanced_scores_gridded=0.p'
                 ).format(
