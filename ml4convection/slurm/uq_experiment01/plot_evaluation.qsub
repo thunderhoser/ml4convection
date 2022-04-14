@@ -45,7 +45,7 @@ set MATCHING_DISTANCES_PX=("0.000000" "2.000000" "4.000000")
 set j=1
 
 while ($j <= ${#MATCHING_DISTANCES_PX})
-    set output_dir_name="${model_dir_name}/validation/partial_grids/evaluation/matching_distance_px=${MATCHING_DISTANCES_PX[$j]}/advanced_scores_gridded=0"
+    set output_dir_name="${model_dir_name}/validation_sans_dropout/partial_grids/evaluation/matching_distance_px=${MATCHING_DISTANCES_PX[$j]}/advanced_scores_gridded=0"
     set advanced_score_file_name="${output_dir_name}.p"
 
     python3 -u "${CODE_DIR_NAME}/plot_evaluation.py" \
