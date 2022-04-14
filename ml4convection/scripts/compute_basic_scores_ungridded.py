@@ -108,7 +108,7 @@ INPUT_ARG_PARSER.add_argument(
     help=SMOOTHING_RADIUS_HELP_STRING
 )
 INPUT_ARG_PARSER.add_argument(
-    '--' + TRANSFORM_TARGETS_ARG_NAME, type=int, required=True,
+    '--' + TRANSFORM_TARGETS_ARG_NAME, type=int, required=False, default=0,
     help=TRANSFORM_TARGETS_HELP_STRING
 )
 INPUT_ARG_PARSER.add_argument(
