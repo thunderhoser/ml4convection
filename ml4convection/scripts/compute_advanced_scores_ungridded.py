@@ -70,7 +70,7 @@ INPUT_ARG_PARSER.add_argument(
     '--' + LAST_DATE_ARG_NAME, type=str, required=True, help=DATE_HELP_STRING
 )
 INPUT_ARG_PARSER.add_argument(
-    '--' + NUM_BOOTSTRAP_ARG_NAME, type=int, required=True,
+    '--' + NUM_BOOTSTRAP_ARG_NAME, type=int, required=False, default=1,
     help=NUM_BOOTSTRAP_HELP_STRING
 )
 INPUT_ARG_PARSER.add_argument(

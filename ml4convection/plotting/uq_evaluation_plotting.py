@@ -105,7 +105,7 @@ def plot_spread_vs_skill(
     )
 
     axes_object.set_xlabel('Spread (stdev of predictive distribution)')
-    axes_object.set_ylabel('Skill (standard error of single prediction)')
+    axes_object.set_ylabel('Skill (RMSE of central prediction)')
     axes_object.set_xlim(0, max_value_to_plot)
     axes_object.set_ylim(0, max_value_to_plot)
 
