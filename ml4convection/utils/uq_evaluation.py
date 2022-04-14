@@ -461,17 +461,21 @@ def write_spread_vs_skill(
     error_checking.assert_is_numpy_array(
         mean_prediction_stdevs, num_dimensions=1
     )
-    error_checking.assert_is_geq_numpy_array(mean_prediction_stdevs, 0.)
-    error_checking.assert_is_leq_numpy_array(mean_prediction_stdevs, 1.)
+    error_checking.assert_is_geq_numpy_array(
+        mean_prediction_stdevs, 0., allow_nan=True
+    )
+    error_checking.assert_is_leq_numpy_array(
+        mean_prediction_stdevs, 1., allow_nan=True
+    )
     error_checking.assert_is_greater_numpy_array(
-        numpy.diff(mean_prediction_stdevs), 0.
+        numpy.diff(mean_prediction_stdevs), 0., allow_nan=True
     )
 
     num_bins = len(mean_prediction_stdevs)
     assert num_bins >= 2
 
-    error_checking.assert_is_geq_numpy_array(rmse_values, 0.)
-    error_checking.assert_is_leq_numpy_array(rmse_values, 1.)
+    error_checking.assert_is_geq_numpy_array(rmse_values, 0., allow_nan=True)
+    error_checking.assert_is_leq_numpy_array(rmse_values, 1., allow_nan=True)
     error_checking.assert_is_numpy_array(
         rmse_values,
         exact_dimensions=numpy.array([num_bins], dtype=int)

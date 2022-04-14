@@ -206,7 +206,7 @@ def _run(top_prediction_dir_name, first_date_string, last_date_string,
             error_values=fss_values,
             error_function_name=
             '{0:d}-by-{0:d} FSS'.format(2 * this_matching_distance_px + 1),
-            uncertainty_function_name='Pixelwise stdev'
+            uncertainty_function_name='pixelwise stdev'
         )
 
 
