@@ -160,7 +160,7 @@ def _print_ranking_one_score(score_matrix, score_name):
         print((
             '{0:d}th-highest {1:s} = {2:.4g} ... dropout rate for top-level '
             'skip connection, second-last layer, last layer = '
-            '{3:.1f}, {4:.1f}, {5:.1f}'
+            '{3:.3f}, {4:.3f}, {5:.3f}'
         ).format(
             m + 1, score_name, score_matrix[i, j, k],
             TOP_LEVEL_SKIP_DROPOUT_RATES[i], PENULTIMATE_LAYER_DROPOUT_RATES[j],
@@ -195,9 +195,9 @@ def _run(experiment_dir_name, matching_distance_px, output_dir_name):
     fss_matrix = numpy.full(dimensions, numpy.nan)
     bss_matrix = numpy.full(dimensions, numpy.nan)
 
-    y_tick_labels = ['{0:.1f}'.format(d) for d in TOP_LEVEL_SKIP_DROPOUT_RATES]
+    y_tick_labels = ['{0:.3f}'.format(d) for d in TOP_LEVEL_SKIP_DROPOUT_RATES]
     x_tick_labels = [
-        '{0:.1f}'.format(d) for d in PENULTIMATE_LAYER_DROPOUT_RATES
+        '{0:.3f}'.format(d) for d in PENULTIMATE_LAYER_DROPOUT_RATES
     ]
 
     y_axis_label = 'Dropout rate for top-level skip connection'
@@ -273,11 +273,11 @@ def _run(experiment_dir_name, matching_distance_px, output_dir_name):
         axes_object.set_ylabel(y_axis_label)
 
         axes_object.set_title(
-            'AUPD with output-layer dropout rate = {0:.1f}'.format(
+            'AUPD with output-layer dropout rate = {0:.3f}'.format(
                 OUTPUT_LAYER_DROPOUT_RATES[k]
             )
         )
-        figure_file_name = '{0:s}/aupd_output-layer-dropout={1:.1f}.jpg'.format(
+        figure_file_name = '{0:s}/aupd_output-layer-dropout={1:.3f}.jpg'.format(
             output_dir_name, OUTPUT_LAYER_DROPOUT_RATES[k]
         )
 
@@ -301,11 +301,11 @@ def _run(experiment_dir_name, matching_distance_px, output_dir_name):
         axes_object.set_ylabel(y_axis_label)
 
         axes_object.set_title(
-            'Max CSI with output-layer dropout rate = {0:.1f}'.format(
+            'Max CSI with output-layer dropout rate = {0:.3f}'.format(
                 OUTPUT_LAYER_DROPOUT_RATES[k]
             )
         )
-        figure_file_name = '{0:s}/csi_output-layer-dropout={1:.1f}.jpg'.format(
+        figure_file_name = '{0:s}/csi_output-layer-dropout={1:.3f}.jpg'.format(
             output_dir_name, OUTPUT_LAYER_DROPOUT_RATES[k]
         )
 
@@ -329,11 +329,11 @@ def _run(experiment_dir_name, matching_distance_px, output_dir_name):
         axes_object.set_ylabel(y_axis_label)
 
         axes_object.set_title(
-            'FSS with output-layer dropout rate = {0:.1f}'.format(
+            'FSS with output-layer dropout rate = {0:.3f}'.format(
                 OUTPUT_LAYER_DROPOUT_RATES[k]
             )
         )
-        figure_file_name = '{0:s}/fss_output-layer-dropout={1:.1f}.jpg'.format(
+        figure_file_name = '{0:s}/fss_output-layer-dropout={1:.3f}.jpg'.format(
             output_dir_name, OUTPUT_LAYER_DROPOUT_RATES[k]
         )
 
@@ -360,11 +360,11 @@ def _run(experiment_dir_name, matching_distance_px, output_dir_name):
         axes_object.set_ylabel(y_axis_label)
 
         axes_object.set_title(
-            'BSS with output-layer dropout rate = {0:.1f}'.format(
+            'BSS with output-layer dropout rate = {0:.3f}'.format(
                 OUTPUT_LAYER_DROPOUT_RATES[k]
             )
         )
-        figure_file_name = '{0:s}/bss_output-layer-dropout={1:.1f}.jpg'.format(
+        figure_file_name = '{0:s}/bss_output-layer-dropout={1:.3f}.jpg'.format(
             output_dir_name, OUTPUT_LAYER_DROPOUT_RATES[k]
         )
 
