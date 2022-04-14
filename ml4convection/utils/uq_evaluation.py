@@ -1,10 +1,24 @@
 """Evaluation methods for uncertainty quantification (UQ)."""
 
 import numpy
+import netCDF4
 from scipy.signal import convolve2d
+from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
 from ml4convection.io import prediction_io
 from ml4convection.utils import general_utils
+
+ERROR_FUNCTION_KEY = 'error_function_name'
+UNCERTAINTY_FUNCTION_KEY = 'uncertainty_function_name'
+DISCARD_FRACTION_DIM_KEY = 'discard_fraction'
+DISCARD_FRACTIONS_KEY = 'discard_fractions'
+ERROR_VALUES_KEY = 'error_values'
+
+HALF_WINDOW_SIZE_KEY = 'half_window_size_px'
+USE_MEDIAN_KEY = 'use_median'
+SPREAD_SKILL_BIN_DIM_KEY = 'bin'
+MEAN_PREDICTION_STDEVS_KEY = 'mean_prediction_stdevs'
+RMSE_VALUES_KEY = 'rmse_values'
 
 
 def _get_squared_errors(prediction_dict, half_window_size_px, use_median):
@@ -237,7 +251,7 @@ def run_discard_test(
     :param prediction_dict: Dictionary in format returned by
         `prediction_io.read_file`.
     :param discard_fractions: length-(F - 1) numpy array of discard fractions,
-        ranging from (0, 1].  This method will use 0 as the lowest discard
+        ranging from (0, 1).  This method will use 0 as the lowest discard
         fraction.
     :param eroded_eval_mask_matrix: E-by-M-by-N numpy array of Boolean values,
         indicating which grid points should be used for evaluation.  If
@@ -405,3 +419,188 @@ def get_spread_vs_skill(prediction_dict, bin_edge_prediction_stdevs,
         ))
 
     return mean_prediction_stdevs, rmse_values
+
+
+def write_discard_results(
+        netcdf_file_name, discard_fractions, error_values, error_function_name,
+        uncertainty_function_name):
+    """Writes results of discard test to NetCDF file.
+
+    :param netcdf_file_name: Path to output file.
+    :param discard_fractions: length-F numpy array of discard fractions, ranging
+        from [0, 1).
+    :param error_values: length-F numpy array of corresponding error values.
+    :param error_function_name: Name of error function (string).  This will be
+        used later for plotting.
+    :param uncertainty_function_name: Name of uncertainty function (string).
+        This will be used later for plotting.
+    """
+
+    # Check input args.
+    error_checking.assert_is_numpy_array(discard_fractions, num_dimensions=1)
+    error_checking.assert_is_geq_numpy_array(discard_fractions, 0.)
+    error_checking.assert_is_less_than_numpy_array(discard_fractions, 1.)
+    error_checking.assert_is_greater_numpy_array(
+        numpy.diff(discard_fractions), 0.
+    )
+
+    assert discard_fractions[0] <= 1e-6
+    num_fractions = len(discard_fractions)
+    assert num_fractions >= 2
+
+    error_checking.assert_is_numpy_array(
+        error_values,
+        exact_dimensions=numpy.array([num_fractions], dtype=int)
+    )
+
+    error_checking.assert_is_string(error_function_name)
+    error_checking.assert_is_string(uncertainty_function_name)
+
+    # Write file.
+    file_system_utils.mkdir_recursive_if_necessary(file_name=netcdf_file_name)
+    dataset_object = netCDF4.Dataset(
+        netcdf_file_name, 'w', format='NETCDF3_64BIT_OFFSET'
+    )
+
+    dataset_object.setncattr(ERROR_FUNCTION_KEY, error_function_name)
+    dataset_object.setncattr(
+        UNCERTAINTY_FUNCTION_KEY, uncertainty_function_name
+    )
+
+    dataset_object.createDimension(DISCARD_FRACTION_DIM_KEY, num_fractions)
+
+    dataset_object.createVariable(
+        DISCARD_FRACTIONS_KEY, datatype=numpy.float32,
+        dimensions=DISCARD_FRACTION_DIM_KEY
+    )
+    dataset_object.variables[DISCARD_FRACTIONS_KEY][:] = discard_fractions
+
+    dataset_object.createVariable(
+        ERROR_VALUES_KEY, datatype=numpy.float32,
+        dimensions=DISCARD_FRACTION_DIM_KEY
+    )
+    dataset_object.variables[ERROR_VALUES_KEY][:] = error_values
+
+    dataset_object.close()
+
+
+def read_discard_results(netcdf_file_name):
+    """Reads results of discard test from NetCDF file.
+
+    :param netcdf_file_name: Path to input file.
+    :return: discard_dict: Dictionary with the following keys.
+    discard_dict['discard_fractions']: See doc for `write_discard_results`.
+    discard_dict['error_values']: Same.
+    discard_dict['error_function_name']: Same.
+    discard_dict['uncertainty_function_name']: Same.
+    """
+
+    dataset_object = netCDF4.Dataset(netcdf_file_name)
+
+    discard_dict = {
+        ERROR_FUNCTION_KEY: str(getattr(dataset_object, ERROR_FUNCTION_KEY)),
+        UNCERTAINTY_FUNCTION_KEY: str(
+            getattr(dataset_object, UNCERTAINTY_FUNCTION_KEY)
+        ),
+        DISCARD_FRACTIONS_KEY: numpy.array(
+            dataset_object.variables[DISCARD_FRACTIONS_KEY][:], dtype=float
+        ),
+        ERROR_VALUES_KEY: numpy.array(
+            dataset_object.variables[ERROR_VALUES_KEY][:], dtype=float
+        )
+    }
+
+    dataset_object.close()
+    return discard_dict
+
+
+def write_spread_vs_skill(
+        netcdf_file_name, mean_prediction_stdevs, rmse_values,
+        half_window_size_px, use_median):
+    """Writes spread vs. skill to NetCDF file.
+
+    :param netcdf_file_name: Path to output file.
+    :param mean_prediction_stdevs: See output doc for `get_spread_vs_skill`.
+    :param rmse_values: Same.
+    :param half_window_size_px: See input doc for `get_spread_vs_skill`.
+    :param use_median: Same.
+    """
+
+    # Check input args.
+    error_checking.assert_is_numpy_array(
+        mean_prediction_stdevs, num_dimensions=1
+    )
+    error_checking.assert_is_geq_numpy_array(mean_prediction_stdevs, 0.)
+    error_checking.assert_is_leq_numpy_array(mean_prediction_stdevs, 1.)
+    error_checking.assert_is_greater_numpy_array(
+        numpy.diff(mean_prediction_stdevs), 0.
+    )
+
+    num_bins = len(mean_prediction_stdevs)
+    assert num_bins >= 2
+
+    error_checking.assert_is_geq_numpy_array(rmse_values, 0.)
+    error_checking.assert_is_leq_numpy_array(rmse_values, 1.)
+    error_checking.assert_is_numpy_array(
+        rmse_values,
+        exact_dimensions=numpy.array([num_bins], dtype=int)
+    )
+
+    error_checking.assert_is_geq(half_window_size_px, 0)
+    error_checking.assert_is_boolean(use_median)
+
+    # Write file.
+    file_system_utils.mkdir_recursive_if_necessary(file_name=netcdf_file_name)
+    dataset_object = netCDF4.Dataset(
+        netcdf_file_name, 'w', format='NETCDF3_64BIT_OFFSET'
+    )
+
+    dataset_object.setncattr(HALF_WINDOW_SIZE_KEY, half_window_size_px)
+    dataset_object.setncattr(USE_MEDIAN_KEY, int(use_median))
+
+    dataset_object.createDimension(SPREAD_SKILL_BIN_DIM_KEY, num_bins)
+
+    dataset_object.createVariable(
+        MEAN_PREDICTION_STDEVS_KEY, datatype=numpy.float32,
+        dimensions=SPREAD_SKILL_BIN_DIM_KEY
+    )
+    dataset_object.variables[MEAN_PREDICTION_STDEVS_KEY][:] = (
+        mean_prediction_stdevs
+    )
+
+    dataset_object.createVariable(
+        RMSE_VALUES_KEY, datatype=numpy.float32,
+        dimensions=SPREAD_SKILL_BIN_DIM_KEY
+    )
+    dataset_object.variables[RMSE_VALUES_KEY][:] = rmse_values
+
+    dataset_object.close()
+
+
+def read_spread_vs_skill(netcdf_file_name):
+    """Reads spread vs. skill from NetCDF file.
+
+    :param netcdf_file_name: Path to input file.
+    :return: spread_skill_dict: Dictionary with the following keys.
+    spread_skill_dict['mean_prediction_stdevs']: See doc for
+        `write_spread_vs_skill`.
+    spread_skill_dict['rmse_values']: Same.
+    spread_skill_dict['half_window_size_px']: Same.
+    spread_skill_dict['use_median']: Same.
+    """
+
+    dataset_object = netCDF4.Dataset(netcdf_file_name)
+
+    discard_dict = {
+        HALF_WINDOW_SIZE_KEY: getattr(dataset_object, HALF_WINDOW_SIZE_KEY),
+        USE_MEDIAN_KEY: bool(getattr(dataset_object, USE_MEDIAN_KEY)),
+        MEAN_PREDICTION_STDEVS_KEY: numpy.array(
+            dataset_object.variables[MEAN_PREDICTION_STDEVS_KEY][:], dtype=float
+        ),
+        RMSE_VALUES_KEY: numpy.array(
+            dataset_object.variables[RMSE_VALUES_KEY][:], dtype=float
+        )
+    }
+
+    dataset_object.close()
+    return discard_dict
