@@ -183,6 +183,9 @@ def _run(top_prediction_dir_name, first_date_string, last_date_string,
     eval_mask_matrix = model_metadata_dict[neural_net.MASK_MATRIX_KEY]
 
     uncertainty_function = uq_evaluation.get_stdev_uncertainty_function()
+    num_examples = (
+        prediction_dict[prediction_io.PROBABILITY_MATRIX_KEY].shape[0]
+    )
 
     for this_matching_distance_px in matching_distances_px:
         error_function = uq_evaluation.get_fss_error_function(
@@ -191,6 +194,10 @@ def _run(top_prediction_dir_name, first_date_string, last_date_string,
         eroded_eval_mask_matrix = general_utils.erode_binary_matrix(
             binary_matrix=copy.deepcopy(eval_mask_matrix),
             buffer_distance_px=this_matching_distance_px
+        )
+        eroded_eval_mask_matrix = numpy.repeat(
+            a=numpy.expand_dims(eroded_eval_mask_matrix, axis=0),
+            repeats=num_examples, axis=0
         )
 
         discard_fractions_with_zero, fss_values = (
