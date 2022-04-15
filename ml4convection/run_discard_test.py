@@ -72,7 +72,7 @@ INPUT_ARG_PARSER.add_argument(
     help=TIME_INTERVAL_HELP_STRING
 )
 INPUT_ARG_PARSER.add_argument(
-    '--' + MATCHING_DISTANCES_ARG_NAME, type=float, nargs='+', required=True,
+    '--' + MATCHING_DISTANCES_ARG_NAME, type=int, nargs='+', required=True,
     help=MATCHING_DISTANCES_HELP_STRING
 )
 INPUT_ARG_PARSER.add_argument(
@@ -234,7 +234,7 @@ if __name__ == '__main__':
         last_date_string=getattr(INPUT_ARG_OBJECT, LAST_DATE_ARG_NAME),
         time_interval_steps=getattr(INPUT_ARG_OBJECT, TIME_INTERVAL_ARG_NAME),
         matching_distances_px=numpy.array(
-            getattr(INPUT_ARG_OBJECT, MATCHING_DISTANCES_ARG_NAME), dtype=float
+            getattr(INPUT_ARG_OBJECT, MATCHING_DISTANCES_ARG_NAME), dtype=int
         ),
         discard_fractions=numpy.array(
             getattr(INPUT_ARG_OBJECT, DISCARD_FRACTIONS_ARG_NAME), dtype=float
