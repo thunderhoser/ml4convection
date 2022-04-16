@@ -1,6 +1,6 @@
 #!/bin/tcsh
 
-#SBATCH --job-name="apply_neural_nets_second"
+#SBATCH --job-name="compute_advanced_ungridded_scores"
 #SBATCH --partition="fge"
 #SBATCH --account="rda-ghpcs"
 #SBATCH --qos="batch"
@@ -11,29 +11,25 @@
 ##SBATCH --ntasks=1
 ##SBATCH --cpus-per-task=1
 ##SBATCH --ntasks-per-node=1
-#SBATCH --time=12:00:00
+#SBATCH --time=02:00:00
 #SBATCH --array=1-125
 #SBATCH --exclude=h28n12
 ##SBATCH --exclude=h31n03,h28n12
 ##SBATCH --exclude=h29n01,h26n05,h28n06,h29n07,h30n03,h30n15
 #SBATCH --mail-type=BEGIN,END,FAIL
 #SBATCH --mail-user=ryan.lagerquist@noaa.gov
-#SBATCH --output=apply_neural_nets_second_%A_%a.out
+#SBATCH --output=compute_advanced_ungridded_scores_%A_%a.out
 
 module load cuda/10.1
 source /scratch2/BMC/gsd-hpcs/Jebb.Q.Stewart/conda3.7/etc/profile.d/conda.csh
 conda activate base
 
 set CODE_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_standalone/ml4convection"
+set TOP_TARGET_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_project/targets/new_echo_classification/no_tracking/omit_north_radar/full_grids"
 set TOP_MODEL_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_models/uq_experiment02"
-set TOP_PREDICTOR_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_project/predictors/quality_controlled/partial_grids"
-set TOP_TARGET_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_project/targets/new_echo_classification/no_tracking/omit_north_radar/partial_grids"
 
-# set FIRST_VALIDN_DATE_STRING="20170101"
-# set LAST_VALIDN_DATE_STRING="20171224"
-
-set FIRST_VALIDN_DATE_STRING="20170707"
-set LAST_VALIDN_DATE_STRING="20170707"
+set FIRST_VALIDN_DATE_STRING="20170101"
+set LAST_VALIDN_DATE_STRING="20171224"
 
 set TOP_LEVEL_SKIP_DROPOUT_RATES=(0.000 0.000 0.000 0.000 0.000 0.200 0.200 0.200 0.200 0.200 0.400 0.400 0.400 0.400 0.400 0.600 0.600 0.600 0.600 0.600 0.800 0.800 0.800 0.800 0.800 0.000 0.000 0.000 0.000 0.000 0.200 0.200 0.200 0.200 0.200 0.400 0.400 0.400 0.400 0.400 0.600 0.600 0.600 0.600 0.600 0.800 0.800 0.800 0.800 0.800 0.000 0.000 0.000 0.000 0.000 0.200 0.200 0.200 0.200 0.200 0.400 0.400 0.400 0.400 0.400 0.600 0.600 0.600 0.600 0.600 0.800 0.800 0.800 0.800 0.800 0.000 0.000 0.000 0.000 0.000 0.200 0.200 0.200 0.200 0.200 0.400 0.400 0.400 0.400 0.400 0.600 0.600 0.600 0.600 0.600 0.800 0.800 0.800 0.800 0.800 0.000 0.000 0.000 0.000 0.000 0.200 0.200 0.200 0.200 0.200 0.400 0.400 0.400 0.400 0.400 0.600 0.600 0.600 0.600 0.600 0.800 0.800 0.800 0.800 0.800)
 set PENULTIMATE_LAYER_DROPOUT_RATES=(0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.200 0.200 0.200 0.200 0.200 0.200 0.200 0.200 0.200 0.200 0.200 0.200 0.200 0.200 0.200 0.200 0.200 0.200 0.200 0.200 0.200 0.200 0.200 0.200 0.200 0.400 0.400 0.400 0.400 0.400 0.400 0.400 0.400 0.400 0.400 0.400 0.400 0.400 0.400 0.400 0.400 0.400 0.400 0.400 0.400 0.400 0.400 0.400 0.400 0.400 0.600 0.600 0.600 0.600 0.600 0.600 0.600 0.600 0.600 0.600 0.600 0.600 0.600 0.600 0.600 0.600 0.600 0.600 0.600 0.600 0.600 0.600 0.600 0.600 0.600 0.800 0.800 0.800 0.800 0.800 0.800 0.800 0.800 0.800 0.800 0.800 0.800 0.800 0.800 0.800 0.800 0.800 0.800 0.800 0.800 0.800 0.800 0.800 0.800 0.800)
@@ -48,16 +44,22 @@ set penultimate_layer_dropout_rate=`printf "%.3f" $penultimate_layer_dropout_rat
 set output_layer_dropout_rate=`printf "%.3f" $output_layer_dropout_rate`
 
 set model_dir_name="${TOP_MODEL_DIR_NAME}/top-level-skip-dropout=${top_level_skip_dropout_rate}_penultimate-layer-dropout=${penultimate_layer_dropout_rate}_output-layer-dropout=${output_layer_dropout_rate}"
-set model_file_name="${model_dir_name}/model.h5"
-# set prediction_dir_name="${model_dir_name}/validation/partial_grids"
-set prediction_dir_name="${model_dir_name}/validation/partial_grids/second"
+set top_evaluation_dir_name="${model_dir_name}/validation_sans_dropout/partial_grids/evaluation"
 
-python3 -u "${CODE_DIR_NAME}/apply_neural_net.py" \
---input_model_file_name="${model_file_name}" \
---input_predictor_dir_name="${TOP_PREDICTOR_DIR_NAME}" \
---input_target_dir_name="${TOP_TARGET_DIR_NAME}" \
---apply_to_full_grids=0 \
---first_valid_date_string="${FIRST_VALIDN_DATE_STRING}" \
---last_valid_date_string="${LAST_VALIDN_DATE_STRING}" \
---use_dropout=1 \
---output_dir_name="${prediction_dir_name}"
+set MATCHING_DISTANCES_PX=("0.000000" "2.000000" "4.000000")
+set j=1
+
+while ($j <= ${#MATCHING_DISTANCES_PX})
+    set evaluation_dir_name="${top_evaluation_dir_name}/matching_distance_px=${MATCHING_DISTANCES_PX[$j]}"
+
+    python3 -u "${CODE_DIR_NAME}/compute_advanced_scores_ungridded.py" \
+    --input_basic_score_dir_name="${evaluation_dir_name}" \
+    --first_date_string="${FIRST_VALIDN_DATE_STRING}" \
+    --last_date_string="${LAST_VALIDN_DATE_STRING}" \
+    --num_bootstrap_reps=1 \
+    --use_partial_grids=1 \
+    --input_climo_file_name="${TOP_TARGET_DIR_NAME}/climo_dilation-distance-px=${MATCHING_DISTANCES_PX[$j]}.p" \
+    --output_dir_name="${evaluation_dir_name}"
+
+    @ j = $j + 1
+end
