@@ -44,21 +44,19 @@ def _run(input_file_name, output_file_name):
     file_system_utils.mkdir_recursive_if_necessary(file_name=output_file_name)
 
     print('Reading data from: "{0:s}"...'.format(input_file_name))
-    spread_skill_dict = uq_evaluation.read_spread_vs_skill(input_file_name)
+    result_dict = uq_evaluation.read_spread_vs_skill(input_file_name)
 
     figure_object, axes_object = uq_eval_plotting.plot_spread_vs_skill(
-        mean_prediction_stdevs=
-        spread_skill_dict[uq_evaluation.MEAN_PREDICTION_STDEVS_KEY],
-        rmse_values=spread_skill_dict[uq_evaluation.RMSE_VALUES_KEY]
+        result_dict=result_dict
     )
 
-    if spread_skill_dict[uq_evaluation.USE_MEDIAN_KEY]:
+    if result_dict[uq_evaluation.USE_MEDIAN_KEY]:
         axes_object.set_ylabel('Skill (RMSE of median prediction)')
     else:
         axes_object.set_ylabel('Skill (RMSE of mean prediction)')
 
     half_window_size_px = int(numpy.round(
-        spread_skill_dict[uq_evaluation.HALF_WINDOW_SIZE_KEY]
+        result_dict[uq_evaluation.HALF_WINDOW_SIZE_KEY]
     ))
     axes_object.set_title(
         'Spread-skill plot for {0:d}-by-{0:d} eval neigh'.format(

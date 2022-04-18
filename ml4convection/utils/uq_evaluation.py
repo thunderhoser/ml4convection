@@ -13,6 +13,9 @@ UNCERTAINTY_FUNCTION_KEY = 'uncertainty_function_name'
 DISCARD_FRACTION_DIM_KEY = 'discard_fraction'
 DISCARD_FRACTIONS_KEY = 'discard_fractions'
 ERROR_VALUES_KEY = 'error_values'
+EXAMPLE_COUNTS_KEY = 'example_counts'
+MEAN_CENTRAL_PREDICTIONS_KEY = 'mean_central_predictions'
+MEAN_TARGET_VALUES_KEY = 'mean_target_values'
 
 HALF_WINDOW_SIZE_KEY = 'half_window_size_px'
 USE_MEDIAN_KEY = 'use_median'
@@ -171,7 +174,7 @@ def get_stdev_uncertainty_function():
 
 def run_discard_test(
         prediction_dict, discard_fractions, eroded_eval_mask_matrix,
-        error_function, uncertainty_function):
+        error_function, uncertainty_function, use_median):
     """Runs the discard test.
 
     F = number of discard fractions
@@ -201,12 +204,27 @@ def run_discard_test(
         uncertainty metric.  The metric must be oriented so that higher value =
         more uncertainty.
 
-    :return: discard_fractions: length-F numpy array of discard fractions,
+    :param use_median: Boolean flag.  If True (False), central predictions will
+        be medians (means).
+
+    :return: result_dict: Dictionary with the following keys.
+    result_dict['discard_fractions']: length-F numpy array of discard fractions,
         sorted in increasing order.
-    :return: error_values: length-F numpy array of corresponding error values.
+    result_dict['error_values']: length-F numpy array of corresponding error
+        values.
+    result_dict['example_counts']: length-F numpy array of corresponding example
+        counts (where one example = one scalar, i.e., one grid point at one time
+        step).
+    result_dict['mean_central_predictions']: length-F numpy array, where the
+        [i]th entry is the mean central (mean or median) prediction for the
+        [i]th discard fraction.
+    result_dict['mean_target_values']: length-F numpy array, where the [i]th
+        entry is the mean target value for the [i]th discard fraction.
     """
 
     # Check input args.
+    error_checking.assert_is_boolean(use_median)
+
     expected_dim = numpy.array(
         prediction_dict[prediction_io.PROBABILITY_MATRIX_KEY].shape[:3],
         dtype=int
@@ -231,9 +249,18 @@ def run_discard_test(
     # Do actual stuff.
     uncertainty_matrix = uncertainty_function(prediction_dict)
     uncertainty_matrix[eroded_eval_mask_matrix == False] = numpy.nan
+    forecast_prob_matrix = prediction_dict[prediction_io.PROBABILITY_MATRIX_KEY]
+
+    if use_median:
+        central_prediction_matrix = numpy.median(forecast_prob_matrix, axis=3)
+    else:
+        central_prediction_matrix = numpy.mean(forecast_prob_matrix, axis=3)
 
     discard_fractions = numpy.sort(discard_fractions)
-    error_by_discard_fraction = numpy.full(num_fractions, numpy.nan)
+    error_values = numpy.full(num_fractions, numpy.nan)
+    example_counts = numpy.full(num_fractions, 0, dtype=int)
+    mean_central_predictions = numpy.full(num_fractions, numpy.nan)
+    mean_target_values = numpy.full(num_fractions, numpy.nan)
 
     for k in range(num_fractions):
         this_percentile_level = 100 * (1 - discard_fractions[k])
@@ -243,11 +270,26 @@ def run_discard_test(
         )
         eroded_eval_mask_matrix[this_inverted_mask_matrix] = False
 
-        error_by_discard_fraction[k] = error_function(
+        error_values[k] = error_function(
             prediction_dict, eroded_eval_mask_matrix
         )
+        example_counts[k] = numpy.sum(eroded_eval_mask_matrix == True)
+        mean_central_predictions[k] = numpy.mean(
+            central_prediction_matrix[eroded_eval_mask_matrix == True]
+        )
+        mean_target_values[k] = numpy.mean(
+            prediction_dict[prediction_io.TARGET_MATRIX_KEY][
+                eroded_eval_mask_matrix == True
+            ]
+        )
 
-    return discard_fractions, error_by_discard_fraction
+    return {
+        DISCARD_FRACTIONS_KEY: discard_fractions,
+        ERROR_VALUES_KEY: error_values,
+        EXAMPLE_COUNTS_KEY: example_counts,
+        MEAN_CENTRAL_PREDICTIONS_KEY: mean_central_predictions,
+        MEAN_TARGET_VALUES_KEY: mean_target_values
+    }
 
 
 def get_spread_vs_skill(prediction_dict, bin_edge_prediction_stdevs,
@@ -272,12 +314,21 @@ def get_spread_vs_skill(prediction_dict, bin_edge_prediction_stdevs,
         erosion for you.
     :param use_median: Boolean flag.  If True (False), will use median (mean) of
         each predictive distribution.
-    :return: mean_prediction_stdevs: length-B numpy array, where the [i]th
+    :return: result_dict: Dictionary with the following keys.
+    result_dict['mean_prediction_stdevs']: length-B numpy array, where the [i]th
         entry is the mean standard deviation of predictive distributions in the
         [i]th bin.
-    :return: rmse_values: length-B numpy array, where the [i]th entry is the
-        root mean squared error of central (mean or median) predictions in the
+    result_dict['rmse_values']: length-B numpy array, where the [i]th
+        entry is the root mean squared error of central (mean or median)
+        predictions in the [i]th bin.
+    result_dict['example_counts']: length-B numpy array of corresponding example
+        counts (where one example = one scalar, i.e., one grid point at one time
+        step).
+    result_dict['mean_central_predictions']: length-B numpy array, where the
+        [i]th entry is the mean central (mean or median) prediction for the
         [i]th bin.
+    result_dict['mean_target_values']: length-B numpy array, where the [i]th
+        entry is the mean target value for the [i]th bin.
     """
 
     # Check input args.
@@ -326,6 +377,11 @@ def get_spread_vs_skill(prediction_dict, bin_edge_prediction_stdevs,
         axis=0, repeats=num_examples
     )
 
+    if use_median:
+        central_prediction_matrix = numpy.median(forecast_prob_matrix, axis=3)
+    else:
+        central_prediction_matrix = numpy.mean(forecast_prob_matrix, axis=3)
+
     prediction_stdev_matrix = numpy.std(forecast_prob_matrix, axis=3, ddof=1)
     prediction_stdev_matrix[eroded_eval_mask_matrix == False] = numpy.nan
     squared_error_matrix = _get_squared_errors(
@@ -335,6 +391,9 @@ def get_spread_vs_skill(prediction_dict, bin_edge_prediction_stdevs,
 
     mean_prediction_stdevs = numpy.full(num_bins, numpy.nan)
     rmse_values = numpy.full(num_bins, numpy.nan)
+    example_counts = numpy.full(num_bins, 0, dtype=int)
+    mean_central_predictions = numpy.full(num_bins, numpy.nan)
+    mean_target_values = numpy.full(num_bins, numpy.nan)
 
     for k in range(num_bins):
         these_indices = numpy.where(numpy.logical_and(
@@ -348,19 +407,30 @@ def get_spread_vs_skill(prediction_dict, bin_edge_prediction_stdevs,
         rmse_values[k] = numpy.sqrt(numpy.mean(
             squared_error_matrix[these_indices]
         ))
+        example_counts[k] = len(these_indices)
+        mean_central_predictions[k] = numpy.mean(
+            central_prediction_matrix[these_indices]
+        )
+        mean_target_values[k] = numpy.mean(
+            prediction_dict[prediction_io.TARGET_MATRIX_KEY][these_indices]
+        )
 
-    return mean_prediction_stdevs, rmse_values
+    return {
+        MEAN_PREDICTION_STDEVS_KEY: mean_prediction_stdevs,
+        RMSE_VALUES_KEY: rmse_values,
+        EXAMPLE_COUNTS_KEY: example_counts,
+        MEAN_CENTRAL_PREDICTIONS_KEY: mean_central_predictions,
+        MEAN_TARGET_VALUES_KEY: mean_target_values
+    }
 
 
 def write_discard_results(
-        netcdf_file_name, discard_fractions, error_values, error_function_name,
+        netcdf_file_name, result_dict, error_function_name,
         uncertainty_function_name):
     """Writes results of discard test to NetCDF file.
 
     :param netcdf_file_name: Path to output file.
-    :param discard_fractions: length-F numpy array of discard fractions, ranging
-        from [0, 1).
-    :param error_values: length-F numpy array of corresponding error values.
+    :param result_dict: Dictionary returned by `run_discard_test`.
     :param error_function_name: Name of error function (string).  This will be
         used later for plotting.
     :param uncertainty_function_name: Name of uncertainty function (string).
@@ -368,22 +438,6 @@ def write_discard_results(
     """
 
     # Check input args.
-    error_checking.assert_is_numpy_array(discard_fractions, num_dimensions=1)
-    error_checking.assert_is_geq_numpy_array(discard_fractions, 0.)
-    error_checking.assert_is_less_than_numpy_array(discard_fractions, 1.)
-    error_checking.assert_is_greater_numpy_array(
-        numpy.diff(discard_fractions), 0.
-    )
-
-    assert discard_fractions[0] <= 1e-6
-    num_fractions = len(discard_fractions)
-    assert num_fractions >= 2
-
-    error_checking.assert_is_numpy_array(
-        error_values,
-        exact_dimensions=numpy.array([num_fractions], dtype=int)
-    )
-
     error_checking.assert_is_string(error_function_name)
     error_checking.assert_is_string(uncertainty_function_name)
 
@@ -398,19 +452,25 @@ def write_discard_results(
         UNCERTAINTY_FUNCTION_KEY, uncertainty_function_name
     )
 
+    num_fractions = len(result_dict[DISCARD_FRACTIONS_KEY])
     dataset_object.createDimension(DISCARD_FRACTION_DIM_KEY, num_fractions)
 
-    dataset_object.createVariable(
-        DISCARD_FRACTIONS_KEY, datatype=numpy.float32,
-        dimensions=DISCARD_FRACTION_DIM_KEY
-    )
-    dataset_object.variables[DISCARD_FRACTIONS_KEY][:] = discard_fractions
+    for this_key in [
+            DISCARD_FRACTIONS_KEY, ERROR_VALUES_KEY,
+            MEAN_CENTRAL_PREDICTIONS_KEY, MEAN_TARGET_VALUES_KEY
+    ]:
+        dataset_object.createVariable(
+            this_key, datatype=numpy.float32,
+            dimensions=DISCARD_FRACTION_DIM_KEY
+        )
+        dataset_object.variables[this_key][:] = result_dict[this_key]
 
-    dataset_object.createVariable(
-        ERROR_VALUES_KEY, datatype=numpy.float32,
-        dimensions=DISCARD_FRACTION_DIM_KEY
-    )
-    dataset_object.variables[ERROR_VALUES_KEY][:] = error_values
+    for this_key in [EXAMPLE_COUNTS_KEY]:
+        dataset_object.createVariable(
+            this_key, datatype=numpy.int32,
+            dimensions=DISCARD_FRACTION_DIM_KEY
+        )
+        dataset_object.variables[this_key][:] = result_dict[this_key]
 
     dataset_object.close()
 
@@ -419,68 +479,50 @@ def read_discard_results(netcdf_file_name):
     """Reads results of discard test from NetCDF file.
 
     :param netcdf_file_name: Path to input file.
-    :return: discard_dict: Dictionary with the following keys.
-    discard_dict['discard_fractions']: See doc for `write_discard_results`.
-    discard_dict['error_values']: Same.
-    discard_dict['error_function_name']: Same.
-    discard_dict['uncertainty_function_name']: Same.
+    :return: result_dict: Dictionary in format created by `run_discard_test`,
+        plus two extra keys.
+    result_dict['error_function_name']: Name of error metric used in test.
+    result_dict['uncertainty_function_name']: Name of uncertainty metric used in
+        test.
     """
 
     dataset_object = netCDF4.Dataset(netcdf_file_name)
 
-    discard_dict = {
+    result_dict = {
         ERROR_FUNCTION_KEY: str(getattr(dataset_object, ERROR_FUNCTION_KEY)),
         UNCERTAINTY_FUNCTION_KEY: str(
             getattr(dataset_object, UNCERTAINTY_FUNCTION_KEY)
-        ),
-        DISCARD_FRACTIONS_KEY: numpy.array(
-            dataset_object.variables[DISCARD_FRACTIONS_KEY][:], dtype=float
-        ),
-        ERROR_VALUES_KEY: numpy.array(
-            dataset_object.variables[ERROR_VALUES_KEY][:], dtype=float
         )
     }
 
+    for this_key in [
+            DISCARD_FRACTIONS_KEY, ERROR_VALUES_KEY,
+            MEAN_CENTRAL_PREDICTIONS_KEY, MEAN_TARGET_VALUES_KEY
+    ]:
+        result_dict[this_key] = numpy.array(
+            dataset_object.variables[this_key][:], dtype=float
+        )
+
+    for this_key in [EXAMPLE_COUNTS_KEY]:
+        result_dict[this_key] = numpy.array(
+            dataset_object.variables[this_key][:], dtype=int
+        )
+
     dataset_object.close()
-    return discard_dict
+    return result_dict
 
 
 def write_spread_vs_skill(
-        netcdf_file_name, mean_prediction_stdevs, rmse_values,
-        half_window_size_px, use_median):
+        netcdf_file_name, result_dict, half_window_size_px, use_median):
     """Writes spread vs. skill to NetCDF file.
 
     :param netcdf_file_name: Path to output file.
-    :param mean_prediction_stdevs: See output doc for `get_spread_vs_skill`.
-    :param rmse_values: Same.
+    :param result_dict: Dictionary created by `get_spread_vs_skill`.
     :param half_window_size_px: See input doc for `get_spread_vs_skill`.
     :param use_median: Same.
     """
 
     # Check input args.
-    error_checking.assert_is_numpy_array(
-        mean_prediction_stdevs, num_dimensions=1
-    )
-    error_checking.assert_is_geq_numpy_array(
-        mean_prediction_stdevs, 0., allow_nan=True
-    )
-    error_checking.assert_is_leq_numpy_array(
-        mean_prediction_stdevs, 1., allow_nan=True
-    )
-    error_checking.assert_is_greater_numpy_array(
-        numpy.diff(mean_prediction_stdevs), 0., allow_nan=True
-    )
-
-    num_bins = len(mean_prediction_stdevs)
-    assert num_bins >= 2
-
-    error_checking.assert_is_geq_numpy_array(rmse_values, 0., allow_nan=True)
-    error_checking.assert_is_leq_numpy_array(rmse_values, 1., allow_nan=True)
-    error_checking.assert_is_numpy_array(
-        rmse_values,
-        exact_dimensions=numpy.array([num_bins], dtype=int)
-    )
-
     error_checking.assert_is_geq(half_window_size_px, 0)
     error_checking.assert_is_boolean(use_median)
 
@@ -493,21 +535,25 @@ def write_spread_vs_skill(
     dataset_object.setncattr(HALF_WINDOW_SIZE_KEY, half_window_size_px)
     dataset_object.setncattr(USE_MEDIAN_KEY, int(use_median))
 
+    num_bins = len(result_dict[MEAN_PREDICTION_STDEVS_KEY])
     dataset_object.createDimension(SPREAD_SKILL_BIN_DIM_KEY, num_bins)
 
-    dataset_object.createVariable(
-        MEAN_PREDICTION_STDEVS_KEY, datatype=numpy.float32,
-        dimensions=SPREAD_SKILL_BIN_DIM_KEY
-    )
-    dataset_object.variables[MEAN_PREDICTION_STDEVS_KEY][:] = (
-        mean_prediction_stdevs
-    )
+    for this_key in [
+            MEAN_PREDICTION_STDEVS_KEY, RMSE_VALUES_KEY,
+            MEAN_CENTRAL_PREDICTIONS_KEY, MEAN_TARGET_VALUES_KEY
+    ]:
+        dataset_object.createVariable(
+            this_key, datatype=numpy.float32,
+            dimensions=SPREAD_SKILL_BIN_DIM_KEY
+        )
+        dataset_object.variables[this_key][:] = result_dict[this_key]
 
-    dataset_object.createVariable(
-        RMSE_VALUES_KEY, datatype=numpy.float32,
-        dimensions=SPREAD_SKILL_BIN_DIM_KEY
-    )
-    dataset_object.variables[RMSE_VALUES_KEY][:] = rmse_values
+    for this_key in [EXAMPLE_COUNTS_KEY]:
+        dataset_object.createVariable(
+            this_key, datatype=numpy.int32,
+            dimensions=SPREAD_SKILL_BIN_DIM_KEY
+        )
+        dataset_object.variables[this_key][:] = result_dict[this_key]
 
     dataset_object.close()
 
@@ -516,26 +562,33 @@ def read_spread_vs_skill(netcdf_file_name):
     """Reads spread vs. skill from NetCDF file.
 
     :param netcdf_file_name: Path to input file.
-    :return: spread_skill_dict: Dictionary with the following keys.
-    spread_skill_dict['mean_prediction_stdevs']: See doc for
-        `write_spread_vs_skill`.
-    spread_skill_dict['rmse_values']: Same.
-    spread_skill_dict['half_window_size_px']: Same.
-    spread_skill_dict['use_median']: Same.
+    :return: result_dict: Dictionary in format created by `get_spread_vs_skill`,
+        plus two extra keys.
+    result_dict['half_window_size_px']: Half-width (pixels) for neighbourhood
+        evaluation.
+    result_dict['use_median']: Boolean flag.  If True (False), used median
+        (mean) to define central prediction.
     """
 
     dataset_object = netCDF4.Dataset(netcdf_file_name)
 
-    discard_dict = {
+    result_dict = {
         HALF_WINDOW_SIZE_KEY: getattr(dataset_object, HALF_WINDOW_SIZE_KEY),
-        USE_MEDIAN_KEY: bool(getattr(dataset_object, USE_MEDIAN_KEY)),
-        MEAN_PREDICTION_STDEVS_KEY: numpy.array(
-            dataset_object.variables[MEAN_PREDICTION_STDEVS_KEY][:], dtype=float
-        ),
-        RMSE_VALUES_KEY: numpy.array(
-            dataset_object.variables[RMSE_VALUES_KEY][:], dtype=float
-        )
+        USE_MEDIAN_KEY: bool(getattr(dataset_object, USE_MEDIAN_KEY))
     }
 
+    for this_key in [
+            MEAN_PREDICTION_STDEVS_KEY, RMSE_VALUES_KEY,
+            MEAN_CENTRAL_PREDICTIONS_KEY, MEAN_TARGET_VALUES_KEY
+    ]:
+        result_dict[this_key] = numpy.array(
+            dataset_object.variables[this_key][:], dtype=float
+        )
+
+    for this_key in [EXAMPLE_COUNTS_KEY]:
+        result_dict[this_key] = numpy.array(
+            dataset_object.variables[this_key][:], dtype=int
+        )
+
     dataset_object.close()
-    return discard_dict
+    return result_dict

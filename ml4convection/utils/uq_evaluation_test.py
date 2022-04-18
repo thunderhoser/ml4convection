@@ -263,21 +263,21 @@ class UqEvaluationTests(unittest.TestCase):
         )
         uncertainty_function = uq_evaluation.get_stdev_uncertainty_function()
 
-        these_discard_fractions, these_errors = (
-            uq_evaluation.run_discard_test(
-                prediction_dict=PREDICTION_DICT,
-                discard_fractions=DISCARD_FRACTIONS_SANS_ZERO,
-                eroded_eval_mask_matrix=eroded_eval_mask_matrix,
-                error_function=error_function,
-                uncertainty_function=uncertainty_function
-            )
+        result_dict = uq_evaluation.run_discard_test(
+            prediction_dict=PREDICTION_DICT,
+            discard_fractions=DISCARD_FRACTIONS_SANS_ZERO,
+            eroded_eval_mask_matrix=eroded_eval_mask_matrix,
+            error_function=error_function,
+            uncertainty_function=uncertainty_function, use_median=False
         )
 
         self.assertTrue(numpy.allclose(
-            these_discard_fractions, DISCARD_FRACTIONS_WITH_ZERO, atol=TOLERANCE
+            result_dict[uq_evaluation.DISCARD_FRACTIONS_KEY],
+            DISCARD_FRACTIONS_WITH_ZERO, atol=TOLERANCE
         ))
         self.assertTrue(numpy.allclose(
-            these_errors, ERROR_BY_DISCARD_FRACTION, atol=TOLERANCE
+            result_dict[uq_evaluation.ERROR_VALUES_KEY],
+            ERROR_BY_DISCARD_FRACTION, atol=TOLERANCE
         ))
 
     def test_get_squared_errors_hw0(self):
@@ -316,21 +316,20 @@ class UqEvaluationTests(unittest.TestCase):
 
         eval_mask_matrix = numpy.full((2, 3), 1, dtype=bool)
 
-        these_mean_prediction_stdevs, these_rmse = (
-            uq_evaluation.get_spread_vs_skill(
-                prediction_dict=PREDICTION_DICT,
-                bin_edge_prediction_stdevs=BIN_EDGE_PREDICTION_STDEVS,
-                half_window_size_px=0, eval_mask_matrix=eval_mask_matrix,
-                use_median=False
-            )
+        result_dict = uq_evaluation.get_spread_vs_skill(
+            prediction_dict=PREDICTION_DICT,
+            bin_edge_prediction_stdevs=BIN_EDGE_PREDICTION_STDEVS,
+            half_window_size_px=0, eval_mask_matrix=eval_mask_matrix,
+            use_median=False
         )
 
         self.assertTrue(numpy.allclose(
-            these_mean_prediction_stdevs, MEAN_PREDICTION_STDEVS,
-            atol=TOLERANCE, equal_nan=True
+            result_dict[uq_evaluation.MEAN_PREDICTION_STDEVS_KEY],
+            MEAN_PREDICTION_STDEVS, atol=TOLERANCE, equal_nan=True
         ))
         self.assertTrue(numpy.allclose(
-            these_rmse, RMSE_VALUES, atol=TOLERANCE, equal_nan=True
+            result_dict[uq_evaluation.RMSE_VALUES_KEY], RMSE_VALUES,
+            atol=TOLERANCE, equal_nan=True
         ))
 
 
