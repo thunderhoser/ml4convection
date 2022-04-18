@@ -51,18 +51,17 @@ def _run(input_file_name, output_file_name):
     file_system_utils.mkdir_recursive_if_necessary(file_name=output_file_name)
 
     print('Reading data from: "{0:s}"...'.format(input_file_name))
-    discard_dict = uq_evaluation.read_discard_results(input_file_name)
+    result_dict = uq_evaluation.read_discard_results(input_file_name)
 
     figure_object, axes_object = uq_eval_plotting.plot_discard_test(
-        discard_fractions=discard_dict[uq_evaluation.DISCARD_FRACTIONS_KEY],
-        error_values=discard_dict[uq_evaluation.ERROR_VALUES_KEY]
+        result_dict=result_dict
     )
 
     axes_object.set_ylabel('Model performance ({0:s})'.format(
-        discard_dict[uq_evaluation.ERROR_FUNCTION_KEY]
+        result_dict[uq_evaluation.ERROR_FUNCTION_KEY]
     ))
     axes_object.set_title('Discard test (uncertainty metric = {0:s})'.format(
-        discard_dict[uq_evaluation.UNCERTAINTY_FUNCTION_KEY]
+        result_dict[uq_evaluation.UNCERTAINTY_FUNCTION_KEY]
     ))
 
     print('Saving figure to file: "{0:s}"...'.format(output_file_name))

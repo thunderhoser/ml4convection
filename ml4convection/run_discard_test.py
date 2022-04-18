@@ -200,14 +200,12 @@ def _run(top_prediction_dir_name, first_date_string, last_date_string,
             repeats=num_examples, axis=0
         )
 
-        discard_fractions_with_zero, fss_values = (
-            uq_evaluation.run_discard_test(
-                prediction_dict=prediction_dict,
-                discard_fractions=discard_fractions + 0.,
-                eroded_eval_mask_matrix=eroded_eval_mask_matrix,
-                error_function=error_function,
-                uncertainty_function=uncertainty_function
-            )
+        result_dict = uq_evaluation.run_discard_test(
+            prediction_dict=prediction_dict,
+            discard_fractions=discard_fractions + 0.,
+            eroded_eval_mask_matrix=eroded_eval_mask_matrix,
+            error_function=error_function,
+            uncertainty_function=uncertainty_function, use_median=False
         )
 
         output_file_name = (
@@ -216,9 +214,7 @@ def _run(top_prediction_dir_name, first_date_string, last_date_string,
 
         print('Writing results to: "{0:s}"...'.format(output_file_name))
         uq_evaluation.write_discard_results(
-            netcdf_file_name=output_file_name,
-            discard_fractions=discard_fractions_with_zero,
-            error_values=fss_values,
+            netcdf_file_name=output_file_name, result_dict=result_dict,
             error_function_name=
             '{0:d}-by-{0:d} FSS'.format(2 * this_matching_distance_px + 1),
             uncertainty_function_name='pixelwise stdev'
