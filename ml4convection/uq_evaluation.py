@@ -258,6 +258,8 @@ def run_discard_test(
     # Do actual stuff.
     uncertainty_matrix = uncertainty_function(prediction_dict)
     uncertainty_matrix[eroded_eval_mask_matrix == False] = numpy.nan
+    num_examples = numpy.sum(eroded_eval_mask_matrix == True)
+
     forecast_prob_matrix = prediction_dict[prediction_io.PROBABILITY_MATRIX_KEY]
 
     if use_median:
@@ -279,10 +281,12 @@ def run_discard_test(
         )
         eroded_eval_mask_matrix[this_inverted_mask_matrix] = False
 
+        this_num_examples = numpy.sum(eroded_eval_mask_matrix == True)
+        example_fractions[k] = float(this_num_examples) / num_examples
+
         error_values[k] = error_function(
             prediction_dict, eroded_eval_mask_matrix
         )
-        example_fractions[k] = numpy.mean(eroded_eval_mask_matrix == True)
         mean_central_predictions[k] = numpy.mean(
             central_prediction_matrix[eroded_eval_mask_matrix == True]
         )
