@@ -183,7 +183,7 @@ def _run(top_prediction_dir_name, first_date_string, last_date_string,
     eval_mask_matrix = model_metadata_dict[neural_net.MASK_MATRIX_KEY]
 
     for this_matching_distance_px in matching_distances_px:
-        mean_prediction_stdevs, rmse_values = uq_evaluation.get_spread_vs_skill(
+        result_dict = uq_evaluation.get_spread_vs_skill(
             prediction_dict=prediction_dict,
             bin_edge_prediction_stdevs=bin_edge_prediction_stdevs + 0.,
             half_window_size_px=this_matching_distance_px,
@@ -197,9 +197,7 @@ def _run(top_prediction_dir_name, first_date_string, last_date_string,
 
         print('Writing results to: "{0:s}"...'.format(output_file_name))
         uq_evaluation.write_spread_vs_skill(
-            netcdf_file_name=output_file_name,
-            mean_prediction_stdevs=mean_prediction_stdevs,
-            rmse_values=rmse_values,
+            netcdf_file_name=output_file_name, result_dict=result_dict,
             half_window_size_px=this_matching_distance_px, use_median=False
         )
 
