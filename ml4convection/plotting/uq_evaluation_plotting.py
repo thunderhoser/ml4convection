@@ -56,7 +56,8 @@ def _plot_means_as_inset(
         `matplotlib.axes._subplots.AxesSubplot`).
     """
 
-    inset_axes_object = figure_object.add_axes([0.575, 0.2, 0.3, 0.3])
+    # inset_axes_object = figure_object.add_axes([0.575, 0.2, 0.3, 0.3])
+    inset_axes_object = figure_object.add_axes([0.625, 0.175, 0.25, 0.25])
 
     inset_axes_object.plot(
         bin_centers, bin_mean_target_values, color=MEAN_TARGET_LINE_COLOUR,
@@ -103,7 +104,7 @@ def _plot_inset_histogram(
     """
 
     bin_frequencies = bin_counts.astype(float) / numpy.sum(bin_counts)
-    inset_axes_object = figure_object.add_axes([0.2, 0.55, 0.3, 0.3])
+    inset_axes_object = figure_object.add_axes([0.1875, 0.6, 0.25, 0.25])
 
     num_bins = len(bin_centers)
     fake_bin_centers = (
@@ -225,7 +226,7 @@ def plot_spread_vs_skill(
     inset_axes_object.set_xlim(axes_object.get_xlim())
 
     title_string = (
-        'Mean target ({0:s}) and\nprediction ({1:s}) in each bin'
+        'Mean target ({0:s}) & pred\n({1:s}) in each bin'
     ).format(MEAN_TARGET_COLOUR_STRING, MEAN_PREDICTION_COLOUR_STRING)
 
     inset_axes_object.set_title(title_string, fontsize=INSET_FONT_SIZE)
@@ -288,7 +289,7 @@ def plot_discard_test(
     inset_axes_object.set_xlim(axes_object.get_xlim())
 
     title_string = (
-        'Mean target ({0:s}) and\nprediction ({1:s}) after discard'
+        'Mean target ({0:s}) & pred\n({1:s}) after discard'
     ).format(MEAN_TARGET_COLOUR_STRING, MEAN_PREDICTION_COLOUR_STRING)
 
     inset_axes_object.set_title(title_string, fontsize=INSET_FONT_SIZE)
