@@ -220,6 +220,9 @@ def _run(experiment_dir_name, matching_distance_px, output_dir_name):
                     matching_distance_px
                 )
 
+                if not os.path.isfile(this_score_file_name):
+                    continue
+
                 print('Reading data from: "{0:s}"...'.format(
                     this_score_file_name
                 ))
