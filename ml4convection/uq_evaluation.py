@@ -415,7 +415,7 @@ def get_spread_vs_skill(prediction_dict, bin_edge_prediction_stdevs,
         rmse_values[k] = numpy.sqrt(numpy.mean(
             squared_error_matrix[these_indices]
         ))
-        example_counts[k] = len(these_indices)
+        example_counts[k] = squared_error_matrix[these_indices].size
         mean_central_predictions[k] = numpy.mean(
             central_prediction_matrix[these_indices]
         )
