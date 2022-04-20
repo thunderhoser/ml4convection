@@ -18,6 +18,7 @@ INPUT_DIR_ARG_NAME = 'input_prediction_dir_name'
 FIRST_DATE_ARG_NAME = 'first_date_string'
 LAST_DATE_ARG_NAME = 'last_date_string'
 TIME_INTERVAL_ARG_NAME = 'time_interval_steps'
+USE_FSS_ARG_NAME = 'use_fss'
 MATCHING_DISTANCES_ARG_NAME = 'matching_distances_px'
 DISCARD_FRACTIONS_ARG_NAME = 'discard_fractions'
 OUTPUT_DIR_ARG_NAME = 'output_dir_name'
@@ -35,9 +36,13 @@ TIME_INTERVAL_HELP_STRING = (
     'Will use predictions at every [k]th time step, where k = `{0:s}`.'
 ).format(TIME_INTERVAL_ARG_NAME)
 
+USE_FSS_HELP_STRING = (
+    'Boolean flag.  If 1 (0), will use fractions skill score (cross-entropy) '
+    'as error metric.'
+)
 MATCHING_DISTANCES_HELP_STRING = (
-    'List of neighbourhood half-widths (pixels) for FSS.  The discard test '
-    'will be run once for each neigh half-width.'
+    'List of neighbourhood half-widths (pixels) for error metric.  The discard '
+    'test will be run once for each neigh half-width.'
 )
 DISCARD_FRACTIONS_HELP_STRING = (
     'List of discard fractions, ranging from (0, 1).  This script will '
@@ -64,6 +69,10 @@ INPUT_ARG_PARSER.add_argument(
     help=TIME_INTERVAL_HELP_STRING
 )
 INPUT_ARG_PARSER.add_argument(
+    '--' + USE_FSS_ARG_NAME, type=int, required=False, default=1,
+    help=USE_FSS_HELP_STRING
+)
+INPUT_ARG_PARSER.add_argument(
     '--' + MATCHING_DISTANCES_ARG_NAME, type=int, nargs='+', required=True,
     help=MATCHING_DISTANCES_HELP_STRING
 )
@@ -78,7 +87,7 @@ INPUT_ARG_PARSER.add_argument(
 
 
 def _run(top_prediction_dir_name, first_date_string, last_date_string,
-         time_interval_steps, matching_distances_px, discard_fractions,
+         time_interval_steps, use_fss, matching_distances_px, discard_fractions,
          output_dir_name):
     """Runs discard test to determine quality of uncertainty estimates.
 
@@ -88,6 +97,7 @@ def _run(top_prediction_dir_name, first_date_string, last_date_string,
     :param first_date_string: Same.
     :param last_date_string: Same.
     :param time_interval_steps: Same.
+    :param use_fss: Same.
     :param matching_distances_px: Same.
     :param discard_fractions: Same.
     :param output_dir_name: Same.
@@ -180,9 +190,15 @@ def _run(top_prediction_dir_name, first_date_string, last_date_string,
     )
 
     for this_matching_distance_px in matching_distances_px:
-        error_function = uq_evaluation.get_fss_error_function(
-            half_window_size_px=this_matching_distance_px, use_median=False
-        )
+        if use_fss:
+            error_function = uq_evaluation.get_fss_error_function(
+                half_window_size_px=this_matching_distance_px, use_median=False
+            )
+        else:
+            error_function = uq_evaluation.get_xentropy_error_function(
+                half_window_size_px=this_matching_distance_px, use_median=False
+            )
+
         eroded_eval_mask_matrix = general_utils.erode_binary_matrix(
             binary_matrix=copy.deepcopy(eval_mask_matrix),
             buffer_distance_px=this_matching_distance_px
@@ -204,11 +220,15 @@ def _run(top_prediction_dir_name, first_date_string, last_date_string,
             '{0:s}/discard_test_matching-distance-px={1:.6f}.nc'
         ).format(output_dir_name, this_matching_distance_px)
 
+        error_function_name = '{0:d}-by-{0:d} {1:s}'.format(
+            2 * this_matching_distance_px + 1,
+            'FSS' if use_fss else 'X-entropy'
+        )
+
         print('Writing results to: "{0:s}"...'.format(output_file_name))
         uq_evaluation.write_discard_results(
             netcdf_file_name=output_file_name, result_dict=result_dict,
-            error_function_name=
-            '{0:d}-by-{0:d} FSS'.format(2 * this_matching_distance_px + 1),
+            error_function_name=error_function_name,
             uncertainty_function_name='pixelwise stdev'
         )
 
@@ -221,6 +241,7 @@ if __name__ == '__main__':
         first_date_string=getattr(INPUT_ARG_OBJECT, FIRST_DATE_ARG_NAME),
         last_date_string=getattr(INPUT_ARG_OBJECT, LAST_DATE_ARG_NAME),
         time_interval_steps=getattr(INPUT_ARG_OBJECT, TIME_INTERVAL_ARG_NAME),
+        use_fss=bool(getattr(INPUT_ARG_OBJECT, USE_FSS_ARG_NAME)),
         matching_distances_px=numpy.array(
             getattr(INPUT_ARG_OBJECT, MATCHING_DISTANCES_ARG_NAME), dtype=int
         ),

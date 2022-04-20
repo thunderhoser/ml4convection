@@ -3,6 +3,7 @@
 import numpy
 import netCDF4
 from scipy.signal import convolve2d
+from scipy.ndimage import maximum_filter
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
 from ml4convection.io import prediction_io
@@ -23,6 +24,16 @@ SPREAD_SKILL_BIN_DIM_KEY = 'bin'
 MEAN_PREDICTION_STDEVS_KEY = 'mean_prediction_stdevs'
 RMSE_VALUES_KEY = 'rmse_values'
 EXAMPLE_COUNTS_KEY = 'example_counts'
+
+
+def _log2(input_array):
+    """Computes logarithm in base 2.
+
+    :param input_array: numpy array.
+    :return: logarithm_array: numpy array with the same shape as `input_array`.
+    """
+
+    return numpy.log2(numpy.maximum(input_array, 1e-6))
 
 
 def _get_squared_errors(prediction_dict, half_window_size_px, use_median):
@@ -72,6 +83,71 @@ def _get_squared_errors(prediction_dict, half_window_size_px, use_median):
         )
 
     return squared_error_matrix
+
+
+def get_xentropy_error_function(half_window_size_px, use_median):
+    """Creates error function to compute cross-entropy.
+
+    :param half_window_size_px: Neighbourhood half-width (pixels).
+    :param use_median: Boolean flag.  If True (False), will use median (mean) of
+        each predictive distribution.
+    :return: error_function: Function handle.
+    """
+
+    def error_function(prediction_dict, eroded_eval_mask_matrix):
+        """Computes cross-entropy with a given neighbourhood half-width.
+
+        E = number of examples (time steps)
+        M = number of rows in grid
+        N = number of columns in grid
+
+        :param prediction_dict: Dictionary in format returned by
+            `prediction_io.read_file`.
+        :param eroded_eval_mask_matrix: E-by-M-by-N numpy array of Boolean
+            values, indicating which grid points should be used for evaluation.
+            This mask must already have been eroded with the relevant
+            neighbourhood distance.
+        :return: cross_entropy: Cross-entropy (scalar).
+        """
+
+        structure_matrix = general_utils.get_structure_matrix(
+            half_window_size_px
+        )
+
+        if use_median:
+            forecast_prob_matrix = numpy.median(
+                prediction_dict[prediction_io.PROBABILITY_MATRIX_KEY], axis=-1
+            )
+        else:
+            forecast_prob_matrix = numpy.mean(
+                prediction_dict[prediction_io.PROBABILITY_MATRIX_KEY], axis=-1
+            )
+
+        target_matrix = prediction_dict[prediction_io.TARGET_MATRIX_KEY]
+        num_examples = target_matrix.shape[0]
+
+        numerator = 0.
+
+        for i in range(num_examples):
+            this_filtered_target_matrix = maximum_filter(
+                target_matrix[i, ...].astype(float),
+                footprint=structure_matrix, mode='constant', cval=0.
+            )
+
+            this_prob_matrix = forecast_prob_matrix[i, ...] + 0.
+            this_prob_matrix[
+                eroded_eval_mask_matrix[i, ...].astype(bool) == False
+            ] = numpy.nan
+
+            numerator -= numpy.nansum(
+                this_filtered_target_matrix * _log2(this_prob_matrix) +
+                (1. - this_filtered_target_matrix) *
+                _log2(1. - this_prob_matrix)
+            )
+
+        return numerator / numpy.sum(eroded_eval_mask_matrix == True)
+
+    return error_function
 
 
 def get_fss_error_function(half_window_size_px, use_median):
@@ -250,6 +326,8 @@ def run_discard_test(
     # Do actual stuff.
     uncertainty_matrix = uncertainty_function(prediction_dict)
     uncertainty_matrix[eroded_eval_mask_matrix == False] = numpy.nan
+    num_examples = numpy.sum(eroded_eval_mask_matrix == True)
+
     forecast_prob_matrix = prediction_dict[prediction_io.PROBABILITY_MATRIX_KEY]
 
     if use_median:
@@ -271,10 +349,12 @@ def run_discard_test(
         )
         eroded_eval_mask_matrix[this_inverted_mask_matrix] = False
 
+        this_num_examples = numpy.sum(eroded_eval_mask_matrix == True)
+        example_fractions[k] = float(this_num_examples) / num_examples
+
         error_values[k] = error_function(
             prediction_dict, eroded_eval_mask_matrix
         )
-        example_fractions[k] = numpy.mean(eroded_eval_mask_matrix == True)
         mean_central_predictions[k] = numpy.mean(
             central_prediction_matrix[eroded_eval_mask_matrix == True]
         )
@@ -493,7 +573,7 @@ def read_discard_results(netcdf_file_name):
     for this_key in [
             DISCARD_FRACTIONS_KEY, ERROR_VALUES_KEY,
             MEAN_CENTRAL_PREDICTIONS_KEY, MEAN_TARGET_VALUES_KEY,
-            EXAMPLE_COUNTS_KEY
+            EXAMPLE_FRACTIONS_KEY
     ]:
         result_dict[this_key] = numpy.array(
             dataset_object.variables[this_key][:], dtype=float

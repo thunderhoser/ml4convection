@@ -61,8 +61,8 @@ def _plot_means_as_inset(
 
     inset_axes_object.plot(
         bin_centers, bin_mean_target_values, color=MEAN_TARGET_LINE_COLOUR,
-        linestyle='solid', linewidth=4,
-        marker='o', markersize=12, markeredgewidth=0,
+        linestyle='solid', linewidth=2,
+        marker='o', markersize=8, markeredgewidth=0,
         markerfacecolor=MEAN_TARGET_LINE_COLOUR,
         markeredgecolor=MEAN_TARGET_LINE_COLOUR
     )
