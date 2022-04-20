@@ -13,7 +13,7 @@ UNCERTAINTY_FUNCTION_KEY = 'uncertainty_function_name'
 DISCARD_FRACTION_DIM_KEY = 'discard_fraction'
 DISCARD_FRACTIONS_KEY = 'discard_fractions'
 ERROR_VALUES_KEY = 'error_values'
-EXAMPLE_COUNTS_KEY = 'example_counts'
+EXAMPLE_FRACTIONS_KEY = 'example_fractions'
 MEAN_CENTRAL_PREDICTIONS_KEY = 'mean_central_predictions'
 MEAN_TARGET_VALUES_KEY = 'mean_target_values'
 
@@ -22,6 +22,7 @@ USE_MEDIAN_KEY = 'use_median'
 SPREAD_SKILL_BIN_DIM_KEY = 'bin'
 MEAN_PREDICTION_STDEVS_KEY = 'mean_prediction_stdevs'
 RMSE_VALUES_KEY = 'rmse_values'
+EXAMPLE_COUNTS_KEY = 'example_counts'
 
 
 def _get_squared_errors(prediction_dict, half_window_size_px, use_median):
@@ -212,9 +213,9 @@ def run_discard_test(
         sorted in increasing order.
     result_dict['error_values']: length-F numpy array of corresponding error
         values.
-    result_dict['example_counts']: length-F numpy array of corresponding example
-        counts (where one example = one scalar, i.e., one grid point at one time
-        step).
+    result_dict['example_fractions']: length-F numpy array with fraction of
+        examples left after each discard (where one example = one scalar, i.e.,
+        one grid point at one time step).
     result_dict['mean_central_predictions']: length-F numpy array, where the
         [i]th entry is the mean central (mean or median) prediction for the
         [i]th discard fraction.
@@ -258,7 +259,7 @@ def run_discard_test(
 
     discard_fractions = numpy.sort(discard_fractions)
     error_values = numpy.full(num_fractions, numpy.nan)
-    example_counts = numpy.full(num_fractions, 0, dtype=int)
+    example_fractions = numpy.full(num_fractions, numpy.nan)
     mean_central_predictions = numpy.full(num_fractions, numpy.nan)
     mean_target_values = numpy.full(num_fractions, numpy.nan)
 
@@ -273,7 +274,7 @@ def run_discard_test(
         error_values[k] = error_function(
             prediction_dict, eroded_eval_mask_matrix
         )
-        example_counts[k] = numpy.sum(eroded_eval_mask_matrix == True)
+        example_fractions[k] = numpy.mean(eroded_eval_mask_matrix == True)
         mean_central_predictions[k] = numpy.mean(
             central_prediction_matrix[eroded_eval_mask_matrix == True]
         )
@@ -286,7 +287,7 @@ def run_discard_test(
     return {
         DISCARD_FRACTIONS_KEY: discard_fractions,
         ERROR_VALUES_KEY: error_values,
-        EXAMPLE_COUNTS_KEY: example_counts,
+        EXAMPLE_FRACTIONS_KEY: example_fractions,
         MEAN_CENTRAL_PREDICTIONS_KEY: mean_central_predictions,
         MEAN_TARGET_VALUES_KEY: mean_target_values
     }
@@ -407,7 +408,7 @@ def get_spread_vs_skill(prediction_dict, bin_edge_prediction_stdevs,
         rmse_values[k] = numpy.sqrt(numpy.mean(
             squared_error_matrix[these_indices]
         ))
-        example_counts[k] = len(these_indices)
+        example_counts[k] = squared_error_matrix[these_indices].size
         mean_central_predictions[k] = numpy.mean(
             central_prediction_matrix[these_indices]
         )
@@ -457,17 +458,11 @@ def write_discard_results(
 
     for this_key in [
             DISCARD_FRACTIONS_KEY, ERROR_VALUES_KEY,
-            MEAN_CENTRAL_PREDICTIONS_KEY, MEAN_TARGET_VALUES_KEY
+            MEAN_CENTRAL_PREDICTIONS_KEY, MEAN_TARGET_VALUES_KEY,
+            EXAMPLE_FRACTIONS_KEY
     ]:
         dataset_object.createVariable(
             this_key, datatype=numpy.float32,
-            dimensions=DISCARD_FRACTION_DIM_KEY
-        )
-        dataset_object.variables[this_key][:] = result_dict[this_key]
-
-    for this_key in [EXAMPLE_COUNTS_KEY]:
-        dataset_object.createVariable(
-            this_key, datatype=numpy.int32,
             dimensions=DISCARD_FRACTION_DIM_KEY
         )
         dataset_object.variables[this_key][:] = result_dict[this_key]
@@ -497,15 +492,11 @@ def read_discard_results(netcdf_file_name):
 
     for this_key in [
             DISCARD_FRACTIONS_KEY, ERROR_VALUES_KEY,
-            MEAN_CENTRAL_PREDICTIONS_KEY, MEAN_TARGET_VALUES_KEY
+            MEAN_CENTRAL_PREDICTIONS_KEY, MEAN_TARGET_VALUES_KEY,
+            EXAMPLE_COUNTS_KEY
     ]:
         result_dict[this_key] = numpy.array(
             dataset_object.variables[this_key][:], dtype=float
-        )
-
-    for this_key in [EXAMPLE_COUNTS_KEY]:
-        result_dict[this_key] = numpy.array(
-            dataset_object.variables[this_key][:], dtype=int
         )
 
     dataset_object.close()

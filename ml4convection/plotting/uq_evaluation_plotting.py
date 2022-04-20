@@ -61,11 +61,17 @@ def _plot_means_as_inset(
 
     inset_axes_object.plot(
         bin_centers, bin_mean_target_values, color=MEAN_TARGET_LINE_COLOUR,
-        linestyle='solid', linewidth=DEFAULT_LINE_WIDTH
+        linestyle='solid', linewidth=4,
+        marker='o', markersize=12, markeredgewidth=0,
+        markerfacecolor=MEAN_TARGET_LINE_COLOUR,
+        markeredgecolor=MEAN_TARGET_LINE_COLOUR
     )
     inset_axes_object.plot(
         bin_centers, bin_mean_predictions, color=MEAN_PREDICTION_LINE_COLOUR,
-        linestyle='dashed', linewidth=DEFAULT_LINE_WIDTH
+        linestyle='dashed', linewidth=2,
+        marker='o', markersize=8, markeredgewidth=0,
+        markerfacecolor=MEAN_PREDICTION_LINE_COLOUR,
+        markeredgecolor=MEAN_PREDICTION_LINE_COLOUR
     )
 
     y_max = max([
@@ -86,7 +92,7 @@ def _plot_means_as_inset(
 
 
 def _plot_inset_histogram(
-        figure_object, bin_centers, bin_counts,
+        figure_object, bin_centers, bin_frequencies,
         bar_colour=HISTOGRAM_FACE_COLOUR):
     """Plots histogram as inset in another figure.
 
@@ -96,14 +102,13 @@ def _plot_inset_histogram(
         `matplotlib.figure.Figure`).
     :param bin_centers: length-B numpy array with value at center of each bin.
         These values will be plotted on the x-axis.
-    :param bin_counts: length-B numpy array with number of examples in each bin.
-        These values will be plotted on the y-axis.
+    :param bin_frequencies: length-B numpy array with fraction of examples in
+        each bin. These values will be plotted on the y-axis.
     :param bar_colour: Bar colour (in any format accepted by matplotlib).
     :return: inset_axes_object: Axes handle for histogram (instance of
         `matplotlib.axes._subplots.AxesSubplot`).
     """
 
-    bin_frequencies = bin_counts.astype(float) / numpy.sum(bin_counts)
     inset_axes_object = figure_object.add_axes([0.1875, 0.6, 0.25, 0.25])
 
     num_bins = len(bin_centers)
@@ -205,10 +210,15 @@ def plot_spread_vs_skill(
     axes_object.set_xlim(0, max_value_to_plot)
     axes_object.set_ylim(0, max_value_to_plot)
 
+    bin_frequencies = (
+        result_dict[uq_evaluation.EXAMPLE_COUNTS_KEY].astype(float) /
+        numpy.sum(result_dict[uq_evaluation.EXAMPLE_COUNTS_KEY])
+    )
+
     inset_axes_object = _plot_inset_histogram(
         figure_object=figure_object,
         bin_centers=mean_prediction_stdevs,
-        bin_counts=result_dict[uq_evaluation.EXAMPLE_COUNTS_KEY]
+        bin_frequencies=bin_frequencies
     )
     inset_axes_object.set_title(
         '% examples in each bin', fontsize=INSET_FONT_SIZE
@@ -271,7 +281,7 @@ def plot_discard_test(
     inset_axes_object = _plot_inset_histogram(
         figure_object=figure_object,
         bin_centers=discard_fractions,
-        bin_counts=result_dict[uq_evaluation.EXAMPLE_COUNTS_KEY]
+        bin_frequencies=result_dict[uq_evaluation.EXAMPLE_FRACTIONS_KEY]
     )
     inset_axes_object.set_title(
         '% examples left after discard', fontsize=INSET_FONT_SIZE
