@@ -501,7 +501,7 @@ def read_discard_results(netcdf_file_name):
     for this_key in [
             DISCARD_FRACTIONS_KEY, ERROR_VALUES_KEY,
             MEAN_CENTRAL_PREDICTIONS_KEY, MEAN_TARGET_VALUES_KEY,
-            EXAMPLE_COUNTS_KEY
+            EXAMPLE_FRACTIONS_KEY
     ]:
         result_dict[this_key] = numpy.array(
             dataset_object.variables[this_key][:], dtype=float
