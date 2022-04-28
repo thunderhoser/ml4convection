@@ -48,13 +48,17 @@ def _run(input_file_name, output_file_name):
     figure_object, axes_object = uq_eval_plotting.plot_discard_test(
         result_dict=result_dict
     )
-
     axes_object.set_ylabel('Model performance ({0:s})'.format(
         result_dict[uq_evaluation.ERROR_FUNCTION_KEY]
     ))
-    axes_object.set_title('Discard test (uncertainty metric = {0:s})'.format(
-        result_dict[uq_evaluation.UNCERTAINTY_FUNCTION_KEY]
-    ))
+
+    title_string = (
+        'Discard test (uncertainty metric = {0:s}); monotonicity = {1:.2f}%'
+    ).format(
+        result_dict[uq_evaluation.UNCERTAINTY_FUNCTION_KEY],
+        100 * result_dict[uq_evaluation.MONOTONICITY_FRACTION_KEY]
+    )
+    axes_object.set_title(title_string)
 
     print('Saving figure to file: "{0:s}"...'.format(output_file_name))
     figure_object.savefig(

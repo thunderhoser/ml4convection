@@ -19,6 +19,7 @@ FIRST_DATE_ARG_NAME = 'first_date_string'
 LAST_DATE_ARG_NAME = 'last_date_string'
 TIME_INTERVAL_ARG_NAME = 'time_interval_steps'
 USE_FSS_ARG_NAME = 'use_fss'
+POS_ORIENTED_ARG_NAME = 'is_error_pos_oriented'
 MATCHING_DISTANCES_ARG_NAME = 'matching_distances_px'
 DISCARD_FRACTIONS_ARG_NAME = 'discard_fractions'
 OUTPUT_DIR_ARG_NAME = 'output_dir_name'
@@ -39,6 +40,10 @@ TIME_INTERVAL_HELP_STRING = (
 USE_FSS_HELP_STRING = (
     'Boolean flag.  If 1 (0), will use fractions skill score (cross-entropy) '
     'as error metric.'
+)
+POS_ORIENTED_HELP_STRING = (
+    'Boolean flag.  If 1 (0), error function is positively (negatively) '
+    'oriented.'
 )
 MATCHING_DISTANCES_HELP_STRING = (
     'List of neighbourhood half-widths (pixels) for error metric.  The discard '
@@ -73,6 +78,10 @@ INPUT_ARG_PARSER.add_argument(
     help=USE_FSS_HELP_STRING
 )
 INPUT_ARG_PARSER.add_argument(
+    '--' + POS_ORIENTED_ARG_NAME, type=int, required=False, default=1,
+    help=POS_ORIENTED_HELP_STRING
+)
+INPUT_ARG_PARSER.add_argument(
     '--' + MATCHING_DISTANCES_ARG_NAME, type=int, nargs='+', required=True,
     help=MATCHING_DISTANCES_HELP_STRING
 )
@@ -87,8 +96,8 @@ INPUT_ARG_PARSER.add_argument(
 
 
 def _run(top_prediction_dir_name, first_date_string, last_date_string,
-         time_interval_steps, use_fss, matching_distances_px, discard_fractions,
-         output_dir_name):
+         time_interval_steps, use_fss, is_error_pos_oriented,
+         matching_distances_px, discard_fractions, output_dir_name):
     """Runs discard test to determine quality of uncertainty estimates.
 
     This is effectively the main method.
@@ -98,6 +107,7 @@ def _run(top_prediction_dir_name, first_date_string, last_date_string,
     :param last_date_string: Same.
     :param time_interval_steps: Same.
     :param use_fss: Same.
+    :param is_error_pos_oriented: Same.
     :param matching_distances_px: Same.
     :param discard_fractions: Same.
     :param output_dir_name: Same.
@@ -213,7 +223,8 @@ def _run(top_prediction_dir_name, first_date_string, last_date_string,
             discard_fractions=discard_fractions + 0.,
             eroded_eval_mask_matrix=eroded_eval_mask_matrix,
             error_function=error_function,
-            uncertainty_function=uncertainty_function, use_median=False
+            uncertainty_function=uncertainty_function, use_median=False,
+            is_error_pos_oriented=is_error_pos_oriented
         )
 
         output_file_name = (
@@ -242,6 +253,9 @@ if __name__ == '__main__':
         last_date_string=getattr(INPUT_ARG_OBJECT, LAST_DATE_ARG_NAME),
         time_interval_steps=getattr(INPUT_ARG_OBJECT, TIME_INTERVAL_ARG_NAME),
         use_fss=bool(getattr(INPUT_ARG_OBJECT, USE_FSS_ARG_NAME)),
+        is_error_pos_oriented=bool(getattr(
+            INPUT_ARG_OBJECT, POS_ORIENTED_ARG_NAME
+        )),
         matching_distances_px=numpy.array(
             getattr(INPUT_ARG_OBJECT, MATCHING_DISTANCES_ARG_NAME), dtype=int
         ),

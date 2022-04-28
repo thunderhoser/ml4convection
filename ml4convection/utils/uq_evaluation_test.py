@@ -268,7 +268,8 @@ class UqEvaluationTests(unittest.TestCase):
             discard_fractions=DISCARD_FRACTIONS_SANS_ZERO,
             eroded_eval_mask_matrix=eroded_eval_mask_matrix,
             error_function=error_function,
-            uncertainty_function=uncertainty_function, use_median=False
+            uncertainty_function=uncertainty_function, use_median=False,
+            is_error_pos_oriented=True
         )
 
         self.assertTrue(numpy.allclose(

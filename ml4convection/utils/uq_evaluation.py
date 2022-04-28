@@ -17,6 +17,7 @@ ERROR_VALUES_KEY = 'error_values'
 EXAMPLE_FRACTIONS_KEY = 'example_fractions'
 MEAN_CENTRAL_PREDICTIONS_KEY = 'mean_central_predictions'
 MEAN_TARGET_VALUES_KEY = 'mean_target_values'
+MONOTONICITY_FRACTION_KEY = 'monotonicity_fraction'
 
 HALF_WINDOW_SIZE_KEY = 'half_window_size_px'
 USE_MEDIAN_KEY = 'use_median'
@@ -24,6 +25,7 @@ SPREAD_SKILL_BIN_DIM_KEY = 'bin'
 MEAN_PREDICTION_STDEVS_KEY = 'mean_prediction_stdevs'
 RMSE_VALUES_KEY = 'rmse_values'
 EXAMPLE_COUNTS_KEY = 'example_counts'
+SPREAD_SKILL_QUALITY_SCORE_KEY = 'spread_skill_quality_score'
 
 
 def _log2(input_array):
@@ -251,7 +253,7 @@ def get_stdev_uncertainty_function():
 
 def run_discard_test(
         prediction_dict, discard_fractions, eroded_eval_mask_matrix,
-        error_function, uncertainty_function, use_median):
+        error_function, uncertainty_function, use_median, is_error_pos_oriented):
     """Runs the discard test.
 
     F = number of discard fractions
@@ -283,6 +285,8 @@ def run_discard_test(
 
     :param use_median: Boolean flag.  If True (False), central predictions will
         be medians (means).
+    :param is_error_pos_oriented: Boolean flag.  If True (False), error function
+        is positively (negatively) oriented.
 
     :return: result_dict: Dictionary with the following keys.
     result_dict['discard_fractions']: length-F numpy array of discard fractions,
@@ -297,10 +301,14 @@ def run_discard_test(
         [i]th discard fraction.
     result_dict['mean_target_values']: length-F numpy array, where the [i]th
         entry is the mean target value for the [i]th discard fraction.
+    result_dict['monotonicity_fraction']: Monotonicity fraction.  This is the
+        fraction of times that the error function improves when discard
+        fraction is increased.
     """
 
     # Check input args.
     error_checking.assert_is_boolean(use_median)
+    error_checking.assert_is_boolean(is_error_pos_oriented)
 
     expected_dim = numpy.array(
         prediction_dict[prediction_io.PROBABILITY_MATRIX_KEY].shape[:3],
@@ -364,12 +372,18 @@ def run_discard_test(
             ]
         )
 
+    if is_error_pos_oriented:
+        monotonicity_fraction = numpy.mean(numpy.diff(error_values) > 0)
+    else:
+        monotonicity_fraction = numpy.mean(numpy.diff(error_values) < 0)
+
     return {
         DISCARD_FRACTIONS_KEY: discard_fractions,
         ERROR_VALUES_KEY: error_values,
         EXAMPLE_FRACTIONS_KEY: example_fractions,
         MEAN_CENTRAL_PREDICTIONS_KEY: mean_central_predictions,
-        MEAN_TARGET_VALUES_KEY: mean_target_values
+        MEAN_TARGET_VALUES_KEY: mean_target_values,
+        MONOTONICITY_FRACTION_KEY: monotonicity_fraction
     }
 
 
@@ -402,6 +416,10 @@ def get_spread_vs_skill(prediction_dict, bin_edge_prediction_stdevs,
     result_dict['rmse_values']: length-B numpy array, where the [i]th
         entry is the root mean squared error of central (mean or median)
         predictions in the [i]th bin.
+    result_dict['spread_skill_quality_score']: Quality score.  This is the
+        weighted mean difference (over B bins) between x-value (mean standard
+        deviation of predictive distribution) and y-value (RMSE of central
+        prediction).
     result_dict['example_counts']: length-B numpy array of corresponding example
         counts (where one example = one scalar, i.e., one grid point at one time
         step).
@@ -496,9 +514,15 @@ def get_spread_vs_skill(prediction_dict, bin_edge_prediction_stdevs,
             prediction_dict[prediction_io.TARGET_MATRIX_KEY][these_indices]
         )
 
+    spread_skill_quality_score = numpy.average(
+        numpy.absolute(mean_prediction_stdevs - rmse_values),
+        weights=example_counts
+    )
+
     return {
         MEAN_PREDICTION_STDEVS_KEY: mean_prediction_stdevs,
         RMSE_VALUES_KEY: rmse_values,
+        SPREAD_SKILL_QUALITY_SCORE_KEY: spread_skill_quality_score,
         EXAMPLE_COUNTS_KEY: example_counts,
         MEAN_CENTRAL_PREDICTIONS_KEY: mean_central_predictions,
         MEAN_TARGET_VALUES_KEY: mean_target_values
@@ -531,6 +555,9 @@ def write_discard_results(
     dataset_object.setncattr(ERROR_FUNCTION_KEY, error_function_name)
     dataset_object.setncattr(
         UNCERTAINTY_FUNCTION_KEY, uncertainty_function_name
+    )
+    dataset_object.setncattr(
+        MONOTONICITY_FRACTION_KEY, result_dict[MONOTONICITY_FRACTION_KEY]
     )
 
     num_fractions = len(result_dict[DISCARD_FRACTIONS_KEY])
@@ -567,6 +594,9 @@ def read_discard_results(netcdf_file_name):
         ERROR_FUNCTION_KEY: str(getattr(dataset_object, ERROR_FUNCTION_KEY)),
         UNCERTAINTY_FUNCTION_KEY: str(
             getattr(dataset_object, UNCERTAINTY_FUNCTION_KEY)
+        ),
+        MONOTONICITY_FRACTION_KEY: float(
+            getattr(dataset_object, MONOTONICITY_FRACTION_KEY)
         )
     }
 
@@ -605,6 +635,10 @@ def write_spread_vs_skill(
 
     dataset_object.setncattr(HALF_WINDOW_SIZE_KEY, half_window_size_px)
     dataset_object.setncattr(USE_MEDIAN_KEY, int(use_median))
+    dataset_object.setncattr(
+        SPREAD_SKILL_QUALITY_SCORE_KEY,
+        result_dict[SPREAD_SKILL_QUALITY_SCORE_KEY]
+    )
 
     num_bins = len(result_dict[MEAN_PREDICTION_STDEVS_KEY])
     dataset_object.createDimension(SPREAD_SKILL_BIN_DIM_KEY, num_bins)
@@ -645,7 +679,9 @@ def read_spread_vs_skill(netcdf_file_name):
 
     result_dict = {
         HALF_WINDOW_SIZE_KEY: getattr(dataset_object, HALF_WINDOW_SIZE_KEY),
-        USE_MEDIAN_KEY: bool(getattr(dataset_object, USE_MEDIAN_KEY))
+        USE_MEDIAN_KEY: bool(getattr(dataset_object, USE_MEDIAN_KEY)),
+        SPREAD_SKILL_QUALITY_SCORE_KEY:
+            float(getattr(dataset_object, SPREAD_SKILL_QUALITY_SCORE_KEY))
     }
 
     for this_key in [
