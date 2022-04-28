@@ -47,6 +47,8 @@ python3 -u "${CODE_DIR_NAME}/run_discard_test.py" \
 --first_date_string="20170101" \
 --last_date_string="20171224" \
 --time_interval_steps=5 \
+--use_fss=1 \
+--is_error_pos_oriented=1 \
 --matching_distances_px 0 \
 --discard_fractions 0.1 0.2 0.3 0.4 0.5 0.6 0.7 0.8 0.9 \
 --output_dir_name="${prediction_dir_name}/evaluation"
