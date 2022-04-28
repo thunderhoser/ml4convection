@@ -522,9 +522,10 @@ def get_spread_vs_skill(prediction_dict, bin_edge_prediction_stdevs,
             prediction_dict[prediction_io.TARGET_MATRIX_KEY][these_indices]
         )
 
+    these_diffs = numpy.absolute(mean_prediction_stdevs - rmse_values)
+    these_diffs[numpy.isnan(these_diffs)] = 0.
     spread_skill_quality_score = numpy.average(
-        numpy.absolute(mean_prediction_stdevs - rmse_values),
-        weights=example_counts
+        these_diffs, weights=example_counts
     )
 
     return {
