@@ -533,7 +533,8 @@ def create_quantile_regression_model(
             loss_dict[output_layer_names[k]] = central_loss_function
         else:
             loss_dict[output_layer_names[k]] = custom_losses.quantile_loss(
-                quantile_levels[k - 1]
+                quantile_level=quantile_levels[k - 1],
+                mask_matrix=mask_matrix.astype(int)
             )
 
     model_object = keras.models.Model(

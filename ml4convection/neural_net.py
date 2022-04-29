@@ -2351,11 +2351,15 @@ def read_model(hdf5_file_name, for_mirrored_training=False):
         loss_dict = {'central_output': loss_function}
 
         for k in range(len(quantile_levels)):
+            this_loss_function = custom_losses.quantile_loss(
+                quantile_level=quantile_levels[k], mask_matrix=mask_matrix
+            )
+
             loss_dict['quantile_output{0:03d}'.format(k + 1)] = (
-                custom_losses.quantile_loss(quantile_levels[k])
+                this_loss_function
             )
             custom_object_dict['quantile_output{0:03d}_loss'.format(k + 1)] = (
-                custom_losses.quantile_loss(quantile_levels[k])
+                this_loss_function
             )
 
         custom_object_dict['loss'] = loss_dict
