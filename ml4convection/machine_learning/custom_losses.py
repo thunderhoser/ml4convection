@@ -51,12 +51,17 @@ def weighted_xentropy(class_weights):
     return loss
 
 
-def quantile_loss(quantile_level):
+def quantile_loss(quantile_level, mask_matrix):
     """Quantile loss function.
 
     :param quantile_level: Quantile level.
+    :param mask_matrix: See doc for `fractions_skill_score`.
     :return: loss: Loss function (defined below).
     """
+
+    mask_matrix = numpy.expand_dims(
+        mask_matrix.astype(float), axis=(0, -1)
+    )
 
     def loss(target_tensor, prediction_tensor):
         """Computes quantile loss.
@@ -66,10 +71,12 @@ def quantile_loss(quantile_level):
         :return: loss: Quantile loss.
         """
 
-        return K.mean(K.maximum(
-            quantile_level * (target_tensor - prediction_tensor),
-            (quantile_level - 1) * (target_tensor - prediction_tensor)
-        ))
+        return K.mean(
+            mask_matrix * K.maximum(
+                quantile_level * (target_tensor - prediction_tensor),
+                (quantile_level - 1) * (target_tensor - prediction_tensor)
+            )
+        )
 
     return loss
 

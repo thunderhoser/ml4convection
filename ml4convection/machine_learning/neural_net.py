@@ -2200,9 +2200,11 @@ def train_model(
         error_checking.assert_is_less_than(plateau_lr_multiplier, 1.)
 
     _ = metric_name_to_params(loss_function_name)
-    error_checking.assert_is_string_list(metric_names)
-    for this_metric_name in metric_names:
-        _ = metric_name_to_params(this_metric_name)
+
+    if metric_names is not None:
+        error_checking.assert_is_string_list(metric_names)
+        for this_metric_name in metric_names:
+            _ = metric_name_to_params(this_metric_name)
 
     if quantile_levels is not None:
         error_checking.assert_is_numpy_array(quantile_levels, num_dimensions=1)
@@ -2338,13 +2340,22 @@ def read_model(hdf5_file_name, for_mirrored_training=False):
     if quantile_levels is None:
         custom_object_dict['loss'] = loss_function
     else:
-        custom_object_dict = {}
-        custom_object_dict['central_output_loss'] = loss_function
+        custom_object_dict = {'central_output_loss': loss_function}
+        loss_dict = {'central_output': loss_function}
 
         for k in range(len(quantile_levels)):
-            custom_object_dict['quantile_output{0:03d}_loss'.format(k + 1)] = (
-                custom_losses.quantile_loss(quantile_levels[k])
+            this_loss_function = custom_losses.quantile_loss(
+                quantile_level=quantile_levels[k], mask_matrix=mask_matrix
             )
+
+            loss_dict['quantile_output{0:03d}'.format(k + 1)] = (
+                this_loss_function
+            )
+            custom_object_dict['quantile_output{0:03d}_loss'.format(k + 1)] = (
+                this_loss_function
+            )
+
+        custom_object_dict['loss'] = loss_dict
 
     model_object = tf_keras.models.load_model(
         hdf5_file_name, custom_objects=custom_object_dict, compile=False
