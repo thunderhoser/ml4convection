@@ -523,9 +523,11 @@ def create_quantile_regression_model(
                 name=output_layer_names[k]
             )([this_matrix, output_layers[k]])
 
-            output_layers[k] = keras.layers.Activation(None, name=output_layer_names[k])(output_layers[k])
-
-            print(output_layer_names[k])
+            # TODO(thunderhoser): This is a HACK, because for some reason Keras
+            # doesn't let you name Multiply layers.
+            output_layers[k] = keras.layers.Activation(
+                None, name=output_layer_names[k]
+            )(output_layers[k])
 
         if k == 0:
             loss_dict[output_layer_names[k]] = central_loss_function
