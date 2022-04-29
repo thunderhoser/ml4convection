@@ -2345,13 +2345,14 @@ def read_model(hdf5_file_name, for_mirrored_training=False):
     if quantile_levels is None:
         custom_object_dict['loss'] = loss_function
     else:
-        custom_object_dict = {}
-        custom_object_dict['central_output_loss'] = loss_function
+        loss_dict = {'central_output_loss': loss_function}
 
         for k in range(len(quantile_levels)):
-            custom_object_dict['quantile_output{0:03d}_loss'.format(k + 1)] = (
+            loss_dict['quantile_output{0:03d}_loss'.format(k + 1)] = (
                 custom_losses.quantile_loss(quantile_levels[k])
             )
+
+        custom_object_dict = {'loss': loss_dict}
 
     model_object = tf_keras.models.load_model(
         hdf5_file_name, custom_objects=custom_object_dict, compile=False
