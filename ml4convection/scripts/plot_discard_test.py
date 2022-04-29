@@ -58,6 +58,7 @@ def _run(input_file_name, output_file_name):
         result_dict[uq_evaluation.UNCERTAINTY_FUNCTION_KEY],
         100 * result_dict[uq_evaluation.MONOTONICITY_FRACTION_KEY]
     )
+    print(title_string)
     axes_object.set_title(title_string)
 
     print('Saving figure to file: "{0:s}"...'.format(output_file_name))
