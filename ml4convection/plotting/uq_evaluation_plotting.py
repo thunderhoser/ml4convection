@@ -91,6 +91,43 @@ def _plot_means_as_inset(
     return inset_axes_object
 
 
+def _plot_histogram(axes_object, bin_centers, bin_frequencies):
+    """Plots histogram on existing axes.
+
+    B = number of bins
+
+    :param axes_object: Will plot histogram on these axes (instance of
+        `matplotlib.axes._subplots.AxesSubplot`).
+    :param bin_centers: length-B numpy array with value at center of each bin.
+        These values will be plotted on the x-axis.
+    :param bin_frequencies: length-B numpy array with fraction of examples in
+        each bin. These values will be plotted on the y-axis.
+    :return: histogram_axes_object: Axes handle for histogram only (also
+        instance of `matplotlib.axes._subplots.AxesSubplot`).
+    """
+
+    histogram_axes_object = axes_object.twinx()
+    axes_object.set_zorder(histogram_axes_object.get_zorder() + 1)
+    axes_object.patch.set_visible(False)
+
+    bin_diffs = numpy.diff(bin_centers)
+    bin_edges = bin_centers[:-1] + bin_diffs / 2
+    bottom_bin_edge = bin_centers[0] - bin_diffs[0] / 2
+    top_bin_edge = bin_centers[-1] + bin_diffs[-1] / 2
+
+    bin_edges = numpy.concatenate((
+        numpy.array([bottom_bin_edge]), bin_edges, numpy.array([top_bin_edge])
+    ))
+
+    histogram_axes_object.bar(
+        x=bin_edges[:-1], height=bin_frequencies, width=numpy.diff(bin_edges),
+        color=HISTOGRAM_FACE_COLOUR, edgecolor=HISTOGRAM_EDGE_COLOUR,
+        linewidth=HISTOGRAM_EDGE_WIDTH, align='edge'
+    )
+
+    return histogram_axes_object
+
+
 def _plot_inset_histogram(
         figure_object, bin_centers, bin_frequencies,
         bar_colour=HISTOGRAM_FACE_COLOUR):
@@ -215,15 +252,22 @@ def plot_spread_vs_skill(
         numpy.sum(result_dict[uq_evaluation.EXAMPLE_COUNTS_KEY])
     )
 
-    inset_axes_object = _plot_inset_histogram(
-        figure_object=figure_object,
+    histogram_axes_object = _plot_histogram(
+        axes_object=axes_object,
         bin_centers=mean_prediction_stdevs,
         bin_frequencies=bin_frequencies
     )
-    inset_axes_object.set_title(
-        '% examples in each bin', fontsize=INSET_FONT_SIZE
-    )
-    inset_axes_object.set_xlabel('Spread', fontsize=INSET_FONT_SIZE)
+    histogram_axes_object.set_ylabel('% examples in each bin')
+
+    # inset_axes_object = _plot_inset_histogram(
+    #     figure_object=figure_object,
+    #     bin_centers=mean_prediction_stdevs,
+    #     bin_frequencies=bin_frequencies
+    # )
+    # inset_axes_object.set_title(
+    #     '% examples in each bin', fontsize=INSET_FONT_SIZE
+    # )
+    # inset_axes_object.set_xlabel('Spread', fontsize=INSET_FONT_SIZE)
 
     inset_axes_object = _plot_means_as_inset(
         figure_object=figure_object, bin_centers=mean_prediction_stdevs,
@@ -278,15 +322,22 @@ def plot_discard_test(
     axes_object.set_ylabel('Performance measure')
     axes_object.set_xlim(left=0.)
 
-    inset_axes_object = _plot_inset_histogram(
-        figure_object=figure_object,
+    histogram_axes_object = _plot_histogram(
+        axes_object=axes_object,
         bin_centers=discard_fractions,
         bin_frequencies=result_dict[uq_evaluation.EXAMPLE_FRACTIONS_KEY]
     )
-    inset_axes_object.set_title(
-        '% examples left after discard', fontsize=INSET_FONT_SIZE
-    )
-    inset_axes_object.set_xlabel('Discard fraction', fontsize=INSET_FONT_SIZE)
+    histogram_axes_object.set_ylabel('% examples left after discard')
+
+    # inset_axes_object = _plot_inset_histogram(
+    #     figure_object=figure_object,
+    #     bin_centers=discard_fractions,
+    #     bin_frequencies=result_dict[uq_evaluation.EXAMPLE_FRACTIONS_KEY]
+    # )
+    # inset_axes_object.set_title(
+    #     '% examples left after discard', fontsize=INSET_FONT_SIZE
+    # )
+    # inset_axes_object.set_xlabel('Discard fraction', fontsize=INSET_FONT_SIZE)
 
     inset_axes_object = _plot_means_as_inset(
         figure_object=figure_object, bin_centers=discard_fractions,
