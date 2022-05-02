@@ -89,7 +89,7 @@ def quantile_loss(quantile_level, mask_matrix):
     return loss
 
 
-def quantile_loss_part1(mask_matrix):
+def quantile_loss_part1(mask_matrix, function_name=None):
     """Quantile loss function.
 
     :param quantile_level: Quantile level.
@@ -111,10 +111,13 @@ def quantile_loss_part1(mask_matrix):
 
         return mask_matrix
 
+    if function_name is not None:
+        loss.__name__ = function_name
+
     return loss
 
 
-def quantile_loss_part2(mask_matrix):
+def quantile_loss_part2(mask_matrix, function_name=None):
     """Quantile loss function.
 
     :param quantile_level: Quantile level.
@@ -136,10 +139,13 @@ def quantile_loss_part2(mask_matrix):
 
         return mask_matrix * (target_tensor - prediction_tensor)
 
+    if function_name is not None:
+        loss.__name__ = function_name
+
     return loss
 
 
-def quantile_loss_part3(mask_matrix):
+def quantile_loss_part3(mask_matrix, function_name=None):
     """Quantile loss function.
 
     :param quantile_level: Quantile level.
@@ -163,10 +169,13 @@ def quantile_loss_part3(mask_matrix):
 
         return mask_matrix * quantile_level * (target_tensor - prediction_tensor)
 
+    if function_name is not None:
+        loss.__name__ = function_name
+
     return loss
 
 
-def quantile_loss_part4(mask_matrix):
+def quantile_loss_part4(mask_matrix, function_name=None):
     """Quantile loss function.
 
     :param quantile_level: Quantile level.
@@ -190,10 +199,13 @@ def quantile_loss_part4(mask_matrix):
 
         return mask_matrix * (quantile_level - 1) * (target_tensor - prediction_tensor)
 
+    if function_name is not None:
+        loss.__name__ = function_name
+
     return loss
 
 
-def quantile_loss_part5(mask_matrix):
+def quantile_loss_part5(mask_matrix, function_name=None):
     """Quantile loss function.
 
     :param quantile_level: Quantile level.
@@ -219,6 +231,9 @@ def quantile_loss_part5(mask_matrix):
             mask_matrix * quantile_level * (target_tensor - prediction_tensor),
             mask_matrix * (quantile_level - 1) * (target_tensor - prediction_tensor)
         )
+
+    if function_name is not None:
+        loss.__name__ = function_name
 
     return loss
 

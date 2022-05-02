@@ -2351,13 +2351,13 @@ def read_model(hdf5_file_name, for_mirrored_training=False):
         loss_dict = {'central_output': loss_function}
         metric_list = []
 
-        # metric_list = [
-        #     custom_losses.quantile_loss_part1(mask_matrix),
-        #     custom_losses.quantile_loss_part2(mask_matrix),
-        #     custom_losses.quantile_loss_part3(mask_matrix),
-        #     custom_losses.quantile_loss_part4(mask_matrix),
-        #     custom_losses.quantile_loss_part5(mask_matrix)
-        # ]
+        metric_list = [
+            custom_losses.quantile_loss_part1(mask_matrix, 'ql_part1'),
+            custom_losses.quantile_loss_part2(mask_matrix, 'ql_part2'),
+            custom_losses.quantile_loss_part3(mask_matrix, 'ql_part3'),
+            custom_losses.quantile_loss_part4(mask_matrix, 'ql_part4'),
+            custom_losses.quantile_loss_part5(mask_matrix, 'ql_part5')
+        ]
 
         for k in range(len(quantile_levels)):
             this_loss_function = custom_losses.quantile_loss(
