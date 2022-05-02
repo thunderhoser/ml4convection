@@ -32,11 +32,13 @@ PARTIAL_MASK_FILE_NAME = (
 ).format(HOME_DIR_NAME)
 
 LOSS_FUNCTION_NAME = 'fss_neigh0'
-QUANTILE_LEVELS = numpy.concatenate((
-    numpy.full(1, 0.025),
-    numpy.linspace(0.05, 0.95, num=19),
-    numpy.full(1, 0.975)
-))
+# QUANTILE_LEVELS = numpy.concatenate((
+#     numpy.full(1, 0.025),
+#     numpy.linspace(0.05, 0.95, num=19),
+#     numpy.full(1, 0.975)
+# ))
+
+QUANTILE_LEVELS = numpy.array([0.1, 0.5, 0.9])
 
 DEFAULT_OPTION_DICT = {
     u_net_architecture.INPUT_DIMENSIONS_KEY:

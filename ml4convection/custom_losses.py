@@ -89,6 +89,140 @@ def quantile_loss(quantile_level, mask_matrix):
     return loss
 
 
+def quantile_loss_part1(mask_matrix):
+    """Quantile loss function.
+
+    :param quantile_level: Quantile level.
+    :param mask_matrix: See doc for `fractions_skill_score`.
+    :return: loss: Loss function (defined below).
+    """
+
+    mask_matrix = numpy.expand_dims(
+        mask_matrix.astype(float), axis=(0, -1)
+    )
+
+    def loss(target_tensor, prediction_tensor):
+        """Computes quantile loss.
+
+        :param target_tensor: Tensor of target (actual) values.
+        :param prediction_tensor: Tensor of predicted values.
+        :return: loss: Quantile loss.
+        """
+
+        return mask_matrix
+
+    return loss
+
+
+def quantile_loss_part2(mask_matrix):
+    """Quantile loss function.
+
+    :param quantile_level: Quantile level.
+    :param mask_matrix: See doc for `fractions_skill_score`.
+    :return: loss: Loss function (defined below).
+    """
+
+    mask_matrix = numpy.expand_dims(
+        mask_matrix.astype(float), axis=(0, -1)
+    )
+
+    def loss(target_tensor, prediction_tensor):
+        """Computes quantile loss.
+
+        :param target_tensor: Tensor of target (actual) values.
+        :param prediction_tensor: Tensor of predicted values.
+        :return: loss: Quantile loss.
+        """
+
+        return mask_matrix * (target_tensor - prediction_tensor)
+
+    return loss
+
+
+def quantile_loss_part3(mask_matrix):
+    """Quantile loss function.
+
+    :param quantile_level: Quantile level.
+    :param mask_matrix: See doc for `fractions_skill_score`.
+    :return: loss: Loss function (defined below).
+    """
+
+    quantile_level = 0.1
+
+    mask_matrix = numpy.expand_dims(
+        mask_matrix.astype(float), axis=(0, -1)
+    )
+
+    def loss(target_tensor, prediction_tensor):
+        """Computes quantile loss.
+
+        :param target_tensor: Tensor of target (actual) values.
+        :param prediction_tensor: Tensor of predicted values.
+        :return: loss: Quantile loss.
+        """
+
+        return mask_matrix * quantile_level * (target_tensor - prediction_tensor)
+
+    return loss
+
+
+def quantile_loss_part4(mask_matrix):
+    """Quantile loss function.
+
+    :param quantile_level: Quantile level.
+    :param mask_matrix: See doc for `fractions_skill_score`.
+    :return: loss: Loss function (defined below).
+    """
+
+    quantile_level = 0.1
+
+    mask_matrix = numpy.expand_dims(
+        mask_matrix.astype(float), axis=(0, -1)
+    )
+
+    def loss(target_tensor, prediction_tensor):
+        """Computes quantile loss.
+
+        :param target_tensor: Tensor of target (actual) values.
+        :param prediction_tensor: Tensor of predicted values.
+        :return: loss: Quantile loss.
+        """
+
+        return mask_matrix * (quantile_level - 1) * (target_tensor - prediction_tensor)
+
+    return loss
+
+
+def quantile_loss_part5(mask_matrix):
+    """Quantile loss function.
+
+    :param quantile_level: Quantile level.
+    :param mask_matrix: See doc for `fractions_skill_score`.
+    :return: loss: Loss function (defined below).
+    """
+
+    quantile_level = 0.1
+
+    mask_matrix = numpy.expand_dims(
+        mask_matrix.astype(float), axis=(0, -1)
+    )
+
+    def loss(target_tensor, prediction_tensor):
+        """Computes quantile loss.
+
+        :param target_tensor: Tensor of target (actual) values.
+        :param prediction_tensor: Tensor of predicted values.
+        :return: loss: Quantile loss.
+        """
+
+        return K.maximum(
+            mask_matrix * quantile_level * (target_tensor - prediction_tensor),
+            mask_matrix * (quantile_level - 1) * (target_tensor - prediction_tensor)
+        )
+
+    return loss
+
+
 def fractions_skill_score(
         half_window_size_px, use_as_loss_function, mask_matrix,
         function_name=None, test_mode=False):
