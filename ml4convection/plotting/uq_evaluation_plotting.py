@@ -9,10 +9,12 @@ from ml4convection.utils import uq_evaluation
 REFERENCE_LINE_COLOUR = numpy.full(3, 152. / 255)
 REFERENCE_LINE_WIDTH = 2.
 
-DEFAULT_LINE_COLOUR = numpy.array([228, 26, 28], dtype=float) / 255
+# DEFAULT_LINE_COLOUR = numpy.array([228, 26, 28], dtype=float) / 255
+DEFAULT_LINE_COLOUR = numpy.array([217, 95, 2], dtype=float) / 255
 DEFAULT_LINE_WIDTH = 3.
 
-HISTOGRAM_FACE_COLOUR = numpy.array([217, 95, 2], dtype=float) / 255
+# HISTOGRAM_FACE_COLOUR = numpy.array([217, 95, 2], dtype=float) / 255
+HISTOGRAM_FACE_COLOUR = numpy.full(3, 152. / 255)
 HISTOGRAM_EDGE_COLOUR = numpy.full(3, 0.)
 HISTOGRAM_EDGE_WIDTH = 2.
 
@@ -239,7 +241,9 @@ def plot_spread_vs_skill(
     axes_object.plot(
         mean_prediction_stdevs[real_indices],
         rmse_values[real_indices],
-        color=line_colour, linestyle=line_style, linewidth=line_width
+        color=line_colour, linestyle=line_style, linewidth=line_width,
+        marker='o', markersize=12, markeredgewidth=0,
+        markerfacecolor=line_colour, markeredgecolor=line_colour
     )
 
     axes_object.set_xlabel('Spread (stdev of predictive distribution)')
@@ -255,7 +259,7 @@ def plot_spread_vs_skill(
     histogram_axes_object = _plot_histogram(
         axes_object=axes_object,
         bin_centers=mean_prediction_stdevs,
-        bin_frequencies=bin_frequencies
+        bin_frequencies=bin_frequencies * 100
     )
     histogram_axes_object.set_ylabel('% examples in each bin')
 
@@ -315,7 +319,9 @@ def plot_discard_test(
     )
     axes_object.plot(
         discard_fractions, error_values,
-        color=line_colour, linestyle=line_style, linewidth=line_width
+        color=line_colour, linestyle=line_style, linewidth=line_width,
+        marker='o', markersize=12, markeredgewidth=0,
+        markerfacecolor=line_colour, markeredgecolor=line_colour
     )
 
     axes_object.set_xlabel('Discard fraction')
@@ -325,7 +331,7 @@ def plot_discard_test(
     histogram_axes_object = _plot_histogram(
         axes_object=axes_object,
         bin_centers=discard_fractions,
-        bin_frequencies=result_dict[uq_evaluation.EXAMPLE_FRACTIONS_KEY]
+        bin_frequencies=result_dict[uq_evaluation.EXAMPLE_FRACTIONS_KEY] * 100
     )
     histogram_axes_object.set_ylabel('% examples left after discard')
 
