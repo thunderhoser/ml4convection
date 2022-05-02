@@ -2351,16 +2351,6 @@ def read_model(hdf5_file_name, for_mirrored_training=False):
         loss_dict = {'central_output': loss_function}
         metric_list = []
 
-        metric_list = [
-            custom_losses.quantile_loss_part1(mask_matrix, 'ql_part1'),
-            custom_losses.quantile_loss_part2(mask_matrix, 'ql_part2'),
-            custom_losses.quantile_loss_part2_pred(mask_matrix, 'ql_part2_pred'),
-            custom_losses.quantile_loss_part2_target(mask_matrix, 'ql_part2_target'),
-            custom_losses.quantile_loss_part3(mask_matrix, 'ql_part3'),
-            custom_losses.quantile_loss_part4(mask_matrix, 'ql_part4'),
-            custom_losses.quantile_loss_part5(mask_matrix, 'ql_part5')
-        ]
-
         for k in range(len(quantile_levels)):
             this_loss_function = custom_losses.quantile_loss(
                 quantile_level=quantile_levels[k], mask_matrix=mask_matrix
@@ -2378,12 +2368,6 @@ def read_model(hdf5_file_name, for_mirrored_training=False):
     model_object = tf_keras.models.load_model(
         hdf5_file_name, custom_objects=custom_object_dict, compile=False
     )
-
-    print(custom_object_dict)
-    print('\n\n')
-    print(custom_object_dict['loss'])
-    print('\n\n')
-    print(metric_list)
 
     if for_mirrored_training:
         strategy_object = tensorflow.distribute.MirroredStrategy()

@@ -32,13 +32,11 @@ PARTIAL_MASK_FILE_NAME = (
 ).format(HOME_DIR_NAME)
 
 LOSS_FUNCTION_NAME = 'fss_neigh0'
-# QUANTILE_LEVELS = numpy.concatenate((
-#     numpy.full(1, 0.025),
-#     numpy.linspace(0.05, 0.95, num=19),
-#     numpy.full(1, 0.975)
-# ))
-
-QUANTILE_LEVELS = numpy.array([0.1, 0.5, 0.9])
+QUANTILE_LEVELS = numpy.concatenate((
+    numpy.full(1, 0.025),
+    numpy.linspace(0.05, 0.95, num=19),
+    numpy.full(1, 0.975)
+))
 
 DEFAULT_OPTION_DICT = {
     u_net_architecture.INPUT_DIMENSIONS_KEY:
@@ -91,7 +89,7 @@ def _run():
     this_option_dict[u_net_architecture.PENULTIMATE_DROPOUT_RATE_KEY] = 0.
     this_option_dict[u_net_architecture.OUTPUT_DROPOUT_RATE_KEY] = 0.
 
-    this_model_object = u_net_architecture.create_quantile_regression_model(
+    this_model_object = u_net_architecture.create_qr_model_fancy(
         option_dict=this_option_dict, central_loss_function=loss_function,
         mask_matrix=partial_mask_matrix, quantile_levels=QUANTILE_LEVELS
     )
