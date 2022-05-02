@@ -686,7 +686,7 @@ def _write_metafile(
     file_system_utils.mkdir_recursive_if_necessary(file_name=dill_file_name)
 
     dill_file_handle = open(dill_file_name, 'wb')
-    pickle.dump(metadata_dict, dill_file_handle)
+    dill.dump(metadata_dict, dill_file_handle)
     dill_file_handle.close()
 
 
@@ -2351,16 +2351,6 @@ def read_model(hdf5_file_name, for_mirrored_training=False):
         loss_dict = {'central_output': loss_function}
         metric_list = []
 
-        metric_list = [
-            custom_losses.quantile_loss_part1(mask_matrix, 'ql_part1'),
-            custom_losses.quantile_loss_part2(mask_matrix, 'ql_part2'),
-            custom_losses.quantile_loss_part2_pred(mask_matrix, 'ql_part2_pred'),
-            custom_losses.quantile_loss_part2_target(mask_matrix, 'ql_part2_target'),
-            custom_losses.quantile_loss_part3(mask_matrix, 'ql_part3'),
-            custom_losses.quantile_loss_part4(mask_matrix, 'ql_part4'),
-            custom_losses.quantile_loss_part5(mask_matrix, 'ql_part5')
-        ]
-
         for k in range(len(quantile_levels)):
             this_loss_function = custom_losses.quantile_loss(
                 quantile_level=quantile_levels[k], mask_matrix=mask_matrix
@@ -2378,12 +2368,6 @@ def read_model(hdf5_file_name, for_mirrored_training=False):
     model_object = tf_keras.models.load_model(
         hdf5_file_name, custom_objects=custom_object_dict, compile=False
     )
-
-    print(custom_object_dict)
-    print('\n\n')
-    print(custom_object_dict['loss'])
-    print('\n\n')
-    print(metric_list)
 
     if for_mirrored_training:
         strategy_object = tensorflow.distribute.MirroredStrategy()
@@ -2420,7 +2404,7 @@ def find_metafile(model_file_name, raise_error_if_missing=True):
     error_checking.assert_is_string(model_file_name)
     error_checking.assert_is_boolean(raise_error_if_missing)
 
-    metafile_name = '{0:s}/model_metadata.dill'.format(
+    metafile_name = '{0:s}/model_metadata.pickle'.format(
         os.path.split(model_file_name)[0]
     )
 
