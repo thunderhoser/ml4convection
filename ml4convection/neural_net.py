@@ -686,7 +686,7 @@ def _write_metafile(
     file_system_utils.mkdir_recursive_if_necessary(file_name=dill_file_name)
 
     dill_file_handle = open(dill_file_name, 'wb')
-    dill.dump(metadata_dict, dill_file_handle)
+    pickle.dump(metadata_dict, dill_file_handle)
     dill_file_handle.close()
 
 
@@ -2404,7 +2404,7 @@ def find_metafile(model_file_name, raise_error_if_missing=True):
     error_checking.assert_is_string(model_file_name)
     error_checking.assert_is_boolean(raise_error_if_missing)
 
-    metafile_name = '{0:s}/model_metadata.pickle'.format(
+    metafile_name = '{0:s}/model_metadata.dill'.format(
         os.path.split(model_file_name)[0]
     )
 
