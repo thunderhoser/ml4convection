@@ -4,6 +4,7 @@ import os
 import sys
 import copy
 import numpy
+import tensorflow.math
 from tensorflow.keras import backend as K
 
 THIS_DIRECTORY_NAME = os.path.dirname(os.path.realpath(
@@ -165,7 +166,7 @@ def quantile_loss_part2_target(mask_matrix, function_name=None):
         :return: loss: Quantile loss.
         """
 
-        return mask_matrix * target_tensor
+        return tensorflow.math.is_nan(prediction_tensor)
 
     if function_name is not None:
         loss.__name__ = function_name
@@ -192,6 +193,8 @@ def quantile_loss_part2_pred(mask_matrix, function_name=None):
         :param prediction_tensor: Tensor of predicted values.
         :return: loss: Quantile loss.
         """
+
+        K.isnan
 
         return mask_matrix * prediction_tensor
 
