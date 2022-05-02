@@ -166,7 +166,7 @@ def quantile_loss_part2_target(mask_matrix, function_name=None):
         :return: loss: Quantile loss.
         """
 
-        return tensorflow.math.is_nan(prediction_tensor)
+        return mask_matrix * target_tensor
 
     if function_name is not None:
         loss.__name__ = function_name
@@ -194,9 +194,7 @@ def quantile_loss_part2_pred(mask_matrix, function_name=None):
         :return: loss: Quantile loss.
         """
 
-        K.isnan
-
-        return mask_matrix * prediction_tensor
+        return tensorflow.math.is_nan(prediction_tensor)
 
     if function_name is not None:
         loss.__name__ = function_name
