@@ -12,7 +12,7 @@ THIS_DIRECTORY_NAME = os.path.dirname(os.path.realpath(
 ))
 sys.path.append(os.path.normpath(os.path.join(THIS_DIRECTORY_NAME, '..')))
 
-from ml4convection.utils import uq_evaluation
+import uq_evaluation
 
 REFERENCE_LINE_COLOUR = numpy.full(3, 152. / 255)
 REFERENCE_LINE_WIDTH = 2.

@@ -376,6 +376,9 @@ def fractions_skill_score(
             smoothed_target_tensor ** 2 + smoothed_prediction_tensor ** 2
         )
 
+        # TODO(thunderhoser): Put in main repo.
+        reference_mse = K.maximum(reference_mse, K.epsilon())
+
         if use_as_loss_function:
             return actual_mse / reference_mse
 
