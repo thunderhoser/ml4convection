@@ -2391,6 +2391,12 @@ def read_model(hdf5_file_name, for_mirrored_training=False):
                 metrics=metric_list
             )
     else:
+        print(custom_object_dict)
+        print('\n\n')
+        print(custom_object_dict['loss'])
+        print('\n\n')
+        print(metric_list)
+
         model_object.compile(
             loss=custom_object_dict['loss'], optimizer=keras.optimizers.Adam(),
             metrics=metric_list
