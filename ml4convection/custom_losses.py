@@ -145,6 +145,62 @@ def quantile_loss_part2(mask_matrix, function_name=None):
     return loss
 
 
+def quantile_loss_part2_target(mask_matrix, function_name=None):
+    """Quantile loss function.
+
+    :param quantile_level: Quantile level.
+    :param mask_matrix: See doc for `fractions_skill_score`.
+    :return: loss: Loss function (defined below).
+    """
+
+    mask_matrix = numpy.expand_dims(
+        mask_matrix.astype(float), axis=(0, -1)
+    )
+
+    def loss(target_tensor, prediction_tensor):
+        """Computes quantile loss.
+
+        :param target_tensor: Tensor of target (actual) values.
+        :param prediction_tensor: Tensor of predicted values.
+        :return: loss: Quantile loss.
+        """
+
+        return mask_matrix * target_tensor
+
+    if function_name is not None:
+        loss.__name__ = function_name
+
+    return loss
+
+
+def quantile_loss_part2_pred(mask_matrix, function_name=None):
+    """Quantile loss function.
+
+    :param quantile_level: Quantile level.
+    :param mask_matrix: See doc for `fractions_skill_score`.
+    :return: loss: Loss function (defined below).
+    """
+
+    mask_matrix = numpy.expand_dims(
+        mask_matrix.astype(float), axis=(0, -1)
+    )
+
+    def loss(target_tensor, prediction_tensor):
+        """Computes quantile loss.
+
+        :param target_tensor: Tensor of target (actual) values.
+        :param prediction_tensor: Tensor of predicted values.
+        :return: loss: Quantile loss.
+        """
+
+        return mask_matrix * prediction_tensor
+
+    if function_name is not None:
+        loss.__name__ = function_name
+
+    return loss
+
+
 def quantile_loss_part3(mask_matrix, function_name=None):
     """Quantile loss function.
 
