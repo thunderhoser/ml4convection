@@ -2354,6 +2354,8 @@ def read_model(hdf5_file_name, for_mirrored_training=False):
         metric_list = [
             custom_losses.quantile_loss_part1(mask_matrix, 'ql_part1'),
             custom_losses.quantile_loss_part2(mask_matrix, 'ql_part2'),
+            custom_losses.quantile_loss_part2_pred(mask_matrix, 'ql_part2_pred'),
+            custom_losses.quantile_loss_part2_target(mask_matrix, 'ql_part2_target'),
             custom_losses.quantile_loss_part3(mask_matrix, 'ql_part3'),
             custom_losses.quantile_loss_part4(mask_matrix, 'ql_part4'),
             custom_losses.quantile_loss_part5(mask_matrix, 'ql_part5')
