@@ -117,7 +117,8 @@ def _write_metafile(target_file_names, lead_time_seconds,
         do_early_stopping=True, plateau_lr_multiplier=0.6,
         loss_function_name=DUMMY_LOSS_FUNCTION_NAME,
         metric_names=[DUMMY_LOSS_FUNCTION_NAME],
-        mask_matrix=mask_matrix, full_mask_matrix=mask_matrix
+        mask_matrix=mask_matrix, full_mask_matrix=mask_matrix,
+        quantile_levels=None
     )
 
 
@@ -293,7 +294,7 @@ def _run(top_target_dir_name, lead_time_seconds, smoothing_radius_px,
             this_prediction_dict[prediction_io.VALID_TIMES_KEY],
             latitudes_deg_n=this_prediction_dict[prediction_io.LATITUDES_KEY],
             longitudes_deg_e=this_prediction_dict[prediction_io.LONGITUDES_KEY],
-            model_file_name=dummy_model_file_name
+            model_file_name=dummy_model_file_name, quantile_levels=None
         )
 
         prediction_io.compress_file(this_output_file_name)
