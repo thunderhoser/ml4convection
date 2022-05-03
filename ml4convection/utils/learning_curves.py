@@ -827,14 +827,11 @@ def get_basic_scores(
     basic_score_table_xarray.attrs[MODEL_FILE_KEY] = model_file_name
     b = basic_score_table_xarray
 
-    if num_neigh_distances > 0:
-        this_matrix = numpy.mean(
-            prediction_dict[prediction_io.PROBABILITY_MATRIX_KEY][0, ...],
-            axis=-1
-        )
+    mean_prob_matrix = prediction_io.get_mean_predictions(prediction_dict)
 
-        num_grid_rows = this_matrix.shape[0]
-        num_grid_columns = this_matrix.shape[1]
+    if num_neigh_distances > 0:
+        num_grid_rows = mean_prob_matrix.shape[0]
+        num_grid_columns = mean_prob_matrix.shape[1]
         eroded_eval_mask_matrix = numpy.full(
             (num_neigh_distances, num_grid_rows, num_grid_columns),
             0, dtype=bool
@@ -855,10 +852,7 @@ def get_basic_scores(
                     i + 1, num_times
                 ))
 
-            this_prob_matrix = numpy.mean(
-                prediction_dict[prediction_io.PROBABILITY_MATRIX_KEY][i, ...],
-                axis=-1
-            )
+            this_prob_matrix = mean_prob_matrix[i, ...] + 0.
             this_target_matrix = (
                 prediction_dict[prediction_io.TARGET_MATRIX_KEY][i, ...] + 0
             )
@@ -957,10 +951,7 @@ def get_basic_scores(
                 fourier_forecast_matrix[k, ...],
                 fourier_forecast_coeff_matrix[k, ...]
             ) = _apply_fourier_filter(
-                orig_data_matrix=numpy.mean(
-                    prediction_dict[prediction_io.PROBABILITY_MATRIX_KEY],
-                    axis=-1
-                ),
+                orig_data_matrix=mean_prob_matrix + 0.,
                 min_resolution_deg=min_resolutions_deg[k],
                 max_resolution_deg=max_resolutions_deg[k]
             )
@@ -980,10 +971,7 @@ def get_basic_scores(
                 wavelet_forecast_mean_coeff_matrix[k, ...],
                 wavelet_forecast_detail_coeff_matrix[k, ...]
             ) = _apply_wavelet_filter(
-                orig_data_matrix=numpy.mean(
-                    prediction_dict[prediction_io.PROBABILITY_MATRIX_KEY],
-                    axis=-1
-                ),
+                orig_data_matrix=mean_prob_matrix + 0.,
                 min_resolution_deg=min_resolutions_deg[k],
                 max_resolution_deg=max_resolutions_deg[k]
             )

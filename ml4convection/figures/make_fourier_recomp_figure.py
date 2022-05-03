@@ -239,7 +239,7 @@ def _run(top_prediction_dir_name, valid_time_string, radar_number,
 
     # Apply window to original field.
     probability_matrix = fourier_utils.taper_spatial_data(
-        prediction_dict[prediction_io.PROBABILITY_MATRIX_KEY][0, ..., 0]
+        prediction_io.get_mean_predictions(prediction_dict)[0, ...]
     )
     probability_matrix = fourier_utils.apply_blackman_window(probability_matrix)
     probability_matrix = numpy.expand_dims(probability_matrix, axis=(0, 1))

@@ -336,9 +336,9 @@ def _plot_predictions(
 
     target_matrix = prediction_dict[prediction_io.TARGET_MATRIX_KEY][0, ...]
     target_matrix[mask_matrix == False] = 0
-    probability_matrix = (
-        prediction_dict[prediction_io.PROBABILITY_MATRIX_KEY][0, ..., 0]
-    )
+    probability_matrix = prediction_io.get_mean_predictions(prediction_dict)[
+        0, ...
+    ]
 
     latitudes_deg_n = prediction_dict[prediction_io.LATITUDES_KEY]
     longitudes_deg_e = prediction_dict[prediction_io.LONGITUDES_KEY]

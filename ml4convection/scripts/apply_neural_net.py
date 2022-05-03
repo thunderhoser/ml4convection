@@ -99,7 +99,7 @@ INPUT_ARG_PARSER.add_argument(
 
 def _apply_to_full_grid_one_day(
         model_object, base_option_dict, trained_on_partial_grids,
-        overlap_size_px, valid_date_string, model_file_name,
+        quantile_levels, overlap_size_px, valid_date_string, model_file_name,
         top_output_dir_name):
     """Applies trained neural net to full grid for one day.
 
@@ -109,6 +109,9 @@ def _apply_to_full_grid_one_day(
         for `neural_net.create_data`.
     :param trained_on_partial_grids: Boolean flag.  If True (False), model was
         trained on partial (full) grids.
+    :param quantile_levels: 1-D numpy array of quantile levels used to train
+        model for quantile regression.  If model was not trained for quantile
+        regression, this is None.
     :param overlap_size_px: See documentation at top of file.
     :param valid_date_string: Valid date (radar date), in format "yyyymmdd").
     :param model_file_name: See documentation at top of file.
@@ -161,7 +164,7 @@ def _apply_to_full_grid_one_day(
         valid_times_unix_sec=data_dict[neural_net.VALID_TIMES_KEY],
         latitudes_deg_n=data_dict[neural_net.LATITUDES_KEY],
         longitudes_deg_e=data_dict[neural_net.LONGITUDES_KEY],
-        model_file_name=model_file_name
+        model_file_name=model_file_name, quantile_levels=quantile_levels
     )
 
     prediction_io.compress_file(output_file_name)
@@ -169,12 +172,13 @@ def _apply_to_full_grid_one_day(
 
 
 def _apply_to_partial_grids_one_day(
-        model_object, base_option_dict, valid_date_string, model_file_name,
-        num_dropout_iterations, top_output_dir_name):
+        model_object, base_option_dict, quantile_levels, valid_date_string,
+        model_file_name, num_dropout_iterations, top_output_dir_name):
     """Applies trained neural net to partial grids for one day.
 
     :param model_object: See doc for `_apply_to_full_grid_one_day`.
     :param base_option_dict: Same.
+    :param quantile_levels: Same.
     :param valid_date_string: Same.
     :param model_file_name: Same.
     :param num_dropout_iterations: See documentation at top of file.
@@ -192,34 +196,81 @@ def _apply_to_partial_grids_one_day(
         return
 
     num_radars = len(data_dicts)
-    num_prediction_sets = max([num_dropout_iterations, 1])
+    if quantile_levels is not None:
+        num_dropout_iterations = 0
+
+    if num_dropout_iterations > 1:
+        for k in range(num_radars):
+            if len(list(data_dicts[k].keys())) == 0:
+                continue
+
+            forecast_probability_matrix = None
+
+            for i in range(num_dropout_iterations):
+                this_prob_matrix = neural_net.apply_model_full_grid(
+                    model_object=model_object,
+                    predictor_matrix=
+                    data_dicts[k][neural_net.PREDICTOR_MATRIX_KEY],
+                    num_examples_per_batch=NUM_EXAMPLES_PER_BATCH,
+                    use_dropout=True, verbose=True
+                )
+
+                if forecast_probability_matrix is None:
+                    forecast_probability_matrix = numpy.full(
+                        this_prob_matrix.shape + (num_dropout_iterations,),
+                        numpy.nan
+                    )
+
+                forecast_probability_matrix[..., i] = this_prob_matrix
+
+            these_percentiles = numpy.array(
+                [0, 50, 75, 90, 95, 96, 97, 98, 99, 100], dtype=float
+            )
+            print(numpy.percentile(
+                forecast_probability_matrix, these_percentiles
+            ))
+
+            output_file_name = prediction_io.find_file(
+                top_directory_name=top_output_dir_name,
+                valid_date_string=valid_date_string,
+                radar_number=k, prefer_zipped=False, allow_other_format=False,
+                raise_error_if_missing=False
+            )
+
+            print('Writing predictions to: "{0:s}"...'.format(output_file_name))
+            prediction_io.write_file(
+                netcdf_file_name=output_file_name,
+                target_matrix=
+                data_dicts[k][neural_net.TARGET_MATRIX_KEY][..., 0],
+                forecast_probability_matrix=forecast_probability_matrix,
+                valid_times_unix_sec=data_dicts[k][neural_net.VALID_TIMES_KEY],
+                latitudes_deg_n=data_dicts[k][neural_net.LATITUDES_KEY],
+                longitudes_deg_e=data_dicts[k][neural_net.LONGITUDES_KEY],
+                model_file_name=model_file_name, quantile_levels=quantile_levels
+            )
+
+            prediction_io.compress_file(output_file_name)
+            os.remove(output_file_name)
+
+        return
 
     for k in range(num_radars):
         if len(list(data_dicts[k].keys())) == 0:
             continue
 
-        forecast_probability_matrix = None
-
-        for i in range(num_prediction_sets):
-            this_prob_matrix = neural_net.apply_model_full_grid(
-                model_object=model_object,
-                predictor_matrix=data_dicts[k][neural_net.PREDICTOR_MATRIX_KEY],
-                num_examples_per_batch=NUM_EXAMPLES_PER_BATCH,
-                use_dropout=num_dropout_iterations > 0, verbose=True
-            )
-
-            if forecast_probability_matrix is None:
-                forecast_probability_matrix = numpy.full(
-                    this_prob_matrix.shape + (num_prediction_sets,),
-                    numpy.nan
-                )
-
-            forecast_probability_matrix[..., i] = this_prob_matrix
+        forecast_probability_matrix = neural_net.apply_model_full_grid(
+            model_object=model_object,
+            predictor_matrix=data_dicts[k][neural_net.PREDICTOR_MATRIX_KEY],
+            num_examples_per_batch=NUM_EXAMPLES_PER_BATCH,
+            use_dropout=num_dropout_iterations > 0, verbose=True
+        )
 
         these_percentiles = numpy.array(
             [0, 50, 75, 90, 95, 96, 97, 98, 99, 100], dtype=float
         )
-        print(numpy.percentile(forecast_probability_matrix, these_percentiles))
+        print(numpy.percentile(
+            forecast_probability_matrix, these_percentiles
+        ))
 
         output_file_name = prediction_io.find_file(
             top_directory_name=top_output_dir_name,
@@ -231,12 +282,13 @@ def _apply_to_partial_grids_one_day(
         print('Writing predictions to: "{0:s}"...'.format(output_file_name))
         prediction_io.write_file(
             netcdf_file_name=output_file_name,
-            target_matrix=data_dicts[k][neural_net.TARGET_MATRIX_KEY][..., 0],
+            target_matrix=
+            data_dicts[k][neural_net.TARGET_MATRIX_KEY][..., 0],
             forecast_probability_matrix=forecast_probability_matrix,
             valid_times_unix_sec=data_dicts[k][neural_net.VALID_TIMES_KEY],
             latitudes_deg_n=data_dicts[k][neural_net.LATITUDES_KEY],
             longitudes_deg_e=data_dicts[k][neural_net.LONGITUDES_KEY],
-            model_file_name=model_file_name
+            model_file_name=model_file_name, quantile_levels=quantile_levels
         )
 
         prediction_io.compress_file(output_file_name)
@@ -330,6 +382,7 @@ def _run(model_file_name, top_predictor_dir_name, top_target_dir_name,
         if apply_to_full_grids:
             _apply_to_full_grid_one_day(
                 model_object=model_object, base_option_dict=base_option_dict,
+                quantile_levels=metadata_dict[neural_net.QUANTILE_LEVELS_KEY],
                 trained_on_partial_grids=trained_on_partial_grids,
                 overlap_size_px=overlap_size_px,
                 valid_date_string=valid_date_strings[i],
@@ -339,6 +392,7 @@ def _run(model_file_name, top_predictor_dir_name, top_target_dir_name,
         else:
             _apply_to_partial_grids_one_day(
                 model_object=model_object, base_option_dict=base_option_dict,
+                quantile_levels=metadata_dict[neural_net.QUANTILE_LEVELS_KEY],
                 valid_date_string=valid_date_strings[i],
                 model_file_name=model_file_name,
                 num_dropout_iterations=num_dropout_iterations,

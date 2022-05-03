@@ -2520,6 +2520,7 @@ def apply_model_full_grid(
     E = number of examples
     M = number of rows in grid
     N = number of columns in grid
+    Q = number of quantile levels
 
     :param model_object: Trained neural net (instance of `keras.models.Model` or
         `keras.models.Sequential`).
@@ -2530,8 +2531,9 @@ def apply_model_full_grid(
         turned on.  Using dropout at inference time is called "Monte Carlo
         dropout".
     :param verbose: Boolean flag.  If True, will print progress messages.
-    :return: forecast_prob_matrix: E-by-M-by-N numpy array of forecast event
-        probabilities.
+    :return: forecast_prob_matrix: numpy array of forecast event probabilities.
+        If the model does quantile regression, this array will be E x M x N x Q.
+        If not, E x M x N.
     """
 
     num_examples_per_batch = _check_inference_args(
@@ -2579,19 +2581,24 @@ def apply_model_full_grid(
             #     [predictor_matrix[these_indices, ...], True]
             # )[0]
 
-            this_prob_matrix = model_object(
+            these_predictions = model_object(
                 predictor_matrix[these_indices, ...], training=True
             ).numpy()
         else:
-            this_prob_matrix = model_object.predict_on_batch(
+            these_predictions = model_object.predict_on_batch(
                 predictor_matrix[these_indices, ...]
             )
 
+        if isinstance(these_predictions, list):
+            this_prob_matrix = numpy.stack(these_predictions, axis=-1)
+        else:
+            this_prob_matrix = these_predictions + 0.
+
         if forecast_prob_matrix is None:
-            dimensions = (num_examples,) + this_prob_matrix.shape[1:3]
+            dimensions = (num_examples,) + this_prob_matrix.shape[1:]
             forecast_prob_matrix = numpy.full(dimensions, numpy.nan)
 
-        forecast_prob_matrix[these_indices, ...] = this_prob_matrix[..., 0]
+        forecast_prob_matrix[these_indices, ...] = this_prob_matrix
 
     if verbose:
         print('Have applied model to all {0:d} examples!'.format(num_examples))
@@ -2659,12 +2666,15 @@ def apply_model_partial_grids(
     )
 
     # Do actual stuff.
-    summed_prob_matrix = numpy.full(
-        (num_examples, num_full_grid_rows, num_full_grid_columns), 0.
-    )
-    num_forecasts_matrix = numpy.full(
-        (num_examples, num_full_grid_rows, num_full_grid_columns), 0, dtype=int
-    )
+    summed_prob_matrix = None
+    num_forecasts_matrix = None
+
+    # summed_prob_matrix = numpy.full(
+    #     (num_examples, num_full_grid_rows, num_full_grid_columns), 0.
+    # )
+    # num_forecasts_matrix = numpy.full(
+    #     (num_examples, num_full_grid_rows, num_full_grid_columns), 0, dtype=int
+    # )
 
     partial_grid_dict = {
         NUM_FULL_ROWS_KEY: num_full_grid_rows,
@@ -2726,16 +2736,29 @@ def apply_model_partial_grids(
                 #     [this_predictor_matrix, True]
                 # )[0]
 
-                this_prob_matrix = model_object(
+                these_predictions = model_object(
                     this_predictor_matrix, training=True
                 ).numpy()
             else:
-                this_prob_matrix = model_object.predict_on_batch(
+                these_predictions = model_object.predict_on_batch(
                     this_predictor_matrix
                 )
 
+            if isinstance(these_predictions, list):
+                this_prob_matrix = numpy.stack(these_predictions, axis=-1)
+            else:
+                this_prob_matrix = these_predictions + 0.
+
             this_prob_matrix = numpy.maximum(this_prob_matrix, 0.)
             this_prob_matrix = numpy.minimum(this_prob_matrix, 1.)
+
+            if summed_prob_matrix is None:
+                dimensions = (
+                    (num_examples, num_full_grid_rows, num_full_grid_columns) +
+                    this_prob_matrix.shape[3:]
+                )
+                summed_prob_matrix = numpy.full(dimensions, 0.)
+                num_forecasts_matrix = numpy.full(dimensions, 0, dtype=int)
 
             if verbose:
                 print((
@@ -2749,18 +2772,18 @@ def apply_model_partial_grids(
                 ))
 
             # TODO(thunderhoser): The "50" here is a HACK.
-            this_prob_matrix = this_prob_matrix[:, 50:-50, 50:-50]
+            this_prob_matrix = this_prob_matrix[:, 50:-50, 50:-50, ...]
 
             summed_prob_matrix[
                 first_example_index:(last_example_index + 1),
                 first_output_row:(last_output_row + 1),
-                first_output_column:(last_output_column + 1)
+                first_output_column:(last_output_column + 1), ...
             ] += this_prob_matrix
 
             num_forecasts_matrix[
                 first_example_index:(last_example_index + 1),
                 first_output_row:(last_output_row + 1),
-                first_output_column:(last_output_column + 1)
+                first_output_column:(last_output_column + 1), ...
             ] += 1
 
     if verbose:

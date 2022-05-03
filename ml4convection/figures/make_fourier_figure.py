@@ -349,7 +349,7 @@ def _run(top_prediction_dir_name, valid_time_string, radar_number, plot_targets,
     # Plot tapered predictions.
     prediction_dict[prediction_io.PROBABILITY_MATRIX_KEY][0, ..., 0] = (
         fourier_utils.taper_spatial_data(
-            prediction_dict[prediction_io.PROBABILITY_MATRIX_KEY][0, ..., 0]
+            prediction_io.get_mean_predictions(prediction_dict)[0, ...]
         )
     )
 
