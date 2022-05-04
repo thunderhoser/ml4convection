@@ -69,12 +69,12 @@ def _get_squared_errors(prediction_dict, half_window_size_px, use_median):
     )
 
     if use_median:
-        forecast_prob_matrix = numpy.median(
-            prediction_dict[prediction_io.PROBABILITY_MATRIX_KEY], axis=-1
+        forecast_prob_matrix = prediction_io.get_median_predictions(
+            prediction_dict
         )
     else:
-        forecast_prob_matrix = numpy.mean(
-            prediction_dict[prediction_io.PROBABILITY_MATRIX_KEY], axis=-1
+        forecast_prob_matrix = prediction_io.get_mean_predictions(
+            prediction_dict
         )
 
     target_matrix = prediction_dict[prediction_io.TARGET_MATRIX_KEY]
@@ -125,12 +125,12 @@ def get_xentropy_error_function(half_window_size_px, use_median):
         )
 
         if use_median:
-            forecast_prob_matrix = numpy.median(
-                prediction_dict[prediction_io.PROBABILITY_MATRIX_KEY], axis=-1
+            forecast_prob_matrix = prediction_io.get_median_predictions(
+                prediction_dict
             )
         else:
-            forecast_prob_matrix = numpy.mean(
-                prediction_dict[prediction_io.PROBABILITY_MATRIX_KEY], axis=-1
+            forecast_prob_matrix = prediction_io.get_mean_predictions(
+                prediction_dict
             )
 
         target_matrix = prediction_dict[prediction_io.TARGET_MATRIX_KEY]
@@ -193,12 +193,12 @@ def get_fss_error_function(half_window_size_px, use_median):
         )
 
         if use_median:
-            forecast_prob_matrix = numpy.median(
-                prediction_dict[prediction_io.PROBABILITY_MATRIX_KEY], axis=-1
+            forecast_prob_matrix = prediction_io.get_median_predictions(
+                prediction_dict
             )
         else:
-            forecast_prob_matrix = numpy.mean(
-                prediction_dict[prediction_io.PROBABILITY_MATRIX_KEY], axis=-1
+            forecast_prob_matrix = prediction_io.get_mean_predictions(
+                prediction_dict
             )
 
         target_matrix = prediction_dict[prediction_io.TARGET_MATRIX_KEY]
@@ -251,10 +251,7 @@ def get_stdev_uncertainty_function():
             distribution for each point/time.
         """
 
-        return numpy.std(
-            prediction_dict[prediction_io.PROBABILITY_MATRIX_KEY],
-            ddof=1, axis=-1
-        )
+        return prediction_io.get_predictive_stdevs(prediction_dict)
 
     return uncertainty_function
 
@@ -344,12 +341,14 @@ def run_discard_test(
     uncertainty_matrix[eroded_eval_mask_matrix == False] = numpy.nan
     num_examples = numpy.sum(eroded_eval_mask_matrix == True)
 
-    forecast_prob_matrix = prediction_dict[prediction_io.PROBABILITY_MATRIX_KEY]
-
     if use_median:
-        central_prediction_matrix = numpy.median(forecast_prob_matrix, axis=3)
+        central_prediction_matrix = prediction_io.get_median_predictions(
+            prediction_dict
+        )
     else:
-        central_prediction_matrix = numpy.mean(forecast_prob_matrix, axis=3)
+        central_prediction_matrix = prediction_io.get_mean_predictions(
+            prediction_dict
+        )
 
     discard_fractions = numpy.sort(discard_fractions)
     error_values = numpy.full(num_fractions, numpy.nan)
@@ -470,9 +469,12 @@ def get_spread_vs_skill(prediction_dict, bin_edge_prediction_stdevs,
     num_bins = len(bin_edge_prediction_stdevs) - 1
     assert num_bins >= 2
 
-    forecast_prob_matrix = prediction_dict[prediction_io.PROBABILITY_MATRIX_KEY]
-    num_examples = forecast_prob_matrix.shape[0]
-    num_monte_carlo_iters = forecast_prob_matrix.shape[3]
+    num_examples = (
+        prediction_dict[prediction_io.PROBABILITY_MATRIX_KEY].shape[0]
+    )
+    num_monte_carlo_iters = (
+        prediction_dict[prediction_io.PROBABILITY_MATRIX_KEY].shape[3]
+    )
     assert num_monte_carlo_iters > 2
 
     # Do actual stuff.
@@ -485,11 +487,17 @@ def get_spread_vs_skill(prediction_dict, bin_edge_prediction_stdevs,
     )
 
     if use_median:
-        central_prediction_matrix = numpy.median(forecast_prob_matrix, axis=3)
+        central_prediction_matrix = prediction_io.get_median_predictions(
+            prediction_dict
+        )
     else:
-        central_prediction_matrix = numpy.mean(forecast_prob_matrix, axis=3)
+        central_prediction_matrix = prediction_io.get_mean_predictions(
+            prediction_dict
+        )
 
-    prediction_stdev_matrix = numpy.std(forecast_prob_matrix, axis=3, ddof=1)
+    prediction_stdev_matrix = prediction_io.get_predictive_stdevs(
+        prediction_dict
+    )
     prediction_stdev_matrix[eroded_eval_mask_matrix == False] = numpy.nan
     squared_error_matrix = _get_squared_errors(
         prediction_dict=prediction_dict,

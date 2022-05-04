@@ -193,11 +193,9 @@ def _run(top_prediction_dir_name, first_date_string, last_date_string,
         print('Reading data from: "{0:s}"...'.format(this_file_name))
         this_prediction_dict = prediction_io.read_file(this_file_name)
 
-        these_probs = (
-            this_prediction_dict[prediction_io.PROBABILITY_MATRIX_KEY][
-                :, grid_row, grid_column, :
-            ]
-        )
+        these_probs = prediction_io.get_mean_predictions(this_prediction_dict)[
+            :, grid_row, grid_column
+        ]
 
         these_radar_numbers = numpy.full(
             len(these_probs),

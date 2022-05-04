@@ -101,13 +101,9 @@ def _run(top_input_dir_name, first_date_string, last_date_string,
                 smoothing_radius_px=smoothing_radius_px
             )
 
-        # this_prediction_dict[prediction_io.TARGET_MATRIX_KEY] = numpy.sum(
-        #     this_prediction_dict[prediction_io.TARGET_MATRIX_KEY],
-        #     axis=0, keepdims=True
-        # )
-
-        this_prediction_dict[prediction_io.PROBABILITY_MATRIX_KEY] = numpy.mean(
-            this_prediction_dict[prediction_io.PROBABILITY_MATRIX_KEY], axis=-1
+        this_prediction_dict[prediction_io.TARGET_MATRIX_KEY] = numpy.sum(
+            this_prediction_dict[prediction_io.TARGET_MATRIX_KEY],
+            axis=0, keepdims=True
         )
         this_prediction_dict[prediction_io.PROBABILITY_MATRIX_KEY] = numpy.sum(
             this_prediction_dict[prediction_io.PROBABILITY_MATRIX_KEY],
@@ -119,20 +115,17 @@ def _run(top_input_dir_name, first_date_string, last_date_string,
             prediction_dict = copy.deepcopy(this_prediction_dict)
             continue
 
-        # prediction_dict[prediction_io.TARGET_MATRIX_KEY] += (
-        #     this_prediction_dict[prediction_io.TARGET_MATRIX_KEY]
-        # )
+        prediction_dict[prediction_io.TARGET_MATRIX_KEY] += (
+            this_prediction_dict[prediction_io.TARGET_MATRIX_KEY]
+        )
         prediction_dict[prediction_io.PROBABILITY_MATRIX_KEY] += (
             this_prediction_dict[prediction_io.PROBABILITY_MATRIX_KEY]
         )
 
     prediction_dict[prediction_io.TARGET_MATRIX_KEY] = (
-        prediction_dict[prediction_io.TARGET_MATRIX_KEY][[0], ...]
+        prediction_dict[prediction_io.TARGET_MATRIX_KEY].astype(float) /
+        num_times
     )
-    prediction_dict[prediction_io.TARGET_MATRIX_KEY] = numpy.minimum(
-        prediction_dict[prediction_io.TARGET_MATRIX_KEY], 0
-    )
-
     prediction_dict[prediction_io.PROBABILITY_MATRIX_KEY] = (
         prediction_dict[prediction_io.PROBABILITY_MATRIX_KEY] / num_times
     )
@@ -159,7 +152,8 @@ def _run(top_input_dir_name, first_date_string, last_date_string,
         valid_times_unix_sec=prediction_dict[prediction_io.VALID_TIMES_KEY],
         latitudes_deg_n=prediction_dict[prediction_io.LATITUDES_KEY],
         longitudes_deg_e=prediction_dict[prediction_io.LONGITUDES_KEY],
-        model_file_name=prediction_dict[prediction_io.MODEL_FILE_KEY]
+        model_file_name=prediction_dict[prediction_io.MODEL_FILE_KEY],
+        quantile_levels=prediction_dict[prediction_io.QUANTILE_LEVELS_KEY]
     )
 
 

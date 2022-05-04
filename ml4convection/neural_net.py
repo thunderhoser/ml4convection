@@ -66,6 +66,7 @@ VALID_SCORE_NAMES_FOURIER = VALID_SCORE_NAMES_WAVELET + [
 ]
 
 SCORE_NAME_KEY = 'score_name'
+WEIGHT_KEY = 'weight'
 HALF_WINDOW_SIZE_KEY = 'half_window_size_px'
 MIN_RESOLUTION_KEY = 'min_resolution_deg'
 MAX_RESOLUTION_KEY = 'max_resolution_deg'
@@ -975,7 +976,7 @@ def predictor_matrix_from_keras(predictor_matrix, num_lag_times):
 
 
 def metric_params_to_name(
-        score_name, half_window_size_px=None, min_resolution_deg=None,
+        score_name, weight=1., half_window_size_px=None, min_resolution_deg=None,
         max_resolution_deg=None, use_wavelets=False):
     """Converts parameters for evaluation metric to name.
 
@@ -986,6 +987,7 @@ def metric_params_to_name(
     with Fourier decomposition.
 
     :param score_name: Name of score (must be accepted by `_check_score_name`).
+    :param weight: Real number by which metric is multiplied.
     :param half_window_size_px: Half-window size (pixels) for neighbourhood.
     :param min_resolution_deg: Minimum resolution (degrees) allowed through
         band-pass filter.
@@ -996,6 +998,8 @@ def metric_params_to_name(
     :return: metric_name: Metric name (string).
     """
 
+    error_checking.assert_is_greater(weight, 0.)
+
     if half_window_size_px is not None:
         error_checking.assert_is_not_nan(half_window_size_px)
         half_window_size_px = int(numpy.round(half_window_size_px))
@@ -1003,7 +1007,9 @@ def metric_params_to_name(
 
         _check_score_name(score_name=score_name, neigh_based=True)
 
-        return '{0:s}_neigh{1:d}'.format(score_name, half_window_size_px)
+        return '{0:s}_neigh{1:d}_weight{2:.10f}'.format(
+            score_name, half_window_size_px, weight
+        )
 
     error_checking.assert_is_boolean(use_wavelets)
     _check_score_name(
@@ -1019,8 +1025,9 @@ def metric_params_to_name(
     if max_resolution_deg >= MAX_RESOLUTION_DEG:
         max_resolution_deg = numpy.inf
 
-    return '{0:s}_{1:.4f}d_{2:.4f}d_wavelets{3:d}'.format(
-        score_name, min_resolution_deg, max_resolution_deg, int(use_wavelets)
+    return '{0:s}_{1:.4f}d_{2:.4f}d_wavelets{3:d}_weight{4:.10f}'.format(
+        score_name, min_resolution_deg, max_resolution_deg, int(use_wavelets),
+        weight
     )
 
 
@@ -1032,6 +1039,7 @@ def metric_name_to_params(metric_name):
     :param metric_name: Metric name (string).
     :return: param_dict: Dictionary with the following keys.
     param_dict['score_name']: See doc for `metric_params_to_name`.
+    param_dict['weight']: Same.
     param_dict['half_window_size_px']: Same.
     param_dict['min_resolution_deg']: Same.
     param_dict['max_resolution_deg']: Same.
@@ -1040,6 +1048,15 @@ def metric_name_to_params(metric_name):
 
     error_checking.assert_is_string(metric_name)
     metric_name_parts = metric_name.split('_')
+
+    if 'weight' in metric_name_parts[-1]:
+        weight = float(
+            metric_name_parts[-1].replace('weight', '')
+        )
+        metric_name_parts = metric_name_parts[:-1]
+    else:
+        weight = 1.
+
     score_name = metric_name_parts[0]
 
     if len(metric_name_parts) == 2:
@@ -1052,6 +1069,7 @@ def metric_name_to_params(metric_name):
 
         return {
             SCORE_NAME_KEY: score_name,
+            WEIGHT_KEY: weight,
             HALF_WINDOW_SIZE_KEY: half_window_size_px,
             MIN_RESOLUTION_KEY: None,
             MAX_RESOLUTION_KEY: None,
@@ -1085,6 +1103,7 @@ def metric_name_to_params(metric_name):
 
     return {
         SCORE_NAME_KEY: score_name,
+        WEIGHT_KEY: weight,
         HALF_WINDOW_SIZE_KEY: None,
         MIN_RESOLUTION_KEY: min_resolution_deg,
         MAX_RESOLUTION_KEY: max_resolution_deg,
@@ -1214,6 +1233,38 @@ def get_metrics_legacy(mask_matrix):
     }
 
     return metric_function_list, metric_function_dict
+
+
+def _create_multiply_function(real_number):
+    """Creates function that multiplies input by real number.
+
+    :param real_number: Multiplier.
+    :return: multiply_function: Function handle.
+    """
+
+    def multiply_function(input_array):
+        """Multiplies input array by real number.
+
+        :param input_array: numpy array.
+        :return: output_array: numpy array.
+        """
+
+        return input_array * real_number
+
+    return multiply_function
+
+
+def _multiply_a_function(orig_function_handle, real_number):
+    """Multiplies function by a real number.
+
+    :param orig_function_handle: Handle for function to be multiplied.
+    :param real_number: Real number.
+    :return: new_function_handle: Handle for new function, which is the original
+        function multiplied by the given number.
+    """
+
+    this_function_handle = _create_multiply_function(real_number)
+    return lambda x: this_function_handle(orig_function_handle(x))
 
 
 def get_metrics(metric_names, mask_matrix, use_as_loss_function):
@@ -1395,7 +1446,8 @@ def get_metrics(metric_names, mask_matrix, use_as_loss_function):
                 this_function = fourier_metrics.frequency_bias(
                     spatial_coeff_matrix=this_spatial_coeff_matrix,
                     frequency_coeff_matrix=this_frequency_coeff_matrix,
-                    mask_matrix=mask_matrix, function_name=this_metric_name
+                    mask_matrix=mask_matrix,
+                    function_name=this_metric_name
                 )
             elif this_param_dict[SCORE_NAME_KEY] == IOU_NAME:
                 this_function = fourier_metrics.iou(
@@ -1474,12 +1526,14 @@ def get_metrics(metric_names, mask_matrix, use_as_loss_function):
                 )
             elif this_param_dict[SCORE_NAME_KEY] == CROSS_ENTROPY_NAME:
                 this_function = custom_losses.cross_entropy(
-                    mask_matrix=mask_matrix, function_name=this_metric_name
+                    mask_matrix=mask_matrix,
+                    function_name=this_metric_name
                 )
             elif this_param_dict[SCORE_NAME_KEY] == BRIER_SCORE_NAME:
                 this_function = custom_metrics.brier_score(
                     half_window_size_px=this_param_dict[HALF_WINDOW_SIZE_KEY],
-                    mask_matrix=mask_matrix, function_name=this_metric_name
+                    mask_matrix=mask_matrix,
+                    function_name=this_metric_name
                 )
             elif this_param_dict[SCORE_NAME_KEY] == CSI_NAME:
                 this_function = custom_metrics.csi(
@@ -1491,7 +1545,8 @@ def get_metrics(metric_names, mask_matrix, use_as_loss_function):
             elif this_param_dict[SCORE_NAME_KEY] == FREQUENCY_BIAS_NAME:
                 this_function = custom_metrics.frequency_bias(
                     half_window_size_px=this_param_dict[HALF_WINDOW_SIZE_KEY],
-                    mask_matrix=mask_matrix, function_name=this_metric_name
+                    mask_matrix=mask_matrix,
+                    function_name=this_metric_name
                 )
             elif this_param_dict[SCORE_NAME_KEY] == IOU_NAME:
                 this_function = custom_metrics.iou(
@@ -1515,6 +1570,10 @@ def get_metrics(metric_names, mask_matrix, use_as_loss_function):
                     function_name=this_metric_name
                 )
 
+        this_function = _multiply_a_function(
+            orig_function_handle=this_function,
+            real_number=this_param_dict[WEIGHT_KEY]
+        )
         metric_function_list.append(this_function)
         metric_function_dict[this_metric_name] = this_function
 
@@ -2527,6 +2586,7 @@ def apply_model_full_grid(
     E = number of examples
     M = number of rows in grid
     N = number of columns in grid
+    Q = number of quantile levels
 
     :param model_object: Trained neural net (instance of `keras.models.Model` or
         `keras.models.Sequential`).
@@ -2537,8 +2597,9 @@ def apply_model_full_grid(
         turned on.  Using dropout at inference time is called "Monte Carlo
         dropout".
     :param verbose: Boolean flag.  If True, will print progress messages.
-    :return: forecast_prob_matrix: E-by-M-by-N numpy array of forecast event
-        probabilities.
+    :return: forecast_prob_matrix: numpy array of forecast event probabilities.
+        If the model does quantile regression, this array will be E x M x N x Q.
+        If not, E x M x N.
     """
 
     num_examples_per_batch = _check_inference_args(
@@ -2586,19 +2647,24 @@ def apply_model_full_grid(
             #     [predictor_matrix[these_indices, ...], True]
             # )[0]
 
-            this_prob_matrix = model_object(
+            these_predictions = model_object(
                 predictor_matrix[these_indices, ...], training=True
             ).numpy()
         else:
-            this_prob_matrix = model_object.predict_on_batch(
+            these_predictions = model_object.predict_on_batch(
                 predictor_matrix[these_indices, ...]
             )
 
+        if isinstance(these_predictions, list):
+            this_prob_matrix = numpy.stack(these_predictions, axis=-1)
+        else:
+            this_prob_matrix = these_predictions + 0.
+
         if forecast_prob_matrix is None:
-            dimensions = (num_examples,) + this_prob_matrix.shape[1:3]
+            dimensions = (num_examples,) + this_prob_matrix.shape[1:]
             forecast_prob_matrix = numpy.full(dimensions, numpy.nan)
 
-        forecast_prob_matrix[these_indices, ...] = this_prob_matrix[..., 0]
+        forecast_prob_matrix[these_indices, ...] = this_prob_matrix
 
     if verbose:
         print('Have applied model to all {0:d} examples!'.format(num_examples))
@@ -2666,12 +2732,15 @@ def apply_model_partial_grids(
     )
 
     # Do actual stuff.
-    summed_prob_matrix = numpy.full(
-        (num_examples, num_full_grid_rows, num_full_grid_columns), 0.
-    )
-    num_forecasts_matrix = numpy.full(
-        (num_examples, num_full_grid_rows, num_full_grid_columns), 0, dtype=int
-    )
+    summed_prob_matrix = None
+    num_forecasts_matrix = None
+
+    # summed_prob_matrix = numpy.full(
+    #     (num_examples, num_full_grid_rows, num_full_grid_columns), 0.
+    # )
+    # num_forecasts_matrix = numpy.full(
+    #     (num_examples, num_full_grid_rows, num_full_grid_columns), 0, dtype=int
+    # )
 
     partial_grid_dict = {
         NUM_FULL_ROWS_KEY: num_full_grid_rows,
@@ -2733,16 +2802,29 @@ def apply_model_partial_grids(
                 #     [this_predictor_matrix, True]
                 # )[0]
 
-                this_prob_matrix = model_object(
+                these_predictions = model_object(
                     this_predictor_matrix, training=True
                 ).numpy()
             else:
-                this_prob_matrix = model_object.predict_on_batch(
+                these_predictions = model_object.predict_on_batch(
                     this_predictor_matrix
                 )
 
+            if isinstance(these_predictions, list):
+                this_prob_matrix = numpy.stack(these_predictions, axis=-1)
+            else:
+                this_prob_matrix = these_predictions + 0.
+
             this_prob_matrix = numpy.maximum(this_prob_matrix, 0.)
             this_prob_matrix = numpy.minimum(this_prob_matrix, 1.)
+
+            if summed_prob_matrix is None:
+                dimensions = (
+                    (num_examples, num_full_grid_rows, num_full_grid_columns) +
+                    this_prob_matrix.shape[3:]
+                )
+                summed_prob_matrix = numpy.full(dimensions, 0.)
+                num_forecasts_matrix = numpy.full(dimensions, 0, dtype=int)
 
             if verbose:
                 print((
@@ -2756,18 +2838,18 @@ def apply_model_partial_grids(
                 ))
 
             # TODO(thunderhoser): The "50" here is a HACK.
-            this_prob_matrix = this_prob_matrix[:, 50:-50, 50:-50]
+            this_prob_matrix = this_prob_matrix[:, 50:-50, 50:-50, ...]
 
             summed_prob_matrix[
                 first_example_index:(last_example_index + 1),
                 first_output_row:(last_output_row + 1),
-                first_output_column:(last_output_column + 1)
+                first_output_column:(last_output_column + 1), ...
             ] += this_prob_matrix
 
             num_forecasts_matrix[
                 first_example_index:(last_example_index + 1),
                 first_output_row:(last_output_row + 1),
-                first_output_column:(last_output_column + 1)
+                first_output_column:(last_output_column + 1), ...
             ] += 1
 
     if verbose:
