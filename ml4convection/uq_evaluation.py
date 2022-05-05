@@ -6,6 +6,8 @@ import numpy
 import netCDF4
 from scipy.signal import convolve2d
 from scipy.ndimage import maximum_filter
+from scipy.integrate import simps
+from scipy.interpolate import interp1d
 
 THIS_DIRECTORY_NAME = os.path.dirname(os.path.realpath(
     os.path.join(os.getcwd(), os.path.expanduser(__file__))
@@ -16,6 +18,10 @@ import file_system_utils
 import error_checking
 import prediction_io
 import general_utils
+
+PROB_LEVELS_TO_INTEG_NOT_QR = numpy.linspace(0, 1, num=101, dtype=float)
+PROB_LEVELS_TO_INTEG_FOR_QR = numpy.linspace(0, 1, num=41, dtype=float)
+NUM_EXAMPLES_PER_BATCH = 50
 
 ERROR_FUNCTION_KEY = 'error_function_name'
 UNCERTAINTY_FUNCTION_KEY = 'uncertainty_function_name'
@@ -93,6 +99,145 @@ def _get_squared_errors(prediction_dict, half_window_size_px, use_median):
         )
 
     return squared_error_matrix
+
+
+def _get_crps_monte_carlo(prediction_dict):
+    """Computes CRPS for model with Monte Carlo dropout.
+
+    CRPS = continuous ranked probability score
+
+    :param prediction_dict: Dictionary in format returned by
+        `prediction_io.read_file`.
+    :return: crps_value: CRPS (scalar).
+    """
+
+    forecast_prob_matrix = prediction_dict[prediction_io.PROBABILITY_MATRIX_KEY]
+    target_matrix = prediction_dict[prediction_io.TARGET_MATRIX_KEY]
+    num_examples = forecast_prob_matrix.shape[0]
+
+    crps_numerator = 0.
+    crps_denominator = 0.
+
+    for i in range(0, num_examples, NUM_EXAMPLES_PER_BATCH):
+        print('Have computed CRPS for {0:d} of {1:d} examples...'.format(
+            i, num_examples
+        ))
+
+        first_index = i
+        last_index = min([
+            i + NUM_EXAMPLES_PER_BATCH, num_examples
+        ])
+
+        cdf_matrix = numpy.stack([
+            numpy.mean(
+                forecast_prob_matrix[first_index:last_index, ...] <= p, axis=-1
+            )
+            for p in PROB_LEVELS_TO_INTEG_NOT_QR
+        ], axis=-1)
+
+        this_target_matrix = numpy.expand_dims(
+            target_matrix[first_index:last_index, ...], axis=-1
+        )
+        integrated_cdf_matrix = simps(
+            y=(cdf_matrix + (this_target_matrix - 1)) ** 2,
+            x=PROB_LEVELS_TO_INTEG_NOT_QR, axis=-1
+        )
+        crps_numerator += numpy.sum(integrated_cdf_matrix)
+        crps_denominator += integrated_cdf_matrix.size
+
+    print('Have computed CRPS for all {0:d} examples!'.format(num_examples))
+
+    return crps_numerator / crps_denominator
+
+
+def _get_crps_quantile_regression_1batch(
+        prediction_dict, first_example_index, last_example_index):
+    """Computes CRPS for quantile-regression model on one batch of examples.
+
+    :param prediction_dict: Dictionary in format returned by
+        `prediction_io.read_file`.
+    :param first_example_index: Array index of first example in batch.
+    :param last_example_index: Array index of last example in batch.
+    :return: crps_numerator: Numerator of CRPS.
+    :return: crps_denominator: Denominator of CRPS.
+    """
+
+    forecast_prob_matrix = prediction_dict[
+        prediction_io.PROBABILITY_MATRIX_KEY
+    ][first_example_index:last_example_index, ...]
+
+    target_matrix = prediction_dict[
+        prediction_io.TARGET_MATRIX_KEY
+    ][first_example_index:last_example_index, ...]
+
+    target_matrix = numpy.expand_dims(target_matrix, axis=-1)
+
+    cdf_matrix = numpy.full(
+        forecast_prob_matrix.shape[:-1] + (len(PROB_LEVELS_TO_INTEG_FOR_QR),),
+        numpy.nan
+    )
+
+    for i in range(forecast_prob_matrix.shape[0]):
+        for j in range(forecast_prob_matrix.shape[1]):
+            for k in range(forecast_prob_matrix.shape[2]):
+
+                # TODO(thunderhoser): I assume that probability increases
+                # monotonically with quantile level, but this assumption should
+                # hold, given the way I set up the model architecture.
+                interp_object = interp1d(
+                    x=forecast_prob_matrix[i, j, k, :],
+                    y=prediction_dict[prediction_io.QUANTILE_LEVELS_KEY],
+                    kind='linear', bounds_error=False, assume_sorted=True,
+                    fill_value='extrapolate'
+                )
+
+                cdf_matrix[i, j, k, :] = interp_object(
+                    PROB_LEVELS_TO_INTEG_FOR_QR
+                )
+
+    cdf_matrix = numpy.maximum(cdf_matrix, 0.)
+    cdf_matrix = numpy.minimum(cdf_matrix, 1.)
+    cdf_matrix[..., -1] = 1.
+    cdf_matrix[..., 0] = 0.
+
+    integrated_cdf_matrix = simps(
+        y=(cdf_matrix + (target_matrix - 1)) ** 2,
+        x=PROB_LEVELS_TO_INTEG_FOR_QR, axis=-1
+    )
+
+    return numpy.sum(integrated_cdf_matrix), integrated_cdf_matrix.size
+
+
+def _get_crps_quantile_regression(prediction_dict):
+    """Computes CRPS for model with quantile regression.
+
+    CRPS = continuous ranked probability score
+
+    :param prediction_dict: Dictionary in format returned by
+        `prediction_io.read_file`.
+    :return: crps_value: CRPS (scalar).
+    """
+
+    num_examples = prediction_dict[prediction_io.TARGET_MATRIX_KEY].shape[0]
+    crps_numerator = 0.
+    crps_denominator = 0.
+
+    for i in range(0, num_examples, 10):
+        print('Have computed CRPS for {0:d} of {1:d} examples...'.format(
+            i, num_examples
+        ))
+
+        this_numerator, this_denominator = _get_crps_quantile_regression_1batch(
+            prediction_dict=prediction_dict, first_example_index=i,
+            last_example_index=min([i + NUM_EXAMPLES_PER_BATCH, num_examples])
+        )
+
+        crps_numerator += this_numerator
+        crps_denominator += this_denominator
+
+    print('Have computed CRPS for all {0:d} examples!'.format(num_examples))
+
+    return crps_numerator / crps_denominator
 
 
 def get_xentropy_error_function(half_window_size_px, use_median):
@@ -256,9 +401,24 @@ def get_stdev_uncertainty_function():
     return uncertainty_function
 
 
+def get_crps(prediction_dict):
+    """Computes continuous ranked probability score (CRPS).
+
+    :param prediction_dict: Dictionary in format returned by
+        `prediction_io.read_file`.
+    :return: crps_value: CRPS (scalar).
+    """
+
+    if prediction_dict[prediction_io.QUANTILE_LEVELS_KEY] is None:
+        return _get_crps_monte_carlo(prediction_dict)
+
+    return _get_crps_quantile_regression(prediction_dict)
+
+
 def run_discard_test(
         prediction_dict, discard_fractions, eroded_eval_mask_matrix,
-        error_function, uncertainty_function, use_median, is_error_pos_oriented):
+        error_function, uncertainty_function, use_median,
+        is_error_pos_oriented):
     """Runs the discard test.
 
     F = number of discard fractions

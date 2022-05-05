@@ -50,7 +50,7 @@ QUANTILE_LEVEL_SETS = [
 
 QUANTILE_LEVEL_SETS = [
     numpy.concatenate((
-        numpy.array([0.025, 0.975, 0.99]), s
+        numpy.array([0.025, 0.25, 0.5, 0.75, 0.975, 0.99]), s
     ))
     for s in QUANTILE_LEVEL_SETS
 ]
