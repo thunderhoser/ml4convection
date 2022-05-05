@@ -1257,7 +1257,7 @@ def _multiply_a_function(orig_function_handle, real_number):
     """
 
     this_function_handle = _create_multiply_function(real_number)
-    return lambda x: this_function_handle(orig_function_handle(x))
+    return lambda x, y: this_function_handle(orig_function_handle(x, y))
 
 
 def get_metrics(metric_names, mask_matrix, use_as_loss_function):

@@ -2,10 +2,158 @@
 
 import unittest
 import numpy
+from scipy.integrate import simps
 from ml4convection.io import prediction_io
 from ml4convection.utils import uq_evaluation
 
 TOLERANCE = 1e-6
+
+# The following constants are used to test _get_crps_monte_carlo.
+THIS_PROB_MATRIX = numpy.full((8, 205, 205, 100), numpy.nan)
+THIS_PROB_MATRIX[0, ...] = 0.
+THIS_PROB_MATRIX[1, ...] = 1.
+THIS_PROB_MATRIX[2, ...] = 0.5
+THIS_PROB_MATRIX[3, ...] = numpy.linspace(0, 1, num=100, dtype=float)
+THIS_PROB_MATRIX[4, ...] = 0.
+THIS_PROB_MATRIX[5, ...] = 1.
+THIS_PROB_MATRIX[6, ...] = 0.5
+THIS_PROB_MATRIX[7, ...] = numpy.linspace(0, 1, num=100, dtype=float)
+
+THIS_TARGET_MATRIX = numpy.full((8, 205, 205), 1, dtype=int)
+THIS_TARGET_MATRIX[4:8, ...] = 0
+
+PREDICTION_DICT_MONTE_CARLO = {
+    prediction_io.PROBABILITY_MATRIX_KEY: THIS_PROB_MATRIX + 0.,
+    prediction_io.TARGET_MATRIX_KEY: THIS_TARGET_MATRIX + 0
+}
+
+PROB_LEVELS_TO_INTEG_NOT_QR = uq_evaluation.PROB_LEVELS_TO_INTEG_NOT_QR
+
+FIRST_CDF_VALUES = numpy.full(101, 1.)
+FIRST_CRPS_ADDEND = simps(
+    y=FIRST_CDF_VALUES ** 2, x=PROB_LEVELS_TO_INTEG_NOT_QR, axis=-1
+)
+
+SECOND_CDF_VALUES = numpy.full(101, 0.)
+SECOND_CDF_VALUES[-1] = 1.
+SECOND_CRPS_ADDEND = simps(
+    y=SECOND_CDF_VALUES ** 2, x=PROB_LEVELS_TO_INTEG_NOT_QR, axis=-1
+)
+
+THIRD_CDF_VALUES = numpy.full(101, 0.)
+THIRD_CDF_VALUES[50:] = 1.
+THIRD_CRPS_ADDEND = simps(
+    y=THIRD_CDF_VALUES ** 2, x=PROB_LEVELS_TO_INTEG_NOT_QR, axis=-1
+)
+
+FOURTH_CDF_VALUES = numpy.concatenate((
+    numpy.full(1, 0.01), numpy.linspace(0.01, 1, num=100, dtype=float)
+))
+FOURTH_CRPS_ADDEND = simps(
+    y=FOURTH_CDF_VALUES ** 2, x=PROB_LEVELS_TO_INTEG_NOT_QR, axis=-1
+)
+
+FIFTH_CDF_VALUES = FIRST_CDF_VALUES
+FIFTH_CRPS_ADDEND = simps(
+    y=(FIFTH_CDF_VALUES - 1) ** 2, x=PROB_LEVELS_TO_INTEG_NOT_QR, axis=-1
+)
+
+SIXTH_CDF_VALUES = SECOND_CDF_VALUES
+SIXTH_CRPS_ADDEND = simps(
+    y=(SIXTH_CDF_VALUES - 1) ** 2, x=PROB_LEVELS_TO_INTEG_NOT_QR, axis=-1
+)
+
+SEVENTH_CDF_VALUES = THIRD_CDF_VALUES
+SEVENTH_CRPS_ADDEND = simps(
+    y=(SEVENTH_CDF_VALUES - 1) ** 2, x=PROB_LEVELS_TO_INTEG_NOT_QR, axis=-1
+)
+
+EIGHTH_CDF_VALUES = FOURTH_CDF_VALUES
+EIGHTH_CRPS_ADDEND = simps(
+    y=(EIGHTH_CDF_VALUES - 1) ** 2, x=PROB_LEVELS_TO_INTEG_NOT_QR, axis=-1
+)
+
+CRPS_MONTE_CARLO = numpy.mean(numpy.array([
+    FIRST_CRPS_ADDEND, SECOND_CRPS_ADDEND, THIRD_CRPS_ADDEND,
+    FOURTH_CRPS_ADDEND, FIFTH_CRPS_ADDEND, SIXTH_CRPS_ADDEND,
+    SEVENTH_CRPS_ADDEND, EIGHTH_CRPS_ADDEND,
+]))
+
+# The following constants are used to test _get_crps_quantile_regression.
+THIS_PROB_MATRIX = numpy.full((8, 205, 205, 101), numpy.nan)
+THIS_PROB_MATRIX[0, ...] = numpy.linspace(0, 1e-12, num=101, dtype=float)
+THIS_PROB_MATRIX[1, ...] = numpy.linspace(1. - 1e-12, 1, num=101, dtype=float)
+THIS_PROB_MATRIX[2, ...] = numpy.linspace(
+    0.5, 0.5 + 1e-12, num=101, dtype=float
+)
+THIS_PROB_MATRIX[3, ...] = numpy.linspace(0, 1, num=101, dtype=float)
+THIS_PROB_MATRIX[4, ...] = numpy.linspace(0, 1e-12, num=101, dtype=float)
+THIS_PROB_MATRIX[5, ...] = numpy.linspace(1. - 1e-12, 1, num=101, dtype=float)
+THIS_PROB_MATRIX[6, ...] = numpy.linspace(
+    0.5, 0.5 + 1e-12, num=101, dtype=float
+)
+THIS_PROB_MATRIX[7, ...] = numpy.linspace(0, 1, num=101, dtype=float)
+
+THIS_TARGET_MATRIX = numpy.full((8, 205, 205), 1, dtype=int)
+THIS_TARGET_MATRIX[4:8, ...] = 0
+
+PREDICTION_DICT_QUANTILE_REGRESSION = {
+    prediction_io.PROBABILITY_MATRIX_KEY: THIS_PROB_MATRIX + 0.,
+    prediction_io.TARGET_MATRIX_KEY: THIS_TARGET_MATRIX + 0,
+    prediction_io.QUANTILE_LEVELS_KEY:
+        numpy.linspace(0, 1, num=101, dtype=float)
+}
+
+PROB_LEVELS_TO_INTEG_FOR_QR = uq_evaluation.PROB_LEVELS_TO_INTEG_FOR_QR
+
+FIRST_CDF_VALUES = numpy.full(41, 1.)
+FIRST_CDF_VALUES[0] = 0.
+FIRST_CRPS_ADDEND = simps(
+    y=FIRST_CDF_VALUES ** 2, x=PROB_LEVELS_TO_INTEG_FOR_QR, axis=-1
+)
+
+SECOND_CDF_VALUES = numpy.full(41, 0.)
+SECOND_CDF_VALUES[-1] = 1.
+SECOND_CRPS_ADDEND = simps(
+    y=SECOND_CDF_VALUES ** 2, x=PROB_LEVELS_TO_INTEG_FOR_QR, axis=-1
+)
+
+THIRD_CDF_VALUES = numpy.full(41, 0.)
+THIRD_CDF_VALUES[21:] = 1.
+THIRD_CRPS_ADDEND = simps(
+    y=THIRD_CDF_VALUES ** 2, x=PROB_LEVELS_TO_INTEG_FOR_QR, axis=-1
+)
+
+FOURTH_CDF_VALUES = numpy.linspace(0, 1, num=41, dtype=float)
+FOURTH_CRPS_ADDEND = simps(
+    y=FOURTH_CDF_VALUES ** 2, x=PROB_LEVELS_TO_INTEG_FOR_QR, axis=-1
+)
+
+FIFTH_CDF_VALUES = FIRST_CDF_VALUES
+FIFTH_CRPS_ADDEND = simps(
+    y=(FIFTH_CDF_VALUES - 1) ** 2, x=PROB_LEVELS_TO_INTEG_FOR_QR, axis=-1
+)
+
+SIXTH_CDF_VALUES = SECOND_CDF_VALUES
+SIXTH_CRPS_ADDEND = simps(
+    y=(SIXTH_CDF_VALUES - 1) ** 2, x=PROB_LEVELS_TO_INTEG_FOR_QR, axis=-1
+)
+
+SEVENTH_CDF_VALUES = THIRD_CDF_VALUES
+SEVENTH_CRPS_ADDEND = simps(
+    y=(SEVENTH_CDF_VALUES - 1) ** 2, x=PROB_LEVELS_TO_INTEG_FOR_QR, axis=-1
+)
+
+EIGHTH_CDF_VALUES = FOURTH_CDF_VALUES
+EIGHTH_CRPS_ADDEND = simps(
+    y=(EIGHTH_CDF_VALUES - 1) ** 2, x=PROB_LEVELS_TO_INTEG_FOR_QR, axis=-1
+)
+
+CRPS_QUANTILE_REGRESSION = numpy.mean(numpy.array([
+    FIRST_CRPS_ADDEND, SECOND_CRPS_ADDEND, THIRD_CRPS_ADDEND,
+    FOURTH_CRPS_ADDEND, FIFTH_CRPS_ADDEND, SIXTH_CRPS_ADDEND,
+    SEVENTH_CRPS_ADDEND, EIGHTH_CRPS_ADDEND,
+]))
 
 # The following constants are used to test many different methods.
 FORECAST_PROB_MATRIX = numpy.array([
@@ -208,6 +356,28 @@ SMOOTHED_SQERR_MATRIX_SPATIAL = (
 
 class UqEvaluationTests(unittest.TestCase):
     """Each method is a unit test for uq_evaluation.py."""
+
+    def test_get_crps_monte_carlo(self):
+        """Ensures correct output from _get_crps_monte_carlo."""
+
+        this_crps_value = uq_evaluation._get_crps_monte_carlo(
+            PREDICTION_DICT_MONTE_CARLO
+        )
+
+        self.assertTrue(numpy.isclose(
+            this_crps_value, CRPS_MONTE_CARLO, atol=TOLERANCE
+        ))
+
+    def test_get_crps_quantile_regression(self):
+        """Ensures correct output from _get_crps_quantile_regression."""
+
+        this_crps_value = uq_evaluation._get_crps_quantile_regression(
+            PREDICTION_DICT_QUANTILE_REGRESSION
+        )
+
+        self.assertTrue(numpy.isclose(
+            this_crps_value, CRPS_QUANTILE_REGRESSION, atol=TOLERANCE
+        ))
 
     def test_get_stdev_uncertainty_function(self):
         """Ensures correct output from get_stdev_uncertainty_function."""
