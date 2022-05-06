@@ -326,6 +326,10 @@ def write_file(
     dataset_object.variables[LONGITUDES_KEY][:] = longitudes_deg_e
 
     if quantile_levels is not None:
+        dataset_object.createDimension(
+            QUANTILE_DIMENSION_KEY, len(quantile_levels)
+        )
+
         dataset_object.createVariable(
             QUANTILE_LEVELS_KEY, datatype=numpy.float32,
             dimensions=QUANTILE_DIMENSION_KEY
