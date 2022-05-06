@@ -28,6 +28,7 @@ OVERLAP_SIZE_ARG_NAME = 'overlap_size_px'
 FIRST_DATE_ARG_NAME = 'first_valid_date_string'
 LAST_DATE_ARG_NAME = 'last_valid_date_string'
 NUM_DROPOUT_ITERS_ARG_NAME = 'num_dropout_iterations'
+USE_QUANTILES_ARG_NAME = 'use_quantiles'
 OUTPUT_DIR_ARG_NAME = 'output_dir_name'
 
 MODEL_FILE_HELP_STRING = (
@@ -60,6 +61,10 @@ DATE_HELP_STRING = (
 NUM_DROPOUT_ITERS_HELP_STRING = (
     'Number of iterations for Monte Carlo dropout.  If you do not want to use '
     'MC dropout, make this argument <= 0.'
+)
+USE_QUANTILES_HELP_STRING = (
+    '[used only if NN does quantile regression] Boolean flag.  If 1, will save '
+    'predictions for every quantile.  If 0, will save only mean predictions.'
 )
 OUTPUT_DIR_HELP_STRING = (
     'Name of output directory.  Predictions will be written by '
@@ -99,6 +104,10 @@ INPUT_ARG_PARSER.add_argument(
     help=NUM_DROPOUT_ITERS_HELP_STRING
 )
 INPUT_ARG_PARSER.add_argument(
+    '--' + USE_QUANTILES_ARG_NAME, type=int, required=False, default=0,
+    help=USE_QUANTILES_HELP_STRING
+)
+INPUT_ARG_PARSER.add_argument(
     '--' + OUTPUT_DIR_ARG_NAME, type=str, required=True,
     help=OUTPUT_DIR_HELP_STRING
 )
@@ -106,8 +115,8 @@ INPUT_ARG_PARSER.add_argument(
 
 def _apply_to_full_grid_one_day(
         model_object, base_option_dict, trained_on_partial_grids,
-        quantile_levels, overlap_size_px, valid_date_string, model_file_name,
-        top_output_dir_name):
+        quantile_levels, use_quantiles, overlap_size_px, valid_date_string,
+        model_file_name, top_output_dir_name):
     """Applies trained neural net to full grid for one day.
 
     :param model_object: Trained neural net (instance of `keras.models.Model` or
@@ -119,7 +128,8 @@ def _apply_to_full_grid_one_day(
     :param quantile_levels: 1-D numpy array of quantile levels used to train
         model for quantile regression.  If model was not trained for quantile
         regression, this is None.
-    :param overlap_size_px: See documentation at top of file.
+    :param use_quantiles: See documentation at top of file.
+    :param overlap_size_px: Same.
     :param valid_date_string: Valid date (radar date), in format "yyyymmdd").
     :param model_file_name: See documentation at top of file.
     :param top_output_dir_name: Same.
@@ -131,7 +141,6 @@ def _apply_to_full_grid_one_day(
     data_dict = neural_net.create_data_full_grid(
         option_dict=option_dict, return_coords=True
     )
-
     if data_dict is None:
         return
 
@@ -150,6 +159,18 @@ def _apply_to_full_grid_one_day(
             num_examples_per_batch=NUM_EXAMPLES_PER_BATCH,
             use_dropout=False, verbose=True
         )
+
+    if quantile_levels is not None and not use_quantiles:
+        prediction_dict = {
+            prediction_io.PROBABILITY_MATRIX_KEY: forecast_probability_matrix,
+            prediction_io.QUANTILE_LEVELS_KEY: quantile_levels
+        }
+        forecast_probability_matrix = prediction_io.get_mean_predictions(
+            prediction_dict
+        )
+        quantile_levels_to_write = None
+    else:
+        quantile_levels_to_write = quantile_levels
 
     these_percentiles = numpy.array(
         [50, 75, 90, 95, 96, 97, 98, 99, 100], dtype=float
@@ -171,7 +192,8 @@ def _apply_to_full_grid_one_day(
         valid_times_unix_sec=data_dict[neural_net.VALID_TIMES_KEY],
         latitudes_deg_n=data_dict[neural_net.LATITUDES_KEY],
         longitudes_deg_e=data_dict[neural_net.LONGITUDES_KEY],
-        model_file_name=model_file_name, quantile_levels=quantile_levels
+        model_file_name=model_file_name,
+        quantile_levels=quantile_levels_to_write
     )
 
     prediction_io.compress_file(output_file_name)
@@ -179,13 +201,15 @@ def _apply_to_full_grid_one_day(
 
 
 def _apply_to_partial_grids_one_day(
-        model_object, base_option_dict, quantile_levels, valid_date_string,
-        model_file_name, num_dropout_iterations, top_output_dir_name):
+        model_object, base_option_dict, quantile_levels, use_quantiles,
+        valid_date_string, model_file_name, num_dropout_iterations,
+        top_output_dir_name):
     """Applies trained neural net to partial grids for one day.
 
     :param model_object: See doc for `_apply_to_full_grid_one_day`.
     :param base_option_dict: Same.
     :param quantile_levels: Same.
+    :param use_quantiles: Same.
     :param valid_date_string: Same.
     :param model_file_name: Same.
     :param num_dropout_iterations: See documentation at top of file.
@@ -198,13 +222,13 @@ def _apply_to_partial_grids_one_day(
     data_dicts = neural_net.create_data_partial_grids(
         option_dict=option_dict, return_coords=True
     )
-
     if data_dicts is None:
         return
 
-    num_radars = len(data_dicts)
     if quantile_levels is not None:
         num_dropout_iterations = 0
+
+    num_radars = len(data_dicts)
 
     if num_dropout_iterations > 1:
         for k in range(num_radars):
@@ -272,6 +296,19 @@ def _apply_to_partial_grids_one_day(
             use_dropout=num_dropout_iterations > 0, verbose=True
         )
 
+        if quantile_levels is not None and not use_quantiles:
+            prediction_dict = {
+                prediction_io.PROBABILITY_MATRIX_KEY:
+                    forecast_probability_matrix,
+                prediction_io.QUANTILE_LEVELS_KEY: quantile_levels
+            }
+            forecast_probability_matrix = prediction_io.get_mean_predictions(
+                prediction_dict
+            )
+            quantile_levels_to_write = None
+        else:
+            quantile_levels_to_write = quantile_levels
+
         these_percentiles = numpy.array(
             [0, 50, 75, 90, 95, 96, 97, 98, 99, 100], dtype=float
         )
@@ -295,7 +332,8 @@ def _apply_to_partial_grids_one_day(
             valid_times_unix_sec=data_dicts[k][neural_net.VALID_TIMES_KEY],
             latitudes_deg_n=data_dicts[k][neural_net.LATITUDES_KEY],
             longitudes_deg_e=data_dicts[k][neural_net.LONGITUDES_KEY],
-            model_file_name=model_file_name, quantile_levels=quantile_levels
+            model_file_name=model_file_name,
+            quantile_levels=quantile_levels_to_write
         )
 
         prediction_io.compress_file(output_file_name)
@@ -304,7 +342,8 @@ def _apply_to_partial_grids_one_day(
 
 def _run(model_file_name, top_predictor_dir_name, top_target_dir_name,
          apply_to_full_grids, overlap_size_px, first_valid_date_string,
-         last_valid_date_string, num_dropout_iterations, top_output_dir_name):
+         last_valid_date_string, num_dropout_iterations, use_quantiles,
+         top_output_dir_name):
     """Applies trained neural net in inference mode.
 
     This is effectively the main method.
@@ -317,6 +356,7 @@ def _run(model_file_name, top_predictor_dir_name, top_target_dir_name,
     :param first_valid_date_string: Same.
     :param last_valid_date_string: Same.
     :param num_dropout_iterations: Same.
+    :param use_quantiles: Same.
     :param top_output_dir_name: Same.
     """
 
@@ -358,7 +398,6 @@ def _run(model_file_name, top_predictor_dir_name, top_target_dir_name,
     apply_to_full_grids = apply_to_full_grids or not trained_on_partial_grids
 
     training_option_dict = metadata_dict[neural_net.TRAINING_OPTIONS_KEY]
-
     base_option_dict = {
         neural_net.PREDICTOR_DIRECTORY_KEY: top_predictor_dir_name,
         neural_net.TARGET_DIRECTORY_KEY: top_target_dir_name,
@@ -390,6 +429,7 @@ def _run(model_file_name, top_predictor_dir_name, top_target_dir_name,
             _apply_to_full_grid_one_day(
                 model_object=model_object, base_option_dict=base_option_dict,
                 quantile_levels=metadata_dict[neural_net.QUANTILE_LEVELS_KEY],
+                use_quantiles=use_quantiles,
                 trained_on_partial_grids=trained_on_partial_grids,
                 overlap_size_px=overlap_size_px,
                 valid_date_string=valid_date_strings[i],
@@ -400,6 +440,7 @@ def _run(model_file_name, top_predictor_dir_name, top_target_dir_name,
             _apply_to_partial_grids_one_day(
                 model_object=model_object, base_option_dict=base_option_dict,
                 quantile_levels=metadata_dict[neural_net.QUANTILE_LEVELS_KEY],
+                use_quantiles=use_quantiles,
                 valid_date_string=valid_date_strings[i],
                 model_file_name=model_file_name,
                 num_dropout_iterations=num_dropout_iterations,
@@ -428,5 +469,6 @@ if __name__ == '__main__':
         num_dropout_iterations=getattr(
             INPUT_ARG_OBJECT, NUM_DROPOUT_ITERS_ARG_NAME
         ),
+        use_quantiles=bool(getattr(INPUT_ARG_OBJECT, USE_QUANTILES_ARG_NAME)),
         top_output_dir_name=getattr(INPUT_ARG_OBJECT, OUTPUT_DIR_ARG_NAME)
     )
