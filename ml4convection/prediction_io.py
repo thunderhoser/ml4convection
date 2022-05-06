@@ -14,7 +14,7 @@ THIS_DIRECTORY_NAME = os.path.dirname(os.path.realpath(
 ))
 sys.path.append(os.path.normpath(os.path.join(THIS_DIRECTORY_NAME, '..')))
 
-import general_utils
+import gg_general_utils
 import time_conversion
 import longitude_conversion as lng_conversion
 import file_system_utils
@@ -275,7 +275,7 @@ def write_file(
     error_checking.assert_is_string(model_file_name)
 
     if quantile_levels is not None:
-        expected_dim = numpy.array([num_prediction_sets], dtype=int)
+        expected_dim = numpy.array([num_prediction_sets - 1], dtype=int)
         error_checking.assert_is_numpy_array(
             quantile_levels, exact_dimensions=expected_dim
         )
@@ -335,7 +335,7 @@ def write_file(
     if quantile_levels is not None:
         dataset_object.createVariable(
             QUANTILE_LEVELS_KEY, datatype=numpy.float32,
-            dimensions=PREDICTION_SET_DIMENSION_KEY
+            dimensions=QUANTILE_DIMENSION_KEY
         )
         dataset_object.variables[QUANTILE_LEVELS_KEY][:] = quantile_levels
 
@@ -501,9 +501,11 @@ def smooth_probabilities(prediction_dict, smoothing_radius_px):
 
     for i in range(num_times):
         for j in range(num_prediction_sets):
-            probability_matrix[i, ..., j] = general_utils.apply_gaussian_filter(
-                input_matrix=probability_matrix[i, ..., j],
-                e_folding_radius_grid_cells=smoothing_radius_px
+            probability_matrix[i, ..., j] = (
+                gg_general_utils.apply_gaussian_filter(
+                    input_matrix=probability_matrix[i, ..., j],
+                    e_folding_radius_grid_cells=smoothing_radius_px
+                )
             )
 
     prediction_dict[PROBABILITY_MATRIX_KEY] = probability_matrix
@@ -535,13 +537,13 @@ def get_mean_predictions(prediction_dict):
     if quantile_levels is None:
         return numpy.mean(prediction_dict[PROBABILITY_MATRIX_KEY], axis=-1)
 
-    first_quartile_index = numpy.where(
+    first_quartile_index = 1 + numpy.where(
         numpy.absolute(quantile_levels - 0.25) <= TOLERANCE
     )[0][0]
-    median_index = numpy.where(
+    median_index = 1 + numpy.where(
         numpy.absolute(quantile_levels - 0.5) <= TOLERANCE
     )[0][0]
-    third_quartile_index = numpy.where(
+    third_quartile_index = 1 + numpy.where(
         numpy.absolute(quantile_levels - 0.75) <= TOLERANCE
     )[0][0]
 
@@ -593,10 +595,10 @@ def get_predictive_stdevs(prediction_dict, assume_large_sample_size=True):
             prediction_dict[PROBABILITY_MATRIX_KEY], axis=-1, ddof=1
         )
 
-    first_quartile_index = numpy.where(
+    first_quartile_index = 1 + numpy.where(
         numpy.absolute(quantile_levels - 0.25) <= TOLERANCE
     )[0][0]
-    third_quartile_index = numpy.where(
+    third_quartile_index = 1 + numpy.where(
         numpy.absolute(quantile_levels - 0.75) <= TOLERANCE
     )[0][0]
 
@@ -656,7 +658,7 @@ def get_median_predictions(prediction_dict):
     if quantile_levels is None:
         return numpy.median(prediction_dict[PROBABILITY_MATRIX_KEY], axis=-1)
 
-    median_index = numpy.where(
+    median_index = 1 + numpy.where(
         numpy.absolute(quantile_levels - 0.5) <= TOLERANCE
     )[0][0]
 
