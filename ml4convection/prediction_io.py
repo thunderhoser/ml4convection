@@ -234,6 +234,9 @@ def write_file(
     error_checking.assert_is_geq_numpy_array(target_matrix, 0)
     error_checking.assert_is_leq_numpy_array(target_matrix, 1)
 
+    print(forecast_probability_matrix.shape)
+    print(target_matrix.shape)
+
     error_checking.assert_is_numpy_array(forecast_probability_matrix)
     if len(forecast_probability_matrix.shape) == 3:
         forecast_probability_matrix = numpy.expand_dims(
