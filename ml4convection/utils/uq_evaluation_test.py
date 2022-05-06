@@ -94,6 +94,11 @@ THIS_PROB_MATRIX[6, ...] = numpy.linspace(
 )
 THIS_PROB_MATRIX[7, ...] = numpy.linspace(0, 1, num=101, dtype=float)
 
+NEW_PROB_MATRIX = numpy.full((8, 205, 205, 1), numpy.nan)
+THIS_PROB_MATRIX = numpy.concatenate(
+    (NEW_PROB_MATRIX, THIS_PROB_MATRIX), axis=-1
+)
+
 THIS_TARGET_MATRIX = numpy.full((8, 205, 205), 1, dtype=int)
 THIS_TARGET_MATRIX[4:8, ...] = 0
 

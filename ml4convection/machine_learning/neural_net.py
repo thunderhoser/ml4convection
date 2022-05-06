@@ -2650,8 +2650,14 @@ def apply_model_full_grid(
 
         if isinstance(these_predictions, list):
             this_prob_matrix = numpy.stack(these_predictions, axis=-1)
+
+            if len(this_prob_matrix.shape) == 5:
+                this_prob_matrix = this_prob_matrix[..., 0, :]
         else:
             this_prob_matrix = these_predictions + 0.
+
+            if len(this_prob_matrix.shape) == 4:
+                this_prob_matrix = this_prob_matrix[..., 0]
 
         if forecast_prob_matrix is None:
             dimensions = (num_examples,) + this_prob_matrix.shape[1:]
@@ -2805,8 +2811,14 @@ def apply_model_partial_grids(
 
             if isinstance(these_predictions, list):
                 this_prob_matrix = numpy.stack(these_predictions, axis=-1)
+
+                if len(this_prob_matrix.shape) == 5:
+                    this_prob_matrix = this_prob_matrix[..., 0, :]
             else:
                 this_prob_matrix = these_predictions + 0.
+
+                if len(this_prob_matrix.shape) == 4:
+                    this_prob_matrix = this_prob_matrix[..., 0]
 
             this_prob_matrix = numpy.maximum(this_prob_matrix, 0.)
             this_prob_matrix = numpy.minimum(this_prob_matrix, 1.)

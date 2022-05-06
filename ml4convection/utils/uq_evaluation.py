@@ -177,7 +177,7 @@ def _get_crps_quantile_regression_1batch(
                 # monotonically with quantile level, but this assumption should
                 # hold, given the way I set up the model architecture.
                 interp_object = interp1d(
-                    x=forecast_prob_matrix[i, j, k, :],
+                    x=forecast_prob_matrix[i, j, k, 1:],
                     y=prediction_dict[prediction_io.QUANTILE_LEVELS_KEY],
                     kind='linear', bounds_error=False, assume_sorted=True,
                     fill_value='extrapolate'
