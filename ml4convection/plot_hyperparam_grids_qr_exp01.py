@@ -117,6 +117,10 @@ def _plot_scores_2d(
         `matplotlib.axes._subplots.AxesSubplot`).
     """
 
+    if numpy.isnan(min_colour_value) or numpy.isnan(max_colour_value):
+        min_colour_value = 0.
+        max_colour_value = 1.
+
     figure_object, axes_object = pyplot.subplots(
         1, 1, figsize=(FIGURE_WIDTH_INCHES, FIGURE_HEIGHT_INCHES)
     )
@@ -262,12 +266,13 @@ def _run(experiment_dir_name, matching_distance_px, output_dir_name):
                 matching_distance_px
             )
 
-            print('Reading data from: "{0:s}"...'.format(
-                this_score_file_name
-            ))
-            ss_reliability_matrix[i, j] = uq_evaluation.read_spread_vs_skill(
-                this_score_file_name
-            )[uq_evaluation.SPREAD_SKILL_QUALITY_SCORE_KEY]
+            if os.path.isfile(this_score_file_name):
+                print('Reading data from: "{0:s}"...'.format(
+                    this_score_file_name
+                ))
+                ss_reliability_matrix[i, j] = uq_evaluation.read_spread_vs_skill(
+                    this_score_file_name
+                )[uq_evaluation.SPREAD_SKILL_QUALITY_SCORE_KEY]
 
             this_score_file_name = (
                 '{0:s}/fss-weight={1:04.1f}_num-quantile-levels={2:03d}/'
@@ -278,14 +283,15 @@ def _run(experiment_dir_name, matching_distance_px, output_dir_name):
                 matching_distance_px
             )
 
-            print('Reading data from: "{0:s}"...'.format(
-                this_score_file_name
-            ))
-            monotonicity_fraction_matrix[i, j] = (
-                uq_evaluation.read_discard_results(this_score_file_name)[
-                    uq_evaluation.MONOTONICITY_FRACTION_KEY
-                ]
-            )
+            if os.path.isfile(this_score_file_name):
+                print('Reading data from: "{0:s}"...'.format(
+                    this_score_file_name
+                ))
+                monotonicity_fraction_matrix[i, j] = (
+                    uq_evaluation.read_discard_results(this_score_file_name)[
+                        uq_evaluation.MONOTONICITY_FRACTION_KEY
+                    ]
+                )
 
     print(SEPARATOR_STRING)
 
