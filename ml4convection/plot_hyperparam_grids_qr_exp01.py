@@ -221,7 +221,7 @@ def _run(experiment_dir_name, matching_distance_px, output_dir_name):
     for i in range(num_fss_weights):
         for j in range(num_quantile_level_counts):
             this_score_file_name = (
-                '{0:s}/fss-weight={1:04.1f}_num-quantile-levels={2:03d}_'
+                '{0:s}/fss-weight={1:04.1f}_num-quantile-levels={2:03d}/'
                 'validation_sans_uq/partial_grids/evaluation/'
                 'matching_distance_px={3:.6f}/advanced_scores_gridded=0.p'
             ).format(
@@ -254,7 +254,7 @@ def _run(experiment_dir_name, matching_distance_px, output_dir_name):
             )
 
             this_score_file_name = (
-                '{0:s}/fss-weight={1:04.1f}_num-quantile-levels={2:03d}_'
+                '{0:s}/fss-weight={1:04.1f}_num-quantile-levels={2:03d}/'
                 'validation_with_uq/partial_grids/evaluation/'
                 'spread_vs_skill_matching-distance-px={3:.6f}.nc'
             ).format(
@@ -270,7 +270,7 @@ def _run(experiment_dir_name, matching_distance_px, output_dir_name):
             )[uq_evaluation.SPREAD_SKILL_QUALITY_SCORE_KEY]
 
             this_score_file_name = (
-                '{0:s}/fss-weight={1:04.1f}_num-quantile-levels={2:03d}_'
+                '{0:s}/fss-weight={1:04.1f}_num-quantile-levels={2:03d}/'
                 'validation_with_uq/partial_grids/evaluation/xentropy/'
                 'discard_test_matching-distance-px={3:.6f}.nc'
             ).format(
