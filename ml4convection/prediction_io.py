@@ -516,7 +516,7 @@ def smooth_probabilities(prediction_dict, smoothing_radius_px):
     return prediction_dict
 
 
-def get_mean_predictions(prediction_dict):
+def get_mean_predictions(prediction_dict, use_quantiles=False):
     """Computes mean of predictive distribution for each scalar example.
 
     One scalar example = one grid point at one time step.
@@ -529,9 +529,13 @@ def get_mean_predictions(prediction_dict):
     https://doi.org/10.1186/1471-2288-14-135
 
     :param prediction_dict: Dictionary returned by `read_file`.
+    :param use_quantiles: Boolean flag.  If True, will use quantiles to compute
+        mean.  If False, will use first output channel to compute mean.
     :return: mean_prob_matrix: E-by-M-by-N numpy array of mean forecast
         probabilities.
     """
+
+    error_checking.assert_is_boolean(use_quantiles)
 
     if QUANTILE_LEVELS_KEY in prediction_dict:
         quantile_levels = prediction_dict[QUANTILE_LEVELS_KEY]
@@ -540,6 +544,9 @@ def get_mean_predictions(prediction_dict):
 
     if quantile_levels is None:
         return numpy.mean(prediction_dict[PROBABILITY_MATRIX_KEY], axis=-1)
+
+    if not use_quantiles:
+        return prediction_dict[PROBABILITY_MATRIX_KEY][..., 0]
 
     first_quartile_index = 1 + numpy.where(
         numpy.absolute(quantile_levels - 0.25) <= TOLERANCE
