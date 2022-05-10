@@ -66,12 +66,14 @@ def _run(input_file_name, output_file_name):
     half_window_size_px = int(numpy.round(
         result_dict[uq_evaluation.HALF_WINDOW_SIZE_KEY]
     ))
-    title_string = (
-        'SS plot for {0:d}-by-{0:d} neigh; SS quality = {1:.2g}'
-    ).format(
-        2 * half_window_size_px + 1,
-        result_dict[uq_evaluation.SPREAD_SKILL_QUALITY_SCORE_KEY]
-    )
+    # title_string = (
+    #     'SS plot for {0:d}-by-{0:d} neigh; SS quality = {1:.2g}'
+    # ).format(
+    #     2 * half_window_size_px + 1,
+    #     result_dict[uq_evaluation.SPREAD_SKILL_QUALITY_SCORE_KEY]
+    # )
+
+    title_string = 'Spread-skill plot'
     print(title_string)
     axes_object.set_title(title_string)
 
