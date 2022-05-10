@@ -281,22 +281,22 @@ def plot_spread_vs_skill(
     # )
     # inset_axes_object.set_xlabel('Spread', fontsize=INSET_FONT_SIZE)
 
-    inset_axes_object = _plot_means_as_inset(
-        figure_object=figure_object, bin_centers=mean_prediction_stdevs,
-        bin_mean_predictions=
-        result_dict[uq_evaluation.MEAN_CENTRAL_PREDICTIONS_KEY],
-        bin_mean_target_values=result_dict[uq_evaluation.MEAN_TARGET_VALUES_KEY]
-    )
-
-    inset_axes_object.set_xticks(axes_object.get_xticks())
-    inset_axes_object.set_xlim(axes_object.get_xlim())
-
-    title_string = (
-        'Mean target ({0:s}) & pred\n({1:s}) in each bin'
-    ).format(MEAN_TARGET_COLOUR_STRING, MEAN_PREDICTION_COLOUR_STRING)
-
-    inset_axes_object.set_title(title_string, fontsize=INSET_FONT_SIZE)
-    inset_axes_object.set_xlabel('Spread', fontsize=INSET_FONT_SIZE)
+    # inset_axes_object = _plot_means_as_inset(
+    #     figure_object=figure_object, bin_centers=mean_prediction_stdevs,
+    #     bin_mean_predictions=
+    #     result_dict[uq_evaluation.MEAN_CENTRAL_PREDICTIONS_KEY],
+    #     bin_mean_target_values=result_dict[uq_evaluation.MEAN_TARGET_VALUES_KEY]
+    # )
+    #
+    # inset_axes_object.set_xticks(axes_object.get_xticks())
+    # inset_axes_object.set_xlim(axes_object.get_xlim())
+    #
+    # title_string = (
+    #     'Mean target ({0:s}) & pred\n({1:s}) in each bin'
+    # ).format(MEAN_TARGET_COLOUR_STRING, MEAN_PREDICTION_COLOUR_STRING)
+    #
+    # inset_axes_object.set_title(title_string, fontsize=INSET_FONT_SIZE)
+    # inset_axes_object.set_xlabel('Spread', fontsize=INSET_FONT_SIZE)
 
     return figure_object, axes_object
 
