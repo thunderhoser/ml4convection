@@ -217,33 +217,35 @@ def _run(advanced_score_file_name, best_prob_threshold, confidence_level,
         min_value_to_plot=0., max_value_to_plot=1.
     )
 
-    axes_object.set_title('Attributes diagram')
-
-    # annotation_string = (
-    #     'Brier score = {0:.2g}\n'
-    #     'Brier skill score = {1:.2g}\n'
-    #     'Reliability = {2:.2g}\n'
-    #     'Resolution = {3:.2g}'
-    # ).format(
-    #     a[evaluation.BRIER_SCORE_KEY].values[0],
-    #     a[evaluation.BRIER_SKILL_SCORE_KEY].values[0],
-    #     a[evaluation.RELIABILITY_KEY].values[0],
-    #     a[evaluation.RESOLUTION_KEY].values[0]
-    # )
+    axes_object.set_title('Attributes diagram for classification')
 
     annotation_string = (
         'Brier score = {0:.2g}\n'
-        'Brier skill score = {1:.2g}'
+        'Brier skill score = {1:.2g}\n'
+        'Reliability = {2:.2g}\n'
+        'Resolution = {3:.2g}'
     ).format(
-        numpy.nanmean(a[evaluation.BRIER_SCORE_KEY].values),
-        numpy.nanmean(a[evaluation.BRIER_SKILL_SCORE_KEY].values)
+        a[evaluation.BRIER_SCORE_KEY].values[0],
+        a[evaluation.BRIER_SKILL_SCORE_KEY].values[0],
+        a[evaluation.RELIABILITY_KEY].values[0],
+        a[evaluation.RESOLUTION_KEY].values[0]
     )
 
-    axes_object.text(
-        0.98, 0.02, annotation_string, bbox=BOUNDING_BOX_DICT, color='k',
-        horizontalalignment='right', verticalalignment='bottom',
-        transform=axes_object.transAxes
-    )
+    print(annotation_string)
+
+    # annotation_string = (
+    #     'Brier score = {0:.2g}\n'
+    #     'Brier skill score = {1:.2g}'
+    # ).format(
+    #     numpy.nanmean(a[evaluation.BRIER_SCORE_KEY].values),
+    #     numpy.nanmean(a[evaluation.BRIER_SKILL_SCORE_KEY].values)
+    # )
+    #
+    # axes_object.text(
+    #     0.98, 0.02, annotation_string, bbox=BOUNDING_BOX_DICT, color='k',
+    #     horizontalalignment='right', verticalalignment='bottom',
+    #     transform=axes_object.transAxes
+    # )
 
     figure_file_name = '{0:s}/attributes_diagram.jpg'.format(output_dir_name)
     print('Saving figure to: "{0:s}"...'.format(figure_file_name))
