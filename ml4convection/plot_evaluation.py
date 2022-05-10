@@ -213,7 +213,7 @@ def _run(advanced_score_file_name, best_prob_threshold, confidence_level,
         mean_observation_matrix=a[evaluation.BINNED_EVENT_FREQS_KEY].values,
         example_counts=a[evaluation.BINNED_NUM_EXAMPLES_KEY].values,
         mean_value_in_training=a[evaluation.TRAINING_EVENT_FREQ_KEY].values[0],
-        confidence_level=confidence_level,
+        confidence_level=None,
         min_value_to_plot=0., max_value_to_plot=1.
     )
 
