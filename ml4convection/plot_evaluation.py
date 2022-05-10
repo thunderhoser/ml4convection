@@ -225,10 +225,10 @@ def _run(advanced_score_file_name, best_prob_threshold, confidence_level,
         'Reliability = {2:.2g}\n'
         'Resolution = {3:.2g}'
     ).format(
-        a[evaluation.BRIER_SCORE_KEY].values[0],
-        a[evaluation.BRIER_SKILL_SCORE_KEY].values[0],
-        a[evaluation.RELIABILITY_KEY].values[0],
-        a[evaluation.RESOLUTION_KEY].values[0]
+        numpy.nanmean(a[evaluation.BRIER_SCORE_KEY].values[0]),
+        numpy.nanmean(a[evaluation.BRIER_SKILL_SCORE_KEY].values[0]),
+        numpy.nanmean(a[evaluation.RELIABILITY_KEY].values[0]),
+        numpy.nanmean(a[evaluation.RESOLUTION_KEY].values[0])
     )
 
     print(annotation_string)
