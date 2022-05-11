@@ -1,6 +1,6 @@
 #!/bin/tcsh
 
-#SBATCH --job-name="run_discard_test_no_quantiles"
+#SBATCH --job-name="run_discard_test_with_quantiles"
 #SBATCH --partition="fge"
 #SBATCH --account="rda-ghpcs"
 #SBATCH --qos="batch"
@@ -18,7 +18,7 @@
 ##SBATCH --exclude=h29n01,h26n05,h28n06,h29n07,h30n03,h30n15
 #SBATCH --mail-type=BEGIN,END,FAIL
 #SBATCH --mail-user=ryan.lagerquist@noaa.gov
-#SBATCH --output=run_discard_test_no_quantiles_%A_%a.out
+#SBATCH --output=run_discard_test_with_quantiles_%A_%a.out
 
 module load cuda/10.1
 source /scratch2/BMC/gsd-hpcs/Jebb.Q.Stewart/conda3.7/etc/profile.d/conda.csh
