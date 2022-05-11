@@ -18,6 +18,7 @@ FIRST_DATE_ARG_NAME = 'first_date_string'
 LAST_DATE_ARG_NAME = 'last_date_string'
 TIME_INTERVAL_ARG_NAME = 'time_interval_steps'
 MATCHING_DISTANCES_ARG_NAME = 'matching_distances_px'
+USE_QUANTILES_ARG_NAME = 'use_quantiles_for_mean_prediction'
 BIN_EDGES_ARG_NAME = 'bin_edge_prediction_stdevs'
 OUTPUT_DIR_ARG_NAME = 'output_dir_name'
 
@@ -37,6 +38,10 @@ TIME_INTERVAL_HELP_STRING = (
 MATCHING_DISTANCES_HELP_STRING = (
     'List of half-widths (pixels) for mean-smoother used in evaluation.  The '
     'spread-skill plot will be computed once for each half-width.'
+)
+USE_QUANTILES_HELP_STRING = (
+    'Boolean flag.  If 1 (0), will use quantile-based estimates (first output '
+    'node) to compute each mean prediction.'
 )
 BIN_EDGES_HELP_STRING = (
     'List of bin cutoffs -- ranging from (0, 1) -- each a standard deviation '
@@ -68,6 +73,10 @@ INPUT_ARG_PARSER.add_argument(
     help=MATCHING_DISTANCES_HELP_STRING
 )
 INPUT_ARG_PARSER.add_argument(
+    '--' + USE_QUANTILES_ARG_NAME, type=int, required=False, default=0,
+    help=USE_QUANTILES_HELP_STRING
+)
+INPUT_ARG_PARSER.add_argument(
         '--' + BIN_EDGES_ARG_NAME, type=float, nargs='+', required=True,
     help=BIN_EDGES_HELP_STRING
 )
@@ -78,7 +87,8 @@ INPUT_ARG_PARSER.add_argument(
 
 
 def _run(top_prediction_dir_name, first_date_string, last_date_string,
-         time_interval_steps, matching_distances_px, bin_edge_prediction_stdevs,
+         time_interval_steps, matching_distances_px,
+         use_quantiles_for_mean_prediction, bin_edge_prediction_stdevs,
          output_dir_name):
     """Runs discard test to determine quality of uncertainty estimates.
 
@@ -89,6 +99,7 @@ def _run(top_prediction_dir_name, first_date_string, last_date_string,
     :param last_date_string: Same.
     :param time_interval_steps: Same.
     :param matching_distances_px: Same.
+    :param use_quantiles_for_mean_prediction: Same.
     :param bin_edge_prediction_stdevs: Same.
     :param output_dir_name: Same.
     """
@@ -182,7 +193,8 @@ def _run(top_prediction_dir_name, first_date_string, last_date_string,
             bin_edge_prediction_stdevs=bin_edge_prediction_stdevs + 0.,
             half_window_size_px=this_matching_distance_px,
             eval_mask_matrix=copy.deepcopy(eval_mask_matrix),
-            use_median=False
+            use_median=False,
+            use_quantiles_for_central_pred=use_quantiles_for_mean_prediction
         )
 
         output_file_name = (
@@ -192,7 +204,8 @@ def _run(top_prediction_dir_name, first_date_string, last_date_string,
         print('Writing results to: "{0:s}"...'.format(output_file_name))
         uq_evaluation.write_spread_vs_skill(
             netcdf_file_name=output_file_name, result_dict=result_dict,
-            half_window_size_px=this_matching_distance_px, use_median=False
+            half_window_size_px=this_matching_distance_px, use_median=False,
+            use_quantiles_for_central_pred=use_quantiles_for_mean_prediction
         )
 
 
@@ -209,6 +222,9 @@ if __name__ == '__main__':
         ),
         bin_edge_prediction_stdevs=numpy.array(
             getattr(INPUT_ARG_OBJECT, BIN_EDGES_ARG_NAME), dtype=float
+        ),
+        use_quantiles_for_mean_prediction=bool(
+            getattr(INPUT_ARG_OBJECT, USE_QUANTILES_ARG_NAME)
         ),
         output_dir_name=getattr(INPUT_ARG_OBJECT, OUTPUT_DIR_ARG_NAME)
     )
