@@ -67,6 +67,7 @@ FIGURE_RESOLUTION_DPI = 300
 
 EXPERIMENT_DIR_ARG_NAME = 'experiment_dir_name'
 MATCHING_DISTANCE_ARG_NAME = 'matching_distance_px'
+USE_QUANTILES_ARG_NAME = 'use_quantiles_for_mean_in_uq'
 OUTPUT_DIR_ARG_NAME = 'output_dir_name'
 
 EXPERIMENT_DIR_HELP_STRING = (
@@ -76,6 +77,10 @@ EXPERIMENT_DIR_HELP_STRING = (
 MATCHING_DISTANCE_HELP_STRING = (
     'Matching distance for neighbourhood evaluation (pixels).  Will plot scores'
     ' at this matching distance.'
+)
+USE_QUANTILES_HELP_STRING = (
+    'Boolean flag.  If 1 (0), will evaluate uncertainty estimates with '
+    'quantile-based (single-channel-based) mean predictions.'
 )
 OUTPUT_DIR_HELP_STRING = (
     'Name of output directory.  Figures will be saved here.'
@@ -89,6 +94,10 @@ INPUT_ARG_PARSER.add_argument(
 INPUT_ARG_PARSER.add_argument(
     '--' + MATCHING_DISTANCE_ARG_NAME, type=float, required=True,
     help=MATCHING_DISTANCE_HELP_STRING
+)
+INPUT_ARG_PARSER.add_argument(
+    '--' + USE_QUANTILES_ARG_NAME, type=int, required=True,
+    help=USE_QUANTILES_HELP_STRING
 )
 INPUT_ARG_PARSER.add_argument(
     '--' + OUTPUT_DIR_ARG_NAME, type=str, required=True,
@@ -191,13 +200,15 @@ def _print_ranking_one_score(score_matrix, score_name):
         ))
 
 
-def _run(experiment_dir_name, matching_distance_px, output_dir_name):
+def _run(experiment_dir_name, matching_distance_px,
+         use_quantiles_for_mean_in_uq, output_dir_name):
     """Plots evaluation scores vs. hyperparameters for QR Experiment 1.
 
     This is effectively the main method.
 
     :param experiment_dir_name: See documentation at top of file.
     :param matching_distance_px: Same.
+    :param use_quantiles_for_mean_in_uq: Same.
     :param output_dir_name: Same.
     """
 
@@ -259,10 +270,14 @@ def _run(experiment_dir_name, matching_distance_px, output_dir_name):
 
             this_score_file_name = (
                 '{0:s}/fss-weight={1:04.1f}_num-quantile-levels={2:03d}/'
-                'validation_with_uq/partial_grids/evaluation/'
-                'spread_vs_skill_matching-distance-px={3:.6f}.nc'
+                'validation_with_uq/partial_grids/'
+                'evaluation_use-quantiles-for-central-pred={3:d}/'
+                'spread_vs_skill_matching-distance-px={4:.6f}.nc'
             ).format(
-                experiment_dir_name, FSS_WEIGHTS[i], QUANTILE_LEVEL_COUNTS[j],
+                experiment_dir_name,
+                FSS_WEIGHTS[i],
+                QUANTILE_LEVEL_COUNTS[j],
+                int(use_quantiles_for_mean_in_uq),
                 matching_distance_px
             )
 
@@ -276,10 +291,14 @@ def _run(experiment_dir_name, matching_distance_px, output_dir_name):
 
             this_score_file_name = (
                 '{0:s}/fss-weight={1:04.1f}_num-quantile-levels={2:03d}/'
-                'validation_with_uq/partial_grids/evaluation/xentropy/'
-                'discard_test_matching-distance-px={3:.6f}.nc'
+                'validation_with_uq/partial_grids/'
+                'evaluation_use-quantiles-for-central-pred={3:d}/'
+                'discard_test_matching-distance-px={4:.6f}.nc'
             ).format(
-                experiment_dir_name, FSS_WEIGHTS[i], QUANTILE_LEVEL_COUNTS[j],
+                experiment_dir_name,
+                FSS_WEIGHTS[i],
+                QUANTILE_LEVEL_COUNTS[j],
+                int(use_quantiles_for_mean_in_uq),
                 matching_distance_px
             )
 
@@ -455,6 +474,9 @@ if __name__ == '__main__':
         experiment_dir_name=getattr(INPUT_ARG_OBJECT, EXPERIMENT_DIR_ARG_NAME),
         matching_distance_px=getattr(
             INPUT_ARG_OBJECT, MATCHING_DISTANCE_ARG_NAME
+        ),
+        use_quantiles_for_mean_in_uq=bool(
+            getattr(INPUT_ARG_OBJECT, USE_QUANTILES_ARG_NAME)
         ),
         output_dir_name=getattr(INPUT_ARG_OBJECT, OUTPUT_DIR_ARG_NAME)
     )
