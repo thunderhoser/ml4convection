@@ -72,7 +72,7 @@ def _get_squared_errors(prediction_dict, half_window_size_px, use_median):
         )
     else:
         forecast_prob_matrix = prediction_io.get_mean_predictions(
-            prediction_dict
+            prediction_dict=prediction_dict, use_quantiles=True
         )
 
     target_matrix = prediction_dict[prediction_io.TARGET_MATRIX_KEY]
@@ -267,7 +267,7 @@ def get_xentropy_error_function(half_window_size_px, use_median):
             )
         else:
             forecast_prob_matrix = prediction_io.get_mean_predictions(
-                prediction_dict
+                prediction_dict=prediction_dict, use_quantiles=True
             )
 
         target_matrix = prediction_dict[prediction_io.TARGET_MATRIX_KEY]
@@ -335,7 +335,7 @@ def get_fss_error_function(half_window_size_px, use_median):
             )
         else:
             forecast_prob_matrix = prediction_io.get_mean_predictions(
-                prediction_dict
+                prediction_dict=prediction_dict, use_quantiles=False
             )
 
         target_matrix = prediction_dict[prediction_io.TARGET_MATRIX_KEY]
@@ -499,7 +499,7 @@ def run_discard_test(
         )
     else:
         central_prediction_matrix = prediction_io.get_mean_predictions(
-            prediction_dict
+            prediction_dict=prediction_dict, use_quantiles=True
         )
 
     discard_fractions = numpy.sort(discard_fractions)
@@ -644,7 +644,7 @@ def get_spread_vs_skill(prediction_dict, bin_edge_prediction_stdevs,
         )
     else:
         central_prediction_matrix = prediction_io.get_mean_predictions(
-            prediction_dict
+            prediction_dict=prediction_dict, use_quantiles=True
         )
 
     prediction_stdev_matrix = prediction_io.get_predictive_stdevs(
