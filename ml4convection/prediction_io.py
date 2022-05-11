@@ -14,7 +14,7 @@ THIS_DIRECTORY_NAME = os.path.dirname(os.path.realpath(
 ))
 sys.path.append(os.path.normpath(os.path.join(THIS_DIRECTORY_NAME, '..')))
 
-import gg_general_utils
+import general_utils
 import time_conversion
 import longitude_conversion as lng_conversion
 import file_system_utils
@@ -505,11 +505,9 @@ def smooth_probabilities(prediction_dict, smoothing_radius_px):
 
     for i in range(num_times):
         for j in range(num_prediction_sets):
-            probability_matrix[i, ..., j] = (
-                gg_general_utils.apply_gaussian_filter(
-                    input_matrix=probability_matrix[i, ..., j],
-                    e_folding_radius_grid_cells=smoothing_radius_px
-                )
+            probability_matrix[i, ..., j] = general_utils.apply_gaussian_filter(
+                input_matrix=probability_matrix[i, ..., j],
+                e_folding_radius_grid_cells=smoothing_radius_px
             )
 
     prediction_dict[PROBABILITY_MATRIX_KEY] = probability_matrix
@@ -547,7 +545,7 @@ def get_mean_predictions(prediction_dict, use_quantiles=False):
         return numpy.mean(prediction_dict[PROBABILITY_MATRIX_KEY], axis=-1)
 
     if not use_quantiles:
-        print('USING CENTRAL-PREDICTION OUTPUT NODE, NOT QUANTILES')
+        print('USING FIRST OUTPUT CHANNELS')
         return prediction_dict[PROBABILITY_MATRIX_KEY][..., 0]
 
     print('USING QUANTILES')
