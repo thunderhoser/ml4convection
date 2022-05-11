@@ -29,7 +29,14 @@ while ($j <= ${#MATCHING_DISTANCES_PX})
     python3 -u "${CODE_DIR_NAME}/plot_hyperparam_grids_qr_exp01.py" \
     --experiment_dir_name="${EXPERIMENT_DIR_NAME}" \
     --matching_distance_px=${MATCHING_DISTANCES_PX[$j]} \
-    --output_dir_name="${EXPERIMENT_DIR_NAME}/matching_distance_px=${MATCHING_DISTANCES_PX[$j]}"
+    --use_quantiles_for_mean_in_uq=0 \
+    --output_dir_name="${EXPERIMENT_DIR_NAME}/matching_distance_px=${MATCHING_DISTANCES_PX[$j]}/use_quantiles_for_mean_in_uq=0"
+    
+    python3 -u "${CODE_DIR_NAME}/plot_hyperparam_grids_qr_exp01.py" \
+    --experiment_dir_name="${EXPERIMENT_DIR_NAME}" \
+    --matching_distance_px=${MATCHING_DISTANCES_PX[$j]} \
+    --use_quantiles_for_mean_in_uq=1 \
+    --output_dir_name="${EXPERIMENT_DIR_NAME}/matching_distance_px=${MATCHING_DISTANCES_PX[$j]}/use_quantiles_for_mean_in_uq=1"
 
     @ j = $j + 1
 end
