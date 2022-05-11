@@ -546,6 +546,7 @@ def get_mean_predictions(prediction_dict, use_quantiles=False):
         return numpy.mean(prediction_dict[PROBABILITY_MATRIX_KEY], axis=-1)
 
     if not use_quantiles:
+        print('USING CENTRAL-PREDICTION OUTPUT NODE, NOT QUANTILES')
         return prediction_dict[PROBABILITY_MATRIX_KEY][..., 0]
 
     first_quartile_index = 1 + numpy.where(
