@@ -160,6 +160,7 @@ def _run(top_prediction_dir_name, first_date_string, last_date_string,
     forecast_prob_matrices = []
     target_matrices = []
     model_file_name = ''
+    quantile_levels = None
 
     for this_file_name in prediction_file_names:
         print('Reading data from: "{0:s}"...'.format(this_file_name))
@@ -181,14 +182,15 @@ def _run(top_prediction_dir_name, first_date_string, last_date_string,
         target_matrices.append(
             prediction_dict[prediction_io.TARGET_MATRIX_KEY]
         )
-
+        quantile_levels = prediction_dict[prediction_io.QUANTILE_LEVELS_KEY]
         model_file_name = prediction_dict[prediction_io.MODEL_FILE_KEY]
 
     prediction_dict = {
         prediction_io.PROBABILITY_MATRIX_KEY:
             numpy.concatenate(forecast_prob_matrices, axis=0),
         prediction_io.TARGET_MATRIX_KEY:
-            numpy.concatenate(target_matrices, axis=0)
+            numpy.concatenate(target_matrices, axis=0),
+        prediction_io.QUANTILE_LEVELS_KEY: quantile_levels
     }
     del forecast_prob_matrices
     del target_matrices
