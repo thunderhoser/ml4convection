@@ -189,6 +189,7 @@ def _run(experiment_dir_name, matching_distance_px, output_dir_name):
 
     ss_quality_score_matrix = numpy.full(dimensions, numpy.nan)
     monotonicity_fraction_matrix = numpy.full(dimensions, numpy.nan)
+    mean_predictive_stdev_matrix = numpy.full(dimensions, numpy.nan)
 
     y_tick_labels = ['{0:.3f}'.format(d) for d in TOP_LEVEL_SKIP_DROPOUT_RATES]
     x_tick_labels = [
@@ -218,9 +219,24 @@ def _run(experiment_dir_name, matching_distance_px, output_dir_name):
                     print('Reading data from: "{0:s}"...'.format(
                         this_file_name
                     ))
-                    ss_quality_score_matrix[i, j, k] = (
-                        uq_evaluation.read_spread_vs_skill(this_file_name)[
-                            uq_evaluation.SPREAD_SKILL_QUALITY_SCORE_KEY
+
+                    result_dict = uq_evaluation.read_spread_vs_skill(
+                        this_file_name
+                    )
+                    ss_quality_score_matrix[i, j, k] = result_dict[
+                        uq_evaluation.SPREAD_SKILL_QUALITY_SCORE_KEY
+                    ]
+                    
+                    non_zero_indices = numpy.where(
+                        result_dict[uq_evaluation.EXAMPLE_COUNTS_KEY] > 0
+                    )[0]
+                    mean_predictive_stdev_matrix[i, j, k] = numpy.average(
+                        result_dict[uq_evaluation.MEAN_PREDICTION_STDEVS_KEY][
+                            non_zero_indices
+                        ],
+                        weights=
+                        result_dict[uq_evaluation.MEAN_PREDICTION_STDEVS_KEY][
+                            non_zero_indices
                         ]
                     )
 
@@ -255,6 +271,12 @@ def _run(experiment_dir_name, matching_distance_px, output_dir_name):
     print(SEPARATOR_STRING)
 
     _print_ranking_one_score(
+        score_matrix=mean_predictive_stdev_matrix,
+        score_name='mean predictive stdev'
+    )
+    print(SEPARATOR_STRING)
+
+    _print_ranking_one_score(
         score_matrix=monotonicity_fraction_matrix,
         score_name='monotonicity fraction'
     )
@@ -262,7 +284,7 @@ def _run(experiment_dir_name, matching_distance_px, output_dir_name):
 
     for k in range(num_output_layer_rates):
 
-        # Plot spread-skill qualtiy score.
+        # Plot spread-skill quality score.
         figure_object, axes_object = _plot_scores_2d(
             score_matrix=ss_quality_score_matrix[..., k],
             min_colour_value=numpy.nanpercentile(ss_quality_score_matrix, 1),
@@ -290,13 +312,41 @@ def _run(experiment_dir_name, matching_distance_px, output_dir_name):
         )
         pyplot.close(figure_object)
 
+        # Plot mean predictive stdev.
+        figure_object, axes_object = _plot_scores_2d(
+            score_matrix=mean_predictive_stdev_matrix[..., k],
+            min_colour_value=
+            numpy.nanpercentile(mean_predictive_stdev_matrix, 1),
+            max_colour_value=
+            numpy.nanpercentile(mean_predictive_stdev_matrix, 99),
+            x_tick_labels=x_tick_labels, y_tick_labels=y_tick_labels,
+            colour_map_object=COLOUR_MAP_OBJECT
+        )
+
+        title_string = (
+            'Mean predictive stdev with output-layer dropout rate = {0:.3f}'
+        ).format(OUTPUT_LAYER_DROPOUT_RATES[k])
+
+        axes_object.set_xlabel(x_axis_label)
+        axes_object.set_ylabel(y_axis_label)
+        axes_object.set_title(title_string)
+
+        figure_file_name = (
+            '{0:s}/mean_predictive_stdev_output-layer-dropout={1:.3f}.jpg'
+        ).format(output_dir_name, OUTPUT_LAYER_DROPOUT_RATES[k])
+
+        print('Saving figure to: "{0:s}"...'.format(figure_file_name))
+        figure_object.savefig(
+            figure_file_name, dpi=FIGURE_RESOLUTION_DPI,
+            pad_inches=0, bbox_inches='tight'
+        )
+        pyplot.close(figure_object)
+
         # Plot monotonicity fraction.
         figure_object, axes_object = _plot_scores_2d(
             score_matrix=monotonicity_fraction_matrix[..., k],
-            min_colour_value=
-            numpy.nanpercentile(monotonicity_fraction_matrix, 1),
-            max_colour_value=
-            numpy.nanpercentile(monotonicity_fraction_matrix, 99),
+            min_colour_value=numpy.nanmin(monotonicity_fraction_matrix),
+            max_colour_value=numpy.nanmax(monotonicity_fraction_matrix),
             x_tick_labels=x_tick_labels, y_tick_labels=y_tick_labels,
             colour_map_object=COLOUR_MAP_OBJECT
         )
