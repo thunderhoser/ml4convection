@@ -543,11 +543,14 @@ def get_mean_predictions(prediction_dict, use_quantiles=False):
         quantile_levels = None
 
     if quantile_levels is None:
+        print('USING ALL OUTPUT CHANNELS')
         return numpy.mean(prediction_dict[PROBABILITY_MATRIX_KEY], axis=-1)
 
     if not use_quantiles:
         print('USING CENTRAL-PREDICTION OUTPUT NODE, NOT QUANTILES')
         return prediction_dict[PROBABILITY_MATRIX_KEY][..., 0]
+
+    print('USING QUANTILES')
 
     first_quartile_index = 1 + numpy.where(
         numpy.absolute(quantile_levels - 0.25) <= TOLERANCE
