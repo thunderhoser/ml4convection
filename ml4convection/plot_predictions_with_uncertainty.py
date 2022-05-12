@@ -115,9 +115,6 @@ def _plot_predictions_one_time(
     :return: output_file_name: Path to output file.
     """
 
-    print('PERCENTILES')
-    print(percentile_levels)
-
     colour_map_object, colour_norm_object = (
         prediction_plotting.get_prob_colour_scheme(
             max_probability=1., make_lowest_prob_grey=True
@@ -501,7 +498,7 @@ if __name__ == '__main__':
             getattr(INPUT_ARG_OBJECT, DAILY_TIMES_ARG_NAME), dtype=int
         ),
         percentile_levels=numpy.array(
-            getattr(INPUT_ARG_OBJECT, DAILY_TIMES_ARG_NAME), dtype=float
+            getattr(INPUT_ARG_OBJECT, PERCENTILE_LEVELS_ARG_NAME), dtype=float
         ),
         output_dir_name=getattr(INPUT_ARG_OBJECT, OUTPUT_DIR_ARG_NAME)
     )
