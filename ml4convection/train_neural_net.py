@@ -126,6 +126,8 @@ def _run(training_predictor_dir_name, training_target_dir_name,
         do_early_stopping=True, plateau_lr_multiplier=plateau_lr_multiplier,
         loss_function_name=metadata_dict[neural_net.LOSS_FUNCTION_KEY],
         quantile_levels=metadata_dict[neural_net.QUANTILE_LEVELS_KEY],
+        qfss_half_window_size_px=
+        metadata_dict[neural_net.QFSS_HALF_WINDOW_SIZE_KEY],
         metric_names=metadata_dict[neural_net.METRIC_NAMES_KEY]
     )
 
