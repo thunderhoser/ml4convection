@@ -132,6 +132,7 @@ EARLY_STOPPING_KEY = 'do_early_stopping'
 PLATEAU_LR_MUTIPLIER_KEY = 'plateau_lr_multiplier'
 LOSS_FUNCTION_KEY = 'loss_function_name'
 QUANTILE_LEVELS_KEY = 'quantile_levels'
+QFSS_HALF_WINDOW_SIZE_KEY = 'qfss_half_window_size_px'
 METRIC_NAMES_KEY = 'metric_names'
 MASK_MATRIX_KEY = 'mask_matrix'
 FULL_MASK_MATRIX_KEY = 'full_mask_matrix'
@@ -140,7 +141,8 @@ METADATA_KEYS = [
     USE_PARTIAL_GRIDS_KEY, NUM_EPOCHS_KEY, NUM_TRAINING_BATCHES_KEY,
     TRAINING_OPTIONS_KEY, NUM_VALIDATION_BATCHES_KEY, VALIDATION_OPTIONS_KEY,
     EARLY_STOPPING_KEY, PLATEAU_LR_MUTIPLIER_KEY, LOSS_FUNCTION_KEY,
-    QUANTILE_LEVELS_KEY, METRIC_NAMES_KEY, MASK_MATRIX_KEY, FULL_MASK_MATRIX_KEY
+    QUANTILE_LEVELS_KEY, QFSS_HALF_WINDOW_SIZE_KEY, METRIC_NAMES_KEY,
+    MASK_MATRIX_KEY, FULL_MASK_MATRIX_KEY
 ]
 
 PREDICTOR_MATRIX_KEY = 'predictor_matrix'
@@ -645,8 +647,8 @@ def _write_metafile(
         num_training_batches_per_epoch,
         training_option_dict, num_validation_batches_per_epoch,
         validation_option_dict, do_early_stopping, plateau_lr_multiplier,
-        loss_function_name, quantile_levels, metric_names, mask_matrix,
-        full_mask_matrix):
+        loss_function_name, quantile_levels, qfss_half_window_size_px,
+        metric_names, mask_matrix, full_mask_matrix):
     """Writes metadata to Dill file.
 
     M = number of rows in prediction grid
@@ -663,10 +665,13 @@ def _write_metafile(
     :param plateau_lr_multiplier: Same.
     :param loss_function_name: Same.
     :param quantile_levels: Same.
+    :param qfss_half_window_size_px: Same.
     :param metric_names: Same.
     :param mask_matrix: Same.
     :param full_mask_matrix: Same.
     """
+
+    # QFSS_HALF_WINDOW_SIZE_KEY = 'qfss_half_window_size_px'
 
     metadata_dict = {
         USE_PARTIAL_GRIDS_KEY: use_partial_grids,
@@ -679,6 +684,7 @@ def _write_metafile(
         PLATEAU_LR_MUTIPLIER_KEY: plateau_lr_multiplier,
         LOSS_FUNCTION_KEY: loss_function_name,
         QUANTILE_LEVELS_KEY: quantile_levels,
+        QFSS_HALF_WINDOW_SIZE_KEY: qfss_half_window_size_px,
         METRIC_NAMES_KEY: metric_names,
         MASK_MATRIX_KEY: mask_matrix,
         FULL_MASK_MATRIX_KEY: full_mask_matrix
@@ -2180,7 +2186,8 @@ def train_model(
         num_training_batches_per_epoch, training_option_dict,
         num_validation_batches_per_epoch, validation_option_dict,
         mask_matrix, full_mask_matrix, loss_function_name, metric_names,
-        quantile_levels=None, do_early_stopping=True,
+        quantile_levels=None, qfss_half_window_size_px=None,
+        do_early_stopping=True,
         plateau_lr_multiplier=DEFAULT_LEARNING_RATE_MULTIPLIER,
         save_every_epoch=False):
     """Trains neural net on either full grid or partial grids.
@@ -2219,7 +2226,12 @@ def train_model(
     :param metric_names: 1-D list of metric names.  Each name must be accepted
         by `metric_name_to_params`.
     :param quantile_levels: 1-D numpy array of quantile levels for quantile
-        regression.  Levels must range from (0, 1).
+        regression.  Levels must range from (0, 1).  If the model is not doing
+        quantile regression, make this None.
+    :param qfss_half_window_size_px:
+        [used only if `quantile_levels is not None`]
+        Half-neighbourhood size (pixels) for quantile-based FSS.  If pixelwise
+        quantile loss is being used instead, make this None.
     :param do_early_stopping: Boolean flag.  If True, will stop training early
         if validation loss has not improved over last several epochs (see
         constants at top of file for what exactly this means).
@@ -2272,13 +2284,18 @@ def train_model(
         for this_metric_name in metric_names:
             _ = metric_name_to_params(this_metric_name)
 
-    if quantile_levels is not None:
+    if quantile_levels is None:
+        qfss_half_window_size_px = None
+    else:
         error_checking.assert_is_numpy_array(quantile_levels, num_dimensions=1)
         error_checking.assert_is_greater_numpy_array(quantile_levels, 0.)
         error_checking.assert_is_less_than_numpy_array(quantile_levels, 1.)
         error_checking.assert_is_greater_numpy_array(
             numpy.diff(quantile_levels), 0.
         )
+
+    if qfss_half_window_size_px is not None:
+        error_checking.assert_is_geq(qfss_half_window_size_px, 0.)
 
     training_option_dict = _check_generator_args(training_option_dict)
 
@@ -2343,6 +2360,7 @@ def train_model(
         do_early_stopping=do_early_stopping,
         plateau_lr_multiplier=plateau_lr_multiplier,
         loss_function_name=loss_function_name, quantile_levels=quantile_levels,
+        qfss_half_window_size_px=qfss_half_window_size_px,
         metric_names=metric_names, mask_matrix=mask_matrix,
         full_mask_matrix=full_mask_matrix
     )
@@ -2388,6 +2406,7 @@ def read_model(hdf5_file_name, for_mirrored_training=False):
     mask_matrix = metadata_dict[MASK_MATRIX_KEY]
     loss_function_name = metadata_dict[LOSS_FUNCTION_KEY]
     quantile_levels = metadata_dict[QUANTILE_LEVELS_KEY]
+    qfss_half_window_size_px = metadata_dict[QFSS_HALF_WINDOW_SIZE_KEY]
     metric_names = metadata_dict[METRIC_NAMES_KEY]
 
     if metric_names is None:
@@ -2411,9 +2430,16 @@ def read_model(hdf5_file_name, for_mirrored_training=False):
         metric_list = []
 
         for k in range(len(quantile_levels)):
-            this_loss_function = custom_losses.quantile_loss(
-                quantile_level=quantile_levels[k], mask_matrix=mask_matrix
-            )
+            if qfss_half_window_size_px is None:
+                this_loss_function = custom_losses.quantile_loss(
+                    quantile_level=quantile_levels[k], mask_matrix=mask_matrix
+                )
+            else:
+                this_loss_function = custom_losses.quantile_based_fss(
+                    quantile_level=quantile_levels[k],
+                    half_window_size_px=qfss_half_window_size_px,
+                    use_as_loss_function=True, mask_matrix=mask_matrix
+                )
 
             loss_dict['quantile_output{0:03d}'.format(k + 1)] = (
                 this_loss_function
@@ -2490,6 +2516,8 @@ def read_metafile(dill_file_name):
     metadata_dict['do_early_stopping']: Same.
     metadata_dict['plateau_lr_multiplier']: Same.
     metadata_dict['loss_function_name']: Same.
+    metadata_dict['quantile_levels']: Same.
+    metadata_dict['qfss_half_window_size_px']: Same.
     metadata_dict['metric_names']: Same.
     metadata_dict['mask_matrix']: Same.
     metadata_dict['full_mask_matrix']: Same.
@@ -2511,9 +2539,10 @@ def read_metafile(dill_file_name):
 
     if METRIC_NAMES_KEY not in metadata_dict:
         metadata_dict[METRIC_NAMES_KEY] = None
-
     if QUANTILE_LEVELS_KEY not in metadata_dict:
         metadata_dict[QUANTILE_LEVELS_KEY] = None
+    if QFSS_HALF_WINDOW_SIZE_KEY not in metadata_dict:
+        metadata_dict[QFSS_HALF_WINDOW_SIZE_KEY] = None
 
     num_grid_points = (
         len(twb_satellite_io.GRID_LATITUDES_DEG_N) *
