@@ -2438,7 +2438,8 @@ def read_model(hdf5_file_name, for_mirrored_training=False):
                 this_loss_function = custom_losses.quantile_based_fss(
                     quantile_level=quantile_levels[k],
                     half_window_size_px=qfss_half_window_size_px,
-                    use_as_loss_function=True, mask_matrix=mask_matrix
+                    use_as_loss_function=True,
+                    mask_matrix=mask_matrix.astype(bool)
                 )
 
             loss_dict['quantile_output{0:03d}'.format(k + 1)] = (
