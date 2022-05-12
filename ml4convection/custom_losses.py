@@ -148,7 +148,7 @@ def quantile_based_fss(
 
         multiplier_tensor = tensorflow.where(
             smoothed_target_tensor > smoothed_prediction_tensor,
-            x=quantile_level, y=1. - quantile_level
+            x=quantile_level, y=1. - quantile_level, dtype=tensorflow.float32
         )
         actual_mse = K.mean(
             multiplier_tensor *
