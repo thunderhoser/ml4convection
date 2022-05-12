@@ -115,6 +115,9 @@ def _plot_predictions_one_time(
     :return: output_file_name: Path to output file.
     """
 
+    print('PERCENTILES')
+    print(percentile_levels)
+
     colour_map_object, colour_norm_object = (
         prediction_plotting.get_prob_colour_scheme(
             max_probability=1., make_lowest_prob_grey=True
