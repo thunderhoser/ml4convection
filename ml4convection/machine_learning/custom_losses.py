@@ -2,6 +2,7 @@
 
 import copy
 import numpy
+import tensorflow
 from tensorflow.keras import backend as K
 from gewittergefahr.gg_utils import error_checking
 from ml4convection.utils import general_utils
@@ -77,6 +78,86 @@ def quantile_loss(quantile_level, mask_matrix):
                 (quantile_level - 1) * (target_tensor - prediction_tensor)
             )
         )
+
+    return loss
+
+
+def quantile_based_fss(
+        quantile_level, half_window_size_px, use_as_loss_function, mask_matrix,
+        function_name=None):
+    """Quantile-based fractions skill score (FSS).
+
+    :param quantile_level: Quantile level.
+    :param half_window_size_px: See doc for `fractions_skill_score`.
+    :param use_as_loss_function: Same.
+    :param mask_matrix: Same.
+    :param function_name: Same.
+    :return: loss: Loss function (defined below).
+    """
+
+    error_checking.assert_is_boolean_numpy_array(mask_matrix)
+    error_checking.assert_is_numpy_array(mask_matrix, num_dimensions=2)
+    error_checking.assert_is_boolean(use_as_loss_function)
+
+    if function_name is not None:
+        error_checking.assert_is_string(function_name)
+
+    weight_matrix = general_utils.create_mean_filter(
+        half_num_rows=half_window_size_px,
+        half_num_columns=half_window_size_px, num_channels=1
+    )
+
+    eroded_mask_matrix = general_utils.erode_binary_matrix(
+        binary_matrix=copy.deepcopy(mask_matrix),
+        buffer_distance_px=half_window_size_px
+    )
+    eroded_mask_matrix = numpy.expand_dims(
+        eroded_mask_matrix.astype(float), axis=(0, -1)
+    )
+
+    def loss(target_tensor, prediction_tensor):
+        """Computes loss (quantile-based FSS).
+
+        :param target_tensor: Tensor of target (actual) values.
+        :param prediction_tensor: Tensor of predicted values.
+        :return: loss: Fractions skill score.
+        """
+
+        smoothed_target_tensor = K.conv2d(
+            x=target_tensor, kernel=weight_matrix,
+            padding='same', strides=(1, 1), data_format='channels_last'
+        )
+
+        smoothed_prediction_tensor = K.conv2d(
+            x=prediction_tensor, kernel=weight_matrix,
+            padding='same', strides=(1, 1), data_format='channels_last'
+        )
+
+        smoothed_target_tensor = smoothed_target_tensor * eroded_mask_matrix
+        smoothed_prediction_tensor = (
+            smoothed_prediction_tensor * eroded_mask_matrix
+        )
+
+        multiplier_tensor = tensorflow.where(
+            smoothed_target_tensor > smoothed_prediction_tensor,
+            x=quantile_level, y=1. - quantile_level
+        )
+        actual_mse = K.mean(
+            multiplier_tensor *
+            (smoothed_target_tensor - smoothed_prediction_tensor) ** 2
+        )
+        reference_mse = K.mean(
+            smoothed_target_tensor ** 2 + smoothed_prediction_tensor ** 2
+        )
+        reference_mse = K.maximum(reference_mse, K.epsilon())
+
+        if use_as_loss_function:
+            return actual_mse / reference_mse
+
+        return 1. - actual_mse / reference_mse
+
+    if function_name is not None:
+        loss.__name__ = function_name
 
     return loss
 
