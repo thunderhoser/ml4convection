@@ -154,10 +154,6 @@ def quantile_based_fss(
             tensorflow.cast(multiplier_tensor, dtype=tensorflow.float32) *
             (smoothed_target_tensor - smoothed_prediction_tensor) ** 2
         )
-        actual_mse = K.mean(
-            multiplier_tensor *
-            (smoothed_target_tensor - smoothed_prediction_tensor) ** 2
-        )
         reference_mse = K.mean(
             smoothed_target_tensor ** 2 + smoothed_prediction_tensor ** 2
         )
