@@ -1,0 +1,52 @@
+#!/bin/tcsh
+
+#SBATCH --job-name="delete_basic_ungridded_scores"
+#SBATCH --partition="fge"
+#SBATCH --account="rda-ghpcs"
+#SBATCH --qos="batch"
+#SBATCH --ntasks=1
+#SBATCH --nodes=1
+#SBATCH --cpus-per-task=1
+##SBATCH --nodes=1
+##SBATCH --ntasks=1
+##SBATCH --cpus-per-task=1
+##SBATCH --ntasks-per-node=1
+#SBATCH --time=01:00:00
+#SBATCH --array=1-90
+#SBATCH --exclude=h28n12
+##SBATCH --exclude=h31n03,h28n12
+##SBATCH --exclude=h29n01,h26n05,h28n06,h29n07,h30n03,h30n15
+#SBATCH --mail-type=BEGIN,END,FAIL
+#SBATCH --mail-user=ryan.lagerquist@noaa.gov
+#SBATCH --output=delete_basic_ungridded_scores_%A_%a.out
+
+module load cuda/10.1
+source /scratch2/BMC/gsd-hpcs/Jebb.Q.Stewart/conda3.7/etc/profile.d/conda.csh
+conda activate base
+
+set CODE_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_standalone/ml4convection"
+set TOP_MODEL_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_models/qfss_experiment01"
+
+set FSS_WEIGHTS=("01.0" "02.0" "03.0" "04.0" "05.0" "06.0" "07.0" "08.0" "09.0" "10.0" "01.0" "02.0" "03.0" "04.0" "05.0" "06.0" "07.0" "08.0" "09.0" "10.0" "01.0" "02.0" "03.0" "04.0" "05.0" "06.0" "07.0" "08.0" "09.0" "10.0" "01.0" "02.0" "03.0" "04.0" "05.0" "06.0" "07.0" "08.0" "09.0" "10.0" "01.0" "02.0" "03.0" "04.0" "05.0" "06.0" "07.0" "08.0" "09.0" "10.0" "01.0" "02.0" "03.0" "04.0" "05.0" "06.0" "07.0" "08.0" "09.0" "10.0" "01.0" "02.0" "03.0" "04.0" "05.0" "06.0" "07.0" "08.0" "09.0" "10.0" "01.0" "02.0" "03.0" "04.0" "05.0" "06.0" "07.0" "08.0" "09.0" "10.0" "01.0" "02.0" "03.0" "04.0" "05.0" "06.0" "07.0" "08.0" "09.0" "10.0")
+set QUANTILE_LEVEL_COUNTS=("101" "101" "101" "101" "101" "101" "101" "101" "101" "101" "053" "053" "053" "053" "053" "053" "053" "053" "053" "053" "038" "038" "038" "038" "038" "038" "038" "038" "038" "038" "030" "030" "030" "030" "030" "030" "030" "030" "030" "030" "026" "026" "026" "026" "026" "026" "026" "026" "026" "026" "022" "022" "022" "022" "022" "022" "022" "022" "022" "022" "019" "019" "019" "019" "019" "019" "019" "019" "019" "019" "018" "018" "018" "018" "018" "018" "018" "018" "018" "018" "017" "017" "017" "017" "017" "017" "017" "017" "017" "017")
+
+set fss_weight=${FSS_WEIGHTS[$SLURM_ARRAY_TASK_ID]}
+set num_quantile_levels=${QUANTILE_LEVEL_COUNTS[$SLURM_ARRAY_TASK_ID]}
+
+set model_dir_name="${TOP_MODEL_DIR_NAME}/fss-weight=${fss_weight}_num-quantile-levels=${num_quantile_levels}"
+
+set MATCHING_DISTANCES_PX=("0.000000" "2.000000" "4.000000")
+set j=1
+
+while ($j <= ${#MATCHING_DISTANCES_PX})
+    set evaluation_dir_name="${model_dir_name}/validation_sans_uq/partial_grids/evaluation/matching_distance_px=${MATCHING_DISTANCES_PX[$j]}"
+    
+    python3 -u "${CODE_DIR_NAME}/delete_basic_scores.py" \
+    --evaluation_dir_name="${evaluation_dir_name}" \
+    --first_date_string="20170101" \
+    --last_date_string="20171224" \
+    --gridded=0 \
+    --use_partial_grids=1
+
+    @ j = $j + 1
+end
