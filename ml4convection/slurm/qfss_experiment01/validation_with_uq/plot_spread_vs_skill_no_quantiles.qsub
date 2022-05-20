@@ -1,0 +1,42 @@
+#!/bin/tcsh
+
+#SBATCH --job-name="plot_spread_vs_skill_no_quantiles"
+#SBATCH --partition="fge"
+#SBATCH --account="rda-ghpcs"
+#SBATCH --qos="batch"
+#SBATCH --ntasks=1
+#SBATCH --nodes=1
+#SBATCH --cpus-per-task=1
+##SBATCH --nodes=1
+##SBATCH --ntasks=1
+##SBATCH --cpus-per-task=1
+##SBATCH --ntasks-per-node=1
+#SBATCH --time=01:00:00
+#SBATCH --array=1-90
+#SBATCH --exclude=h28n12
+##SBATCH --exclude=h31n03,h28n12
+##SBATCH --exclude=h29n01,h26n05,h28n06,h29n07,h30n03,h30n15
+#SBATCH --mail-type=BEGIN,END,FAIL
+#SBATCH --mail-user=ryan.lagerquist@noaa.gov
+#SBATCH --output=plot_spread_vs_skill_no_quantiles_%A_%a.out
+
+module load cuda/10.1
+source /scratch2/BMC/gsd-hpcs/Jebb.Q.Stewart/conda3.7/etc/profile.d/conda.csh
+conda activate base
+
+set CODE_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_standalone/ml4convection"
+set TOP_MODEL_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_models/qfss_experiment01"
+
+set FSS_WEIGHTS=("01.0" "02.0" "03.0" "04.0" "05.0" "06.0" "07.0" "08.0" "09.0" "10.0" "01.0" "02.0" "03.0" "04.0" "05.0" "06.0" "07.0" "08.0" "09.0" "10.0" "01.0" "02.0" "03.0" "04.0" "05.0" "06.0" "07.0" "08.0" "09.0" "10.0" "01.0" "02.0" "03.0" "04.0" "05.0" "06.0" "07.0" "08.0" "09.0" "10.0" "01.0" "02.0" "03.0" "04.0" "05.0" "06.0" "07.0" "08.0" "09.0" "10.0" "01.0" "02.0" "03.0" "04.0" "05.0" "06.0" "07.0" "08.0" "09.0" "10.0" "01.0" "02.0" "03.0" "04.0" "05.0" "06.0" "07.0" "08.0" "09.0" "10.0" "01.0" "02.0" "03.0" "04.0" "05.0" "06.0" "07.0" "08.0" "09.0" "10.0" "01.0" "02.0" "03.0" "04.0" "05.0" "06.0" "07.0" "08.0" "09.0" "10.0")
+set QUANTILE_LEVEL_COUNTS=("101" "101" "101" "101" "101" "101" "101" "101" "101" "101" "053" "053" "053" "053" "053" "053" "053" "053" "053" "053" "038" "038" "038" "038" "038" "038" "038" "038" "038" "038" "030" "030" "030" "030" "030" "030" "030" "030" "030" "030" "026" "026" "026" "026" "026" "026" "026" "026" "026" "026" "022" "022" "022" "022" "022" "022" "022" "022" "022" "022" "019" "019" "019" "019" "019" "019" "019" "019" "019" "019" "018" "018" "018" "018" "018" "018" "018" "018" "018" "018" "017" "017" "017" "017" "017" "017" "017" "017" "017" "017")
+
+set fss_weight=${FSS_WEIGHTS[$SLURM_ARRAY_TASK_ID]}
+set num_quantile_levels=${QUANTILE_LEVEL_COUNTS[$SLURM_ARRAY_TASK_ID]}
+
+set model_dir_name="${TOP_MODEL_DIR_NAME}/fss-weight=${fss_weight}_num-quantile-levels=${num_quantile_levels}"
+set input_file_name="${model_dir_name}/validation_with_uq/partial_grids/evaluation_use-quantiles-for-central-pred=0/spread_vs_skill_matching-distance-px=0.000000.nc"
+set output_file_name="${model_dir_name}/validation_with_uq/partial_grids/evaluation_use-quantiles-for-central-pred=0/spread_vs_skill_matching-distance-px=0.000000.jpg"
+
+python3 -u "${CODE_DIR_NAME}/plot_spread_vs_skill.py" \
+--input_file_name="${input_file_name}" \
+--output_file_name="${output_file_name}"
