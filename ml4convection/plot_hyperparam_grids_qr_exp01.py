@@ -244,29 +244,30 @@ def _run(experiment_dir_name, matching_distance_px,
                 matching_distance_px
             )
 
-            print('Reading data from: "{0:s}"...'.format(
-                this_score_file_name
-            ))
-            t = evaluation.read_advanced_score_file(this_score_file_name)
+            if os.path.isfile(this_score_file_name):
+                print('Reading data from: "{0:s}"...'.format(
+                    this_score_file_name
+                ))
+                t = evaluation.read_advanced_score_file(this_score_file_name)
 
-            aupd_matrix[i, j] = (
-                gg_model_eval.get_area_under_perf_diagram(
-                    pod_by_threshold=numpy.mean(
-                        t[evaluation.POD_KEY].values, axis=0
-                    ),
-                    success_ratio_by_threshold=numpy.mean(
-                        t[evaluation.SUCCESS_RATIO_KEY].values, axis=0
+                aupd_matrix[i, j] = (
+                    gg_model_eval.get_area_under_perf_diagram(
+                        pod_by_threshold=numpy.mean(
+                            t[evaluation.POD_KEY].values, axis=0
+                        ),
+                        success_ratio_by_threshold=numpy.mean(
+                            t[evaluation.SUCCESS_RATIO_KEY].values, axis=0
+                        )
                     )
                 )
-            )
 
-            max_csi_matrix[i, j] = numpy.nanmax(
-                numpy.mean(t[evaluation.CSI_KEY].values, axis=0)
-            )
-            fss_matrix[i, j] = numpy.mean(t[evaluation.FSS_KEY].values)
-            bss_matrix[i, j] = numpy.mean(
-                t[evaluation.BRIER_SKILL_SCORE_KEY].values
-            )
+                max_csi_matrix[i, j] = numpy.nanmax(
+                    numpy.mean(t[evaluation.CSI_KEY].values, axis=0)
+                )
+                fss_matrix[i, j] = numpy.mean(t[evaluation.FSS_KEY].values)
+                bss_matrix[i, j] = numpy.mean(
+                    t[evaluation.BRIER_SKILL_SCORE_KEY].values
+                )
 
             this_score_file_name = (
                 '{0:s}/fss-weight={1:04.1f}_num-quantile-levels={2:03d}/'
