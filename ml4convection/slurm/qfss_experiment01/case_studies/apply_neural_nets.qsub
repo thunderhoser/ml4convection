@@ -1,0 +1,52 @@
+#!/bin/tcsh
+
+#SBATCH --job-name="apply_neural_nets"
+#SBATCH --partition="fge"
+#SBATCH --account="rda-ghpcs"
+#SBATCH --qos="batch"
+#SBATCH --ntasks=1
+#SBATCH --nodes=1
+#SBATCH --cpus-per-task=1
+##SBATCH --nodes=1
+##SBATCH --ntasks=1
+##SBATCH --cpus-per-task=1
+##SBATCH --ntasks-per-node=1
+#SBATCH --time=30:00:00
+#SBATCH --array=1-45
+#SBATCH --exclude=h28n12
+##SBATCH --exclude=h31n03,h28n12
+##SBATCH --exclude=h29n01,h26n05,h28n06,h29n07,h30n03,h30n15
+#SBATCH --mail-type=BEGIN,END,FAIL
+#SBATCH --mail-user=ryan.lagerquist@noaa.gov
+#SBATCH --output=apply_neural_nets_%A_%a.out
+
+module load cuda/10.1
+source /scratch2/BMC/gsd-hpcs/Jebb.Q.Stewart/conda3.7/etc/profile.d/conda.csh
+conda activate base
+
+set CODE_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_standalone/ml4convection"
+set TOP_MODEL_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_models/qfss_experiment01"
+set TOP_PREDICTOR_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_project/predictors/quality_controlled/partial_grids"
+set TOP_TARGET_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_project/targets/new_echo_classification/no_tracking/omit_north_radar/partial_grids"
+
+# set FSS_WEIGHTS=("01.0" "02.0" "03.0" "04.0" "05.0" "06.0" "07.0" "08.0" "09.0" "10.0" "01.0" "02.0" "03.0" "04.0" "05.0" "06.0" "07.0" "08.0" "09.0" "10.0" "01.0" "02.0" "03.0" "04.0" "05.0" "06.0" "07.0" "08.0" "09.0" "10.0" "01.0" "02.0" "03.0" "04.0" "05.0" "06.0" "07.0" "08.0" "09.0" "10.0" "01.0" "02.0" "03.0" "04.0" "05.0" "06.0" "07.0" "08.0" "09.0" "10.0" "01.0" "02.0" "03.0" "04.0" "05.0" "06.0" "07.0" "08.0" "09.0" "10.0" "01.0" "02.0" "03.0" "04.0" "05.0" "06.0" "07.0" "08.0" "09.0" "10.0" "01.0" "02.0" "03.0" "04.0" "05.0" "06.0" "07.0" "08.0" "09.0" "10.0" "01.0" "02.0" "03.0" "04.0" "05.0" "06.0" "07.0" "08.0" "09.0" "10.0")
+# set QUANTILE_LEVEL_COUNTS=("101" "101" "101" "101" "101" "101" "101" "101" "101" "101" "053" "053" "053" "053" "053" "053" "053" "053" "053" "053" "038" "038" "038" "038" "038" "038" "038" "038" "038" "038" "030" "030" "030" "030" "030" "030" "030" "030" "030" "030" "026" "026" "026" "026" "026" "026" "026" "026" "026" "026" "022" "022" "022" "022" "022" "022" "022" "022" "022" "022" "019" "019" "019" "019" "019" "019" "019" "019" "019" "019" "018" "018" "018" "018" "018" "018" "018" "018" "018" "018" "017" "017" "017" "017" "017" "017" "017" "017" "017" "017")
+set DATE_STRINGS=("20170101" "20170101" "20170101" "20170202" "20170202" "20170202" "20170303" "20170303" "20170303" "20170404" "20170404" "20170404" "20170505" "20170505" "20170505" "20170606" "20170606" "20170606" "20170707" "20170707" "20170707" "20170808" "20170808" "20170808" "20170909" "20170909" "20170909" "20171010" "20171010" "20171010" "20171111" "20171111" "20171111" "20171212" "20171212" "20171212" "20180125" "20180125" "20180125" "20180603" "20180603" "20180603" "20180823" "20180823" "20180823")
+
+set fss_weight=${FSS_WEIGHTS[$SLURM_ARRAY_TASK_ID]}
+set num_quantile_levels=${QUANTILE_LEVEL_COUNTS[$SLURM_ARRAY_TASK_ID]}
+set date_string=${DATE_STRINGS[$SLURM_ARRAY_TASK_ID]}
+
+set model_dir_name="${TOP_MODEL_DIR_NAME}/fss-weight=${fss_weight}_num-quantile-levels=${num_quantile_levels}"
+set model_file_name="${model_dir_name}/model.h5"
+set prediction_dir_name="${model_dir_name}/validation_with_dropout/partial_grids"
+
+python3 -u "${CODE_DIR_NAME}/apply_neural_net.py" \
+--input_model_file_name="${model_file_name}" \
+--input_predictor_dir_name="${TOP_PREDICTOR_DIR_NAME}" \
+--input_target_dir_name="${TOP_TARGET_DIR_NAME}" \
+--apply_to_full_grids=0 \
+--first_valid_date_string="${date_string}" \
+--last_valid_date_string="${date_string}" \
+--use_quantiles=1 \
+--output_dir_name="${prediction_dir_name}"
