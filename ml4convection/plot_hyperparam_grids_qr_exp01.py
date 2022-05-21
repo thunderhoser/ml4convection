@@ -250,16 +250,19 @@ def _run(experiment_dir_name, matching_distance_px,
                 ))
                 t = evaluation.read_advanced_score_file(this_score_file_name)
 
-                aupd_matrix[i, j] = (
-                    gg_model_eval.get_area_under_perf_diagram(
-                        pod_by_threshold=numpy.mean(
-                            t[evaluation.POD_KEY].values, axis=0
-                        ),
-                        success_ratio_by_threshold=numpy.mean(
-                            t[evaluation.SUCCESS_RATIO_KEY].values, axis=0
+                try:
+                    aupd_matrix[i, j] = (
+                        gg_model_eval.get_area_under_perf_diagram(
+                            pod_by_threshold=numpy.mean(
+                                t[evaluation.POD_KEY].values, axis=0
+                            ),
+                            success_ratio_by_threshold=numpy.mean(
+                                t[evaluation.SUCCESS_RATIO_KEY].values, axis=0
+                            )
                         )
                     )
-                )
+                except:
+                    pass
 
                 max_csi_matrix[i, j] = numpy.nanmax(
                     numpy.mean(t[evaluation.CSI_KEY].values, axis=0)
