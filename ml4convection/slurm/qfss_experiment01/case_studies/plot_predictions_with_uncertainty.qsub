@@ -36,7 +36,7 @@ set num_quantile_levels=${QUANTILE_LEVEL_COUNTS[$SLURM_ARRAY_TASK_ID]}
 set date_string=${DATE_STRINGS[$SLURM_ARRAY_TASK_ID]}
 
 set model_dir_name="${TOP_MODEL_DIR_NAME}/fss-weight=${fss_weight}_num-quantile-levels=${num_quantile_levels}"
-set prediction_dir_name="${model_dir_name}/validation_with_dropout/partial_grids"
+set prediction_dir_name="${model_dir_name}/validation_with_uq/partial_grids"
 
 python3 -u "${CODE_DIR_NAME}/plot_predictions_with_uncertainty.py" \
 --input_prediction_dir_name="${prediction_dir_name}" \
