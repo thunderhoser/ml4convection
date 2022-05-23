@@ -146,7 +146,8 @@ def _run():
                     loss_function_name=LOSS_FUNCTION_NAME,
                     metric_names=METRIC_NAMES,
                     mask_matrix=partial_mask_matrix,
-                    full_mask_matrix=full_mask_matrix
+                    full_mask_matrix=full_mask_matrix,
+                    quantile_levels=None, qfss_half_window_size_px=None
                 )
 
 
