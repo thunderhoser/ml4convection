@@ -48,12 +48,12 @@ def _run(top_experiment_dir_name):
                 continue
 
             print('Deleting "{0:s}"...'.format(model_file_names[i]))
-            os.remove(model_file_names[i])
+            # os.remove(model_file_names[i])
 
             print('Deleting "{0:s}"...'.format(
                 model_file_names[i].replace('.h5', '')
             ))
-            os.rmdir(model_file_names[i].replace('.h5', ''))
+            # os.rmdir(model_file_names[i].replace('.h5', ''))
 
 
 if __name__ == '__main__':
