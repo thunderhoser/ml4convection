@@ -56,13 +56,15 @@ def _run(input_file_name, output_file_name):
     figure_object, axes_object = uq_eval_plotting.plot_discard_test(
         result_dict=result_dict
     )
-    axes_object.set_ylabel('Model performance ({0:s})'.format(
-        result_dict[uq_evaluation.ERROR_FUNCTION_KEY]
-    ))
 
-    title_string = (
-        'Discard test (uncertainty metric = {0:s}); monotonicity = {1:.2f}%'
-    ).format(
+    this_string = (
+        'cross-entropy'
+        if 'X-entropy' in result_dict[uq_evaluation.ERROR_FUNCTION_KEY]
+        else 'FSS'
+    )
+    axes_object.set_ylabel('Model performance ({0:s})'.format(this_string))
+
+    title_string = 'Discard test (monotonicity fraction = {1:.2f}%)'.format(
         result_dict[uq_evaluation.UNCERTAINTY_FUNCTION_KEY],
         100 * result_dict[uq_evaluation.MONOTONICITY_FRACTION_KEY]
     )

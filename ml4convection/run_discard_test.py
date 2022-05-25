@@ -28,7 +28,6 @@ LAST_DATE_ARG_NAME = 'last_date_string'
 TIME_INTERVAL_ARG_NAME = 'time_interval_steps'
 USE_FSS_ARG_NAME = 'use_fss'
 POS_ORIENTED_ARG_NAME = 'is_error_pos_oriented'
-USE_QUANTILES_ARG_NAME = 'use_quantiles_for_mean_prediction'
 MATCHING_DISTANCES_ARG_NAME = 'matching_distances_px'
 DISCARD_FRACTIONS_ARG_NAME = 'discard_fractions'
 OUTPUT_DIR_ARG_NAME = 'output_dir_name'
@@ -53,10 +52,6 @@ USE_FSS_HELP_STRING = (
 POS_ORIENTED_HELP_STRING = (
     'Boolean flag.  If 1 (0), error function is positively (negatively) '
     'oriented.'
-)
-USE_QUANTILES_HELP_STRING = (
-    'Boolean flag.  If 1 (0), will use quantile-based estimates (first output '
-    'node) to compute each mean prediction.'
 )
 MATCHING_DISTANCES_HELP_STRING = (
     'List of neighbourhood half-widths (pixels) for error metric.  The discard '
@@ -95,10 +90,6 @@ INPUT_ARG_PARSER.add_argument(
     help=POS_ORIENTED_HELP_STRING
 )
 INPUT_ARG_PARSER.add_argument(
-    '--' + USE_QUANTILES_ARG_NAME, type=int, required=False, default=0,
-    help=USE_QUANTILES_HELP_STRING
-)
-INPUT_ARG_PARSER.add_argument(
     '--' + MATCHING_DISTANCES_ARG_NAME, type=int, nargs='+', required=True,
     help=MATCHING_DISTANCES_HELP_STRING
 )
@@ -114,8 +105,7 @@ INPUT_ARG_PARSER.add_argument(
 
 def _run(top_prediction_dir_name, first_date_string, last_date_string,
          time_interval_steps, use_fss, is_error_pos_oriented,
-         use_quantiles_for_mean_prediction, matching_distances_px,
-         discard_fractions, output_dir_name):
+         matching_distances_px, discard_fractions, output_dir_name):
     """Runs discard test to determine quality of uncertainty estimates.
 
     This is effectively the main method.
@@ -126,7 +116,6 @@ def _run(top_prediction_dir_name, first_date_string, last_date_string,
     :param time_interval_steps: Same.
     :param use_fss: Same.
     :param is_error_pos_oriented: Same.
-    :param use_quantiles_for_mean_prediction: Same.
     :param matching_distances_px: Same.
     :param discard_fractions: Same.
     :param output_dir_name: Same.
@@ -223,13 +212,11 @@ def _run(top_prediction_dir_name, first_date_string, last_date_string,
     for this_matching_distance_px in matching_distances_px:
         if use_fss:
             error_function = uq_evaluation.get_fss_error_function(
-                half_window_size_px=this_matching_distance_px, use_median=False,
-                use_quantiles=use_quantiles_for_mean_prediction
+                half_window_size_px=this_matching_distance_px, use_median=False
             )
         else:
             error_function = uq_evaluation.get_xentropy_error_function(
-                half_window_size_px=this_matching_distance_px, use_median=False,
-                use_quantiles=use_quantiles_for_mean_prediction
+                half_window_size_px=this_matching_distance_px, use_median=False
             )
 
         eroded_eval_mask_matrix = general_utils.erode_binary_matrix(
@@ -247,8 +234,7 @@ def _run(top_prediction_dir_name, first_date_string, last_date_string,
             eroded_eval_mask_matrix=eroded_eval_mask_matrix,
             error_function=error_function,
             uncertainty_function=uncertainty_function, use_median=False,
-            is_error_pos_oriented=is_error_pos_oriented,
-            use_quantiles_for_central_pred=use_quantiles_for_mean_prediction
+            is_error_pos_oriented=is_error_pos_oriented
         )
 
         output_file_name = (
@@ -264,8 +250,7 @@ def _run(top_prediction_dir_name, first_date_string, last_date_string,
         uq_evaluation.write_discard_results(
             netcdf_file_name=output_file_name, result_dict=result_dict,
             error_function_name=error_function_name,
-            uncertainty_function_name='pixelwise stdev',
-            use_quantiles_for_central_pred=use_quantiles_for_mean_prediction
+            uncertainty_function_name='pixelwise stdev'
         )
 
 
@@ -281,9 +266,6 @@ if __name__ == '__main__':
         is_error_pos_oriented=bool(getattr(
             INPUT_ARG_OBJECT, POS_ORIENTED_ARG_NAME
         )),
-        use_quantiles_for_mean_prediction=bool(
-            getattr(INPUT_ARG_OBJECT, USE_QUANTILES_ARG_NAME)
-        ),
         matching_distances_px=numpy.array(
             getattr(INPUT_ARG_OBJECT, MATCHING_DISTANCES_ARG_NAME), dtype=int
         ),

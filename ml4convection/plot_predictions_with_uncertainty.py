@@ -7,6 +7,7 @@ import numpy
 import matplotlib
 matplotlib.use('agg')
 from matplotlib import pyplot
+from scipy.interpolate import interp1d
 
 THIS_DIRECTORY_NAME = os.path.dirname(os.path.realpath(
     os.path.join(os.getcwd(), os.path.expanduser(__file__))
@@ -243,12 +244,16 @@ def _plot_predictions_one_time(
                 q=percentile_levels[k], axis=-1
             )
         else:
-            this_prob_matrix = numpy.percentile(
-                prediction_dict[prediction_io.PROBABILITY_MATRIX_KEY][
-                    i, ..., 1:
-                ],
-                q=percentile_levels[k], axis=-1
+            interp_object = interp1d(
+                x=prediction_dict[prediction_io.PROBABILITY_MATRIX_KEY][i, ...],
+                y=prediction_dict[prediction_io.QUANTILE_LEVELS_KEY],
+                kind='linear', axis=-1, bounds_error=False, assume_sorted=True,
+                fill_value='extrapolate'
             )
+
+            this_prob_matrix = interp_object(0.01 * percentile_levels[k])
+            this_prob_matrix = numpy.maximum(this_prob_matrix, 0.)
+            this_prob_matrix = numpy.minimum(this_prob_matrix, 1.)
 
         figure_object, axes_object = pyplot.subplots(
             1, 1, figsize=(FIGURE_WIDTH_INCHES, FIGURE_HEIGHT_INCHES)

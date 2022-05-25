@@ -118,7 +118,7 @@ def _write_metafile(target_file_names, lead_time_seconds,
         loss_function_name=DUMMY_LOSS_FUNCTION_NAME,
         metric_names=[DUMMY_LOSS_FUNCTION_NAME],
         mask_matrix=mask_matrix, full_mask_matrix=mask_matrix,
-        quantile_levels=None
+        quantile_levels=None, qfss_half_window_size_px=None
     )
 
 

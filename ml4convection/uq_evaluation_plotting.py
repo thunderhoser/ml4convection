@@ -48,7 +48,7 @@ pyplot.rc('figure', titlesize=FONT_SIZE)
 
 def _plot_means_as_inset(
         figure_object, bin_centers, bin_mean_predictions,
-        bin_mean_target_values):
+        bin_mean_target_values, for_spread_skill_plot):
     """Plots means (mean prediction and target by bin) as inset in another fig.
 
     B = number of bins
@@ -62,27 +62,31 @@ def _plot_means_as_inset(
     :param bin_mean_target_values: length-B numpy array with mean target value
         (event frequency) in each bin.  These values will be plotted on the
         y-axis.
+    :param for_spread_skill_plot: Boolean flag.
     :return: inset_axes_object: Axes handle for histogram (instance of
         `matplotlib.axes._subplots.AxesSubplot`).
     """
 
-    # inset_axes_object = figure_object.add_axes([0.575, 0.2, 0.3, 0.3])
-    inset_axes_object = figure_object.add_axes([0.625, 0.175, 0.25, 0.25])
+    if for_spread_skill_plot:
+        inset_axes_object = figure_object.add_axes([0.625, 0.3, 0.25, 0.25])
+    else:
+        inset_axes_object = figure_object.add_axes([0.625, 0.55, 0.25, 0.25])
 
-    inset_axes_object.plot(
+    target_handle = inset_axes_object.plot(
         bin_centers, bin_mean_target_values, color=MEAN_TARGET_LINE_COLOUR,
         linestyle='solid', linewidth=2,
         marker='o', markersize=8, markeredgewidth=0,
         markerfacecolor=MEAN_TARGET_LINE_COLOUR,
         markeredgecolor=MEAN_TARGET_LINE_COLOUR
-    )
-    inset_axes_object.plot(
+    )[0]
+
+    prediction_handle = inset_axes_object.plot(
         bin_centers, bin_mean_predictions, color=MEAN_PREDICTION_LINE_COLOUR,
         linestyle='dashed', linewidth=2,
         marker='o', markersize=8, markeredgewidth=0,
         markerfacecolor=MEAN_PREDICTION_LINE_COLOUR,
         markeredgecolor=MEAN_PREDICTION_LINE_COLOUR
-    )
+    )[0]
 
     y_max = max([
         numpy.nanmax(bin_mean_predictions),
@@ -98,18 +102,25 @@ def _plot_means_as_inset(
     for this_tick_object in inset_axes_object.yaxis.get_major_ticks():
         this_tick_object.label.set_fontsize(INSET_FONT_SIZE)
 
+    inset_axes_object.legend(
+        [target_handle, prediction_handle],
+        ['Mean target', 'Mean prediction'],
+        loc='upper center', bbox_to_anchor=(0.5, -0.2),
+        fancybox=True, shadow=True, ncol=1, fontsize=INSET_FONT_SIZE
+    )
+
     return inset_axes_object
 
 
-def _plot_histogram(axes_object, bin_centers, bin_frequencies):
+def _plot_histogram(axes_object, bin_edges, bin_frequencies):
     """Plots histogram on existing axes.
 
     B = number of bins
 
     :param axes_object: Will plot histogram on these axes (instance of
         `matplotlib.axes._subplots.AxesSubplot`).
-    :param bin_centers: length-B numpy array with value at center of each bin.
-        These values will be plotted on the x-axis.
+    :param bin_centers: length-(B + 1) numpy array with values at edges of each
+        bin. These values will be plotted on the x-axis.
     :param bin_frequencies: length-B numpy array with fraction of examples in
         each bin. These values will be plotted on the y-axis.
     :return: histogram_axes_object: Axes handle for histogram only (also
@@ -119,15 +130,6 @@ def _plot_histogram(axes_object, bin_centers, bin_frequencies):
     histogram_axes_object = axes_object.twinx()
     axes_object.set_zorder(histogram_axes_object.get_zorder() + 1)
     axes_object.patch.set_visible(False)
-
-    bin_diffs = numpy.diff(bin_centers)
-    bin_edges = bin_centers[:-1] + bin_diffs / 2
-    bottom_bin_edge = bin_centers[0] - bin_diffs[0] / 2
-    top_bin_edge = bin_centers[-1] + bin_diffs[-1] / 2
-
-    bin_edges = numpy.concatenate((
-        numpy.array([bottom_bin_edge]), bin_edges, numpy.array([top_bin_edge])
-    ))
 
     histogram_axes_object.bar(
         x=bin_edges[:-1], height=bin_frequencies, width=numpy.diff(bin_edges),
@@ -264,9 +266,18 @@ def plot_spread_vs_skill(
         numpy.sum(result_dict[uq_evaluation.EXAMPLE_COUNTS_KEY])
     )
 
+    bin_edges = result_dict[uq_evaluation.BIN_EDGE_PREDICTION_STDEVS_KEY]
+
+    if numpy.isnan(mean_prediction_stdevs[-1]):
+        bin_edges[-1] = bin_edges[-2] + (bin_edges[-2] - bin_edges[-3])
+    else:
+        bin_edges[-1] = (
+            bin_edges[-2] + 2 * (mean_prediction_stdevs[-1] - bin_edges[-2])
+        )
+
     histogram_axes_object = _plot_histogram(
         axes_object=axes_object,
-        bin_centers=mean_prediction_stdevs,
+        bin_edges=result_dict[uq_evaluation.BIN_EDGE_PREDICTION_STDEVS_KEY],
         bin_frequencies=bin_frequencies * 100
     )
     histogram_axes_object.set_ylabel('% examples in each bin')
@@ -285,17 +296,17 @@ def plot_spread_vs_skill(
         figure_object=figure_object, bin_centers=mean_prediction_stdevs,
         bin_mean_predictions=
         result_dict[uq_evaluation.MEAN_CENTRAL_PREDICTIONS_KEY],
-        bin_mean_target_values=result_dict[uq_evaluation.MEAN_TARGET_VALUES_KEY]
+        bin_mean_target_values=
+        result_dict[uq_evaluation.MEAN_TARGET_VALUES_KEY],
+        for_spread_skill_plot=True
     )
 
     inset_axes_object.set_xticks(axes_object.get_xticks())
     inset_axes_object.set_xlim(axes_object.get_xlim())
 
-    title_string = (
-        'Mean target ({0:s}) & pred\n({1:s}) in each bin'
-    ).format(MEAN_TARGET_COLOUR_STRING, MEAN_PREDICTION_COLOUR_STRING)
-
-    inset_axes_object.set_title(title_string, fontsize=INSET_FONT_SIZE)
+    inset_axes_object.set_title(
+        'Mean target and prediction\nin each bin', fontsize=INSET_FONT_SIZE
+    )
     inset_axes_object.set_xlabel('Spread', fontsize=INSET_FONT_SIZE)
 
     return figure_object, axes_object
@@ -336,12 +347,12 @@ def plot_discard_test(
     axes_object.set_ylabel('Performance measure')
     axes_object.set_xlim(left=0.)
 
-    histogram_axes_object = _plot_histogram(
-        axes_object=axes_object,
-        bin_centers=discard_fractions,
-        bin_frequencies=result_dict[uq_evaluation.EXAMPLE_FRACTIONS_KEY] * 100
-    )
-    histogram_axes_object.set_ylabel('% examples left after discard')
+    # histogram_axes_object = _plot_histogram(
+    #     axes_object=axes_object,
+    #     bin_centers=discard_fractions,
+    #     bin_frequencies=result_dict[uq_evaluation.EXAMPLE_FRACTIONS_KEY] * 100
+    # )
+    # histogram_axes_object.set_ylabel('% examples left after discard')
 
     # inset_axes_object = _plot_inset_histogram(
     #     figure_object=figure_object,
@@ -357,17 +368,17 @@ def plot_discard_test(
         figure_object=figure_object, bin_centers=discard_fractions,
         bin_mean_predictions=
         result_dict[uq_evaluation.MEAN_CENTRAL_PREDICTIONS_KEY],
-        bin_mean_target_values=result_dict[uq_evaluation.MEAN_TARGET_VALUES_KEY]
+        bin_mean_target_values=
+        result_dict[uq_evaluation.MEAN_TARGET_VALUES_KEY],
+        for_spread_skill_plot=False
     )
 
     inset_axes_object.set_xticks(axes_object.get_xticks())
     inset_axes_object.set_xlim(axes_object.get_xlim())
 
-    title_string = (
-        'Mean target ({0:s}) & pred\n({1:s}) after discard'
-    ).format(MEAN_TARGET_COLOUR_STRING, MEAN_PREDICTION_COLOUR_STRING)
-
-    inset_axes_object.set_title(title_string, fontsize=INSET_FONT_SIZE)
+    inset_axes_object.set_title(
+        'Mean target and prediction\nafter discard', fontsize=INSET_FONT_SIZE
+    )
     inset_axes_object.set_xlabel('Discard fraction', fontsize=INSET_FONT_SIZE)
 
     return figure_object, axes_object
