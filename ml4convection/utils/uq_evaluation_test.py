@@ -401,7 +401,7 @@ class UqEvaluationTests(unittest.TestCase):
         """
 
         this_function = uq_evaluation.get_fss_error_function(
-            half_window_size_px=0, use_median=False, use_quantiles=False
+            half_window_size_px=0, use_median=False
         )
         eroded_eval_mask_matrix = numpy.full((2, 2, 3), 1, dtype=bool)
         this_fss_value = this_function(PREDICTION_DICT, eroded_eval_mask_matrix)
@@ -417,7 +417,7 @@ class UqEvaluationTests(unittest.TestCase):
         """
 
         this_function = uq_evaluation.get_fss_error_function(
-            half_window_size_px=1, use_median=False, use_quantiles=False
+            half_window_size_px=1, use_median=False
         )
         eroded_eval_mask_matrix = numpy.full((2, 2, 3), 1, dtype=bool)
         this_fss_value = this_function(PREDICTION_DICT, eroded_eval_mask_matrix)
@@ -434,7 +434,7 @@ class UqEvaluationTests(unittest.TestCase):
 
         eroded_eval_mask_matrix = numpy.full((2, 2, 3), 1, dtype=bool)
         error_function = uq_evaluation.get_fss_error_function(
-            half_window_size_px=0, use_median=False, use_quantiles=False
+            half_window_size_px=0, use_median=False
         )
         uncertainty_function = uq_evaluation.get_stdev_uncertainty_function()
 
@@ -464,7 +464,7 @@ class UqEvaluationTests(unittest.TestCase):
 
         this_sqerr_matrix = uq_evaluation._get_squared_errors(
             prediction_dict=PREDICTION_DICT, half_window_size_px=0,
-            use_median=False, use_quantiles=False
+            use_median=False
         )
         self.assertTrue(numpy.allclose(
             this_sqerr_matrix, SQERR_MATRIX_SPATIAL, atol=TOLERANCE
@@ -478,7 +478,7 @@ class UqEvaluationTests(unittest.TestCase):
 
         this_sqerr_matrix = uq_evaluation._get_squared_errors(
             prediction_dict=PREDICTION_DICT, half_window_size_px=1,
-            use_median=False, use_quantiles=False
+            use_median=False
         )
         self.assertTrue(numpy.allclose(
             this_sqerr_matrix, SMOOTHED_SQERR_MATRIX_SPATIAL, atol=TOLERANCE

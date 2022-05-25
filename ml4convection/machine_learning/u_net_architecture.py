@@ -225,16 +225,14 @@ def _check_architecture_args(option_dict):
     return option_dict
 
 
-def create_quantile_regression_model(
-        option_dict, central_loss_function, mask_matrix, quantile_levels):
+def create_quantile_regression_model(option_dict, mask_matrix, quantile_levels):
     """Creates U-net for quantile regression.
 
     M = number of rows in grid
     N = number of columns in grid
 
     :param option_dict: See doc for `create_model`.
-    :param central_loss_function: Loss function for central prediction.
-    :param mask_matrix: See doc for `create_model`.
+    :param mask_matrix: Same.
     :param quantile_levels: 1-D numpy array of quantile levels, ranging from
         (0, 1).
     :return: model_object: Instance of `keras.models.Model`.
@@ -369,7 +367,7 @@ def create_quantile_regression_model(
         0, num_levels - 1, num=num_levels, dtype=int
     )[::-1]
 
-    num_output_channels = len(quantile_levels) + 1
+    num_output_channels = len(quantile_levels)
     penultimate_conv_layers = [None] * num_output_channels
 
     for i in level_indices:
@@ -489,7 +487,6 @@ def create_quantile_regression_model(
     output_layer_names = [
         'quantile_output{0:03d}'.format(k) for k in range(num_output_channels)
     ]
-    output_layer_names[0] = 'central_output'
 
     loss_dict = {}
 
@@ -522,13 +519,10 @@ def create_quantile_regression_model(
                 None, name=output_layer_names[k]
             )(output_layers[k])
 
-        if k == 0:
-            loss_dict[output_layer_names[k]] = central_loss_function
-        else:
-            loss_dict[output_layer_names[k]] = custom_losses.quantile_loss(
-                quantile_level=quantile_levels[k - 1],
-                mask_matrix=mask_matrix.astype(int)
-            )
+        loss_dict[output_layer_names[k]] = custom_losses.quantile_loss(
+            quantile_level=quantile_levels[k],
+            mask_matrix=mask_matrix.astype(int)
+        )
 
     model_object = keras.models.Model(
         inputs=input_layer_object, outputs=output_layers
@@ -543,7 +537,7 @@ def create_quantile_regression_model(
 
 
 def create_qr_model_fancy(
-        option_dict, central_loss_function, mask_matrix, quantile_levels,
+        option_dict, mask_matrix, quantile_levels,
         qfss_half_window_size_px=None):
     """Creates 'fancy' U-net for quantile regression.
 
@@ -553,8 +547,7 @@ def create_qr_model_fancy(
     N = number of columns in grid
 
     :param option_dict: See doc for `create_model`.
-    :param central_loss_function: Loss function for central prediction.
-    :param mask_matrix: See doc for `create_model`.
+    :param mask_matrix: Same.
     :param quantile_levels: 1-D numpy array of quantile levels, ranging from
         (0, 1).
     :param qfss_half_window_size_px: Half-neighbourhood size (pixels) for
@@ -696,7 +689,7 @@ def create_qr_model_fancy(
         0, num_levels - 1, num=num_levels, dtype=int
     )[::-1]
 
-    num_output_channels = len(quantile_levels) + 1
+    num_output_channels = len(quantile_levels)
     penultimate_conv_layers = [None] * num_output_channels
 
     for i in level_indices:
@@ -817,7 +810,6 @@ def create_qr_model_fancy(
     output_layer_names = [
         'quantile_output{0:03d}'.format(k) for k in range(num_output_channels)
     ]
-    output_layer_names[0] = 'central_output'
 
     loss_dict = {}
 
@@ -862,23 +854,20 @@ def create_qr_model_fancy(
                 None, name=output_layer_names[k]
             )(output_layers[k])
 
-        if k == 0:
-            loss_dict[output_layer_names[k]] = central_loss_function
+        if use_quantiles_with_fss:
+            loss_dict[output_layer_names[k]] = (
+                custom_losses.quantile_based_fss(
+                    quantile_level=quantile_levels[k],
+                    half_window_size_px=qfss_half_window_size_px,
+                    use_as_loss_function=True,
+                    mask_matrix=mask_matrix.astype(bool)
+                )
+            )
         else:
-            if use_quantiles_with_fss:
-                loss_dict[output_layer_names[k]] = (
-                    custom_losses.quantile_based_fss(
-                        quantile_level=quantile_levels[k - 1],
-                        half_window_size_px=qfss_half_window_size_px,
-                        use_as_loss_function=True,
-                        mask_matrix=mask_matrix.astype(bool)
-                    )
-                )
-            else:
-                loss_dict[output_layer_names[k]] = custom_losses.quantile_loss(
-                    quantile_level=quantile_levels[k - 1],
-                    mask_matrix=mask_matrix.astype(int)
-                )
+            loss_dict[output_layer_names[k]] = custom_losses.quantile_loss(
+                quantile_level=quantile_levels[k],
+                mask_matrix=mask_matrix.astype(int)
+            )
 
     model_object = keras.models.Model(
         inputs=input_layer_object, outputs=output_layers

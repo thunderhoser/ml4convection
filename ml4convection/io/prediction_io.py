@@ -23,7 +23,6 @@ EXAMPLE_DIMENSION_KEY = 'example'
 GRID_ROW_DIMENSION_KEY = 'row'
 GRID_COLUMN_DIMENSION_KEY = 'column'
 PREDICTION_SET_DIMENSION_KEY = 'prediction_set'
-QUANTILE_DIMENSION_KEY = 'quantile'
 
 PROBABILITY_MATRIX_KEY = 'forecast_probability_matrix'
 TARGET_MATRIX_KEY = 'target_matrix'
@@ -268,7 +267,7 @@ def write_file(
     error_checking.assert_is_string(model_file_name)
 
     if quantile_levels is not None:
-        expected_dim = numpy.array([num_prediction_sets - 1], dtype=int)
+        expected_dim = numpy.array([num_prediction_sets], dtype=int)
         error_checking.assert_is_numpy_array(
             quantile_levels, exact_dimensions=expected_dim
         )
@@ -326,13 +325,9 @@ def write_file(
     dataset_object.variables[LONGITUDES_KEY][:] = longitudes_deg_e
 
     if quantile_levels is not None:
-        dataset_object.createDimension(
-            QUANTILE_DIMENSION_KEY, len(quantile_levels)
-        )
-
         dataset_object.createVariable(
             QUANTILE_LEVELS_KEY, datatype=numpy.float32,
-            dimensions=QUANTILE_DIMENSION_KEY
+            dimensions=PREDICTION_SET_DIMENSION_KEY
         )
         dataset_object.variables[QUANTILE_LEVELS_KEY][:] = quantile_levels
 
@@ -507,7 +502,7 @@ def smooth_probabilities(prediction_dict, smoothing_radius_px):
     return prediction_dict
 
 
-def get_mean_predictions(prediction_dict, use_quantiles=False):
+def get_mean_predictions(prediction_dict):
     """Computes mean of predictive distribution for each scalar example.
 
     One scalar example = one grid point at one time step.
@@ -520,9 +515,6 @@ def get_mean_predictions(prediction_dict, use_quantiles=False):
     https://doi.org/10.1186/1471-2288-14-135
 
     :param prediction_dict: Dictionary returned by `read_file`.
-    :param use_quantiles: [used only if model does quantile regression]
-        If True, will compute mean from quantile-based estimates.  If False,
-        will compute mean from first output channel (central prediction).
     :return: mean_prob_matrix: E-by-M-by-N numpy array of mean forecast
         probabilities.
     """
@@ -534,11 +526,6 @@ def get_mean_predictions(prediction_dict, use_quantiles=False):
 
     if quantile_levels is None:
         return numpy.mean(prediction_dict[PROBABILITY_MATRIX_KEY], axis=-1)
-
-    error_checking.assert_is_boolean(use_quantiles)
-
-    if not use_quantiles:
-        return prediction_dict[PROBABILITY_MATRIX_KEY][..., 0]
 
     first_quartile_index = 1 + numpy.where(
         numpy.absolute(quantile_levels - 0.25) <= TOLERANCE
@@ -557,8 +544,7 @@ def get_mean_predictions(prediction_dict, use_quantiles=False):
     )
 
 
-def get_predictive_stdevs(prediction_dict, use_fancy_quantile_method=False,
-                          assume_large_sample_size=True):
+def get_predictive_stdevs(prediction_dict, assume_large_sample_size=True):
     """Computes stdev of predictive distribution for each scalar example.
 
     One scalar example = one grid point at one time step.
@@ -567,18 +553,11 @@ def get_predictive_stdevs(prediction_dict, use_fancy_quantile_method=False,
     M = number of rows in grid
     N = number of columns in grid
 
-    "Simple" estimation of stdev from quantiles: treat each quantile-based
-    estimate as a Monte Carlo iteration and take the stdev over all
-    psuedo-Monte-Carlo iterations
-
-    "Fancy" estimation of stdev from quantiles: use Equation 15 in:
+    To estimate the standard deviation from quantiles, I use Equation 15 in:
     https://doi.org/10.1186/1471-2288-14-135
 
     :param prediction_dict: Dictionary returned by `read_file`.
-    :param use_fancy_quantile_method:
-        [used only if model does quantile regression]
-        If True (False), will use fancy (simple) method, as defined above.
-    :param assume_large_sample_size: [used only for fancy method]
+    :param assume_large_sample_size: [used only for quantile-based method]
         Boolean flag.  If True, will assume large (essentially infinite) sample
         size.
     :return: prob_stdev_matrix: E-by-M-by-N numpy array with standard deviations
@@ -602,13 +581,6 @@ def get_predictive_stdevs(prediction_dict, use_fancy_quantile_method=False,
     if quantile_levels is None:
         return numpy.std(
             prediction_dict[PROBABILITY_MATRIX_KEY], axis=-1, ddof=1
-        )
-
-    error_checking.assert_is_boolean(use_fancy_quantile_method)
-
-    if not use_fancy_quantile_method:
-        return numpy.std(
-            prediction_dict[PROBABILITY_MATRIX_KEY][..., 1:], axis=-1, ddof=1
         )
 
     error_checking.assert_is_boolean(assume_large_sample_size)
@@ -654,7 +626,7 @@ def get_predictive_stdevs(prediction_dict, use_fancy_quantile_method=False,
     return prob_iqr_matrix / eta_value
 
 
-def get_median_predictions(prediction_dict, use_quantiles=False):
+def get_median_predictions(prediction_dict):
     """Computes median of predictive distribution for each scalar example.
 
     One scalar example = one grid point at one time step.
@@ -664,10 +636,6 @@ def get_median_predictions(prediction_dict, use_quantiles=False):
     N = number of columns in grid
 
     :param prediction_dict: Dictionary returned by `read_file`.
-    :param use_quantiles: [used only if model does quantile regression]
-        If True, will compute median from output node corresponding to 50th
-        percentile.  If False, will compute median by taking median over all
-        quantile-based estimates.
     :return: median_prob_matrix: E-by-M-by-N numpy array of median forecast
         probabilities.
     """
@@ -680,15 +648,8 @@ def get_median_predictions(prediction_dict, use_quantiles=False):
     if quantile_levels is None:
         return numpy.median(prediction_dict[PROBABILITY_MATRIX_KEY], axis=-1)
 
-    error_checking.assert_is_boolean(use_quantiles)
+    median_index = 1 + numpy.where(
+        numpy.absolute(quantile_levels - 0.5) <= TOLERANCE
+    )[0][0]
 
-    if use_quantiles:
-        median_index = 1 + numpy.where(
-            numpy.absolute(quantile_levels - 0.5) <= TOLERANCE
-        )[0][0]
-
-        return prediction_dict[PROBABILITY_MATRIX_KEY][..., median_index]
-
-    return numpy.median(
-        prediction_dict[PROBABILITY_MATRIX_KEY][..., 1:], axis=-1
-    )
+    return prediction_dict[PROBABILITY_MATRIX_KEY][..., median_index]

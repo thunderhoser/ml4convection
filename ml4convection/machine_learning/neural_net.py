@@ -2418,9 +2418,9 @@ def read_model(hdf5_file_name, for_mirrored_training=False):
     if quantile_levels is None:
         custom_object_dict['loss'] = loss_function
     else:
-        custom_object_dict = {'central_output_loss': loss_function}
-        loss_dict = {'central_output': loss_function}
         metric_list = []
+        custom_object_dict = {}
+        loss_dict = {}
 
         for k in range(len(quantile_levels)):
             if qfss_half_window_size_px is None:
@@ -2435,10 +2435,8 @@ def read_model(hdf5_file_name, for_mirrored_training=False):
                     mask_matrix=mask_matrix.astype(bool)
                 )
 
-            loss_dict['quantile_output{0:03d}'.format(k + 1)] = (
-                this_loss_function
-            )
-            custom_object_dict['quantile_output{0:03d}_loss'.format(k + 1)] = (
+            loss_dict['quantile_output{0:03d}'.format(k)] = this_loss_function
+            custom_object_dict['quantile_output{0:03d}_loss'.format(k)] = (
                 this_loss_function
             )
 

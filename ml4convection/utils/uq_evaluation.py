@@ -17,7 +17,6 @@ NUM_EXAMPLES_PER_BATCH = 50
 
 ERROR_FUNCTION_KEY = 'error_function_name'
 UNCERTAINTY_FUNCTION_KEY = 'uncertainty_function_name'
-USE_QUANTILES_KEY = 'use_quantiles_for_central_pred'
 
 DISCARD_FRACTION_DIM_KEY = 'discard_fraction'
 DISCARD_FRACTIONS_KEY = 'discard_fractions'
@@ -31,7 +30,9 @@ HALF_WINDOW_SIZE_KEY = 'half_window_size_px'
 USE_MEDIAN_KEY = 'use_median'
 
 SPREAD_SKILL_BIN_DIM_KEY = 'bin'
+SPREAD_SKILL_BIN_EDGE_DIM_KEY = 'bin_edge'
 MEAN_PREDICTION_STDEVS_KEY = 'mean_prediction_stdevs'
+BIN_EDGE_PREDICTION_STDEVS_KEY = 'bin_edge_prediction_stdevs'
 RMSE_VALUES_KEY = 'rmse_values'
 EXAMPLE_COUNTS_KEY = 'example_counts'
 SPREAD_SKILL_QUALITY_SCORE_KEY = 'spread_skill_quality_score'
@@ -47,8 +48,7 @@ def _log2(input_array):
     return numpy.log2(numpy.maximum(input_array, 1e-6))
 
 
-def _get_squared_errors(prediction_dict, half_window_size_px, use_median,
-                        use_quantiles):
+def _get_squared_errors(prediction_dict, half_window_size_px, use_median):
     """Returns squared errors.
 
     E = number of examples (time steps)
@@ -60,8 +60,6 @@ def _get_squared_errors(prediction_dict, half_window_size_px, use_median,
     :param half_window_size_px: Half-width (pixels) for smoother.
     :param use_median: Boolean flag.  If True (False), will use median (mean) of
         each predictive distribution.
-    :param use_quantiles: Boolean flag.  If True, will use quantiles to compute
-        each central prediction (mean or median).
     :return: squared_error_matrix: E-by-M-by-N numpy array of squared errors.
     """
 
@@ -74,11 +72,11 @@ def _get_squared_errors(prediction_dict, half_window_size_px, use_median,
 
     if use_median:
         forecast_prob_matrix = prediction_io.get_median_predictions(
-            prediction_dict=prediction_dict, use_quantiles=use_quantiles
+            prediction_dict
         )
     else:
         forecast_prob_matrix = prediction_io.get_mean_predictions(
-            prediction_dict=prediction_dict, use_quantiles=use_quantiles
+            prediction_dict
         )
 
     target_matrix = prediction_dict[prediction_io.TARGET_MATRIX_KEY]
@@ -178,10 +176,6 @@ def _get_crps_quantile_regression_1batch(
     for i in range(forecast_prob_matrix.shape[0]):
         for j in range(forecast_prob_matrix.shape[1]):
             for k in range(forecast_prob_matrix.shape[2]):
-
-                # TODO(thunderhoser): I assume that probability increases
-                # monotonically with quantile level, but this assumption should
-                # hold, given the way I set up the model architecture.
                 interp_object = interp1d(
                     x=forecast_prob_matrix[i, j, k, 1:],
                     y=prediction_dict[prediction_io.QUANTILE_LEVELS_KEY],
@@ -238,14 +232,12 @@ def _get_crps_quantile_regression(prediction_dict):
     return crps_numerator / crps_denominator
 
 
-def get_xentropy_error_function(half_window_size_px, use_median, use_quantiles):
+def get_xentropy_error_function(half_window_size_px, use_median):
     """Creates error function to compute cross-entropy.
 
     :param half_window_size_px: Neighbourhood half-width (pixels).
     :param use_median: Boolean flag.  If True (False), will use median (mean) of
         each predictive distribution.
-    :param use_quantiles: Boolean flag.  If True, will use quantiles to compute
-        each central prediction (mean or median).
     :return: error_function: Function handle.
     """
 
@@ -271,11 +263,11 @@ def get_xentropy_error_function(half_window_size_px, use_median, use_quantiles):
 
         if use_median:
             forecast_prob_matrix = prediction_io.get_median_predictions(
-                prediction_dict=prediction_dict, use_quantiles=use_quantiles
+                prediction_dict
             )
         else:
             forecast_prob_matrix = prediction_io.get_mean_predictions(
-                prediction_dict=prediction_dict, use_quantiles=use_quantiles
+                prediction_dict
             )
 
         target_matrix = prediction_dict[prediction_io.TARGET_MATRIX_KEY]
@@ -305,14 +297,12 @@ def get_xentropy_error_function(half_window_size_px, use_median, use_quantiles):
     return error_function
 
 
-def get_fss_error_function(half_window_size_px, use_median, use_quantiles):
+def get_fss_error_function(half_window_size_px, use_median):
     """Creates error function to compute fractions skill score (FSS).
 
     :param half_window_size_px: Neighbourhood half-width (pixels).
     :param use_median: Boolean flag.  If True (False), will use median (mean) of
         each predictive distribution.
-    :param use_quantiles: Boolean flag.  If True, will use quantiles to compute
-        each central prediction (mean or median).
     :return: error_function: Function handle.
     """
 
@@ -341,11 +331,11 @@ def get_fss_error_function(half_window_size_px, use_median, use_quantiles):
 
         if use_median:
             forecast_prob_matrix = prediction_io.get_median_predictions(
-                prediction_dict=prediction_dict, use_quantiles=use_quantiles
+                prediction_dict
             )
         else:
             forecast_prob_matrix = prediction_io.get_mean_predictions(
-                prediction_dict=prediction_dict, use_quantiles=use_quantiles
+                prediction_dict
             )
 
         target_matrix = prediction_dict[prediction_io.TARGET_MATRIX_KEY]
@@ -398,9 +388,7 @@ def get_stdev_uncertainty_function():
             distribution for each point/time.
         """
 
-        return prediction_io.get_predictive_stdevs(
-            prediction_dict=prediction_dict, use_fancy_quantile_method=False
-        )
+        return prediction_io.get_predictive_stdevs(prediction_dict)
 
     return uncertainty_function
 
@@ -422,7 +410,7 @@ def get_crps(prediction_dict):
 def run_discard_test(
         prediction_dict, discard_fractions, eroded_eval_mask_matrix,
         error_function, uncertainty_function, use_median,
-        is_error_pos_oriented, use_quantiles_for_central_pred=False):
+        is_error_pos_oriented):
     """Runs the discard test.
 
     F = number of discard fractions
@@ -456,8 +444,6 @@ def run_discard_test(
         be medians (means).
     :param is_error_pos_oriented: Boolean flag.  If True (False), error function
         is positively (negatively) oriented.
-    :param use_quantiles_for_central_pred: Boolean flag.  If True, will use
-        quantile-based estimates to compute central prediction (mean or median).
 
     :return: result_dict: Dictionary with the following keys.
     result_dict['discard_fractions']: length-F numpy array of discard fractions,
@@ -509,13 +495,11 @@ def run_discard_test(
 
     if use_median:
         central_prediction_matrix = prediction_io.get_median_predictions(
-            prediction_dict=prediction_dict,
-            use_quantiles=use_quantiles_for_central_pred
+            prediction_dict
         )
     else:
         central_prediction_matrix = prediction_io.get_mean_predictions(
-            prediction_dict=prediction_dict,
-            use_quantiles=use_quantiles_for_central_pred
+            prediction_dict
         )
 
     discard_fractions = numpy.sort(discard_fractions)
@@ -564,7 +548,7 @@ def run_discard_test(
 
 def get_spread_vs_skill(
         prediction_dict, bin_edge_prediction_stdevs, half_window_size_px,
-        eval_mask_matrix, use_median, use_quantiles_for_central_pred=False):
+        eval_mask_matrix, use_median):
     """Computes model spread vs. model skill.
 
     B = number of bins
@@ -585,12 +569,12 @@ def get_spread_vs_skill(
         erosion for you.
     :param use_median: Boolean flag.  If True (False), will use median (mean) of
         each predictive distribution.
-    :param use_quantiles_for_central_pred: Boolean flag.  If True, will use
-        quantile-based estimates to compute central prediction (mean or median).
     :return: result_dict: Dictionary with the following keys.
     result_dict['mean_prediction_stdevs']: length-B numpy array, where the [i]th
         entry is the mean standard deviation of predictive distributions in the
         [i]th bin.
+    result_dict['bin_edge_prediction_stdevs']: length-(B + 1) numpy array,
+        where the [i]th and [i + 1]th entries are the edges for the [i]th bin.
     result_dict['rmse_values']: length-B numpy array, where the [i]th
         entry is the root mean squared error of central (mean or median)
         predictions in the [i]th bin.
@@ -610,7 +594,6 @@ def get_spread_vs_skill(
 
     # Check input args.
     error_checking.assert_is_boolean(use_median)
-    error_checking.assert_is_boolean(use_quantiles_for_central_pred)
 
     expected_dim = numpy.array(
         prediction_dict[prediction_io.PROBABILITY_MATRIX_KEY].shape[1:3],
@@ -660,23 +643,20 @@ def get_spread_vs_skill(
 
     if use_median:
         central_prediction_matrix = prediction_io.get_median_predictions(
-            prediction_dict=prediction_dict,
-            use_quantiles=use_quantiles_for_central_pred
+            prediction_dict
         )
     else:
         central_prediction_matrix = prediction_io.get_mean_predictions(
-            prediction_dict=prediction_dict,
-            use_quantiles=use_quantiles_for_central_pred
+            prediction_dict
         )
 
     prediction_stdev_matrix = prediction_io.get_predictive_stdevs(
-        prediction_dict=prediction_dict, use_fancy_quantile_method=False
+        prediction_dict
     )
     prediction_stdev_matrix[eroded_eval_mask_matrix == False] = numpy.nan
     squared_error_matrix = _get_squared_errors(
         prediction_dict=prediction_dict,
-        half_window_size_px=half_window_size_px,
-        use_median=use_median, use_quantiles=use_quantiles_for_central_pred
+        half_window_size_px=half_window_size_px, use_median=use_median
     )
 
     mean_prediction_stdevs = numpy.full(num_bins, numpy.nan)
@@ -713,6 +693,7 @@ def get_spread_vs_skill(
 
     return {
         MEAN_PREDICTION_STDEVS_KEY: mean_prediction_stdevs,
+        BIN_EDGE_PREDICTION_STDEVS_KEY: bin_edge_prediction_stdevs,
         RMSE_VALUES_KEY: rmse_values,
         SPREAD_SKILL_QUALITY_SCORE_KEY: spread_skill_quality_score,
         EXAMPLE_COUNTS_KEY: example_counts,
@@ -723,7 +704,7 @@ def get_spread_vs_skill(
 
 def write_discard_results(
         netcdf_file_name, result_dict, error_function_name,
-        uncertainty_function_name, use_quantiles_for_central_pred):
+        uncertainty_function_name):
     """Writes results of discard test to NetCDF file.
 
     :param netcdf_file_name: Path to output file.
@@ -732,13 +713,11 @@ def write_discard_results(
         used later for plotting.
     :param uncertainty_function_name: Name of uncertainty function (string).
         This will be used later for plotting.
-    :param use_quantiles_for_central_pred: See doc for `run_discard_test`.
     """
 
     # Check input args.
     error_checking.assert_is_string(error_function_name)
     error_checking.assert_is_string(uncertainty_function_name)
-    error_checking.assert_is_boolean(use_quantiles_for_central_pred)
 
     # Write file.
     file_system_utils.mkdir_recursive_if_necessary(file_name=netcdf_file_name)
@@ -749,9 +728,6 @@ def write_discard_results(
     dataset_object.setncattr(ERROR_FUNCTION_KEY, error_function_name)
     dataset_object.setncattr(
         UNCERTAINTY_FUNCTION_KEY, uncertainty_function_name
-    )
-    dataset_object.setncattr(
-        USE_QUANTILES_KEY, int(use_quantiles_for_central_pred)
     )
     dataset_object.setncattr(
         MONOTONICITY_FRACTION_KEY, result_dict[MONOTONICITY_FRACTION_KEY]
@@ -783,8 +759,6 @@ def read_discard_results(netcdf_file_name):
     result_dict['error_function_name']: Name of error metric used in test.
     result_dict['uncertainty_function_name']: Name of uncertainty metric used in
         test.
-    result_dict['use_quantiles_for_central_pred']: See doc for
-        `run_discard_test`.
     """
 
     dataset_object = netCDF4.Dataset(netcdf_file_name)
@@ -798,13 +772,6 @@ def read_discard_results(netcdf_file_name):
             getattr(dataset_object, MONOTONICITY_FRACTION_KEY)
         )
     }
-
-    try:
-        result_dict[USE_QUANTILES_KEY] = bool(
-            getattr(dataset_object, USE_QUANTILES_KEY)
-        )
-    except:
-        result_dict[USE_QUANTILES_KEY] = False
 
     for this_key in [
             DISCARD_FRACTIONS_KEY, ERROR_VALUES_KEY,
@@ -820,21 +787,18 @@ def read_discard_results(netcdf_file_name):
 
 
 def write_spread_vs_skill(
-        netcdf_file_name, result_dict, half_window_size_px, use_median,
-        use_quantiles_for_central_pred):
+        netcdf_file_name, result_dict, half_window_size_px, use_median):
     """Writes spread vs. skill to NetCDF file.
 
     :param netcdf_file_name: Path to output file.
     :param result_dict: Dictionary created by `get_spread_vs_skill`.
     :param half_window_size_px: See input doc for `get_spread_vs_skill`.
     :param use_median: Same.
-    :param use_quantiles_for_central_pred: Same.
     """
 
     # Check input args.
     error_checking.assert_is_geq(half_window_size_px, 0)
     error_checking.assert_is_boolean(use_median)
-    error_checking.assert_is_boolean(use_quantiles_for_central_pred)
 
     # Write file.
     file_system_utils.mkdir_recursive_if_necessary(file_name=netcdf_file_name)
@@ -844,9 +808,6 @@ def write_spread_vs_skill(
 
     dataset_object.setncattr(HALF_WINDOW_SIZE_KEY, half_window_size_px)
     dataset_object.setncattr(USE_MEDIAN_KEY, int(use_median))
-    dataset_object.setncattr(
-        USE_QUANTILES_KEY, int(use_quantiles_for_central_pred)
-    )
     dataset_object.setncattr(
         SPREAD_SKILL_QUALITY_SCORE_KEY,
         result_dict[SPREAD_SKILL_QUALITY_SCORE_KEY]
@@ -864,6 +825,14 @@ def write_spread_vs_skill(
             dimensions=SPREAD_SKILL_BIN_DIM_KEY
         )
         dataset_object.variables[this_key][:] = result_dict[this_key]
+
+    dataset_object.createVariable(
+        this_key, datatype=numpy.float32,
+        dimensions=SPREAD_SKILL_BIN_EDGE_DIM_KEY
+    )
+    dataset_object.variables[BIN_EDGE_PREDICTION_STDEVS_KEY][:] = (
+        result_dict[BIN_EDGE_PREDICTION_STDEVS_KEY]
+    )
 
     for this_key in [EXAMPLE_COUNTS_KEY]:
         dataset_object.createVariable(
@@ -885,8 +854,6 @@ def read_spread_vs_skill(netcdf_file_name):
         evaluation.
     result_dict['use_median']: Boolean flag.  If True (False), used median
         (mean) to define central prediction.
-    result_dict['use_quantiles_for_central_pred']: See doc for
-        `get_spread_vs_skill`.
     """
 
     dataset_object = netCDF4.Dataset(netcdf_file_name)
@@ -898,16 +865,10 @@ def read_spread_vs_skill(netcdf_file_name):
             float(getattr(dataset_object, SPREAD_SKILL_QUALITY_SCORE_KEY))
     }
 
-    try:
-        result_dict[USE_QUANTILES_KEY] = bool(
-            getattr(dataset_object, USE_QUANTILES_KEY)
-        )
-    except:
-        result_dict[USE_QUANTILES_KEY] = False
-
     for this_key in [
-            MEAN_PREDICTION_STDEVS_KEY, RMSE_VALUES_KEY,
-            MEAN_CENTRAL_PREDICTIONS_KEY, MEAN_TARGET_VALUES_KEY
+            MEAN_PREDICTION_STDEVS_KEY, BIN_EDGE_PREDICTION_STDEVS_KEY,
+            RMSE_VALUES_KEY, MEAN_CENTRAL_PREDICTIONS_KEY,
+            MEAN_TARGET_VALUES_KEY
     ]:
         result_dict[this_key] = numpy.array(
             dataset_object.variables[this_key][:], dtype=float
