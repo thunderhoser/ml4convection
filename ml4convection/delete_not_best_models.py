@@ -2,6 +2,7 @@
 
 import os
 import glob
+import shutil
 import argparse
 import numpy
 
@@ -55,7 +56,7 @@ def _run(top_experiment_dir_name):
             print('Deleting "{0:s}"...'.format(
                 model_file_names[i].replace('.h5', '')
             ))
-            os.rmdir(model_file_names[i].replace('.h5', ''))
+            shutil.rmtree(model_file_names[i].replace('.h5', ''))
 
 
 if __name__ == '__main__':
