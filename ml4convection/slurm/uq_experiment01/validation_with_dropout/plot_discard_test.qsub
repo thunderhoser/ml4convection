@@ -40,8 +40,8 @@ set penultimate_layer_dropout_rate=`printf "%.3f" $penultimate_layer_dropout_rat
 set output_layer_dropout_rate=`printf "%.3f" $output_layer_dropout_rate`
 
 set model_dir_name="${TOP_MODEL_DIR_NAME}/top-level-skip-dropout=${top_level_skip_dropout_rate}_penultimate-layer-dropout=${penultimate_layer_dropout_rate}_output-layer-dropout=${output_layer_dropout_rate}"
-set input_file_name="${model_dir_name}/validation_with_dropout/partial_grids/evaluation/discard_test_matching-distance-px=0.000000.nc"
-set output_file_name="${model_dir_name}/validation_with_dropout/partial_grids/evaluation/discard_test_matching-distance-px=0.000000.jpg"
+set input_file_name="${model_dir_name}/validation_with_dropout/partial_grids/evaluation/xentropy/discard_test_matching-distance-px=0.000000.nc"
+set output_file_name="${model_dir_name}/validation_with_dropout/partial_grids/evaluation/xentropy/discard_test_matching-distance-px=0.000000.jpg"
 
 python3 -u "${CODE_DIR_NAME}/plot_discard_test.py" \
 --input_file_name="${input_file_name}" \

@@ -46,7 +46,7 @@ python3 -u "${CODE_DIR_NAME}/compute_spread_vs_skill.py" \
 --input_prediction_dir_name="${prediction_dir_name}" \
 --first_date_string="20170101" \
 --last_date_string="20171224" \
---time_interval_steps=5 \
+--time_interval_steps=1 \
 --matching_distances_px 0 \
 --bin_edge_prediction_stdevs 0.01 0.02 0.03 0.04 0.05 0.06 0.07 0.08 0.09 0.10 0.11 0.12 0.13 0.14 0.15 0.16 0.17 0.18 0.19 0.20 \
 --output_dir_name="${prediction_dir_name}/evaluation"
