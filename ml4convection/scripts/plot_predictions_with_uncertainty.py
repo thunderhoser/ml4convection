@@ -491,7 +491,7 @@ if __name__ == '__main__':
             getattr(INPUT_ARG_OBJECT, DAILY_TIMES_ARG_NAME), dtype=int
         ),
         percentile_levels=numpy.array(
-            getattr(INPUT_ARG_OBJECT, DAILY_TIMES_ARG_NAME), dtype=float
+            getattr(INPUT_ARG_OBJECT, PERCENTILE_LEVELS_ARG_NAME), dtype=float
         ),
         output_dir_name=getattr(INPUT_ARG_OBJECT, OUTPUT_DIR_ARG_NAME)
     )

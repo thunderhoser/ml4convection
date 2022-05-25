@@ -794,13 +794,17 @@ def read_discard_results(netcdf_file_name):
         UNCERTAINTY_FUNCTION_KEY: str(
             getattr(dataset_object, UNCERTAINTY_FUNCTION_KEY)
         ),
-        USE_QUANTILES_KEY: bool(
-            getattr(dataset_object, USE_QUANTILES_KEY)
-        ),
         MONOTONICITY_FRACTION_KEY: float(
             getattr(dataset_object, MONOTONICITY_FRACTION_KEY)
         )
     }
+
+    try:
+        result_dict[USE_QUANTILES_KEY] = bool(
+            getattr(dataset_object, USE_QUANTILES_KEY)
+        )
+    except:
+        result_dict[USE_QUANTILES_KEY] = False
 
     for this_key in [
             DISCARD_FRACTIONS_KEY, ERROR_VALUES_KEY,
@@ -890,10 +894,16 @@ def read_spread_vs_skill(netcdf_file_name):
     result_dict = {
         HALF_WINDOW_SIZE_KEY: getattr(dataset_object, HALF_WINDOW_SIZE_KEY),
         USE_MEDIAN_KEY: bool(getattr(dataset_object, USE_MEDIAN_KEY)),
-        USE_QUANTILES_KEY: bool(getattr(dataset_object, USE_QUANTILES_KEY)),
         SPREAD_SKILL_QUALITY_SCORE_KEY:
             float(getattr(dataset_object, SPREAD_SKILL_QUALITY_SCORE_KEY))
     }
+
+    try:
+        result_dict[USE_QUANTILES_KEY] = bool(
+            getattr(dataset_object, USE_QUANTILES_KEY)
+        )
+    except:
+        result_dict[USE_QUANTILES_KEY] = False
 
     for this_key in [
             MEAN_PREDICTION_STDEVS_KEY, RMSE_VALUES_KEY,

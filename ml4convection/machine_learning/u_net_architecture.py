@@ -871,7 +871,7 @@ def create_qr_model_fancy(
                         quantile_level=quantile_levels[k - 1],
                         half_window_size_px=qfss_half_window_size_px,
                         use_as_loss_function=True,
-                        mask_matrix=mask_matrix.astype(int)
+                        mask_matrix=mask_matrix.astype(bool)
                     )
                 )
             else:

@@ -35,6 +35,7 @@ USE_PARTIAL_GRIDS_ARG_NAME = 'use_partial_grids'
 SMOOTHING_RADIUS_ARG_NAME = 'smoothing_radius_px'
 DAILY_TIMES_ARG_NAME = 'daily_times_seconds'
 PLOT_DETERMINISTIC_ARG_NAME = 'plot_deterministic'
+PLOT_UNCERTAINTY_ARG_NAME = 'plot_uncertainty'
 PROB_THRESHOLD_ARG_NAME = 'probability_threshold'
 MAX_PROB_ARG_NAME = 'max_prob_in_colour_bar'
 OUTPUT_DIR_ARG_NAME = 'output_dir_name'
@@ -63,6 +64,11 @@ DAILY_TIMES_HELP_STRING = (
 PLOT_DETERMINISTIC_HELP_STRING = (
     'Boolean flag.  If 1 (0), will plot deterministic (probabilistic) '
     'predictions.'
+)
+PLOT_UNCERTAINTY_HELP_STRING = (
+    'Boolean flag.  If 1, will plot uncertainty estimates.  For each time '
+    'step, central predictions will be one plot and uncertainty will be '
+    'another plot.'
 )
 PROB_THRESHOLD_HELP_STRING = (
     '[used only if `{0:s} == 1`] Threshold used to convert probabilistic '
@@ -107,6 +113,10 @@ INPUT_ARG_PARSER.add_argument(
     help=PLOT_DETERMINISTIC_HELP_STRING
 )
 INPUT_ARG_PARSER.add_argument(
+    '--' + PLOT_UNCERTAINTY_ARG_NAME, type=int, required=False, default=0,
+    help=PLOT_UNCERTAINTY_HELP_STRING
+)
+INPUT_ARG_PARSER.add_argument(
     '--' + PROB_THRESHOLD_ARG_NAME, type=float, required=False, default=-1,
     help=PROB_THRESHOLD_HELP_STRING
 )
@@ -124,8 +134,9 @@ def _plot_predictions_one_example(
         prediction_dict, example_index, border_latitudes_deg_n,
         border_longitudes_deg_e, mask_matrix, plot_deterministic,
         probability_threshold, colour_map_object, colour_norm_object,
-        output_dir_name, plot_colour_bar=True, title_string=None, font_size=30,
-        cbar_extend_min=True, latlng_visible=True):
+        output_dir_name, plot_uncertainty=False, plot_colour_bar=True,
+        title_string=None, font_size=30, cbar_extend_min=True,
+        latlng_visible=True):
     """Plots predictions (and targets) for one example (time step).
 
     M = number of rows in grid
@@ -144,6 +155,7 @@ def _plot_predictions_one_example(
         `prediction_plotting.plot_probabilistic`.
     :param colour_norm_object: Same.
     :param output_dir_name: See documentation at top of file.
+    :param plot_uncertainty: Same.
     :param plot_colour_bar: Boolean flag.
     :param title_string: Figure title.
     :param font_size: Font size.
@@ -180,13 +192,26 @@ def _plot_predictions_one_example(
     )
 
     target_matrix = prediction_dict[prediction_io.TARGET_MATRIX_KEY][i, ...]
-    probability_matrix = prediction_io.get_mean_predictions(prediction_dict)[
-        i, ...
-    ]
+
+    if plot_uncertainty:
+        matrix_to_plot = prediction_io.get_predictive_stdevs(prediction_dict)[
+            i, ...
+        ]
+
+        # TODO(thunderhoser): HACK
+        colour_map_object, colour_norm_object = (
+            prediction_plotting.get_prob_colour_scheme(
+                max_probability=0.2, make_lowest_prob_grey=False
+            )
+        )
+    else:
+        matrix_to_plot = prediction_io.get_mean_predictions(prediction_dict)[
+            i, ...
+        ]
 
     if plot_deterministic:
         prediction_matrix = (
-            (probability_matrix >= probability_threshold).astype(int)
+            (matrix_to_plot >= probability_threshold).astype(int)
         )
 
         prediction_plotting.plot_deterministic(
@@ -204,7 +229,7 @@ def _plot_predictions_one_example(
             ).format(valid_time_string)
     else:
         prediction_plotting.plot_probabilistic(
-            target_matrix=target_matrix, probability_matrix=probability_matrix,
+            target_matrix=target_matrix, probability_matrix=matrix_to_plot,
             figure_object=figure_object, axes_object=axes_object,
             min_latitude_deg_n=latitudes_deg_n[0],
             min_longitude_deg_e=longitudes_deg_e[0],
@@ -215,13 +240,18 @@ def _plot_predictions_one_example(
         )
 
         if title_string is None:
-            title_string = 'Forecast convection probabilities at {0:s}'.format(
-                valid_time_string
-            )
+            if plot_uncertainty:
+                title_string = (
+                    'Uncertainty in convection probabilities at {0:s}'
+                ).format(valid_time_string)
+            else:
+                title_string = (
+                    'Forecast convection probabilities at {0:s}'
+                ).format(valid_time_string)
 
         if plot_colour_bar:
             gg_plotting_utils.plot_colour_bar(
-                axes_object_or_matrix=axes_object, data_matrix=probability_matrix,
+                axes_object_or_matrix=axes_object, data_matrix=matrix_to_plot,
                 colour_map_object=colour_map_object,
                 colour_norm_object=colour_norm_object,
                 orientation_string='vertical', extend_min=cbar_extend_min,
@@ -259,8 +289,10 @@ def _plot_predictions_one_example(
     if output_dir_name is None:
         return None, figure_object, axes_object
 
-    output_file_name = '{0:s}/predictions_{1:s}.jpg'.format(
-        output_dir_name, valid_time_string
+    output_file_name = '{0:s}/{1:s}_{2:s}.jpg'.format(
+        output_dir_name,
+        'uncertainty' if plot_uncertainty else 'predictions',
+        valid_time_string
     )
 
     print('Saving figure to file: "{0:s}"...'.format(output_file_name))
@@ -276,8 +308,8 @@ def _plot_predictions_one_example(
 def _plot_predictions_one_day(
         prediction_file_name, border_latitudes_deg_n, border_longitudes_deg_e,
         use_partial_grids, daily_times_seconds, plot_deterministic,
-        probability_threshold, colour_map_object, colour_norm_object,
-        output_dir_name, smoothing_radius_px=None):
+        plot_uncertainty, probability_threshold, colour_map_object,
+        colour_norm_object, output_dir_name, smoothing_radius_px=None):
     """Plots predictions (and targets) for one day.
 
     P = number of points in border set
@@ -289,6 +321,7 @@ def _plot_predictions_one_day(
     :param use_partial_grids: See documentation at top of file.
     :param daily_times_seconds: Same.
     :param plot_deterministic: Same.
+    :param plot_uncertainty: Same.
     :param probability_threshold: Same.
     :param colour_map_object: See doc for
         `prediction_plotting.plot_probabilistic`.
@@ -355,7 +388,22 @@ def _plot_predictions_one_day(
             border_latitudes_deg_n=border_latitudes_deg_n,
             border_longitudes_deg_e=border_longitudes_deg_e,
             mask_matrix=mask_matrix.astype(int),
-            plot_deterministic=plot_deterministic,
+            plot_deterministic=plot_deterministic, plot_uncertainty=False,
+            probability_threshold=probability_threshold,
+            colour_map_object=colour_map_object,
+            colour_norm_object=colour_norm_object,
+            output_dir_name=output_dir_name
+        )
+
+        if not plot_uncertainty:
+            continue
+
+        _plot_predictions_one_example(
+            prediction_dict=prediction_dict, example_index=i,
+            border_latitudes_deg_n=border_latitudes_deg_n,
+            border_longitudes_deg_e=border_longitudes_deg_e,
+            mask_matrix=mask_matrix.astype(int),
+            plot_deterministic=plot_deterministic, plot_uncertainty=True,
             probability_threshold=probability_threshold,
             colour_map_object=colour_map_object,
             colour_norm_object=colour_norm_object,
@@ -365,8 +413,8 @@ def _plot_predictions_one_day(
 
 def _run(top_prediction_dir_name, first_date_string, last_date_string,
          use_partial_grids, smoothing_radius_px, daily_times_seconds,
-         plot_deterministic, probability_threshold, max_prob_in_colour_bar,
-         output_dir_name):
+         plot_deterministic, plot_uncertainty, probability_threshold,
+         max_prob_in_colour_bar, output_dir_name):
     """Plot predictions (and targets) for the given days.
 
     This is effectively the main method.
@@ -378,6 +426,7 @@ def _run(top_prediction_dir_name, first_date_string, last_date_string,
     :param smoothing_radius_px: Same.
     :param daily_times_seconds: Same.
     :param plot_deterministic: Same.
+    :param plot_uncertainty: Same.
     :param probability_threshold: Same.
     :param max_prob_in_colour_bar: Same.
     :param output_dir_name: Same.
@@ -427,6 +476,7 @@ def _run(top_prediction_dir_name, first_date_string, last_date_string,
                 use_partial_grids=use_partial_grids,
                 smoothing_radius_px=smoothing_radius_px,
                 plot_deterministic=plot_deterministic,
+                plot_uncertainty=plot_uncertainty,
                 probability_threshold=probability_threshold,
                 colour_map_object=colour_map_object,
                 colour_norm_object=colour_norm_object,
@@ -481,6 +531,7 @@ def _run(top_prediction_dir_name, first_date_string, last_date_string,
                 use_partial_grids=use_partial_grids,
                 smoothing_radius_px=smoothing_radius_px,
                 plot_deterministic=plot_deterministic,
+                plot_uncertainty=plot_uncertainty,
                 probability_threshold=probability_threshold,
                 colour_map_object=colour_map_object,
                 colour_norm_object=colour_norm_object,
@@ -509,6 +560,9 @@ if __name__ == '__main__':
         ),
         plot_deterministic=bool(getattr(
             INPUT_ARG_OBJECT, PLOT_DETERMINISTIC_ARG_NAME
+        )),
+        plot_uncertainty=bool(getattr(
+            INPUT_ARG_OBJECT, PLOT_UNCERTAINTY_ARG_NAME
         )),
         probability_threshold=getattr(
             INPUT_ARG_OBJECT, PROB_THRESHOLD_ARG_NAME
