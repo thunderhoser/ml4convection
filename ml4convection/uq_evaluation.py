@@ -823,6 +823,7 @@ def write_spread_vs_skill(
 
     num_bins = len(result_dict[MEAN_PREDICTION_STDEVS_KEY])
     dataset_object.createDimension(SPREAD_SKILL_BIN_DIM_KEY, num_bins)
+    dataset_object.createDimension(SPREAD_SKILL_BIN_EDGE_DIM_KEY, num_bins + 1)
 
     for this_key in [
             MEAN_PREDICTION_STDEVS_KEY, RMSE_VALUES_KEY,
