@@ -836,7 +836,7 @@ def write_spread_vs_skill(
         dataset_object.variables[this_key][:] = result_dict[this_key]
 
     dataset_object.createVariable(
-        this_key, datatype=numpy.float32,
+        BIN_EDGE_PREDICTION_STDEVS_KEY, datatype=numpy.float32,
         dimensions=SPREAD_SKILL_BIN_EDGE_DIM_KEY
     )
     dataset_object.variables[BIN_EDGE_PREDICTION_STDEVS_KEY][:] = (
