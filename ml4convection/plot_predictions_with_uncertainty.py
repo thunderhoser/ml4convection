@@ -34,6 +34,7 @@ DAYS_TO_SECONDS = 86400
 TIME_FORMAT = '%Y-%m-%d-%H%M'
 
 FONT_SIZE = 30
+TITLE_FONT_SIZE = 40
 MASK_OUTLINE_COLOUR = numpy.full(3, 152. / 255)
 FIGURE_RESOLUTION_DPI = 300
 FIGURE_WIDTH_INCHES = 15
@@ -159,10 +160,10 @@ def _plot_predictions_one_time(
         colour_norm_object=colour_norm_object
     )
 
-    title_string = 'Mean convection probability at {0:s}'.format(
-        valid_time_string
+    axes_object.set_title(
+        'Mean convection probability', fontsize=TITLE_FONT_SIZE
     )
-    axes_object.set_title(title_string, fontsize=FONT_SIZE)
+    gg_plotting_utils.label_axes(axes_object=axes_object, label_string='(a)')
 
     plotting_utils.plot_grid_lines(
         plot_latitudes_deg_n=latitudes_deg_n,
@@ -212,10 +213,10 @@ def _plot_predictions_one_time(
         colour_norm_object=colour_norm_object
     )
 
-    title_string = 'Stdev of convection probability at {0:s}'.format(
-        valid_time_string
+    axes_object.set_title(
+        'Stdev of convection probability', fontsize=TITLE_FONT_SIZE
     )
-    axes_object.set_title(title_string, fontsize=FONT_SIZE)
+    gg_plotting_utils.label_axes(axes_object=axes_object, label_string='(b)')
 
     plotting_utils.plot_grid_lines(
         plot_latitudes_deg_n=latitudes_deg_n,
@@ -237,7 +238,11 @@ def _plot_predictions_one_time(
     )
     pyplot.close(figure_object)
 
+    letter_label = 'b'
+
     for k in range(len(percentile_levels)):
+        letter_label = chr(ord(letter_label) + 1)
+
         if prediction_dict[prediction_io.QUANTILE_LEVELS_KEY] is None:
             this_prob_matrix = numpy.percentile(
                 prediction_dict[prediction_io.PROBABILITY_MATRIX_KEY][i, ...],
@@ -280,10 +285,14 @@ def _plot_predictions_one_time(
             colour_norm_object=colour_norm_object
         )
 
-        title_string = '{0:f}th-percentile probability at {1:s}'.format(
-            percentile_levels[k], valid_time_string
+        title_string = '{0:.2g}th percentile of convection probability'.format(
+            percentile_levels[k]
         )
-        axes_object.set_title(title_string, fontsize=FONT_SIZE)
+        axes_object.set_title(title_string, fontsize=TITLE_FONT_SIZE)
+        gg_plotting_utils.label_axes(
+            axes_object=axes_object,
+            label_string='({0:s})'.format(letter_label)
+        )
 
         plotting_utils.plot_grid_lines(
             plot_latitudes_deg_n=latitudes_deg_n,
