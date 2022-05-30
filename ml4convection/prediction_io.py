@@ -536,13 +536,13 @@ def get_mean_predictions(prediction_dict):
     if quantile_levels is None:
         return numpy.mean(prediction_dict[PROBABILITY_MATRIX_KEY], axis=-1)
 
-    first_quartile_index = 1 + numpy.where(
+    first_quartile_index = numpy.where(
         numpy.absolute(quantile_levels - 0.25) <= TOLERANCE
     )[0][0]
-    median_index = 1 + numpy.where(
+    median_index = numpy.where(
         numpy.absolute(quantile_levels - 0.5) <= TOLERANCE
     )[0][0]
-    third_quartile_index = 1 + numpy.where(
+    third_quartile_index = numpy.where(
         numpy.absolute(quantile_levels - 0.75) <= TOLERANCE
     )[0][0]
 
@@ -594,10 +594,10 @@ def get_predictive_stdevs(prediction_dict, assume_large_sample_size=True):
 
     error_checking.assert_is_boolean(assume_large_sample_size)
 
-    first_quartile_index = 1 + numpy.where(
+    first_quartile_index = numpy.where(
         numpy.absolute(quantile_levels - 0.25) <= TOLERANCE
     )[0][0]
-    third_quartile_index = 1 + numpy.where(
+    third_quartile_index = numpy.where(
         numpy.absolute(quantile_levels - 0.75) <= TOLERANCE
     )[0][0]
 
@@ -657,7 +657,7 @@ def get_median_predictions(prediction_dict):
     if quantile_levels is None:
         return numpy.median(prediction_dict[PROBABILITY_MATRIX_KEY], axis=-1)
 
-    median_index = 1 + numpy.where(
+    median_index = numpy.where(
         numpy.absolute(quantile_levels - 0.5) <= TOLERANCE
     )[0][0]
 
