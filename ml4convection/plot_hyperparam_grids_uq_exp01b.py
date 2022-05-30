@@ -1,4 +1,4 @@
-"""Plots evaluation scores vs. hyperparameters for UQ Experiment 1b."""
+"""Plots evaluation scores vs. hyperparameters for UQ Experiment 1."""
 
 import os
 import sys
@@ -175,7 +175,8 @@ def _print_ranking_one_score(score_matrix, score_name):
 
 def _print_ranking_all_scores(
         aupd_matrix, csi_matrix, fss_matrix, bss_matrix, ssrel_matrix,
-        mean_predictive_stdev_matrix, monotonicity_fraction_matrix):
+        mean_predictive_stdev_matrix, monotonicity_fraction_matrix,
+        rank_mainly_by_fss):
     """Prints ranking for all scores.
 
     S = number of dropout rates for top-level skip connection
@@ -191,13 +192,26 @@ def _print_ranking_all_scores(
     :param mean_predictive_stdev_matrix: Same but for mean stdev of predictive
         distribution.
     :param monotonicity_fraction_matrix: Same but for monotonicity fraction.
+    :param rank_mainly_by_fss: Boolean flag.  If True (False), will rank mainly
+        by FSS (SSREL).
     """
 
-    these_scores = -1 * numpy.ravel(fss_matrix)
-    these_scores[numpy.isnan(these_scores)] = -numpy.inf
+    if rank_mainly_by_fss:
+        these_scores = -1 * numpy.ravel(fss_matrix)
+        these_scores[numpy.isnan(these_scores)] = -numpy.inf
+    else:
+        these_scores = numpy.ravel(ssrel_matrix)
+        these_scores[numpy.isnan(these_scores)] = numpy.inf
+
     sort_indices_1d = numpy.argsort(these_scores)
     i_sort_indices, j_sort_indices, k_sort_indices = numpy.unravel_index(
         sort_indices_1d, fss_matrix.shape
+    )
+
+    these_scores = -1 * numpy.ravel(aupd_matrix)
+    these_scores[numpy.isnan(these_scores)] = -numpy.inf
+    aupd_rank_matrix = numpy.reshape(
+        rankdata(these_scores, method='average'), aupd_matrix.shape
     )
 
     these_scores = -1 * numpy.ravel(csi_matrix)
@@ -206,10 +220,10 @@ def _print_ranking_all_scores(
         rankdata(these_scores, method='average'), csi_matrix.shape
     )
 
-    these_scores = -1 * numpy.ravel(aupd_matrix)
+    these_scores = -1 * numpy.ravel(fss_matrix)
     these_scores[numpy.isnan(these_scores)] = -numpy.inf
-    aupd_rank_matrix = numpy.reshape(
-        rankdata(these_scores, method='average'), aupd_matrix.shape
+    fss_rank_matrix = numpy.reshape(
+        rankdata(these_scores, method='average'), fss_matrix.shape
     )
 
     these_scores = -1 * numpy.ravel(bss_matrix)
@@ -244,11 +258,12 @@ def _print_ranking_all_scores(
         k = k_sort_indices[m]
 
         print((
-            '{0:d}th-best FSS = {1:.4f} ... '
-            'dropout rates = {2:.3f}, {3:.3f}, {4:.3f} ... '
-            'AUPD rank = {5:.1f} ... CSI rank = {6:.1f} ... '
-            'BSS rank = {7:.1f} ... SSREL rank = {8:.1f} ... '
-            'MF rank = {9:.1f} ... predictive-stdev rank = {10:.1f}'
+            '{0:d}th-best model ... '
+            'dropout rates = {1:.3f}, {2:.3f}, {3:.3f} ... '
+            'AUPD rank = {4:.1f} ... CSI rank = {5:.1f} ... '
+            'FSS rank = {6:.1f} ... BSS rank = {7:.1f} ... '
+            'SSREL rank = {8:.1f} ... MF rank = {9:.1f} ... '
+            'predictive-stdev rank = {10:.1f}'
         ).format(
             m + 1, fss_matrix[i, j, k],
             TOP_LEVEL_SKIP_DROPOUT_RATES[i],
@@ -261,7 +276,7 @@ def _print_ranking_all_scores(
 
 
 def _run(experiment_dir_name, matching_distance_px, output_dir_name):
-    """Plots evaluation scores vs. hyperparameters for UQ Experiment 1b.
+    """Plots evaluation scores vs. hyperparameters for UQ Experiment 1.
 
     This is effectively the main method.
 
@@ -397,11 +412,22 @@ def _run(experiment_dir_name, matching_distance_px, output_dir_name):
                 )
 
     print(SEPARATOR_STRING)
+
     _print_ranking_all_scores(
         aupd_matrix=aupd_matrix, csi_matrix=max_csi_matrix,
         fss_matrix=fss_matrix, bss_matrix=bss_matrix, ssrel_matrix=ssrel_matrix,
         mean_predictive_stdev_matrix=mean_predictive_stdev_matrix,
-        monotonicity_fraction_matrix=monotonicity_fraction_matrix
+        monotonicity_fraction_matrix=monotonicity_fraction_matrix,
+        rank_mainly_by_fss=True
+    )
+    print(SEPARATOR_STRING)
+
+    _print_ranking_all_scores(
+        aupd_matrix=aupd_matrix, csi_matrix=max_csi_matrix,
+        fss_matrix=fss_matrix, bss_matrix=bss_matrix, ssrel_matrix=ssrel_matrix,
+        mean_predictive_stdev_matrix=mean_predictive_stdev_matrix,
+        monotonicity_fraction_matrix=monotonicity_fraction_matrix,
+        rank_mainly_by_fss=False
     )
     print(SEPARATOR_STRING)
 
