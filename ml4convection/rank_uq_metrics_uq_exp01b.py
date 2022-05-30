@@ -1,4 +1,4 @@
-"""Ranks each UQ metric over all models for UQ Experiment 1."""
+"""Ranks each UQ metric over all models for UQ Experiment 1b."""
 
 import os
 import sys
@@ -20,9 +20,9 @@ import file_system_utils
 
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 
-TOP_LEVEL_SKIP_DROPOUT_RATES = numpy.linspace(0, 0.5, num=5)
-PENULTIMATE_LAYER_DROPOUT_RATES = numpy.linspace(0, 0.5, num=5)
-OUTPUT_LAYER_DROPOUT_RATES = numpy.linspace(0, 0.5, num=5)
+TOP_LEVEL_SKIP_DROPOUT_RATES = numpy.linspace(0, 0.8, num=5)
+PENULTIMATE_LAYER_DROPOUT_RATES = numpy.linspace(0.2, 0.8, num=5)
+OUTPUT_LAYER_DROPOUT_RATES = numpy.linspace(0.4, 0.8, num=5)
 
 DEFAULT_FONT_SIZE = 20
 COLOUR_MAP_OBJECT = pyplot.get_cmap('plasma')
@@ -166,7 +166,7 @@ def _print_ranking_one_score(score_matrix, score_name):
 
 
 def _run(experiment_dir_name, matching_distance_px, output_dir_name):
-    """Ranks each UQ metric over all models for UQ Experiment 1.
+    """Ranks each UQ metric over all models for UQ Experiment 1b.
 
     This is effectively the main method.
 
@@ -226,7 +226,7 @@ def _run(experiment_dir_name, matching_distance_px, output_dir_name):
                     ss_quality_score_matrix[i, j, k] = result_dict[
                         uq_evaluation.SPREAD_SKILL_QUALITY_SCORE_KEY
                     ]
-                    
+
                     non_zero_indices = numpy.where(
                         result_dict[uq_evaluation.EXAMPLE_COUNTS_KEY] > 0
                     )[0]
