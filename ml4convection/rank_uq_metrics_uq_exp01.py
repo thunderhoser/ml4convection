@@ -218,30 +218,29 @@ def _run(experiment_dir_name, matching_distance_px, output_dir_name):
                     matching_distance_px
                 )
 
-                if os.path.isfile(this_file_name):
-                    print('Reading data from: "{0:s}"...'.format(
-                        this_file_name
-                    ))
+                print('Reading data from: "{0:s}"...'.format(
+                    this_file_name
+                ))
+                result_dict = uq_evaluation.read_spread_vs_skill(
+                    this_file_name
+                )
 
-                    result_dict = uq_evaluation.read_spread_vs_skill(
-                        this_file_name
-                    )
-                    ss_quality_score_matrix[i, j, k] = result_dict[
-                        uq_evaluation.SPREAD_SKILL_QUALITY_SCORE_KEY
+                ss_quality_score_matrix[i, j, k] = result_dict[
+                    uq_evaluation.SPREAD_SKILL_QUALITY_SCORE_KEY
+                ]
+
+                non_zero_indices = numpy.where(
+                    result_dict[uq_evaluation.EXAMPLE_COUNTS_KEY] > 0
+                )[0]
+                mean_predictive_stdev_matrix[i, j, k] = numpy.average(
+                    result_dict[uq_evaluation.MEAN_PREDICTION_STDEVS_KEY][
+                        non_zero_indices
+                    ],
+                    weights=
+                    result_dict[uq_evaluation.EXAMPLE_COUNTS_KEY][
+                        non_zero_indices
                     ]
-                    
-                    non_zero_indices = numpy.where(
-                        result_dict[uq_evaluation.EXAMPLE_COUNTS_KEY] > 0
-                    )[0]
-                    mean_predictive_stdev_matrix[i, j, k] = numpy.average(
-                        result_dict[uq_evaluation.MEAN_PREDICTION_STDEVS_KEY][
-                            non_zero_indices
-                        ],
-                        weights=
-                        result_dict[uq_evaluation.MEAN_PREDICTION_STDEVS_KEY][
-                            non_zero_indices
-                        ]
-                    )
+                )
 
                 this_file_name = (
                     '{0:s}/top-level-skip-dropout={1:.3f}_'
@@ -256,15 +255,14 @@ def _run(experiment_dir_name, matching_distance_px, output_dir_name):
                     matching_distance_px
                 )
 
-                if os.path.isfile(this_file_name):
-                    print('Reading data from: "{0:s}"...'.format(
-                        this_file_name
-                    ))
-                    monotonicity_fraction_matrix[i, j, k] = (
-                        uq_evaluation.read_discard_results(this_file_name)[
-                            uq_evaluation.MONOTONICITY_FRACTION_KEY
-                        ]
-                    )
+                print('Reading data from: "{0:s}"...'.format(
+                    this_file_name
+                ))
+                monotonicity_fraction_matrix[i, j, k] = (
+                    uq_evaluation.read_discard_results(this_file_name)[
+                        uq_evaluation.MONOTONICITY_FRACTION_KEY
+                    ]
+                )
 
     print(SEPARATOR_STRING)
 

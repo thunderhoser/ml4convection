@@ -8,6 +8,7 @@ import matplotlib
 matplotlib.use('agg')
 import matplotlib.colors
 from matplotlib import pyplot
+from scipy.stats import rankdata
 
 THIS_DIRECTORY_NAME = os.path.dirname(os.path.realpath(
     os.path.join(os.getcwd(), os.path.expanduser(__file__))
@@ -15,6 +16,7 @@ THIS_DIRECTORY_NAME = os.path.dirname(os.path.realpath(
 sys.path.append(os.path.normpath(os.path.join(THIS_DIRECTORY_NAME, '..')))
 
 import evaluation
+import uq_evaluation
 import gg_model_evaluation as gg_model_eval
 import gg_plotting_utils
 import imagemagick_utils
@@ -171,6 +173,93 @@ def _print_ranking_one_score(score_matrix, score_name):
         ))
 
 
+def _print_ranking_all_scores(
+        aupd_matrix, csi_matrix, fss_matrix, bss_matrix, ssrel_matrix,
+        mean_predictive_stdev_matrix, monotonicity_fraction_matrix):
+    """Prints ranking for all scores.
+
+    S = number of dropout rates for top-level skip connection
+    P = number of dropout rates for penultimate layer
+    L = number of dropout rates for last (output) layer
+
+    :param aupd_matrix: S-by-P-by-L numpy array with AUPD (area under
+        performance diagram).
+    :param csi_matrix: Same but for critical success index.
+    :param fss_matrix: Same but for fractions skill score.
+    :param bss_matrix: Same but for Brier skill score.
+    :param ssrel_matrix: Same but for spread-skill reliability.
+    :param mean_predictive_stdev_matrix: Same but for mean stdev of predictive
+        distribution.
+    :param monotonicity_fraction_matrix: Same but for monotonicity fraction.
+    """
+
+    these_scores = -1 * numpy.ravel(fss_matrix)
+    these_scores[numpy.isnan(these_scores)] = -numpy.inf
+    sort_indices_1d = numpy.argsort(these_scores)
+    i_sort_indices, j_sort_indices, k_sort_indices = numpy.unravel_index(
+        sort_indices_1d, fss_matrix.shape
+    )
+
+    these_scores = -1 * numpy.ravel(csi_matrix)
+    these_scores[numpy.isnan(these_scores)] = -numpy.inf
+    csi_rank_matrix = numpy.reshape(
+        rankdata(these_scores, method='average'), csi_matrix.shape
+    )
+
+    these_scores = -1 * numpy.ravel(aupd_matrix)
+    these_scores[numpy.isnan(these_scores)] = -numpy.inf
+    aupd_rank_matrix = numpy.reshape(
+        rankdata(these_scores, method='average'), aupd_matrix.shape
+    )
+
+    these_scores = -1 * numpy.ravel(bss_matrix)
+    these_scores[numpy.isnan(these_scores)] = -numpy.inf
+    bss_rank_matrix = numpy.reshape(
+        rankdata(these_scores, method='average'), bss_matrix.shape
+    )
+
+    these_scores = numpy.ravel(ssrel_matrix)
+    these_scores[numpy.isnan(these_scores)] = numpy.inf
+    ssrel_rank_matrix = numpy.reshape(
+        rankdata(these_scores, method='average'), ssrel_matrix.shape
+    )
+
+    these_scores = -1 * numpy.ravel(mean_predictive_stdev_matrix)
+    these_scores[numpy.isnan(these_scores)] = -numpy.inf
+    stdev_rank_matrix = numpy.reshape(
+        rankdata(these_scores, method='average'),
+        mean_predictive_stdev_matrix.shape
+    )
+
+    these_scores = -1 * numpy.ravel(monotonicity_fraction_matrix)
+    these_scores[numpy.isnan(these_scores)] = -numpy.inf
+    mf_rank_matrix = numpy.reshape(
+        rankdata(these_scores, method='average'),
+        monotonicity_fraction_matrix.shape
+    )
+
+    for m in range(len(i_sort_indices)):
+        i = i_sort_indices[m]
+        j = j_sort_indices[m]
+        k = k_sort_indices[m]
+
+        print((
+            '{0:d}th-best FSS = {1:.4f} ... '
+            'dropout rates = {2:.3f}, {3:.3f}, {4:.3f} ... '
+            'AUPD rank = {5:.1f} ... CSI rank = {6:.1f} ... '
+            'BSS rank = {7:.1f} ... SSREL rank = {8:.1f} ... '
+            'MF rank = {9:.1f} ... predictive-stdev rank = {10:.1f}'
+        ).format(
+            m + 1, fss_matrix[i, j, k],
+            TOP_LEVEL_SKIP_DROPOUT_RATES[i],
+            PENULTIMATE_LAYER_DROPOUT_RATES[j],
+            OUTPUT_LAYER_DROPOUT_RATES[k],
+            aupd_rank_matrix[i, j, k], csi_rank_matrix[i, j, k],
+            bss_rank_matrix[i, j, k], ssrel_rank_matrix[i, j, k],
+            mf_rank_matrix[i, j, k], stdev_rank_matrix[i, j, k]
+        ))
+
+
 def _run(experiment_dir_name, matching_distance_px, output_dir_name):
     """Plots evaluation scores vs. hyperparameters for UQ Experiment 1.
 
@@ -197,6 +286,9 @@ def _run(experiment_dir_name, matching_distance_px, output_dir_name):
     max_csi_matrix = numpy.full(dimensions, numpy.nan)
     fss_matrix = numpy.full(dimensions, numpy.nan)
     bss_matrix = numpy.full(dimensions, numpy.nan)
+    ssrel_matrix = numpy.full(dimensions, numpy.nan)
+    mean_predictive_stdev_matrix = numpy.full(dimensions, numpy.nan)
+    monotonicity_fraction_matrix = numpy.full(dimensions, numpy.nan)
 
     y_tick_labels = ['{0:.3f}'.format(d) for d in TOP_LEVEL_SKIP_DROPOUT_RATES]
     x_tick_labels = [
@@ -247,12 +339,76 @@ def _run(experiment_dir_name, matching_distance_px, output_dir_name):
                     t[evaluation.BRIER_SKILL_SCORE_KEY].values
                 )
 
+                this_score_file_name = (
+                    '{0:s}/top-level-skip-dropout={1:.3f}_'
+                    'penultimate-layer-dropout={2:.3f}_'
+                    'output-layer-dropout={3:.3f}/'
+                    'validation_with_dropout/partial_grids/evaluation/'
+                    'spread_vs_skill_matching-distance-px=0.000000.nc'
+                ).format(
+                    experiment_dir_name, TOP_LEVEL_SKIP_DROPOUT_RATES[i],
+                    PENULTIMATE_LAYER_DROPOUT_RATES[j],
+                    OUTPUT_LAYER_DROPOUT_RATES[k]
+                )
+
+                print('Reading data from: "{0:s}"...'.format(
+                    this_score_file_name
+                ))
+                result_dict = uq_evaluation.read_spread_vs_skill(
+                    this_score_file_name
+                )
+
+                ssrel_matrix[i, j, k] = result_dict[
+                    uq_evaluation.SPREAD_SKILL_QUALITY_SCORE_KEY
+                ]
+
+                non_zero_indices = numpy.where(
+                    result_dict[uq_evaluation.EXAMPLE_COUNTS_KEY] > 0
+                )[0]
+                mean_predictive_stdev_matrix[i, j, k] = numpy.average(
+                    result_dict[uq_evaluation.MEAN_PREDICTION_STDEVS_KEY][
+                        non_zero_indices
+                    ],
+                    weights=
+                    result_dict[uq_evaluation.EXAMPLE_COUNTS_KEY][
+                        non_zero_indices
+                    ]
+                )
+
+                this_score_file_name = (
+                    '{0:s}/top-level-skip-dropout={1:.3f}_'
+                    'penultimate-layer-dropout={2:.3f}_'
+                    'output-layer-dropout={3:.3f}/'
+                    'validation_with_dropout/partial_grids/evaluation/xentropy/'
+                    'discard_test_matching-distance-px=0.000000.nc'
+                ).format(
+                    experiment_dir_name, TOP_LEVEL_SKIP_DROPOUT_RATES[i],
+                    PENULTIMATE_LAYER_DROPOUT_RATES[j],
+                    OUTPUT_LAYER_DROPOUT_RATES[k]
+                )
+
+                print('Reading data from: "{0:s}"...'.format(
+                    this_score_file_name
+                ))
+                monotonicity_fraction_matrix[i, j, k] = (
+                    uq_evaluation.read_discard_results(this_score_file_name)[
+                        uq_evaluation.MONOTONICITY_FRACTION_KEY
+                    ]
+                )
+
+    print(SEPARATOR_STRING)
+    _print_ranking_all_scores(
+        aupd_matrix=aupd_matrix, csi_matrix=max_csi_matrix,
+        fss_matrix=fss_matrix, bss_matrix=bss_matrix, ssrel_matrix=ssrel_matrix,
+        mean_predictive_stdev_matrix=mean_predictive_stdev_matrix,
+        monotonicity_fraction_matrix=monotonicity_fraction_matrix
+    )
     print(SEPARATOR_STRING)
 
     _print_ranking_one_score(score_matrix=aupd_matrix, score_name='AUPD')
     print(SEPARATOR_STRING)
 
-    _print_ranking_one_score(score_matrix=max_csi_matrix, score_name='Max CSI')
+    _print_ranking_one_score(score_matrix=max_csi_matrix, score_name='max CSI')
     print(SEPARATOR_STRING)
 
     _print_ranking_one_score(score_matrix=fss_matrix, score_name='FSS')
@@ -261,10 +417,30 @@ def _run(experiment_dir_name, matching_distance_px, output_dir_name):
     _print_ranking_one_score(score_matrix=bss_matrix, score_name='BSS')
     print(SEPARATOR_STRING)
 
+    _print_ranking_one_score(
+        score_matrix=ssrel_matrix, score_name='negative SSREL'
+    )
+    print(SEPARATOR_STRING)
+
+    _print_ranking_one_score(
+        score_matrix=mean_predictive_stdev_matrix,
+        score_name='mean predictive stdev'
+    )
+    print(SEPARATOR_STRING)
+
+    _print_ranking_one_score(
+        score_matrix=monotonicity_fraction_matrix,
+        score_name='monotonicity fraction'
+    )
+    print(SEPARATOR_STRING)
+
     aupd_panel_file_names = [''] * num_output_layer_rates
     csi_panel_file_names = [''] * num_output_layer_rates
     fss_panel_file_names = [''] * num_output_layer_rates
     bss_panel_file_names = [''] * num_output_layer_rates
+    ssrel_panel_file_names = [''] * num_output_layer_rates
+    stdev_panel_file_names = [''] * num_output_layer_rates
+    mf_panel_file_names = [''] * num_output_layer_rates
     letter_label = None
 
     for k in range(num_output_layer_rates):
@@ -436,6 +612,132 @@ def _run(experiment_dir_name, matching_distance_px, output_dir_name):
             output_size_pixels=PANEL_SIZE_PX
         )
 
+        # Plot SSREL.
+        figure_object, axes_object = _plot_scores_2d(
+            score_matrix=ssrel_matrix[..., k],
+            min_colour_value=numpy.nanpercentile(ssrel_matrix, 1),
+            max_colour_value=numpy.nanpercentile(ssrel_matrix, 99),
+            x_tick_labels=x_tick_labels, y_tick_labels=y_tick_labels,
+            colour_map_object=DEFAULT_COLOUR_MAP_OBJECT
+        )
+
+        title_string = 'SSREL; dropout rate for last layer = {0:.3f}'.format(
+            OUTPUT_LAYER_DROPOUT_RATES[k]
+        )
+
+        axes_object.set_xlabel(x_axis_label)
+        axes_object.set_ylabel(y_axis_label)
+        axes_object.set_title(title_string)
+        gg_plotting_utils.label_axes(
+            axes_object=axes_object,
+            label_string='({0:s})'.format(letter_label)
+        )
+
+        ssrel_panel_file_names[k] = (
+            '{0:s}/ssrel_output-layer-dropout={1:.3f}.jpg'
+        ).format(
+            output_dir_name, OUTPUT_LAYER_DROPOUT_RATES[k]
+        )
+
+        print('Saving figure to: "{0:s}"...'.format(ssrel_panel_file_names[k]))
+        figure_object.savefig(
+            ssrel_panel_file_names[k], dpi=FIGURE_RESOLUTION_DPI,
+            pad_inches=0, bbox_inches='tight'
+        )
+        pyplot.close(figure_object)
+
+        imagemagick_utils.resize_image(
+            input_file_name=ssrel_panel_file_names[k],
+            output_file_name=ssrel_panel_file_names[k],
+            output_size_pixels=PANEL_SIZE_PX
+        )
+
+        # Plot mean predictive stdev.
+        figure_object, axes_object = _plot_scores_2d(
+            score_matrix=mean_predictive_stdev_matrix[..., k],
+            min_colour_value=
+            numpy.nanpercentile(mean_predictive_stdev_matrix, 1),
+            max_colour_value=
+            numpy.nanpercentile(mean_predictive_stdev_matrix, 99),
+            x_tick_labels=x_tick_labels, y_tick_labels=y_tick_labels,
+            colour_map_object=DEFAULT_COLOUR_MAP_OBJECT
+        )
+
+        title_string = (
+            'Mean predictive stdev; dropout rate for last layer = {0:.3f}'
+        ).format(
+            OUTPUT_LAYER_DROPOUT_RATES[k]
+        )
+
+        axes_object.set_xlabel(x_axis_label)
+        axes_object.set_ylabel(y_axis_label)
+        axes_object.set_title(title_string)
+        gg_plotting_utils.label_axes(
+            axes_object=axes_object,
+            label_string='({0:s})'.format(letter_label)
+        )
+
+        stdev_panel_file_names[k] = (
+            '{0:s}/mean_predictive_stdev_output-layer-dropout={1:.3f}.jpg'
+        ).format(
+            output_dir_name, OUTPUT_LAYER_DROPOUT_RATES[k]
+        )
+
+        print('Saving figure to: "{0:s}"...'.format(stdev_panel_file_names[k]))
+        figure_object.savefig(
+            stdev_panel_file_names[k], dpi=FIGURE_RESOLUTION_DPI,
+            pad_inches=0, bbox_inches='tight'
+        )
+        pyplot.close(figure_object)
+
+        imagemagick_utils.resize_image(
+            input_file_name=stdev_panel_file_names[k],
+            output_file_name=stdev_panel_file_names[k],
+            output_size_pixels=PANEL_SIZE_PX
+        )
+
+        # Plot monotonicity fraction.
+        figure_object, axes_object = _plot_scores_2d(
+            score_matrix=monotonicity_fraction_matrix[..., k],
+            min_colour_value=numpy.nanmin(monotonicity_fraction_matrix),
+            max_colour_value=numpy.nanmax(monotonicity_fraction_matrix),
+            x_tick_labels=x_tick_labels, y_tick_labels=y_tick_labels,
+            colour_map_object=DEFAULT_COLOUR_MAP_OBJECT
+        )
+
+        title_string = (
+            'Monotonicity fraction; dropout rate for last layer = {0:.3f}'
+        ).format(
+            OUTPUT_LAYER_DROPOUT_RATES[k]
+        )
+
+        axes_object.set_xlabel(x_axis_label)
+        axes_object.set_ylabel(y_axis_label)
+        axes_object.set_title(title_string)
+        gg_plotting_utils.label_axes(
+            axes_object=axes_object,
+            label_string='({0:s})'.format(letter_label)
+        )
+
+        mf_panel_file_names[k] = (
+            '{0:s}/monotonicity_fraction_output-layer-dropout={1:.3f}.jpg'
+        ).format(
+            output_dir_name, OUTPUT_LAYER_DROPOUT_RATES[k]
+        )
+
+        print('Saving figure to: "{0:s}"...'.format(mf_panel_file_names[k]))
+        figure_object.savefig(
+            mf_panel_file_names[k], dpi=FIGURE_RESOLUTION_DPI,
+            pad_inches=0, bbox_inches='tight'
+        )
+        pyplot.close(figure_object)
+
+        imagemagick_utils.resize_image(
+            input_file_name=mf_panel_file_names[k],
+            output_file_name=mf_panel_file_names[k],
+            output_size_pixels=PANEL_SIZE_PX
+        )
+
     num_panel_columns = int(numpy.floor(
         numpy.sqrt(num_output_layer_rates)
     ))
@@ -489,6 +791,46 @@ def _run(experiment_dir_name, matching_distance_px, output_dir_name):
     imagemagick_utils.trim_whitespace(
         input_file_name=bss_concat_file_name,
         output_file_name=bss_concat_file_name
+    )
+
+    ssrel_concat_file_name = '{0:s}/ssrel.jpg'.format(output_dir_name)
+    print('Concatenating figures to: "{0:s}"...'.format(ssrel_concat_file_name))
+    imagemagick_utils.concatenate_images(
+        input_file_names=ssrel_panel_file_names,
+        output_file_name=ssrel_concat_file_name,
+        num_panel_rows=num_panel_rows, num_panel_columns=num_panel_columns
+    )
+    imagemagick_utils.trim_whitespace(
+        input_file_name=ssrel_concat_file_name,
+        output_file_name=ssrel_concat_file_name
+    )
+
+    stdev_concat_file_name = '{0:s}/mean_predictive_stdev.jpg'.format(
+        output_dir_name
+    )
+    print('Concatenating figures to: "{0:s}"...'.format(stdev_concat_file_name))
+    imagemagick_utils.concatenate_images(
+        input_file_names=stdev_panel_file_names,
+        output_file_name=stdev_concat_file_name,
+        num_panel_rows=num_panel_rows, num_panel_columns=num_panel_columns
+    )
+    imagemagick_utils.trim_whitespace(
+        input_file_name=stdev_concat_file_name,
+        output_file_name=stdev_concat_file_name
+    )
+
+    mf_concat_file_name = '{0:s}/monotonicity_fraction.jpg'.format(
+        output_dir_name
+    )
+    print('Concatenating figures to: "{0:s}"...'.format(mf_concat_file_name))
+    imagemagick_utils.concatenate_images(
+        input_file_names=mf_panel_file_names,
+        output_file_name=mf_concat_file_name,
+        num_panel_rows=num_panel_rows, num_panel_columns=num_panel_columns
+    )
+    imagemagick_utils.trim_whitespace(
+        input_file_name=mf_concat_file_name,
+        output_file_name=mf_concat_file_name
     )
 
 
