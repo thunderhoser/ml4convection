@@ -265,13 +265,13 @@ def _print_ranking_all_scores(
             'SSREL rank = {8:.1f} ... MF rank = {9:.1f} ... '
             'predictive-stdev rank = {10:.1f}'
         ).format(
-            m + 1, fss_matrix[i, j, k],
-            TOP_LEVEL_SKIP_DROPOUT_RATES[i],
+            m + 1, TOP_LEVEL_SKIP_DROPOUT_RATES[i],
             PENULTIMATE_LAYER_DROPOUT_RATES[j],
             OUTPUT_LAYER_DROPOUT_RATES[k],
             aupd_rank_matrix[i, j, k], csi_rank_matrix[i, j, k],
-            bss_rank_matrix[i, j, k], ssrel_rank_matrix[i, j, k],
-            mf_rank_matrix[i, j, k], stdev_rank_matrix[i, j, k]
+            fss_rank_matrix[i, j, k], bss_rank_matrix[i, j, k],
+            ssrel_rank_matrix[i, j, k], mf_rank_matrix[i, j, k],
+            stdev_rank_matrix[i, j, k]
         ))
 
 
