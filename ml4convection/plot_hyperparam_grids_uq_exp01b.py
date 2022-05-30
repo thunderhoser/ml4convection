@@ -1,4 +1,4 @@
-"""Plots evaluation scores vs. hyperparameters for UQ Experiment 1."""
+"""Plots evaluation scores vs. hyperparameters for UQ Experiment 1b."""
 
 import os
 import sys
@@ -21,9 +21,9 @@ import file_system_utils
 
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 
-TOP_LEVEL_SKIP_DROPOUT_RATES = numpy.linspace(0, 0.5, num=5)
-PENULTIMATE_LAYER_DROPOUT_RATES = numpy.linspace(0, 0.5, num=5)
-OUTPUT_LAYER_DROPOUT_RATES = numpy.linspace(0, 0.5, num=5)
+TOP_LEVEL_SKIP_DROPOUT_RATES = numpy.linspace(0, 0.8, num=5)
+PENULTIMATE_LAYER_DROPOUT_RATES = numpy.linspace(0.2, 0.8, num=5)
+OUTPUT_LAYER_DROPOUT_RATES = numpy.linspace(0.4, 0.8, num=5)
 
 DEFAULT_FONT_SIZE = 20
 
@@ -169,7 +169,7 @@ def _print_ranking_one_score(score_matrix, score_name):
 
 
 def _run(experiment_dir_name, matching_distance_px, output_dir_name):
-    """Plots evaluation scores vs. hyperparameters for UQ Experiment 1.
+    """Plots evaluation scores vs. hyperparameters for UQ Experiment 1b.
 
     This is effectively the main method.
 
