@@ -17,6 +17,7 @@ sys.path.append(os.path.normpath(os.path.join(THIS_DIRECTORY_NAME, '..')))
 import evaluation
 import gg_model_evaluation as gg_model_eval
 import gg_plotting_utils
+import imagemagick_utils
 import file_system_utils
 
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
@@ -41,6 +42,8 @@ BSS_COLOUR_MAP_OBJECT = pyplot.get_cmap('seismic')
 FIGURE_WIDTH_INCHES = 15
 FIGURE_HEIGHT_INCHES = 15
 FIGURE_RESOLUTION_DPI = 300
+
+PANEL_SIZE_PX = int(2.5e6)
 
 EXPERIMENT_DIR_ARG_NAME = 'experiment_dir_name'
 MATCHING_DISTANCE_ARG_NAME = 'matching_distance_px'
@@ -258,7 +261,17 @@ def _run(experiment_dir_name, matching_distance_px, output_dir_name):
     _print_ranking_one_score(score_matrix=bss_matrix, score_name='BSS')
     print(SEPARATOR_STRING)
 
+    aupd_panel_file_names = [''] * num_output_layer_rates
+    csi_panel_file_names = [''] * num_output_layer_rates
+    fss_panel_file_names = [''] * num_output_layer_rates
+    bss_panel_file_names = [''] * num_output_layer_rates
+    letter_label = None
+
     for k in range(num_output_layer_rates):
+        if letter_label is None:
+            letter_label = 'a'
+        else:
+            letter_label = chr(ord(letter_label) + 1)
 
         # Plot AUPD.
         figure_object, axes_object = _plot_scores_2d(
@@ -269,24 +282,36 @@ def _run(experiment_dir_name, matching_distance_px, output_dir_name):
             colour_map_object=DEFAULT_COLOUR_MAP_OBJECT
         )
 
+        title_string = 'AUPD; dropout rate for last layer = {0:.3f}'.format(
+            OUTPUT_LAYER_DROPOUT_RATES[k]
+        )
+
         axes_object.set_xlabel(x_axis_label)
         axes_object.set_ylabel(y_axis_label)
-
-        axes_object.set_title(
-            'AUPD; dropout rate for last layer = {0:.3f}'.format(
-                OUTPUT_LAYER_DROPOUT_RATES[k]
-            )
+        axes_object.set_title(title_string)
+        gg_plotting_utils.label_axes(
+            axes_object=axes_object,
+            label_string='({0:s})'.format(letter_label)
         )
-        figure_file_name = '{0:s}/aupd_output-layer-dropout={1:.3f}.jpg'.format(
+
+        aupd_panel_file_names[k] = (
+            '{0:s}/aupd_output-layer-dropout={1:.3f}.jpg'
+        ).format(
             output_dir_name, OUTPUT_LAYER_DROPOUT_RATES[k]
         )
 
-        print('Saving figure to: "{0:s}"...'.format(figure_file_name))
+        print('Saving figure to: "{0:s}"...'.format(aupd_panel_file_names[k]))
         figure_object.savefig(
-            figure_file_name, dpi=FIGURE_RESOLUTION_DPI,
+            aupd_panel_file_names[k], dpi=FIGURE_RESOLUTION_DPI,
             pad_inches=0, bbox_inches='tight'
         )
         pyplot.close(figure_object)
+
+        imagemagick_utils.resize_image(
+            input_file_name=aupd_panel_file_names[k],
+            output_file_name=aupd_panel_file_names[k],
+            output_size_pixels=PANEL_SIZE_PX
+        )
 
         # Plot max CSI.
         figure_object, axes_object = _plot_scores_2d(
@@ -297,24 +322,36 @@ def _run(experiment_dir_name, matching_distance_px, output_dir_name):
             colour_map_object=DEFAULT_COLOUR_MAP_OBJECT
         )
 
+        title_string = 'Max CSI; dropout rate for last layer = {0:.3f}'.format(
+            OUTPUT_LAYER_DROPOUT_RATES[k]
+        )
+
         axes_object.set_xlabel(x_axis_label)
         axes_object.set_ylabel(y_axis_label)
-
-        axes_object.set_title(
-            'Max CSI; dropout rate for last layer = {0:.3f}'.format(
-                OUTPUT_LAYER_DROPOUT_RATES[k]
-            )
+        axes_object.set_title(title_string)
+        gg_plotting_utils.label_axes(
+            axes_object=axes_object,
+            label_string='({0:s})'.format(letter_label)
         )
-        figure_file_name = '{0:s}/csi_output-layer-dropout={1:.3f}.jpg'.format(
+
+        csi_panel_file_names[k] = (
+            '{0:s}/csi_output-layer-dropout={1:.3f}.jpg'
+        ).format(
             output_dir_name, OUTPUT_LAYER_DROPOUT_RATES[k]
         )
 
-        print('Saving figure to: "{0:s}"...'.format(figure_file_name))
+        print('Saving figure to: "{0:s}"...'.format(csi_panel_file_names[k]))
         figure_object.savefig(
-            figure_file_name, dpi=FIGURE_RESOLUTION_DPI,
+            csi_panel_file_names[k], dpi=FIGURE_RESOLUTION_DPI,
             pad_inches=0, bbox_inches='tight'
         )
         pyplot.close(figure_object)
+
+        imagemagick_utils.resize_image(
+            input_file_name=csi_panel_file_names[k],
+            output_file_name=csi_panel_file_names[k],
+            output_size_pixels=PANEL_SIZE_PX
+        )
 
         # Plot FSS.
         figure_object, axes_object = _plot_scores_2d(
@@ -325,24 +362,36 @@ def _run(experiment_dir_name, matching_distance_px, output_dir_name):
             colour_map_object=DEFAULT_COLOUR_MAP_OBJECT
         )
 
+        title_string = 'FSS; dropout rate for last layer = {0:.3f}'.format(
+            OUTPUT_LAYER_DROPOUT_RATES[k]
+        )
+
         axes_object.set_xlabel(x_axis_label)
         axes_object.set_ylabel(y_axis_label)
-
-        axes_object.set_title(
-            'FSS; dropout rate for last layer = {0:.3f}'.format(
-                OUTPUT_LAYER_DROPOUT_RATES[k]
-            )
+        axes_object.set_title(title_string)
+        gg_plotting_utils.label_axes(
+            axes_object=axes_object,
+            label_string='({0:s})'.format(letter_label)
         )
-        figure_file_name = '{0:s}/fss_output-layer-dropout={1:.3f}.jpg'.format(
+
+        fss_panel_file_names[k] = (
+            '{0:s}/fss_output-layer-dropout={1:.3f}.jpg'
+        ).format(
             output_dir_name, OUTPUT_LAYER_DROPOUT_RATES[k]
         )
 
-        print('Saving figure to: "{0:s}"...'.format(figure_file_name))
+        print('Saving figure to: "{0:s}"...'.format(fss_panel_file_names[k]))
         figure_object.savefig(
-            figure_file_name, dpi=FIGURE_RESOLUTION_DPI,
+            fss_panel_file_names[k], dpi=FIGURE_RESOLUTION_DPI,
             pad_inches=0, bbox_inches='tight'
         )
         pyplot.close(figure_object)
+
+        imagemagick_utils.resize_image(
+            input_file_name=fss_panel_file_names[k],
+            output_file_name=fss_panel_file_names[k],
+            output_size_pixels=PANEL_SIZE_PX
+        )
 
         # Plot BSS.
         this_max_value = numpy.nanpercentile(numpy.absolute(bss_matrix), 99.)
@@ -356,24 +405,91 @@ def _run(experiment_dir_name, matching_distance_px, output_dir_name):
             colour_map_object=BSS_COLOUR_MAP_OBJECT
         )
 
+        title_string = 'BSS; dropout rate for last layer = {0:.3f}'.format(
+            OUTPUT_LAYER_DROPOUT_RATES[k]
+        )
+
         axes_object.set_xlabel(x_axis_label)
         axes_object.set_ylabel(y_axis_label)
-
-        axes_object.set_title(
-            'BSS; dropout rate for last layer = {0:.3f}'.format(
-                OUTPUT_LAYER_DROPOUT_RATES[k]
-            )
+        axes_object.set_title(title_string)
+        gg_plotting_utils.label_axes(
+            axes_object=axes_object,
+            label_string='({0:s})'.format(letter_label)
         )
-        figure_file_name = '{0:s}/bss_output-layer-dropout={1:.3f}.jpg'.format(
+
+        bss_panel_file_names[k] = (
+            '{0:s}/bss_output-layer-dropout={1:.3f}.jpg'
+        ).format(
             output_dir_name, OUTPUT_LAYER_DROPOUT_RATES[k]
         )
 
-        print('Saving figure to: "{0:s}"...'.format(figure_file_name))
+        print('Saving figure to: "{0:s}"...'.format(bss_panel_file_names[k]))
         figure_object.savefig(
-            figure_file_name, dpi=FIGURE_RESOLUTION_DPI,
+            bss_panel_file_names[k], dpi=FIGURE_RESOLUTION_DPI,
             pad_inches=0, bbox_inches='tight'
         )
         pyplot.close(figure_object)
+
+        imagemagick_utils.resize_image(
+            input_file_name=bss_panel_file_names[k],
+            output_file_name=bss_panel_file_names[k],
+            output_size_pixels=PANEL_SIZE_PX
+        )
+
+    num_panel_columns = int(numpy.floor(
+        numpy.sqrt(num_output_layer_rates)
+    ))
+    num_panel_rows = int(numpy.ceil(
+        float(num_output_layer_rates) / num_panel_columns
+    ))
+
+    aupd_concat_file_name = '{0:s}/aupd.jpg'.format(output_dir_name)
+    print('Concatenating figures to: "{0:s}"...'.format(aupd_concat_file_name))
+    imagemagick_utils.concatenate_images(
+        input_file_names=aupd_panel_file_names,
+        output_file_name=aupd_concat_file_name,
+        num_panel_rows=num_panel_rows, num_panel_columns=num_panel_columns
+    )
+    imagemagick_utils.trim_whitespace(
+        input_file_name=aupd_concat_file_name,
+        output_file_name=aupd_concat_file_name
+    )
+
+    csi_concat_file_name = '{0:s}/csi.jpg'.format(output_dir_name)
+    print('Concatenating figures to: "{0:s}"...'.format(csi_concat_file_name))
+    imagemagick_utils.concatenate_images(
+        input_file_names=csi_panel_file_names,
+        output_file_name=csi_concat_file_name,
+        num_panel_rows=num_panel_rows, num_panel_columns=num_panel_columns
+    )
+    imagemagick_utils.trim_whitespace(
+        input_file_name=csi_concat_file_name,
+        output_file_name=csi_concat_file_name
+    )
+
+    fss_concat_file_name = '{0:s}/fss.jpg'.format(output_dir_name)
+    print('Concatenating figures to: "{0:s}"...'.format(fss_concat_file_name))
+    imagemagick_utils.concatenate_images(
+        input_file_names=fss_panel_file_names,
+        output_file_name=fss_concat_file_name,
+        num_panel_rows=num_panel_rows, num_panel_columns=num_panel_columns
+    )
+    imagemagick_utils.trim_whitespace(
+        input_file_name=fss_concat_file_name,
+        output_file_name=fss_concat_file_name
+    )
+
+    bss_concat_file_name = '{0:s}/bss.jpg'.format(output_dir_name)
+    print('Concatenating figures to: "{0:s}"...'.format(bss_concat_file_name))
+    imagemagick_utils.concatenate_images(
+        input_file_names=bss_panel_file_names,
+        output_file_name=bss_concat_file_name,
+        num_panel_rows=num_panel_rows, num_panel_columns=num_panel_columns
+    )
+    imagemagick_utils.trim_whitespace(
+        input_file_name=bss_concat_file_name,
+        output_file_name=bss_concat_file_name
+    )
 
 
 if __name__ == '__main__':

@@ -16,6 +16,7 @@ sys.path.append(os.path.normpath(os.path.join(THIS_DIRECTORY_NAME, '..')))
 
 import uq_evaluation
 import gg_plotting_utils
+import imagemagick_utils
 import file_system_utils
 
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
@@ -38,6 +39,8 @@ pyplot.rc('figure', titlesize=DEFAULT_FONT_SIZE)
 FIGURE_WIDTH_INCHES = 15
 FIGURE_HEIGHT_INCHES = 15
 FIGURE_RESOLUTION_DPI = 300
+
+PANEL_SIZE_PX = int(2.5e6)
 
 EXPERIMENT_DIR_ARG_NAME = 'experiment_dir_name'
 MATCHING_DISTANCE_ARG_NAME = 'matching_distance_px'
@@ -226,7 +229,7 @@ def _run(experiment_dir_name, matching_distance_px, output_dir_name):
                     ss_quality_score_matrix[i, j, k] = result_dict[
                         uq_evaluation.SPREAD_SKILL_QUALITY_SCORE_KEY
                     ]
-
+                    
                     non_zero_indices = numpy.where(
                         result_dict[uq_evaluation.EXAMPLE_COUNTS_KEY] > 0
                     )[0]
@@ -266,7 +269,7 @@ def _run(experiment_dir_name, matching_distance_px, output_dir_name):
     print(SEPARATOR_STRING)
 
     _print_ranking_one_score(
-        score_matrix=-ss_quality_score_matrix, score_name='negative SS quality'
+        score_matrix=-ss_quality_score_matrix, score_name='negative SSREL'
     )
     print(SEPARATOR_STRING)
 
@@ -282,7 +285,16 @@ def _run(experiment_dir_name, matching_distance_px, output_dir_name):
     )
     print(SEPARATOR_STRING)
 
+    ssrel_panel_file_names = [''] * num_output_layer_rates
+    stdev_panel_file_names = [''] * num_output_layer_rates
+    mf_panel_file_names = [''] * num_output_layer_rates
+    letter_label = None
+
     for k in range(num_output_layer_rates):
+        if letter_label is None:
+            letter_label = 'a'
+        else:
+            letter_label = chr(ord(letter_label) + 1)
 
         # Plot spread-skill quality score.
         figure_object, axes_object = _plot_scores_2d(
@@ -293,24 +305,36 @@ def _run(experiment_dir_name, matching_distance_px, output_dir_name):
             colour_map_object=COLOUR_MAP_OBJECT
         )
 
+        title_string = 'SSREL; dropout rate for last layer = {0:.3f}'.format(
+            OUTPUT_LAYER_DROPOUT_RATES[k]
+        )
+
         axes_object.set_xlabel(x_axis_label)
         axes_object.set_ylabel(y_axis_label)
-
-        axes_object.set_title(
-            'SSREL; dropout rate for last layer = {0:.3f}'.format(
-                OUTPUT_LAYER_DROPOUT_RATES[k]
-            )
+        axes_object.set_title(title_string)
+        gg_plotting_utils.label_axes(
+            axes_object=axes_object,
+            label_string='({0:s})'.format(letter_label)
         )
-        figure_file_name = (
-            '{0:s}/ss_quality_output-layer-dropout={1:.3f}.jpg'
-        ).format(output_dir_name, OUTPUT_LAYER_DROPOUT_RATES[k])
 
-        print('Saving figure to: "{0:s}"...'.format(figure_file_name))
+        ssrel_panel_file_names[k] = (
+            '{0:s}/ssrel_output-layer-dropout={1:.3f}.jpg'
+        ).format(
+            output_dir_name, OUTPUT_LAYER_DROPOUT_RATES[k]
+        )
+
+        print('Saving figure to: "{0:s}"...'.format(ssrel_panel_file_names[k]))
         figure_object.savefig(
-            figure_file_name, dpi=FIGURE_RESOLUTION_DPI,
+            ssrel_panel_file_names[k], dpi=FIGURE_RESOLUTION_DPI,
             pad_inches=0, bbox_inches='tight'
         )
         pyplot.close(figure_object)
+
+        imagemagick_utils.resize_image(
+            input_file_name=ssrel_panel_file_names[k],
+            output_file_name=ssrel_panel_file_names[k],
+            output_size_pixels=PANEL_SIZE_PX
+        )
 
         # Plot mean predictive stdev.
         figure_object, axes_object = _plot_scores_2d(
@@ -325,22 +349,36 @@ def _run(experiment_dir_name, matching_distance_px, output_dir_name):
 
         title_string = (
             'Mean predictive stdev; dropout rate for last layer = {0:.3f}'
-        ).format(OUTPUT_LAYER_DROPOUT_RATES[k])
+        ).format(
+            OUTPUT_LAYER_DROPOUT_RATES[k]
+        )
 
         axes_object.set_xlabel(x_axis_label)
         axes_object.set_ylabel(y_axis_label)
         axes_object.set_title(title_string)
+        gg_plotting_utils.label_axes(
+            axes_object=axes_object,
+            label_string='({0:s})'.format(letter_label)
+        )
 
-        figure_file_name = (
+        stdev_panel_file_names[k] = (
             '{0:s}/mean_predictive_stdev_output-layer-dropout={1:.3f}.jpg'
-        ).format(output_dir_name, OUTPUT_LAYER_DROPOUT_RATES[k])
+        ).format(
+            output_dir_name, OUTPUT_LAYER_DROPOUT_RATES[k]
+        )
 
-        print('Saving figure to: "{0:s}"...'.format(figure_file_name))
+        print('Saving figure to: "{0:s}"...'.format(stdev_panel_file_names[k]))
         figure_object.savefig(
-            figure_file_name, dpi=FIGURE_RESOLUTION_DPI,
+            stdev_panel_file_names[k], dpi=FIGURE_RESOLUTION_DPI,
             pad_inches=0, bbox_inches='tight'
         )
         pyplot.close(figure_object)
+
+        imagemagick_utils.resize_image(
+            input_file_name=stdev_panel_file_names[k],
+            output_file_name=stdev_panel_file_names[k],
+            output_size_pixels=PANEL_SIZE_PX
+        )
 
         # Plot monotonicity fraction.
         figure_object, axes_object = _plot_scores_2d(
@@ -351,27 +389,85 @@ def _run(experiment_dir_name, matching_distance_px, output_dir_name):
             colour_map_object=COLOUR_MAP_OBJECT
         )
 
-        axes_object.set_xlabel(x_axis_label)
-        axes_object.set_ylabel(y_axis_label)
-
         title_string = (
             'Monotonicity fraction; dropout rate for last layer = {0:.3f}'
-        ).format(OUTPUT_LAYER_DROPOUT_RATES[k])
+        ).format(
+            OUTPUT_LAYER_DROPOUT_RATES[k]
+        )
 
+        axes_object.set_xlabel(x_axis_label)
+        axes_object.set_ylabel(y_axis_label)
         axes_object.set_title(title_string)
+        gg_plotting_utils.label_axes(
+            axes_object=axes_object,
+            label_string='({0:s})'.format(letter_label)
+        )
 
-        figure_file_name = (
+        mf_panel_file_names[k] = (
             '{0:s}/monotonicity_fraction_output-layer-dropout={1:.3f}.jpg'
         ).format(
             output_dir_name, OUTPUT_LAYER_DROPOUT_RATES[k]
         )
 
-        print('Saving figure to: "{0:s}"...'.format(figure_file_name))
+        print('Saving figure to: "{0:s}"...'.format(mf_panel_file_names[k]))
         figure_object.savefig(
-            figure_file_name, dpi=FIGURE_RESOLUTION_DPI,
+            mf_panel_file_names[k], dpi=FIGURE_RESOLUTION_DPI,
             pad_inches=0, bbox_inches='tight'
         )
         pyplot.close(figure_object)
+
+        imagemagick_utils.resize_image(
+            input_file_name=mf_panel_file_names[k],
+            output_file_name=mf_panel_file_names[k],
+            output_size_pixels=PANEL_SIZE_PX
+        )
+
+    num_panel_columns = int(numpy.floor(
+        numpy.sqrt(num_output_layer_rates)
+    ))
+    num_panel_rows = int(numpy.ceil(
+        float(num_output_layer_rates) / num_panel_columns
+    ))
+
+    ssrel_concat_file_name = '{0:s}/ssrel.jpg'.format(output_dir_name)
+    print('Concatenating figures to: "{0:s}"...'.format(ssrel_concat_file_name))
+    imagemagick_utils.concatenate_images(
+        input_file_names=ssrel_panel_file_names,
+        output_file_name=ssrel_concat_file_name,
+        num_panel_rows=num_panel_rows, num_panel_columns=num_panel_columns
+    )
+    imagemagick_utils.trim_whitespace(
+        input_file_name=ssrel_concat_file_name,
+        output_file_name=ssrel_concat_file_name
+    )
+
+    stdev_concat_file_name = '{0:s}/mean_predictive_stdev.jpg'.format(
+        output_dir_name
+    )
+    print('Concatenating figures to: "{0:s}"...'.format(stdev_concat_file_name))
+    imagemagick_utils.concatenate_images(
+        input_file_names=stdev_panel_file_names,
+        output_file_name=stdev_concat_file_name,
+        num_panel_rows=num_panel_rows, num_panel_columns=num_panel_columns
+    )
+    imagemagick_utils.trim_whitespace(
+        input_file_name=stdev_concat_file_name,
+        output_file_name=stdev_concat_file_name
+    )
+
+    mf_concat_file_name = '{0:s}/monotonicity_fraction.jpg'.format(
+        output_dir_name
+    )
+    print('Concatenating figures to: "{0:s}"...'.format(mf_concat_file_name))
+    imagemagick_utils.concatenate_images(
+        input_file_names=mf_panel_file_names,
+        output_file_name=mf_concat_file_name,
+        num_panel_rows=num_panel_rows, num_panel_columns=num_panel_columns
+    )
+    imagemagick_utils.trim_whitespace(
+        input_file_name=mf_concat_file_name,
+        output_file_name=mf_concat_file_name
+    )
 
 
 if __name__ == '__main__':
