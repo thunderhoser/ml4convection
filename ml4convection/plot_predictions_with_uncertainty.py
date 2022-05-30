@@ -285,7 +285,7 @@ def _plot_predictions_one_time(
             colour_norm_object=colour_norm_object
         )
 
-        title_string = '{0:.2g}th percentile of convection probability'.format(
+        title_string = '{0:.1f}th percentile of convection prob'.format(
             percentile_levels[k]
         )
         axes_object.set_title(title_string, fontsize=TITLE_FONT_SIZE)
