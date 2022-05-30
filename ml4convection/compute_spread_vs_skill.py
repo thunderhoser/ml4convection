@@ -27,6 +27,7 @@ LAST_DATE_ARG_NAME = 'last_date_string'
 TIME_INTERVAL_ARG_NAME = 'time_interval_steps'
 MATCHING_DISTANCES_ARG_NAME = 'matching_distances_px'
 BIN_EDGES_ARG_NAME = 'bin_edge_prediction_stdevs'
+IGNORE_QUANTILES_ARG_NAME = 'ignore_quantiles'
 OUTPUT_DIR_ARG_NAME = 'output_dir_name'
 
 INPUT_DIR_HELP_STRING = (
@@ -50,6 +51,10 @@ BIN_EDGES_HELP_STRING = (
     'List of bin cutoffs -- ranging from (0, 1) -- each a standard deviation '
     'of the predictive distribution.  This script will automatically use 0 and '
     '1 as the lowest and highest cutoffs.'
+)
+IGNORE_QUANTILES_HELP_STRING = (
+    '[used only if model does quantile regression] Boolean flag.  If 1, will '
+    'treat each quantile-based estimate as a Monte Carlo estimate.'
 )
 OUTPUT_DIR_HELP_STRING = (
     'Name of output directory.  For each matching distance, one file will be '
@@ -76,8 +81,12 @@ INPUT_ARG_PARSER.add_argument(
     help=MATCHING_DISTANCES_HELP_STRING
 )
 INPUT_ARG_PARSER.add_argument(
-        '--' + BIN_EDGES_ARG_NAME, type=float, nargs='+', required=True,
+    '--' + BIN_EDGES_ARG_NAME, type=float, nargs='+', required=True,
     help=BIN_EDGES_HELP_STRING
+)
+INPUT_ARG_PARSER.add_argument(
+    '--' + IGNORE_QUANTILES_ARG_NAME, type=int, required=False, default=0,
+    help=IGNORE_QUANTILES_HELP_STRING
 )
 INPUT_ARG_PARSER.add_argument(
     '--' + OUTPUT_DIR_ARG_NAME, type=str, required=True,
@@ -87,7 +96,7 @@ INPUT_ARG_PARSER.add_argument(
 
 def _run(top_prediction_dir_name, first_date_string, last_date_string,
          time_interval_steps, matching_distances_px, bin_edge_prediction_stdevs,
-         output_dir_name):
+         ignore_quantiles, output_dir_name):
     """Runs discard test to determine quality of uncertainty estimates.
 
     This is effectively the main method.
@@ -98,6 +107,7 @@ def _run(top_prediction_dir_name, first_date_string, last_date_string,
     :param time_interval_steps: Same.
     :param matching_distances_px: Same.
     :param bin_edge_prediction_stdevs: Same.
+    :param ignore_quantiles: Same.
     :param output_dir_name: Same.
     """
 
@@ -162,7 +172,10 @@ def _run(top_prediction_dir_name, first_date_string, last_date_string,
         target_matrices.append(
             prediction_dict[prediction_io.TARGET_MATRIX_KEY]
         )
-        quantile_levels = prediction_dict[prediction_io.QUANTILE_LEVELS_KEY]
+
+        if not ignore_quantiles:
+            quantile_levels = prediction_dict[prediction_io.QUANTILE_LEVELS_KEY]
+
         model_file_name = prediction_dict[prediction_io.MODEL_FILE_KEY]
 
     prediction_dict = {
@@ -217,6 +230,9 @@ if __name__ == '__main__':
         ),
         bin_edge_prediction_stdevs=numpy.array(
             getattr(INPUT_ARG_OBJECT, BIN_EDGES_ARG_NAME), dtype=float
+        ),
+        ignore_quantiles=bool(
+            getattr(INPUT_ARG_OBJECT, IGNORE_QUANTILES_ARG_NAME)
         ),
         output_dir_name=getattr(INPUT_ARG_OBJECT, OUTPUT_DIR_ARG_NAME)
     )

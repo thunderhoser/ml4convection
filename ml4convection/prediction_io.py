@@ -602,9 +602,11 @@ def get_predictive_stdevs(prediction_dict, assume_large_sample_size=True):
     )[0][0]
 
     if assume_large_sample_size:
-        psuedo_sample_size = 100.
+        psuedo_sample_size = 100
     else:
-        psuedo_sample_size = 0.25 * (len(quantile_levels) - 1)
+        psuedo_sample_size = int(numpy.round(
+            0.25 * (len(quantile_levels) - 1)
+        ))
 
     coeff_numerator = 2 * math.factorial(4 * psuedo_sample_size + 1)
     coeff_denominator = (
