@@ -145,7 +145,7 @@ def _plot_scores_2d(
         colour_map_object=colour_map_object,
         colour_norm_object=colour_norm_object,
         orientation_string='vertical', extend_min=False, extend_max=False,
-        fraction_of_axis_length=0.8, font_size=DEFAULT_FONT_SIZE
+        fraction_of_axis_length=1., font_size=DEFAULT_FONT_SIZE
     )
 
     tick_values = colour_bar_object.get_ticks()
@@ -504,6 +504,10 @@ def _run(experiment_dir_name, matching_distance_px, output_dir_name):
         imagemagick_utils.resize_image(
             input_file_name=this_file_name, output_file_name=this_file_name,
             output_size_pixels=PANEL_SIZE_PX
+        )
+        imagemagick_utils.trim_whitespace(
+            input_file_name=this_file_name, output_file_name=this_file_name,
+            border_width_pixels=50
         )
 
     concat_file_name = '{0:s}/concat.jpg'.format(output_dir_name)
