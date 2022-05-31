@@ -8,7 +8,6 @@ import matplotlib
 matplotlib.use('agg')
 import matplotlib.colors
 from matplotlib import pyplot
-from scipy.stats import rankdata
 
 THIS_DIRECTORY_NAME = os.path.dirname(os.path.realpath(
     os.path.join(os.getcwd(), os.path.expanduser(__file__))
@@ -225,31 +224,29 @@ def _run(experiment_dir_name, matching_distance_px, output_dir_name):
             matching_distance_px
         )
 
-        # TODO(thunderhoser): Stop allowing missing file.
-        if os.path.isfile(this_score_file_name):
-            print('Reading data from: "{0:s}"...'.format(
-                this_score_file_name
-            ))
-            t = evaluation.read_advanced_score_file(this_score_file_name)
+        print('Reading data from: "{0:s}"...'.format(
+            this_score_file_name
+        ))
+        t = evaluation.read_advanced_score_file(this_score_file_name)
 
-            aupd_matrix[i, 0] = (
-                gg_model_eval.get_area_under_perf_diagram(
-                    pod_by_threshold=numpy.mean(
-                        t[evaluation.POD_KEY].values, axis=0
-                    ),
-                    success_ratio_by_threshold=numpy.mean(
-                        t[evaluation.SUCCESS_RATIO_KEY].values, axis=0
-                    )
+        aupd_matrix[i, 0] = (
+            gg_model_eval.get_area_under_perf_diagram(
+                pod_by_threshold=numpy.mean(
+                    t[evaluation.POD_KEY].values, axis=0
+                ),
+                success_ratio_by_threshold=numpy.mean(
+                    t[evaluation.SUCCESS_RATIO_KEY].values, axis=0
                 )
             )
+        )
 
-            max_csi_matrix[i, 0] = numpy.nanmax(
-                numpy.mean(t[evaluation.CSI_KEY].values, axis=0)
-            )
-            fss_matrix[i, 0] = numpy.mean(t[evaluation.FSS_KEY].values)
-            bss_matrix[i, 0] = numpy.mean(
-                t[evaluation.BRIER_SKILL_SCORE_KEY].values
-            )
+        max_csi_matrix[i, 0] = numpy.nanmax(
+            numpy.mean(t[evaluation.CSI_KEY].values, axis=0)
+        )
+        fss_matrix[i, 0] = numpy.mean(t[evaluation.FSS_KEY].values)
+        bss_matrix[i, 0] = numpy.mean(
+            t[evaluation.BRIER_SKILL_SCORE_KEY].values
+        )
 
         this_score_file_name = (
             '{0:s}/num-quantile-levels={1:03d}/'
