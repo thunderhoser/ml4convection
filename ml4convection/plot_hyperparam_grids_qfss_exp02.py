@@ -343,11 +343,8 @@ def _run(experiment_dir_name, matching_distance_px, output_dir_name):
     axes_object.set_xlabel(x_axis_label)
     axes_object.set_ylabel(y_axis_label)
     axes_object.set_title('AUPD')
-    gg_plotting_utils.label_axes(axes_object=axes_object, label_string='(a)')
 
     this_file_name = '{0:s}/aupd.jpg'.format(output_dir_name)
-    panel_file_names = [this_file_name]
-    
     print('Saving figure to: "{0:s}"...'.format(this_file_name))
     figure_object.savefig(
         this_file_name, dpi=FIGURE_RESOLUTION_DPI,
@@ -367,11 +364,8 @@ def _run(experiment_dir_name, matching_distance_px, output_dir_name):
     axes_object.set_xlabel(x_axis_label)
     axes_object.set_ylabel(y_axis_label)
     axes_object.set_title('CSI')
-    gg_plotting_utils.label_axes(axes_object=axes_object, label_string='(b)')
 
     this_file_name = '{0:s}/csi.jpg'.format(output_dir_name)
-    panel_file_names.append(this_file_name)
-
     print('Saving figure to: "{0:s}"...'.format(this_file_name))
     figure_object.savefig(
         this_file_name, dpi=FIGURE_RESOLUTION_DPI,
@@ -391,10 +385,10 @@ def _run(experiment_dir_name, matching_distance_px, output_dir_name):
     axes_object.set_xlabel(x_axis_label)
     axes_object.set_ylabel(y_axis_label)
     axes_object.set_title('FSS')
-    gg_plotting_utils.label_axes(axes_object=axes_object, label_string='(c)')
+    gg_plotting_utils.label_axes(axes_object=axes_object, label_string='(a)')
 
     this_file_name = '{0:s}/fss.jpg'.format(output_dir_name)
-    panel_file_names.append(this_file_name)
+    panel_file_names = [this_file_name]
 
     print('Saving figure to: "{0:s}"...'.format(this_file_name))
     figure_object.savefig(
@@ -418,11 +412,8 @@ def _run(experiment_dir_name, matching_distance_px, output_dir_name):
     axes_object.set_xlabel(x_axis_label)
     axes_object.set_ylabel(y_axis_label)
     axes_object.set_title('BSS')
-    gg_plotting_utils.label_axes(axes_object=axes_object, label_string='(d)')
 
     this_file_name = '{0:s}/bss.jpg'.format(output_dir_name)
-    panel_file_names.append(this_file_name)
-
     print('Saving figure to: "{0:s}"...'.format(this_file_name))
     figure_object.savefig(
         this_file_name, dpi=FIGURE_RESOLUTION_DPI,
@@ -442,7 +433,7 @@ def _run(experiment_dir_name, matching_distance_px, output_dir_name):
     axes_object.set_xlabel(x_axis_label)
     axes_object.set_ylabel(y_axis_label)
     axes_object.set_title('SSREL')
-    gg_plotting_utils.label_axes(axes_object=axes_object, label_string='(e)')
+    gg_plotting_utils.label_axes(axes_object=axes_object, label_string='(b)')
 
     this_file_name = '{0:s}/ssrel.jpg'.format(output_dir_name)
     panel_file_names.append(this_file_name)
@@ -466,7 +457,7 @@ def _run(experiment_dir_name, matching_distance_px, output_dir_name):
     axes_object.set_xlabel(x_axis_label)
     axes_object.set_ylabel(y_axis_label)
     axes_object.set_title('MF')
-    gg_plotting_utils.label_axes(axes_object=axes_object, label_string='(f)')
+    gg_plotting_utils.label_axes(axes_object=axes_object, label_string='(c)')
 
     this_file_name = '{0:s}/monotonicity_fraction.jpg'.format(output_dir_name)
     panel_file_names.append(this_file_name)
@@ -514,7 +505,7 @@ def _run(experiment_dir_name, matching_distance_px, output_dir_name):
     print('Concatenating figures to: "{0:s}"...'.format(concat_file_name))
     imagemagick_utils.concatenate_images(
         input_file_names=panel_file_names, output_file_name=concat_file_name,
-        num_panel_rows=2, num_panel_columns=3
+        num_panel_rows=1, num_panel_columns=3
     )
     imagemagick_utils.trim_whitespace(
         input_file_name=concat_file_name,
