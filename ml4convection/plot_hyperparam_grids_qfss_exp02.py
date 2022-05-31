@@ -285,7 +285,7 @@ def _run(experiment_dir_name, matching_distance_px, output_dir_name):
 
         this_score_file_name = (
             '{0:s}/num-quantile-levels={1:03d}/'
-            'validation_with_uq/partial_grids/evaluation/xentropy/'
+            'validation_with_uq/partial_grids/evaluation/'
             'discard_test_matching-distance-px=0.000000.nc'
         ).format(
             experiment_dir_name, len(QUANTILE_LEVEL_SETS[i])
