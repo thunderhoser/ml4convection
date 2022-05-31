@@ -690,7 +690,7 @@ def _run(experiment_dir_name, matching_distance_px, output_dir_name):
         )
 
         title_string = (
-            'Mean predictive stdev; dropout rate for last layer = {0:.3f}'
+            'Mean predictive stdev;\ndropout rate for last layer = {0:.3f}'
         ).format(
             OUTPUT_LAYER_DROPOUT_RATES[k]
         )
@@ -732,7 +732,7 @@ def _run(experiment_dir_name, matching_distance_px, output_dir_name):
         )
 
         title_string = (
-            'Monotonicity fraction; dropout rate for last layer = {0:.3f}'
+            'Monotonicity fraction;\ndropout rate for last layer = {0:.3f}'
         ).format(
             OUTPUT_LAYER_DROPOUT_RATES[k]
         )
