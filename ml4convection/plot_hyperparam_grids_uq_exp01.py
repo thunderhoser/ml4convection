@@ -28,7 +28,7 @@ TOP_LEVEL_SKIP_DROPOUT_RATES = numpy.linspace(0, 0.5, num=5)
 PENULTIMATE_LAYER_DROPOUT_RATES = numpy.linspace(0, 0.5, num=5)
 OUTPUT_LAYER_DROPOUT_RATES = numpy.linspace(0, 0.5, num=5)
 
-DEFAULT_FONT_SIZE = 20
+DEFAULT_FONT_SIZE = 34
 
 pyplot.rc('font', size=DEFAULT_FONT_SIZE)
 pyplot.rc('axes', titlesize=DEFAULT_FONT_SIZE)
