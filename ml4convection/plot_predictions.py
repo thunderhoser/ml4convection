@@ -207,6 +207,8 @@ def _plot_predictions_one_example(
         ]
 
         # TODO(thunderhoser): HACK
+        # TODO(thunderhoser): Also, this script should have an option of whether
+        # or not to use the fancy quantile-based method to compute stdev.
         colour_map_object, colour_norm_object = (
             prediction_plotting.get_prob_colour_scheme(
                 max_probability=0.2, make_lowest_prob_grey=False

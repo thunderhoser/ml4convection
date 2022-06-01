@@ -3,7 +3,7 @@
 import os
 import sys
 import copy
-import pickle
+import dill
 import numpy
 # numpy.random.seed(6695)
 import keras
@@ -693,7 +693,7 @@ def _write_metafile(
     file_system_utils.mkdir_recursive_if_necessary(file_name=dill_file_name)
 
     dill_file_handle = open(dill_file_name, 'wb')
-    pickle.dump(metadata_dict, dill_file_handle)
+    dill.dump(metadata_dict, dill_file_handle)
     dill_file_handle.close()
 
 
@@ -2425,9 +2425,9 @@ def read_model(hdf5_file_name, for_mirrored_training=False):
     if quantile_levels is None:
         custom_object_dict['loss'] = loss_function
     else:
+        custom_object_dict = {'central_output_loss': loss_function}
+        loss_dict = {'central_output': loss_function}
         metric_list = []
-        custom_object_dict = {}
-        loss_dict = {}
 
         for k in range(len(quantile_levels)):
             if qfss_half_window_size_px is None:
@@ -2442,8 +2442,10 @@ def read_model(hdf5_file_name, for_mirrored_training=False):
                     mask_matrix=mask_matrix.astype(bool)
                 )
 
-            loss_dict['quantile_output{0:03d}'.format(k)] = this_loss_function
-            custom_object_dict['quantile_output{0:03d}_loss'.format(k)] = (
+            loss_dict['quantile_output{0:03d}'.format(k + 1)] = (
+                this_loss_function
+            )
+            custom_object_dict['quantile_output{0:03d}_loss'.format(k + 1)] = (
                 this_loss_function
             )
 
@@ -2527,7 +2529,7 @@ def read_metafile(dill_file_name):
     error_checking.assert_file_exists(dill_file_name)
 
     dill_file_handle = open(dill_file_name, 'rb')
-    metadata_dict = pickle.load(dill_file_handle)
+    metadata_dict = dill.load(dill_file_handle)
     dill_file_handle.close()
 
     if LOSS_FUNCTION_KEY not in metadata_dict:

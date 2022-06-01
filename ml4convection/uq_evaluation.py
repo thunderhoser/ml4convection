@@ -36,6 +36,7 @@ MONOTONICITY_FRACTION_KEY = 'monotonicity_fraction'
 
 HALF_WINDOW_SIZE_KEY = 'half_window_size_px'
 USE_MEDIAN_KEY = 'use_median'
+USE_FANCY_QUANTILES_KEY = 'use_fancy_quantile_method_for_stdev'
 
 SPREAD_SKILL_BIN_DIM_KEY = 'bin'
 SPREAD_SKILL_BIN_EDGE_DIM_KEY = 'bin_edge'
@@ -377,9 +378,11 @@ def get_fss_error_function(half_window_size_px, use_median):
     return error_function
 
 
-def get_stdev_uncertainty_function():
+def get_stdev_uncertainty_function(use_fancy_quantile_method):
     """Creates function to compute stdev of predictive distribution.
 
+    :param use_fancy_quantile_method: See doc for
+        `prediction_io.get_predictive_stdevs`.
     :return: uncertainty_function: Function handle.
     """
 
@@ -396,7 +399,10 @@ def get_stdev_uncertainty_function():
             distribution for each point/time.
         """
 
-        return prediction_io.get_predictive_stdevs(prediction_dict)
+        return prediction_io.get_predictive_stdevs(
+            prediction_dict=prediction_dict,
+            use_fancy_quantile_method=use_fancy_quantile_method
+        )
 
     return uncertainty_function
 
@@ -556,7 +562,7 @@ def run_discard_test(
 
 def get_spread_vs_skill(
         prediction_dict, bin_edge_prediction_stdevs, half_window_size_px,
-        eval_mask_matrix, use_median):
+        eval_mask_matrix, use_median, use_fancy_quantile_method_for_stdev):
     """Computes model spread vs. model skill.
 
     B = number of bins
@@ -577,6 +583,8 @@ def get_spread_vs_skill(
         erosion for you.
     :param use_median: Boolean flag.  If True (False), will use median (mean) of
         each predictive distribution.
+    :param use_fancy_quantile_method_for_stdev: See doc for
+        `prediction_io.get_predictive_stdevs`.
     :return: result_dict: Dictionary with the following keys.
     result_dict['mean_prediction_stdevs']: length-B numpy array, where the [i]th
         entry is the mean standard deviation of predictive distributions in the
@@ -659,7 +667,8 @@ def get_spread_vs_skill(
         )
 
     prediction_stdev_matrix = prediction_io.get_predictive_stdevs(
-        prediction_dict
+        prediction_dict=prediction_dict,
+        use_fancy_quantile_method=use_fancy_quantile_method_for_stdev
     )
     prediction_stdev_matrix[eroded_eval_mask_matrix == False] = numpy.nan
     squared_error_matrix = _get_squared_errors(
@@ -712,7 +721,7 @@ def get_spread_vs_skill(
 
 def write_discard_results(
         netcdf_file_name, result_dict, error_function_name,
-        uncertainty_function_name):
+        uncertainty_function_name, use_fancy_quantile_method_for_stdev):
     """Writes results of discard test to NetCDF file.
 
     :param netcdf_file_name: Path to output file.
@@ -721,11 +730,14 @@ def write_discard_results(
         used later for plotting.
     :param uncertainty_function_name: Name of uncertainty function (string).
         This will be used later for plotting.
+    :param use_fancy_quantile_method_for_stdev: See doc for
+        `compute_spread_vs_skill`.
     """
 
     # Check input args.
     error_checking.assert_is_string(error_function_name)
     error_checking.assert_is_string(uncertainty_function_name)
+    error_checking.assert_is_boolean(use_fancy_quantile_method_for_stdev)
 
     # Write file.
     file_system_utils.mkdir_recursive_if_necessary(file_name=netcdf_file_name)
@@ -736,6 +748,9 @@ def write_discard_results(
     dataset_object.setncattr(ERROR_FUNCTION_KEY, error_function_name)
     dataset_object.setncattr(
         UNCERTAINTY_FUNCTION_KEY, uncertainty_function_name
+    )
+    dataset_object.setncattr(
+        USE_FANCY_QUANTILES_KEY, int(use_fancy_quantile_method_for_stdev)
     )
     dataset_object.setncattr(
         MONOTONICITY_FRACTION_KEY, result_dict[MONOTONICITY_FRACTION_KEY]
@@ -767,6 +782,8 @@ def read_discard_results(netcdf_file_name):
     result_dict['error_function_name']: Name of error metric used in test.
     result_dict['uncertainty_function_name']: Name of uncertainty metric used in
         test.
+    result_dict['use_fancy_quantile_method_for_stdev']: See doc for
+        `compute_spread_vs_skill`.
     """
 
     dataset_object = netCDF4.Dataset(netcdf_file_name)
@@ -780,6 +797,13 @@ def read_discard_results(netcdf_file_name):
             getattr(dataset_object, MONOTONICITY_FRACTION_KEY)
         )
     }
+
+    try:
+        result_dict[USE_FANCY_QUANTILES_KEY] = bool(
+            getattr(dataset_object, USE_FANCY_QUANTILES_KEY)
+        )
+    except:
+        result_dict[USE_FANCY_QUANTILES_KEY] = False
 
     for this_key in [
             DISCARD_FRACTIONS_KEY, ERROR_VALUES_KEY,
@@ -795,18 +819,21 @@ def read_discard_results(netcdf_file_name):
 
 
 def write_spread_vs_skill(
-        netcdf_file_name, result_dict, half_window_size_px, use_median):
+        netcdf_file_name, result_dict, half_window_size_px, use_median,
+        use_fancy_quantile_method_for_stdev):
     """Writes spread vs. skill to NetCDF file.
 
     :param netcdf_file_name: Path to output file.
     :param result_dict: Dictionary created by `get_spread_vs_skill`.
     :param half_window_size_px: See input doc for `get_spread_vs_skill`.
     :param use_median: Same.
+    :param use_fancy_quantile_method_for_stdev: Same.
     """
 
     # Check input args.
     error_checking.assert_is_geq(half_window_size_px, 0)
     error_checking.assert_is_boolean(use_median)
+    error_checking.assert_is_boolean(use_fancy_quantile_method_for_stdev)
 
     # Write file.
     file_system_utils.mkdir_recursive_if_necessary(file_name=netcdf_file_name)
@@ -816,6 +843,9 @@ def write_spread_vs_skill(
 
     dataset_object.setncattr(HALF_WINDOW_SIZE_KEY, half_window_size_px)
     dataset_object.setncattr(USE_MEDIAN_KEY, int(use_median))
+    dataset_object.setncattr(
+        USE_FANCY_QUANTILES_KEY, int(use_fancy_quantile_method_for_stdev)
+    )
     dataset_object.setncattr(
         SPREAD_SKILL_QUALITY_SCORE_KEY,
         result_dict[SPREAD_SKILL_QUALITY_SCORE_KEY]
@@ -863,6 +893,8 @@ def read_spread_vs_skill(netcdf_file_name):
         evaluation.
     result_dict['use_median']: Boolean flag.  If True (False), used median
         (mean) to define central prediction.
+    result_dict['use_fancy_quantile_method_for_stdev']: See doc for
+        `get_spread_vs_skill`.
     """
 
     dataset_object = netCDF4.Dataset(netcdf_file_name)
@@ -873,6 +905,13 @@ def read_spread_vs_skill(netcdf_file_name):
         SPREAD_SKILL_QUALITY_SCORE_KEY:
             float(getattr(dataset_object, SPREAD_SKILL_QUALITY_SCORE_KEY))
     }
+
+    try:
+        result_dict[USE_FANCY_QUANTILES_KEY] = bool(
+            getattr(dataset_object, USE_FANCY_QUANTILES_KEY)
+        )
+    except:
+        result_dict[USE_FANCY_QUANTILES_KEY] = False
 
     for this_key in [
             MEAN_PREDICTION_STDEVS_KEY, BIN_EDGE_PREDICTION_STDEVS_KEY,

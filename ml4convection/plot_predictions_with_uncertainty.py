@@ -48,6 +48,7 @@ FIRST_DATE_ARG_NAME = 'first_date_string'
 LAST_DATE_ARG_NAME = 'last_date_string'
 DAILY_TIMES_ARG_NAME = 'daily_times_seconds'
 PERCENTILE_LEVELS_ARG_NAME = 'percentile_levels'
+USE_FANCY_QUANTILES_ARG_NAME = 'use_fancy_quantile_method_for_stdev'
 OUTPUT_DIR_ARG_NAME = 'output_dir_name'
 
 INPUT_DIR_HELP_STRING = (
@@ -66,6 +67,12 @@ DAILY_TIMES_HELP_STRING = (
 PERCENTILE_LEVELS_HELP_STRING = (
     'List of percentile levels (from 0...100).  For each time step, will plot '
     'convection probability at each of these levels.'
+)
+USE_FANCY_QUANTILES_HELP_STRING = (
+    '[used only if model does quantile regression] Boolean flag.  If 1, will '
+    'use fancy quantile-based method to compute standard deviation of '
+    'predictive distribution.  If False, will treat each quantile-based '
+    'estimate as a Monte Carlo estimate.'
 )
 OUTPUT_DIR_HELP_STRING = (
     'Name of output directory.  Figures will be saved here.'
@@ -91,6 +98,10 @@ INPUT_ARG_PARSER.add_argument(
     help=PERCENTILE_LEVELS_HELP_STRING
 )
 INPUT_ARG_PARSER.add_argument(
+    '--' + USE_FANCY_QUANTILES_ARG_NAME, type=int, required=True, default=1,
+    help=USE_FANCY_QUANTILES_HELP_STRING
+)
+INPUT_ARG_PARSER.add_argument(
     '--' + OUTPUT_DIR_ARG_NAME, type=str, required=True,
     help=OUTPUT_DIR_HELP_STRING
 )
@@ -99,7 +110,7 @@ INPUT_ARG_PARSER.add_argument(
 def _plot_predictions_one_time(
         prediction_dict, example_index, border_latitudes_deg_n,
         border_longitudes_deg_e, mask_matrix, percentile_levels,
-        output_dir_name):
+        use_fancy_quantile_method_for_stdev, output_dir_name):
     """Plots predictions (with uncertainty) for one time step.
 
     M = number of rows in grid
@@ -113,6 +124,7 @@ def _plot_predictions_one_time(
     :param mask_matrix: M-by-N numpy array of integers (0 or 1), where 1 means
         the grid point is unmasked.
     :param percentile_levels: See documentation at top of file.
+    :param use_fancy_quantile_method_for_stdev: Same.
     :param output_dir_name: Same.
     :return: output_file_name: Path to output file.
     """
@@ -200,10 +212,14 @@ def _plot_predictions_one_time(
         axes=axes_object
     )
 
+    dummy_prob_matrix = prediction_io.get_predictive_stdevs(
+        prediction_dict=prediction_dict,
+        use_fancy_quantile_method=use_fancy_quantile_method_for_stdev
+    )[i, ...]
+
     prediction_plotting.plot_probabilistic(
         target_matrix=target_matrix,
-        probability_matrix=
-        prediction_io.get_predictive_stdevs(prediction_dict)[i, ...],
+        probability_matrix=dummy_prob_matrix,
         figure_object=figure_object, axes_object=axes_object,
         min_latitude_deg_n=latitudes_deg_n[0],
         min_longitude_deg_e=longitudes_deg_e[0],
@@ -250,7 +266,9 @@ def _plot_predictions_one_time(
             )
         else:
             interp_object = interp1d(
-                x=prediction_dict[prediction_io.PROBABILITY_MATRIX_KEY][i, ...],
+                x=prediction_dict[prediction_io.PROBABILITY_MATRIX_KEY][
+                    i, ..., 1:
+                ],
                 y=prediction_dict[prediction_io.QUANTILE_LEVELS_KEY],
                 kind='linear', axis=-1, bounds_error=False, assume_sorted=True,
                 fill_value='extrapolate'
@@ -362,7 +380,8 @@ def _plot_predictions_one_time(
 
 def _plot_predictions_one_day(
         prediction_file_name, border_latitudes_deg_n, border_longitudes_deg_e,
-        daily_times_seconds, percentile_levels, output_dir_name):
+        daily_times_seconds, percentile_levels,
+        use_fancy_quantile_method_for_stdev, output_dir_name):
     """Plots predictions (with uncertainty) for one day.
 
     P = number of points in border set
@@ -373,6 +392,7 @@ def _plot_predictions_one_day(
     :param border_longitudes_deg_e: length-P numpy array of longitudes (deg E).
     :param daily_times_seconds: See documentation at top of file.
     :param percentile_levels: Same.
+    :param use_fancy_quantile_method_for_stdev: Same.
     :param output_dir_name: Same.
     """
 
@@ -424,12 +444,15 @@ def _plot_predictions_one_day(
             border_longitudes_deg_e=border_longitudes_deg_e,
             mask_matrix=mask_matrix.astype(int),
             percentile_levels=percentile_levels,
+            use_fancy_quantile_method_for_stdev=
+            use_fancy_quantile_method_for_stdev,
             output_dir_name=output_dir_name
         )
 
 
 def _run(top_prediction_dir_name, first_date_string, last_date_string,
-         daily_times_seconds, percentile_levels, output_dir_name):
+         daily_times_seconds, percentile_levels,
+         use_fancy_quantile_method_for_stdev, output_dir_name):
     """Plots predictions with uncertainty.
 
     This is effectively the main method.
@@ -439,6 +462,7 @@ def _run(top_prediction_dir_name, first_date_string, last_date_string,
     :param last_date_string: Same.
     :param daily_times_seconds: Same.
     :param percentile_levels: Same.
+    :param use_fancy_quantile_method_for_stdev: Same.
     :param output_dir_name: Same.
     """
 
@@ -494,6 +518,8 @@ def _run(top_prediction_dir_name, first_date_string, last_date_string,
                 border_latitudes_deg_n=border_latitudes_deg_n,
                 border_longitudes_deg_e=border_longitudes_deg_e,
                 percentile_levels=percentile_levels,
+                use_fancy_quantile_method_for_stdev=
+                use_fancy_quantile_method_for_stdev,
                 output_dir_name=this_output_dir_name
             )
 
@@ -513,6 +539,9 @@ if __name__ == '__main__':
         ),
         percentile_levels=numpy.array(
             getattr(INPUT_ARG_OBJECT, PERCENTILE_LEVELS_ARG_NAME), dtype=float
+        ),
+        use_fancy_quantile_method_for_stdev=bool(
+            getattr(INPUT_ARG_OBJECT, USE_FANCY_QUANTILES_ARG_NAME)
         ),
         output_dir_name=getattr(INPUT_ARG_OBJECT, OUTPUT_DIR_ARG_NAME)
     )
