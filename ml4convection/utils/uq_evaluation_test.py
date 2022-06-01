@@ -389,7 +389,9 @@ class UqEvaluationTests(unittest.TestCase):
     def test_get_stdev_uncertainty_function(self):
         """Ensures correct output from get_stdev_uncertainty_function."""
 
-        this_function = uq_evaluation.get_stdev_uncertainty_function()
+        this_function = uq_evaluation.get_stdev_uncertainty_function(
+            use_fancy_quantile_method=False
+        )
         this_stdev_matrix = this_function(PREDICTION_DICT)
 
         self.assertTrue(numpy.allclose(
@@ -438,7 +440,9 @@ class UqEvaluationTests(unittest.TestCase):
         error_function = uq_evaluation.get_fss_error_function(
             half_window_size_px=0, use_median=False
         )
-        uncertainty_function = uq_evaluation.get_stdev_uncertainty_function()
+        uncertainty_function = uq_evaluation.get_stdev_uncertainty_function(
+            use_fancy_quantile_method=False
+        )
 
         result_dict = uq_evaluation.run_discard_test(
             prediction_dict=PREDICTION_DICT,
@@ -498,7 +502,7 @@ class UqEvaluationTests(unittest.TestCase):
             prediction_dict=PREDICTION_DICT,
             bin_edge_prediction_stdevs=BIN_EDGE_PREDICTION_STDEVS,
             half_window_size_px=0, eval_mask_matrix=eval_mask_matrix,
-            use_median=False
+            use_median=False, use_fancy_quantile_method_for_stdev=False
         )
 
         self.assertTrue(numpy.allclose(
