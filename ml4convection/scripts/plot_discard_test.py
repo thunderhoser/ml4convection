@@ -56,10 +56,14 @@ def _run(input_file_name, output_file_name):
     )
     axes_object.set_ylabel('Model performance ({0:s})'.format(this_string))
 
-    title_string = 'Discard test (monotonicity fraction = {1:.2f}%)'.format(
-        result_dict[uq_evaluation.UNCERTAINTY_FUNCTION_KEY],
+    title_string = 'Discard test (MF = {0:.2f}%)'.format(
         100 * result_dict[uq_evaluation.MONOTONICITY_FRACTION_KEY]
     )
+    if result_dict[uq_evaluation.USE_FANCY_QUANTILES_KEY]:
+        title_string += '\nuncertainty computed with fancy quantile method)'
+    else:
+        title_string += '\nuncertainty computed the simple way)'
+
     print(title_string)
     axes_object.set_title(title_string)
 

@@ -22,6 +22,7 @@ USE_FSS_ARG_NAME = 'use_fss'
 POS_ORIENTED_ARG_NAME = 'is_error_pos_oriented'
 MATCHING_DISTANCES_ARG_NAME = 'matching_distances_px'
 DISCARD_FRACTIONS_ARG_NAME = 'discard_fractions'
+USE_FANCY_QUANTILES_ARG_NAME = 'use_fancy_quantile_method_for_stdev'
 OUTPUT_DIR_ARG_NAME = 'output_dir_name'
 
 INPUT_DIR_HELP_STRING = (
@@ -52,6 +53,12 @@ MATCHING_DISTANCES_HELP_STRING = (
 DISCARD_FRACTIONS_HELP_STRING = (
     'List of discard fractions, ranging from (0, 1).  This script will '
     'automatically use 0 as the lowest discard fraction.'
+)
+USE_FANCY_QUANTILES_HELP_STRING = (
+    '[used only if model does quantile regression] Boolean flag.  If 1, will '
+    'use fancy quantile-based method to compute standard deviation of '
+    'predictive distribution.  If False, will treat each quantile-based '
+    'estimate as a Monte Carlo estimate.'
 )
 OUTPUT_DIR_HELP_STRING = (
     'Name of output directory.  For each matching distance, one file will be '
@@ -90,6 +97,10 @@ INPUT_ARG_PARSER.add_argument(
     help=DISCARD_FRACTIONS_HELP_STRING
 )
 INPUT_ARG_PARSER.add_argument(
+    '--' + USE_FANCY_QUANTILES_ARG_NAME, type=int, required=True, default=1,
+    help=USE_FANCY_QUANTILES_HELP_STRING
+)
+INPUT_ARG_PARSER.add_argument(
     '--' + OUTPUT_DIR_ARG_NAME, type=str, required=True,
     help=OUTPUT_DIR_HELP_STRING
 )
@@ -97,7 +108,8 @@ INPUT_ARG_PARSER.add_argument(
 
 def _run(top_prediction_dir_name, first_date_string, last_date_string,
          time_interval_steps, use_fss, is_error_pos_oriented,
-         matching_distances_px, discard_fractions, output_dir_name):
+         matching_distances_px, discard_fractions,
+         use_fancy_quantile_method_for_stdev, output_dir_name):
     """Runs discard test to determine quality of uncertainty estimates.
 
     This is effectively the main method.
@@ -110,6 +122,7 @@ def _run(top_prediction_dir_name, first_date_string, last_date_string,
     :param is_error_pos_oriented: Same.
     :param matching_distances_px: Same.
     :param discard_fractions: Same.
+    :param use_fancy_quantile_method_for_stdev: Same.
     :param output_dir_name: Same.
     """
 
@@ -196,7 +209,9 @@ def _run(top_prediction_dir_name, first_date_string, last_date_string,
     model_metadata_dict = neural_net.read_metafile(model_metafile_name)
     eval_mask_matrix = model_metadata_dict[neural_net.MASK_MATRIX_KEY]
 
-    uncertainty_function = uq_evaluation.get_stdev_uncertainty_function()
+    uncertainty_function = uq_evaluation.get_stdev_uncertainty_function(
+        use_fancy_quantile_method=use_fancy_quantile_method_for_stdev
+    )
     num_examples = (
         prediction_dict[prediction_io.PROBABILITY_MATRIX_KEY].shape[0]
     )
@@ -242,7 +257,9 @@ def _run(top_prediction_dir_name, first_date_string, last_date_string,
         uq_evaluation.write_discard_results(
             netcdf_file_name=output_file_name, result_dict=result_dict,
             error_function_name=error_function_name,
-            uncertainty_function_name='pixelwise stdev'
+            uncertainty_function_name='pixelwise stdev',
+            use_fancy_quantile_method_for_stdev=
+            use_fancy_quantile_method_for_stdev
         )
 
 
@@ -263,6 +280,9 @@ if __name__ == '__main__':
         ),
         discard_fractions=numpy.array(
             getattr(INPUT_ARG_OBJECT, DISCARD_FRACTIONS_ARG_NAME), dtype=float
+        ),
+        use_fancy_quantile_method_for_stdev=bool(
+            getattr(INPUT_ARG_OBJECT, USE_FANCY_QUANTILES_ARG_NAME)
         ),
         output_dir_name=getattr(INPUT_ARG_OBJECT, OUTPUT_DIR_ARG_NAME)
     )

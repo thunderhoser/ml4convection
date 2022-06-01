@@ -546,7 +546,8 @@ def get_mean_predictions(prediction_dict):
     # )
 
 
-def get_predictive_stdevs(prediction_dict, assume_large_sample_size=True):
+def get_predictive_stdevs(prediction_dict, use_fancy_quantile_method=True,
+                          assume_large_sample_size=True):
     """Computes stdev of predictive distribution for each scalar example.
 
     One scalar example = one grid point at one time step.
@@ -555,11 +556,11 @@ def get_predictive_stdevs(prediction_dict, assume_large_sample_size=True):
     M = number of rows in grid
     N = number of columns in grid
 
-    To estimate the standard deviation from quantiles, I use Equation 15 in:
-    https://doi.org/10.1186/1471-2288-14-135
-
     :param prediction_dict: Dictionary returned by `read_file`.
-    :param assume_large_sample_size: [used only for quantile-based method]
+    :param use_fancy_quantile_method: Boolean flag.  If True, will use Equation
+        15 from https://doi.org/10.1186/1471-2288-14-135.  If False, will treat
+        each quantile-based estimate as a Monte Carlo estimate.
+    :param assume_large_sample_size: [used only for fancy quantile method]
         Boolean flag.  If True, will assume large (essentially infinite) sample
         size.
     :return: prob_stdev_matrix: E-by-M-by-N numpy array with standard deviations
@@ -583,6 +584,13 @@ def get_predictive_stdevs(prediction_dict, assume_large_sample_size=True):
     if quantile_levels is None:
         return numpy.std(
             prediction_dict[PROBABILITY_MATRIX_KEY], axis=-1, ddof=1
+        )
+
+    error_checking.assert_is_boolean(use_fancy_quantile_method)
+
+    if not use_fancy_quantile_method:
+        return numpy.std(
+            prediction_dict[PROBABILITY_MATRIX_KEY][..., 1:], axis=-1, ddof=1
         )
 
     error_checking.assert_is_boolean(assume_large_sample_size)

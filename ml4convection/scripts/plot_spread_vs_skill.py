@@ -55,6 +55,14 @@ def _run(input_file_name, output_file_name):
     else:
         axes_object.set_ylabel('Skill (RMSE of mean prediction)')
 
+    this_string = 'Spread (stdev of predictive distribution,\ncomputed '
+    if result_dict[uq_evaluation.USE_FANCY_QUANTILES_KEY]:
+        this_string += 'with fancy quantile-based method)'
+    else:
+        this_string += 'the simple way)'
+
+    axes_object.set_ylabel(this_string)
+
     half_window_size_px = int(numpy.round(
         result_dict[uq_evaluation.HALF_WINDOW_SIZE_KEY]
     ))
