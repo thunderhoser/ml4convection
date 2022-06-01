@@ -23,6 +23,7 @@ EXAMPLE_DIMENSION_KEY = 'example'
 GRID_ROW_DIMENSION_KEY = 'row'
 GRID_COLUMN_DIMENSION_KEY = 'column'
 PREDICTION_SET_DIMENSION_KEY = 'prediction_set'
+QUANTILE_DIMENSION_KEY = 'quantile'
 
 PROBABILITY_MATRIX_KEY = 'forecast_probability_matrix'
 TARGET_MATRIX_KEY = 'target_matrix'
@@ -267,7 +268,7 @@ def write_file(
     error_checking.assert_is_string(model_file_name)
 
     if quantile_levels is not None:
-        expected_dim = numpy.array([num_prediction_sets], dtype=int)
+        expected_dim = numpy.array([num_prediction_sets - 1], dtype=int)
         error_checking.assert_is_numpy_array(
             quantile_levels, exact_dimensions=expected_dim
         )
@@ -325,9 +326,13 @@ def write_file(
     dataset_object.variables[LONGITUDES_KEY][:] = longitudes_deg_e
 
     if quantile_levels is not None:
+        dataset_object.createDimension(
+            QUANTILE_DIMENSION_KEY, num_prediction_sets - 1
+        )
+
         dataset_object.createVariable(
             QUANTILE_LEVELS_KEY, datatype=numpy.float32,
-            dimensions=PREDICTION_SET_DIMENSION_KEY
+            dimensions=QUANTILE_DIMENSION_KEY
         )
         dataset_object.variables[QUANTILE_LEVELS_KEY][:] = quantile_levels
 
@@ -519,29 +524,26 @@ def get_mean_predictions(prediction_dict):
         probabilities.
     """
 
-    if QUANTILE_LEVELS_KEY in prediction_dict:
-        quantile_levels = prediction_dict[QUANTILE_LEVELS_KEY]
-    else:
-        quantile_levels = None
-
-    if quantile_levels is None:
+    if prediction_dict[QUANTILE_LEVELS_KEY] is None:
         return numpy.mean(prediction_dict[PROBABILITY_MATRIX_KEY], axis=-1)
 
-    first_quartile_index = numpy.where(
-        numpy.absolute(quantile_levels - 0.25) <= TOLERANCE
-    )[0][0]
-    median_index = numpy.where(
-        numpy.absolute(quantile_levels - 0.5) <= TOLERANCE
-    )[0][0]
-    third_quartile_index = numpy.where(
-        numpy.absolute(quantile_levels - 0.75) <= TOLERANCE
-    )[0][0]
+    return prediction_dict[PROBABILITY_MATRIX_KEY][..., 0]
 
-    return (1. / 3) * (
-        prediction_dict[PROBABILITY_MATRIX_KEY][..., first_quartile_index] +
-        prediction_dict[PROBABILITY_MATRIX_KEY][..., median_index] +
-        prediction_dict[PROBABILITY_MATRIX_KEY][..., third_quartile_index]
-    )
+    # first_quartile_index = 1 + numpy.where(
+    #     numpy.absolute(quantile_levels - 0.25) <= TOLERANCE
+    # )[0][0]
+    # median_index = 1 + numpy.where(
+    #     numpy.absolute(quantile_levels - 0.5) <= TOLERANCE
+    # )[0][0]
+    # third_quartile_index = 1 + numpy.where(
+    #     numpy.absolute(quantile_levels - 0.75) <= TOLERANCE
+    # )[0][0]
+    #
+    # return (1. / 3) * (
+    #     prediction_dict[PROBABILITY_MATRIX_KEY][..., first_quartile_index] +
+    #     prediction_dict[PROBABILITY_MATRIX_KEY][..., median_index] +
+    #     prediction_dict[PROBABILITY_MATRIX_KEY][..., third_quartile_index]
+    # )
 
 
 def get_predictive_stdevs(prediction_dict, assume_large_sample_size=True):
@@ -585,10 +587,10 @@ def get_predictive_stdevs(prediction_dict, assume_large_sample_size=True):
 
     error_checking.assert_is_boolean(assume_large_sample_size)
 
-    first_quartile_index = numpy.where(
+    first_quartile_index = 1 + numpy.where(
         numpy.absolute(quantile_levels - 0.25) <= TOLERANCE
     )[0][0]
-    third_quartile_index = numpy.where(
+    third_quartile_index = 1 + numpy.where(
         numpy.absolute(quantile_levels - 0.75) <= TOLERANCE
     )[0][0]
 
@@ -650,7 +652,7 @@ def get_median_predictions(prediction_dict):
     if quantile_levels is None:
         return numpy.median(prediction_dict[PROBABILITY_MATRIX_KEY], axis=-1)
 
-    median_index = numpy.where(
+    median_index = 1 + numpy.where(
         numpy.absolute(quantile_levels - 0.5) <= TOLERANCE
     )[0][0]
 

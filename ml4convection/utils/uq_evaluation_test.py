@@ -24,7 +24,8 @@ THIS_TARGET_MATRIX[4:8, ...] = 0
 
 PREDICTION_DICT_MONTE_CARLO = {
     prediction_io.PROBABILITY_MATRIX_KEY: THIS_PROB_MATRIX + 0.,
-    prediction_io.TARGET_MATRIX_KEY: THIS_TARGET_MATRIX + 0
+    prediction_io.TARGET_MATRIX_KEY: THIS_TARGET_MATRIX + 0,
+    prediction_io.QUANTILE_LEVELS_KEY: None
 }
 
 PROB_LEVELS_TO_INTEG_NOT_QR = uq_evaluation.PROB_LEVELS_TO_INTEG_NOT_QR
@@ -181,7 +182,8 @@ TARGET_MATRIX = numpy.array([0, 0, 1, 1, 0, 0, 1, 1, 1, 1, 0, 0], dtype=int)
 PREDICTION_DICT = {
     prediction_io.PROBABILITY_MATRIX_KEY:
         numpy.reshape(FORECAST_PROB_MATRIX, (2, 2, 3, 5)),
-    prediction_io.TARGET_MATRIX_KEY: numpy.reshape(TARGET_MATRIX, (2, 2, 3))
+    prediction_io.TARGET_MATRIX_KEY: numpy.reshape(TARGET_MATRIX, (2, 2, 3)),
+    prediction_io.QUANTILE_LEVELS_KEY: None
 }
 
 PREDICTION_STDEVS = numpy.array([

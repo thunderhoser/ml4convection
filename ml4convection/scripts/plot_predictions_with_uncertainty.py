@@ -243,7 +243,9 @@ def _plot_predictions_one_time(
             )
         else:
             interp_object = interp1d(
-                x=prediction_dict[prediction_io.PROBABILITY_MATRIX_KEY][i, ...],
+                x=prediction_dict[prediction_io.PROBABILITY_MATRIX_KEY][
+                    i, ..., 1:
+                ],
                 y=prediction_dict[prediction_io.QUANTILE_LEVELS_KEY],
                 kind='linear', axis=-1, bounds_error=False, assume_sorted=True,
                 fill_value='extrapolate'

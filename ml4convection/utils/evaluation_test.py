@@ -367,7 +367,8 @@ PREDICTION_DICT = {
     prediction_io.TARGET_MATRIX_KEY:
         numpy.expand_dims(ACTUAL_TARGET_MATRIX, axis=0),
     prediction_io.PROBABILITY_MATRIX_KEY:
-        numpy.expand_dims(PROBABILITY_MATRIX, axis=(0, -1))
+        numpy.expand_dims(PROBABILITY_MATRIX, axis=(0, -1)),
+    prediction_io.QUANTILE_LEVELS_KEY: None
 }
 
 MODEL_FILE_NAME = 'foo.bar'
