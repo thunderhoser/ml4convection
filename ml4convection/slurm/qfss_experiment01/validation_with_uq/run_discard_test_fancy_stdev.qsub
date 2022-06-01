@@ -1,6 +1,6 @@
 #!/bin/tcsh
 
-#SBATCH --job-name="compute_spread_vs_skill_with_quantiles"
+#SBATCH --job-name="run_discard_test_fancy_stdev"
 #SBATCH --partition="fge"
 #SBATCH --account="rda-ghpcs"
 #SBATCH --qos="batch"
@@ -18,7 +18,7 @@
 ##SBATCH --exclude=h29n01,h26n05,h28n06,h29n07,h30n03,h30n15
 #SBATCH --mail-type=BEGIN,END,FAIL
 #SBATCH --mail-user=ryan.lagerquist@noaa.gov
-#SBATCH --output=compute_spread_vs_skill_with_quantiles_%A_%a.out
+#SBATCH --output=run_discard_test_fancy_stdev_%A_%a.out
 
 module load cuda/10.1
 source /scratch2/BMC/gsd-hpcs/Jebb.Q.Stewart/conda3.7/etc/profile.d/conda.csh
@@ -36,12 +36,14 @@ set num_quantile_levels=${QUANTILE_LEVEL_COUNTS[$SLURM_ARRAY_TASK_ID]}
 set model_dir_name="${TOP_MODEL_DIR_NAME}/fss-weight=${fss_weight}_num-quantile-levels=${num_quantile_levels}"
 set prediction_dir_name="${model_dir_name}/validation_with_uq/partial_grids"
 
-python3 -u "${CODE_DIR_NAME}/compute_spread_vs_skill.py" \
+python3 -u "${CODE_DIR_NAME}/run_discard_test.py" \
 --input_prediction_dir_name="${prediction_dir_name}" \
 --first_date_string="20170101" \
 --last_date_string="20171224" \
---time_interval_steps=5 \
+--time_interval_steps=1 \
+--use_fss=0 \
+--is_error_pos_oriented=0 \
 --matching_distances_px 0 \
---use_quantiles_for_mean_prediction=1 \
---bin_edge_prediction_stdevs 0.01 0.02 0.03 0.04 0.05 0.06 0.07 0.08 0.09 0.10 0.11 0.12 0.13 0.14 0.15 0.16 0.17 0.18 0.19 0.20 \
---output_dir_name="${prediction_dir_name}/evaluation_use-quantiles-for-central-pred=1"
+--discard_fractions 0.05 0.10 0.15 0.20 0.25 0.30 0.35 0.40 0.45 0.50 0.55 0.60 0.65 0.70 0.75 0.80 0.85 0.90 0.95 \
+--use_fancy_quantile_method_for_stdev=1 \
+--output_dir_name="${prediction_dir_name}/evaluation_fancy_stdev"

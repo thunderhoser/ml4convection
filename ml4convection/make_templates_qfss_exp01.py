@@ -1,7 +1,6 @@
 """Makes U-net templates for Experiment 1 with quantile-based FSS."""
 
 import sys
-import copy
 import os.path
 import numpy
 
@@ -33,7 +32,7 @@ PARTIAL_MASK_FILE_NAME = (
 
 FSS_WEIGHTS = numpy.linspace(1, 10, num=10, dtype=float)
 CENTRAL_LOSS_FUNCTION_NAMES = [
-    'fss_neigh4_weight{0:.10f}'.format(i) for i in FSS_WEIGHTS
+    'fss_neigh0_weight{0:.10f}'.format(i) for i in FSS_WEIGHTS
 ]
 
 QUANTILE_LEVEL_SETS = [
@@ -111,7 +110,7 @@ def _run():
                 central_loss_function=loss_function,
                 mask_matrix=partial_mask_matrix,
                 quantile_levels=QUANTILE_LEVEL_SETS[j],
-                qfss_half_window_size_px=4
+                qfss_half_window_size_px=0
             )
 
             this_model_file_name = (
@@ -151,7 +150,7 @@ def _run():
                 do_early_stopping=True, plateau_lr_multiplier=0.6,
                 loss_function_name=CENTRAL_LOSS_FUNCTION_NAMES[i],
                 metric_names=None, quantile_levels=QUANTILE_LEVEL_SETS[j],
-                qfss_half_window_size_px=4,
+                qfss_half_window_size_px=0,
                 mask_matrix=partial_mask_matrix,
                 full_mask_matrix=full_mask_matrix
             )
