@@ -1,0 +1,49 @@
+#!/bin/tcsh
+
+#SBATCH --job-name="apply_neural_nets"
+#SBATCH --partition="fge"
+#SBATCH --account="rda-ghpcs"
+#SBATCH --qos="batch"
+#SBATCH --ntasks=1
+#SBATCH --nodes=1
+#SBATCH --cpus-per-task=1
+##SBATCH --nodes=1
+##SBATCH --ntasks=1
+##SBATCH --cpus-per-task=1
+##SBATCH --ntasks-per-node=1
+#SBATCH --time=12:00:00
+#SBATCH --array=1-52
+#SBATCH --exclude=h28n12
+##SBATCH --exclude=h31n03,h28n12
+##SBATCH --exclude=h29n01,h26n05,h28n06,h29n07,h30n03,h30n15
+#SBATCH --mail-type=BEGIN,END,FAIL
+#SBATCH --mail-user=ryan.lagerquist@noaa.gov
+#SBATCH --output=apply_neural_nets_%A_%a.out
+
+module load cuda/10.1
+source /scratch2/BMC/gsd-hpcs/Jebb.Q.Stewart/conda3.7/etc/profile.d/conda.csh
+conda activate base
+
+set CODE_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_standalone/ml4convection"
+set MODEL_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_models/qfss_experiment01/fss-weight=06.0_num-quantile-levels=017"
+set TOP_PREDICTOR_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_project/predictors/quality_controlled/partial_grids"
+set TOP_TARGET_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_project/targets/new_echo_classification/no_tracking/omit_north_radar/partial_grids"
+
+set model_file_name="${MODEL_DIR_NAME}/model.h5"
+set prediction_dir_name="${MODEL_DIR_NAME}/testing_sans_uq/partial_grids"
+
+set FIRST_DATE_STRINGS=("20180101" "20180109" "20180116" "20180123" "20180130" "20180206" "20180213" "20180220" "20180227" "20180306" "20180313" "20180320" "20180327" "20180403" "20180410" "20180417" "20180424" "20180501" "20180508" "20180515" "20180522" "20180529" "20180605" "20180612" "20180619" "20180626" "20180703" "20180710" "20180717" "20180724" "20180731" "20180807" "20180814" "20180821" "20180828" "20180904" "20180911" "20180918" "20180925" "20181002" "20181009" "20181016" "20181023" "20181030" "20181106" "20181113" "20181120" "20181127" "20181204" "20181211" "20181218" "20181225")
+set LAST_DATE_STRINGS=("20180108" "20180115" "20180122" "20180129" "20180205" "20180212" "20180219" "20180226" "20180305" "20180312" "20180319" "20180326" "20180402" "20180409" "20180416" "20180423" "20180430" "20180507" "20180514" "20180521" "20180528" "20180604" "20180611" "20180618" "20180625" "20180702" "20180709" "20180716" "20180723" "20180730" "20180806" "20180813" "20180820" "20180827" "20180903" "20180910" "20180917" "20180924" "20181001" "20181008" "20181015" "20181022" "20181029" "20181105" "20181112" "20181119" "20181126" "20181203" "20181210" "20181217" "20181224" "20181231")
+
+set first_date_string=${FIRST_DATE_STRINGS[$SLURM_ARRAY_TASK_ID]}
+set last_date_string=${LAST_DATE_STRINGS[$SLURM_ARRAY_TASK_ID]}
+
+python3 -u "${CODE_DIR_NAME}/apply_neural_net.py" \
+--input_model_file_name="${model_file_name}" \
+--input_predictor_dir_name="${TOP_PREDICTOR_DIR_NAME}" \
+--input_target_dir_name="${TOP_TARGET_DIR_NAME}" \
+--apply_to_full_grids=0 \
+--use_quantiles=0 \
+--first_valid_date_string="${first_date_string}" \
+--last_valid_date_string="${last_date_string}" \
+--output_dir_name="${prediction_dir_name}"
