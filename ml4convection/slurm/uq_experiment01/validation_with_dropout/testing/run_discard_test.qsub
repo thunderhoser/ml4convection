@@ -32,7 +32,7 @@ python3 -u "${CODE_DIR_NAME}/run_discard_test.py" \
 --input_prediction_dir_name="${prediction_dir_name}" \
 --first_date_string="20180101" \
 --last_date_string="20181231" \
---time_interval_steps=3 \
+--time_interval_steps=4 \
 --use_fss=0 \
 --is_error_pos_oriented=0 \
 --matching_distances_px 0 \
