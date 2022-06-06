@@ -197,7 +197,7 @@ def _plot_inset_histogram(
     bin_frequencies = bin_counts.astype(float) / numpy.sum(bin_counts)
 
     if has_predictions:
-        inset_axes_object = figure_object.add_axes([0.2, 0.55, 0.3, 0.3])
+        inset_axes_object = figure_object.add_axes([0.625, 0.55, 0.3, 0.3])
     else:
         inset_axes_object = figure_object.add_axes([0.575, 0.2, 0.3, 0.3])
 
