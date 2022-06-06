@@ -464,10 +464,16 @@ def _run(experiment_dir_name, matching_distance_px, output_dir_name):
         numpy.isnan(numpy.ravel(ssrel_matrix)),
         numpy.isnan(numpy.ravel(fss_matrix))
     )))[0]
+
+    print(len(good_indices))
+    print(good_indices)
+
     this_matrix = numpy.corrcoef(
         numpy.ravel(ssrel_matrix)[good_indices],
         numpy.ravel(fss_matrix)[good_indices]
     )
+    print(this_matrix)
+
     print('Pearson correlation between SSREL and FSS = {0:.4f}'.format(
         this_matrix[0, 1]
     ))
