@@ -68,7 +68,7 @@ def _plot_means_as_inset(
     """
 
     if for_spread_skill_plot:
-        inset_axes_object = figure_object.add_axes([0.05, 0.55, 0.25, 0.25])
+        inset_axes_object = figure_object.add_axes([0.2, 0.55, 0.25, 0.25])
     else:
         inset_axes_object = figure_object.add_axes([0.625, 0.55, 0.25, 0.25])
 
