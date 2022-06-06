@@ -1,0 +1,34 @@
+#!/bin/tcsh
+
+#SBATCH --job-name="plot_spread_vs_skill"
+#SBATCH --partition="fge"
+#SBATCH --account="rda-ghpcs"
+#SBATCH --qos="batch"
+#SBATCH --ntasks=1
+#SBATCH --nodes=1
+#SBATCH --cpus-per-task=1
+##SBATCH --nodes=1
+##SBATCH --ntasks=1
+##SBATCH --cpus-per-task=1
+##SBATCH --ntasks-per-node=1
+#SBATCH --time=01:00:00
+#SBATCH --exclude=h28n12
+##SBATCH --exclude=h31n03,h28n12
+##SBATCH --exclude=h29n01,h26n05,h28n06,h29n07,h30n03,h30n15
+#SBATCH --mail-type=BEGIN,END,FAIL
+#SBATCH --mail-user=ryan.lagerquist@noaa.gov
+#SBATCH --output=plot_spread_vs_skill_%A.out
+
+module load cuda/10.1
+source /scratch2/BMC/gsd-hpcs/Jebb.Q.Stewart/conda3.7/etc/profile.d/conda.csh
+conda activate base
+
+set CODE_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_standalone/ml4convection"
+set MODEL_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_models/uq_experiment01/top-level-skip-dropout=0.375_penultimate-layer-dropout=0.125_output-layer-dropout=0.250"
+
+set input_file_name="${MODEL_DIR_NAME}/testing_with_dropout/partial_grids/evaluation/spread_vs_skill_matching-distance-px=0.000000.nc"
+set output_file_name="${MODEL_DIR_NAME}/testing_with_dropout/partial_grids/evaluation/spread_vs_skill_matching-distance-px=0.000000.jpg"
+
+python3 -u "${CODE_DIR_NAME}/plot_spread_vs_skill.py" \
+--input_file_name="${input_file_name}" \
+--output_file_name="${output_file_name}"
