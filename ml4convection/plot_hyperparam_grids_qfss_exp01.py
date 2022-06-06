@@ -332,7 +332,7 @@ def _run(experiment_dir_name, matching_distance_px,
     y_tick_labels = ['{0:d}'.format(int(numpy.round(w))) for w in FSS_WEIGHTS]
     x_tick_labels = ['{0:d}'.format(c) for c in QUANTILE_LEVEL_COUNTS]
 
-    y_axis_label = 'FSS weight'
+    y_axis_label = 'Weight for central prediction'
     x_axis_label = 'Number of quantiles'
 
     for i in range(num_fss_weights):

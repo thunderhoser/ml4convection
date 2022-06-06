@@ -69,7 +69,7 @@ def _run(input_file_name, output_file_name):
     else:
         this_string += 'the simple way)'
 
-    axes_object.set_ylabel(this_string)
+    axes_object.set_xlabel(this_string)
 
     half_window_size_px = int(numpy.round(
         result_dict[uq_evaluation.HALF_WINDOW_SIZE_KEY]
