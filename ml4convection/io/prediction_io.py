@@ -213,8 +213,8 @@ def write_file(
     :param model_file_name: Path to file with trained model (readable by
         `neural_net.read_model`).
     :param quantile_levels: If `forecast_probability_matrix` contains quantiles,
-        this should be a length-S numpy array of quantile levels, ranging from
-        (0, 1).  Otherwise, this should be None.
+        this should be a length-(S - 1) numpy array of quantile levels, ranging
+        from (0, 1).  Otherwise, this should be None.
     :raises: ValueError: if output file is a gzip file.
     """
 

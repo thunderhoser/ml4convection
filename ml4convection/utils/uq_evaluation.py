@@ -215,7 +215,7 @@ def _get_crps_quantile_regression(prediction_dict):
     crps_numerator = 0.
     crps_denominator = 0.
 
-    for i in range(0, num_examples, 10):
+    for i in range(0, num_examples, NUM_EXAMPLES_PER_BATCH):
         print('Have computed CRPS for {0:d} of {1:d} examples...'.format(
             i, num_examples
         ))
