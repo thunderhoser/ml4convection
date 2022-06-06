@@ -460,6 +460,31 @@ def _run(experiment_dir_name, matching_distance_px, output_dir_name):
     )
     print(SEPARATOR_STRING)
 
+    good_indices = numpy.where(numpy.invert(numpy.logical_or(
+        numpy.isnan(numpy.ravel(ssrel_matrix)),
+        numpy.isnan(numpy.ravel(fss_matrix))
+    )))[0]
+    this_matrix = numpy.corrcoef(
+        numpy.ravel(ssrel_matrix)[good_indices],
+        numpy.ravel(fss_matrix)[good_indices]
+    )
+    print('Pearson correlation between SSREL and FSS = {0:.4f}'.format(
+        this_matrix[0, 1]
+    ))
+
+    good_indices = numpy.where(numpy.invert(numpy.logical_or(
+        numpy.isnan(numpy.ravel(monotonicity_fraction_matrix)),
+        numpy.isnan(numpy.ravel(fss_matrix))
+    )))[0]
+    this_matrix = numpy.corrcoef(
+        numpy.ravel(monotonicity_fraction_matrix)[good_indices],
+        numpy.ravel(fss_matrix)[good_indices]
+    )
+    print('Pearson correlation between MF and FSS = {0:.4f}'.format(
+        this_matrix[0, 1]
+    ))
+    print(SEPARATOR_STRING)
+
     aupd_panel_file_names = [''] * num_output_layer_rates
     csi_panel_file_names = [''] * num_output_layer_rates
     fss_panel_file_names = [''] * num_output_layer_rates
