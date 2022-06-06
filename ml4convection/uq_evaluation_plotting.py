@@ -67,6 +67,11 @@ def _plot_means_as_inset(
         `matplotlib.axes._subplots.AxesSubplot`).
     """
 
+    print('Mean predictions:\n')
+    print(bin_mean_predictions)
+    print('Mean target values:\n')
+    print(bin_mean_target_values)
+
     if for_spread_skill_plot:
         inset_axes_object = figure_object.add_axes([0.2, 0.55, 0.25, 0.25])
     else:
@@ -265,6 +270,9 @@ def plot_spread_vs_skill(
         result_dict[uq_evaluation.EXAMPLE_COUNTS_KEY].astype(float) /
         numpy.sum(result_dict[uq_evaluation.EXAMPLE_COUNTS_KEY])
     )
+
+    print('Bin frequencies:\n')
+    print(bin_frequencies)
 
     bin_edges = result_dict[uq_evaluation.BIN_EDGE_PREDICTION_STDEVS_KEY]
 
