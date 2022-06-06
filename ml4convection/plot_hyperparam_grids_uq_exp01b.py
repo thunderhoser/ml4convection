@@ -450,7 +450,7 @@ def _run(experiment_dir_name, matching_distance_px, output_dir_name):
     print(SEPARATOR_STRING)
 
     _print_ranking_one_score(
-        score_matrix=ssrel_matrix, score_name='negative SSREL'
+        score_matrix=-ssrel_matrix, score_name='negative SSREL'
     )
     print(SEPARATOR_STRING)
 
