@@ -36,5 +36,6 @@ python3 -u "${CODE_DIR_NAME}/run_discard_test.py" \
 --use_fss=0 \
 --is_error_pos_oriented=0 \
 --matching_distances_px 0 \
+--use_fancy_quantile_method_for_stdev=0 \
 --discard_fractions 0.05 0.10 0.15 0.20 0.25 0.30 0.35 0.40 0.45 0.50 0.55 0.60 0.65 0.70 0.75 0.80 0.85 0.90 0.95 \
 --output_dir_name="${prediction_dir_name}/evaluation"
