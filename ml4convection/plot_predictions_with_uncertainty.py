@@ -265,6 +265,10 @@ def _plot_predictions_one_time(
                 q=percentile_levels[k], axis=-1
             )
         else:
+            print(prediction_dict[prediction_io.PROBABILITY_MATRIX_KEY].shape)
+            print(prediction_dict[prediction_io.QUANTILE_LEVELS_KEY].shape)
+            print(prediction_dict[prediction_io.QUANTILE_LEVELS_KEY])
+
             interp_object = interp1d(
                 x=prediction_dict[prediction_io.PROBABILITY_MATRIX_KEY][
                     i, ..., 1:
