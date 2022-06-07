@@ -25,6 +25,7 @@ source /scratch2/BMC/gsd-hpcs/Jebb.Q.Stewart/conda3.7/etc/profile.d/conda.csh
 conda activate base
 
 set CODE_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_standalone/ml4convection"
+set TOP_RADAR_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_project/radar_data"
 set MODEL_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_models/uq_experiment01/top-level-skip-dropout=0.375_penultimate-layer-dropout=0.125_output-layer-dropout=0.250"
 
 set prediction_dir_name="${MODEL_DIR_NAME}/testing_with_dropout/partial_grids"
