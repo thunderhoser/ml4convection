@@ -11,10 +11,12 @@ from gewittergefahr.gg_utils import number_rounding
 from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
+from gewittergefahr.plotting import radar_plotting
 from gewittergefahr.plotting import imagemagick_utils
 from gewittergefahr.plotting import plotting_utils as gg_plotting_utils
 from ml4convection.io import border_io
 from ml4convection.io import prediction_io
+from ml4convection.io import radar_io
 from ml4convection.utils import radar_utils
 from ml4convection.machine_learning import neural_net
 from ml4convection.plotting import plotting_utils
@@ -22,7 +24,9 @@ from ml4convection.plotting import prediction_plotting
 
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 
+COMPOSITE_REFL_NAME = 'reflectivity_column_max_dbz'
 NUM_RADARS = len(radar_utils.RADAR_LATITUDES_DEG_N)
+
 DAYS_TO_SECONDS = 86400
 TIME_FORMAT = '%Y-%m-%d-%H%M'
 
@@ -36,7 +40,8 @@ FIGURE_HEIGHT_INCHES = 15
 PANEL_SIZE_PX = int(2.5e6)
 CONCAT_FIGURE_SIZE_PX = int(1e7)
 
-INPUT_DIR_ARG_NAME = 'input_prediction_dir_name'
+PREDICTION_DIR_ARG_NAME = 'input_prediction_dir_name'
+RADAR_DIR_ARG_NAME = 'input_radar_dir_name'
 FIRST_DATE_ARG_NAME = 'first_date_string'
 LAST_DATE_ARG_NAME = 'last_date_string'
 DAILY_TIMES_ARG_NAME = 'daily_times_seconds'
@@ -44,9 +49,14 @@ PERCENTILE_LEVELS_ARG_NAME = 'percentile_levels'
 USE_FANCY_QUANTILES_ARG_NAME = 'use_fancy_quantile_method_for_stdev'
 OUTPUT_DIR_ARG_NAME = 'output_dir_name'
 
-INPUT_DIR_HELP_STRING = (
+PREDICTION_DIR_HELP_STRING = (
     'Name of input directory.  Files therein will be found by '
     '`prediction_io.find_file` and read by `prediction_io.read_file`.'
+)
+RADAR_DIR_HELP_STRING = (
+    'Name of directory with radar data.  The relevant file will be found by '
+    '`radar_io.read_file` and read by `radar_io.read_reflectivity_file`.  If '
+    'you do not want to plot radar data, leave this alone.'
 )
 DATE_HELP_STRING = (
     'Date (format "yyyymmdd").  Will plot predictions for all days in the '
@@ -73,8 +83,12 @@ OUTPUT_DIR_HELP_STRING = (
 
 INPUT_ARG_PARSER = argparse.ArgumentParser()
 INPUT_ARG_PARSER.add_argument(
-    '--' + INPUT_DIR_ARG_NAME, type=str, required=True,
-    help=INPUT_DIR_HELP_STRING
+    '--' + PREDICTION_DIR_ARG_NAME, type=str, required=True,
+    help=PREDICTION_DIR_HELP_STRING
+)
+INPUT_ARG_PARSER.add_argument(
+    '--' + RADAR_DIR_ARG_NAME, type=str, required=False, default='',
+    help=RADAR_DIR_HELP_STRING
 )
 INPUT_ARG_PARSER.add_argument(
     '--' + FIRST_DATE_ARG_NAME, type=str, required=True, help=DATE_HELP_STRING
@@ -100,10 +114,140 @@ INPUT_ARG_PARSER.add_argument(
 )
 
 
+def _plot_radar_one_time(
+        top_radar_dir_name, border_latitudes_deg_n, border_longitudes_deg_e,
+        prediction_dict, example_index, mask_matrix):
+    """Plots radar data at one time.
+
+    :param top_radar_dir_name: See documentation at top of file.
+    :param border_latitudes_deg_n: See doc for `_plot_predictions_one_time`.
+    :param border_longitudes_deg_e: Same.
+    :param prediction_dict: Same.
+    :param example_index: Same.
+    :param mask_matrix: Same.
+    :return: figure_object: Figure handle.
+    :return: axes_object: Axes handle.
+    """
+
+    valid_time_unix_sec = (
+        prediction_dict[prediction_io.VALID_TIMES_KEY][example_index]
+    )
+    valid_date_string = time_conversion.unix_sec_to_string(
+        valid_time_unix_sec, radar_io.DATE_FORMAT
+    )
+
+    reflectivity_file_name = radar_io.find_file(
+        top_directory_name=top_radar_dir_name,
+        valid_date_string=valid_date_string,
+        file_type_string=radar_io.REFL_TYPE_STRING,
+        prefer_zipped=True, allow_other_format=True,
+        raise_error_if_missing=True
+    )
+
+    print('Reading data from: "{0:s}"...'.format(reflectivity_file_name))
+    reflectivity_dict = radar_io.read_reflectivity_file(
+        reflectivity_file_name
+    )
+
+    reflectivity_dict = radar_io.subset_by_time(
+        refl_or_echo_classifn_dict=reflectivity_dict,
+        desired_times_unix_sec=numpy.array([valid_time_unix_sec], dtype=int)
+    )[0]
+
+    min_latitude_deg_n = numpy.min(prediction_dict[prediction_io.LATITUDES_KEY])
+    max_latitude_deg_n = numpy.max(prediction_dict[prediction_io.LATITUDES_KEY])
+    min_longitude_deg_e = numpy.min(
+        prediction_dict[prediction_io.LONGITUDES_KEY]
+    )
+    max_longitude_deg_e = numpy.max(
+        prediction_dict[prediction_io.LONGITUDES_KEY]
+    )
+
+    good_lat_indices = numpy.where(numpy.logical_and(
+        reflectivity_dict[radar_io.LATITUDES_KEY] >= min_latitude_deg_n,
+        reflectivity_dict[radar_io.LATITUDES_KEY] <= max_latitude_deg_n
+    ))[0]
+
+    good_lng_indices = numpy.where(numpy.logical_and(
+        reflectivity_dict[radar_io.LONGITUDES_KEY] >= min_longitude_deg_e,
+        reflectivity_dict[radar_io.LONGITUDES_KEY] <= max_longitude_deg_e
+    ))[0]
+
+    reflectivity_dict[radar_io.LATITUDES_KEY] = (
+        reflectivity_dict[radar_io.LATITUDES_KEY][good_lat_indices]
+    )
+    reflectivity_dict[radar_io.LONGITUDES_KEY] = (
+        reflectivity_dict[radar_io.LONGITUDES_KEY][good_lng_indices]
+    )
+    reflectivity_dict[radar_io.REFLECTIVITY_KEY] = (
+        reflectivity_dict[radar_io.REFLECTIVITY_KEY][:, good_lat_indices, ...]
+    )
+    reflectivity_dict[radar_io.REFLECTIVITY_KEY] = (
+        reflectivity_dict[radar_io.REFLECTIVITY_KEY][
+            :, :, good_lng_indices, ...
+        ]
+    )
+
+    reflectivity_matrix_dbz = numpy.nanmax(
+        reflectivity_dict[radar_io.REFLECTIVITY_KEY][0, ...], axis=-1
+    )
+    colour_map_object, colour_norm_object = (
+        radar_plotting.get_default_colour_scheme(COMPOSITE_REFL_NAME)
+    )
+
+    figure_object, axes_object = pyplot.subplots(
+        1, 1, figsize=(FIGURE_WIDTH_INCHES, FIGURE_HEIGHT_INCHES)
+    )
+    plotting_utils.plot_borders(
+        border_latitudes_deg_n=border_latitudes_deg_n,
+        border_longitudes_deg_e=border_longitudes_deg_e,
+        axes_object=axes_object, line_width=4
+    )
+    pyplot.contour(
+        prediction_dict[prediction_io.LONGITUDES_KEY],
+        prediction_dict[prediction_io.LATITUDES_KEY], mask_matrix,
+        numpy.array([0.999]), colors=(MASK_OUTLINE_COLOUR,),
+        linewidths=4, linestyles='solid', axes=axes_object
+    )
+
+    these_latitudes_deg_n = reflectivity_dict[radar_io.LATITUDES_KEY]
+    these_longitudes_deg_e = reflectivity_dict[radar_io.LONGITUDES_KEY]
+
+    radar_plotting.plot_latlng_grid(
+        field_matrix=reflectivity_matrix_dbz, field_name=COMPOSITE_REFL_NAME,
+        axes_object=axes_object,
+        min_grid_point_latitude_deg=numpy.min(these_latitudes_deg_n),
+        min_grid_point_longitude_deg=numpy.min(these_longitudes_deg_e),
+        latitude_spacing_deg=numpy.diff(these_latitudes_deg_n[:2])[0],
+        longitude_spacing_deg=numpy.diff(these_longitudes_deg_e[:2])[0]
+    )
+
+    gg_plotting_utils.plot_colour_bar(
+        axes_object_or_matrix=axes_object, data_matrix=reflectivity_matrix_dbz,
+        colour_map_object=colour_map_object,
+        colour_norm_object=colour_norm_object,
+        orientation_string='vertical', extend_min=False, extend_max=True,
+        font_size=FONT_SIZE
+    )
+
+    plotting_utils.plot_grid_lines(
+        plot_latitudes_deg_n=these_latitudes_deg_n,
+        plot_longitudes_deg_e=these_longitudes_deg_e, axes_object=axes_object,
+        parallel_spacing_deg=1. if len(these_latitudes_deg_n) > 300 else 0.5,
+        meridian_spacing_deg=1. if len(these_latitudes_deg_n) > 300 else 0.5,
+        font_size=FONT_SIZE
+    )
+
+    axes_object.set_title('Reflectivity (dBZ)', fontsize=TITLE_FONT_SIZE)
+
+    return figure_object, axes_object
+
+
 def _plot_predictions_one_time(
-        prediction_dict, example_index, border_latitudes_deg_n,
-        border_longitudes_deg_e, mask_matrix, percentile_levels,
-        use_fancy_quantile_method_for_stdev, output_dir_name):
+        prediction_dict, example_index, top_radar_dir_name,
+        border_latitudes_deg_n, border_longitudes_deg_e, mask_matrix,
+        percentile_levels, use_fancy_quantile_method_for_stdev,
+        output_dir_name):
     """Plots predictions (with uncertainty) for one time step.
 
     M = number of rows in grid
@@ -112,7 +256,8 @@ def _plot_predictions_one_time(
     :param prediction_dict: Dictionary in format returned by
         `prediction_io.read_file`.
     :param example_index: Will plot [i]th example, where i = `example_index`.
-    :param border_latitudes_deg_n: See doc for `_plot_predictions_one_day`.
+    :param top_radar_dir_name: See doc for `_plot_predictions_one_day`.
+    :param border_latitudes_deg_n: Same.
     :param border_longitudes_deg_e: Same.
     :param mask_matrix: M-by-N numpy array of integers (0 or 1), where 1 means
         the grid point is unmasked.
@@ -259,10 +404,10 @@ def _plot_predictions_one_time(
             )
         else:
             interp_object = interp1d(
-                x=prediction_dict[prediction_io.PROBABILITY_MATRIX_KEY][
+                x=prediction_dict[prediction_io.QUANTILE_LEVELS_KEY],
+                y=prediction_dict[prediction_io.PROBABILITY_MATRIX_KEY][
                     i, ..., 1:
                 ],
-                y=prediction_dict[prediction_io.QUANTILE_LEVELS_KEY],
                 kind='linear', axis=-1, bounds_error=False, assume_sorted=True,
                 fill_value='extrapolate'
             )
@@ -334,6 +479,93 @@ def _plot_predictions_one_time(
         )
         pyplot.close(figure_object)
 
+    if top_radar_dir_name is not None:
+
+        # Plot radar data.
+        figure_object, axes_object = _plot_radar_one_time(
+            top_radar_dir_name=top_radar_dir_name,
+            border_latitudes_deg_n=border_latitudes_deg_n,
+            border_longitudes_deg_e=border_longitudes_deg_e,
+            prediction_dict=prediction_dict, example_index=example_index,
+            mask_matrix=mask_matrix
+        )
+
+        letter_label = chr(ord(letter_label) + 1)
+        gg_plotting_utils.label_axes(
+            axes_object=axes_object, label_string='({0:s})'.format(letter_label)
+        )
+
+        this_file_name = '{0:s}/{1:s}_radar.jpg'.format(
+            output_dir_name, valid_time_string
+        )
+        panel_file_names.append(this_file_name)
+
+        print('Saving figure to file: "{0:s}"...'.format(panel_file_names[-1]))
+        figure_object.savefig(
+            panel_file_names[-1], dpi=FIGURE_RESOLUTION_DPI,
+            pad_inches=0, bbox_inches='tight'
+        )
+        pyplot.close(figure_object)
+
+        # Plot convection mask.
+        colour_map_object, colour_norm_object = (
+            prediction_plotting.get_prob_colour_scheme(
+                max_probability=1., make_lowest_prob_grey=False
+            )
+        )
+
+        figure_object, axes_object = pyplot.subplots(
+            1, 1, figsize=(FIGURE_WIDTH_INCHES, FIGURE_HEIGHT_INCHES)
+        )
+        plotting_utils.plot_borders(
+            border_latitudes_deg_n=border_latitudes_deg_n,
+            border_longitudes_deg_e=border_longitudes_deg_e,
+            axes_object=axes_object, line_width=4
+        )
+        pyplot.contour(
+            longitudes_deg_e, latitudes_deg_n, mask_matrix,
+            numpy.array([0.999]), colors=(MASK_OUTLINE_COLOUR,),
+            linewidths=4, linestyles='solid', axes=axes_object
+        )
+
+        prediction_plotting.plot_probabilistic(
+            target_matrix=target_matrix,
+            probability_matrix=numpy.full(target_matrix.shape, 0.),
+            figure_object=figure_object, axes_object=axes_object,
+            min_latitude_deg_n=latitudes_deg_n[0],
+            min_longitude_deg_e=longitudes_deg_e[0],
+            latitude_spacing_deg=numpy.diff(latitudes_deg_n[:2])[0],
+            longitude_spacing_deg=numpy.diff(longitudes_deg_e[:2])[0],
+            colour_map_object=colour_map_object,
+            colour_norm_object=colour_norm_object
+        )
+
+        axes_object.set_title('Convection mask', fontsize=TITLE_FONT_SIZE)
+        letter_label = chr(ord(letter_label) + 1)
+        gg_plotting_utils.label_axes(
+            axes_object=axes_object, label_string='({0:s})'.format(letter_label)
+        )
+
+        plotting_utils.plot_grid_lines(
+            plot_latitudes_deg_n=latitudes_deg_n,
+            plot_longitudes_deg_e=longitudes_deg_e, axes_object=axes_object,
+            parallel_spacing_deg=1. if len(latitudes_deg_n) > 300 else 0.5,
+            meridian_spacing_deg=1. if len(latitudes_deg_n) > 300 else 0.5,
+            font_size=FONT_SIZE
+        )
+
+        this_file_name = '{0:s}/{1:s}_mask.jpg'.format(
+            output_dir_name, valid_time_string
+        )
+        panel_file_names.append(this_file_name)
+
+        print('Saving figure to file: "{0:s}"...'.format(panel_file_names[-1]))
+        figure_object.savefig(
+            panel_file_names[-1], dpi=FIGURE_RESOLUTION_DPI,
+            pad_inches=0, bbox_inches='tight'
+        )
+        pyplot.close(figure_object)
+
     for this_file_name in panel_file_names:
         imagemagick_utils.resize_image(
             input_file_name=this_file_name, output_file_name=this_file_name,
@@ -347,7 +579,7 @@ def _plot_predictions_one_time(
 
     num_panels = len(panel_file_names)
     num_panel_rows = int(numpy.floor(
-        numpy.sqrt(num_panels)
+        numpy.sqrt(num_panels - int(top_radar_dir_name is not None))
     ))
     num_panel_columns = int(numpy.ceil(
         float(num_panels) / num_panel_rows
@@ -372,8 +604,8 @@ def _plot_predictions_one_time(
 
 
 def _plot_predictions_one_day(
-        prediction_file_name, border_latitudes_deg_n, border_longitudes_deg_e,
-        daily_times_seconds, percentile_levels,
+        prediction_file_name, top_radar_dir_name, border_latitudes_deg_n,
+        border_longitudes_deg_e, daily_times_seconds, percentile_levels,
         use_fancy_quantile_method_for_stdev, output_dir_name):
     """Plots predictions (with uncertainty) for one day.
 
@@ -381,6 +613,7 @@ def _plot_predictions_one_day(
 
     :param prediction_file_name: Path to prediction file.  Will be read by
         `prediction_io.read_file`.
+    :param top_radar_dir_name: See documentation at top of file.
     :param border_latitudes_deg_n: length-P numpy array of latitudes (deg N).
     :param border_longitudes_deg_e: length-P numpy array of longitudes (deg E).
     :param daily_times_seconds: See documentation at top of file.
@@ -433,6 +666,7 @@ def _plot_predictions_one_day(
     for i in range(num_examples):
         _plot_predictions_one_time(
             prediction_dict=prediction_dict, example_index=i,
+            top_radar_dir_name=top_radar_dir_name,
             border_latitudes_deg_n=border_latitudes_deg_n,
             border_longitudes_deg_e=border_longitudes_deg_e,
             mask_matrix=mask_matrix.astype(int),
@@ -443,14 +677,15 @@ def _plot_predictions_one_day(
         )
 
 
-def _run(top_prediction_dir_name, first_date_string, last_date_string,
-         daily_times_seconds, percentile_levels,
+def _run(top_prediction_dir_name, top_radar_dir_name, first_date_string,
+         last_date_string, daily_times_seconds, percentile_levels,
          use_fancy_quantile_method_for_stdev, output_dir_name):
     """Plots predictions with uncertainty.
 
     This is effectively the main method.
 
     :param top_prediction_dir_name: See documentation at top of file.
+    :param top_radar_dir_name: Same.
     :param first_date_string: Same.
     :param last_date_string: Same.
     :param daily_times_seconds: Same.
@@ -459,8 +694,10 @@ def _run(top_prediction_dir_name, first_date_string, last_date_string,
     :param output_dir_name: Same.
     """
 
-    border_latitudes_deg_n, border_longitudes_deg_e = border_io.read_file()
+    if top_radar_dir_name == '':
+        top_radar_dir_name = None
 
+    border_latitudes_deg_n, border_longitudes_deg_e = border_io.read_file()
     file_system_utils.mkdir_recursive_if_necessary(
         directory_name=output_dir_name
     )
@@ -507,6 +744,7 @@ def _run(top_prediction_dir_name, first_date_string, last_date_string,
         for i in range(num_days):
             _plot_predictions_one_day(
                 prediction_file_name=prediction_file_names[i],
+                top_radar_dir_name=top_radar_dir_name,
                 daily_times_seconds=daily_times_seconds,
                 border_latitudes_deg_n=border_latitudes_deg_n,
                 border_longitudes_deg_e=border_longitudes_deg_e,
@@ -524,7 +762,10 @@ if __name__ == '__main__':
     INPUT_ARG_OBJECT = INPUT_ARG_PARSER.parse_args()
 
     _run(
-        top_prediction_dir_name=getattr(INPUT_ARG_OBJECT, INPUT_DIR_ARG_NAME),
+        top_prediction_dir_name=getattr(
+            INPUT_ARG_OBJECT, PREDICTION_DIR_ARG_NAME
+        ),
+        top_radar_dir_name=getattr(INPUT_ARG_OBJECT, RADAR_DIR_ARG_NAME),
         first_date_string=getattr(INPUT_ARG_OBJECT, FIRST_DATE_ARG_NAME),
         last_date_string=getattr(INPUT_ARG_OBJECT, LAST_DATE_ARG_NAME),
         daily_times_seconds=numpy.array(
