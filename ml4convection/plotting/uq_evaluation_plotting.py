@@ -40,7 +40,7 @@ pyplot.rc('figure', titlesize=FONT_SIZE)
 
 def _plot_means_as_inset(
         figure_object, bin_centers, bin_mean_predictions,
-        bin_mean_target_values, for_spread_skill_plot):
+        bin_mean_target_values, plot_in_top_right):
     """Plots means (mean prediction and target by bin) as inset in another fig.
 
     B = number of bins
@@ -54,12 +54,12 @@ def _plot_means_as_inset(
     :param bin_mean_target_values: length-B numpy array with mean target value
         (event frequency) in each bin.  These values will be plotted on the
         y-axis.
-    :param for_spread_skill_plot: Boolean flag.
+    :param plot_in_top_right: Boolean flag.
     :return: inset_axes_object: Axes handle for histogram (instance of
         `matplotlib.axes._subplots.AxesSubplot`).
     """
 
-    if for_spread_skill_plot:
+    if plot_in_top_right:
         inset_axes_object = figure_object.add_axes([0.05, 0.55, 0.25, 0.25])
     else:
         inset_axes_object = figure_object.add_axes([0.625, 0.55, 0.25, 0.25])
@@ -284,13 +284,17 @@ def plot_spread_vs_skill(
     # )
     # inset_axes_object.set_xlabel('Spread', fontsize=INSET_FONT_SIZE)
 
+    overspread_flags = (
+        mean_prediction_stdevs[real_indices] > rmse_values[real_indices]
+    )
+
     inset_axes_object = _plot_means_as_inset(
         figure_object=figure_object, bin_centers=mean_prediction_stdevs,
         bin_mean_predictions=
         result_dict[uq_evaluation.MEAN_CENTRAL_PREDICTIONS_KEY],
         bin_mean_target_values=
         result_dict[uq_evaluation.MEAN_TARGET_VALUES_KEY],
-        for_spread_skill_plot=True
+        plot_in_top_right=numpy.mean(overspread_flags) < 0.5
     )
 
     inset_axes_object.set_xticks(axes_object.get_xticks())
@@ -362,7 +366,7 @@ def plot_discard_test(
         result_dict[uq_evaluation.MEAN_CENTRAL_PREDICTIONS_KEY],
         bin_mean_target_values=
         result_dict[uq_evaluation.MEAN_TARGET_VALUES_KEY],
-        for_spread_skill_plot=False
+        plot_in_top_right=True
     )
 
     inset_axes_object.set_xticks(axes_object.get_xticks())
