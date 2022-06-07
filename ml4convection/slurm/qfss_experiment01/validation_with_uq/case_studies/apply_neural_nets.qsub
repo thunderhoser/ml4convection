@@ -25,12 +25,12 @@ source /scratch2/BMC/gsd-hpcs/Jebb.Q.Stewart/conda3.7/etc/profile.d/conda.csh
 conda activate base
 
 set CODE_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_standalone/ml4convection"
-set MODEL_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_models/uq_experiment01/top-level-skip-dropout=0.375_penultimate-layer-dropout=0.125_output-layer-dropout=0.250"
+set MODEL_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_models/qfss_experiment01/fss-weight=06.0_num-quantile-levels=017"
 set TOP_PREDICTOR_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_project/predictors/quality_controlled/partial_grids"
 set TOP_TARGET_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_project/targets/new_echo_classification/no_tracking/omit_north_radar/partial_grids"
 
 set model_file_name="${MODEL_DIR_NAME}/model.h5"
-set prediction_dir_name="${MODEL_DIR_NAME}/testing_with_dropout/partial_grids"
+set prediction_dir_name="${MODEL_DIR_NAME}/testing_with_uq/partial_grids"
 
 set TESTING_DATE_STRINGS=("20180125" "20180603" "20180823")
 set date_string=${TESTING_DATE_STRINGS[$SLURM_ARRAY_TASK_ID]}
@@ -40,7 +40,7 @@ python3 -u "${CODE_DIR_NAME}/apply_neural_net.py" \
 --input_predictor_dir_name="${TOP_PREDICTOR_DIR_NAME}" \
 --input_target_dir_name="${TOP_TARGET_DIR_NAME}" \
 --apply_to_full_grids=0 \
+--use_quantiles=1 \
 --first_valid_date_string="${date_string}" \
 --last_valid_date_string="${date_string}" \
---num_dropout_iterations=100 \
 --output_dir_name="${prediction_dir_name}"

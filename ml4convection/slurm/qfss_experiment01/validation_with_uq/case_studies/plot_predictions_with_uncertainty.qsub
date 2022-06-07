@@ -25,9 +25,9 @@ source /scratch2/BMC/gsd-hpcs/Jebb.Q.Stewart/conda3.7/etc/profile.d/conda.csh
 conda activate base
 
 set CODE_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_standalone/ml4convection"
-set MODEL_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_models/uq_experiment01/top-level-skip-dropout=0.375_penultimate-layer-dropout=0.125_output-layer-dropout=0.250"
+set MODEL_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_models/qfss_experiment01/fss-weight=06.0_num-quantile-levels=017"
 
-set prediction_dir_name="${MODEL_DIR_NAME}/testing_with_dropout/partial_grids"
+set prediction_dir_name="${MODEL_DIR_NAME}/testing_with_uq/partial_grids"
 
 set TESTING_DATE_STRINGS=("20180125" "20180603" "20180823")
 set date_string=${TESTING_DATE_STRINGS[$SLURM_ARRAY_TASK_ID]}
