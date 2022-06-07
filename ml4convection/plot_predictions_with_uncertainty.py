@@ -37,7 +37,7 @@ NUM_RADARS = len(radar_utils.RADAR_LATITUDES_DEG_N)
 DAYS_TO_SECONDS = 86400
 TIME_FORMAT = '%Y-%m-%d-%H%M'
 
-FONT_SIZE = 30
+FONT_SIZE = 40
 TITLE_FONT_SIZE = 40
 MASK_OUTLINE_COLOUR = numpy.full(3, 152. / 255)
 FIGURE_RESOLUTION_DPI = 300
@@ -46,6 +46,14 @@ FIGURE_HEIGHT_INCHES = 15
 
 PANEL_SIZE_PX = int(2.5e6)
 CONCAT_FIGURE_SIZE_PX = int(1e7)
+
+pyplot.rc('font', size=FONT_SIZE)
+pyplot.rc('axes', titlesize=FONT_SIZE)
+pyplot.rc('axes', labelsize=FONT_SIZE)
+pyplot.rc('xtick', labelsize=FONT_SIZE)
+pyplot.rc('ytick', labelsize=FONT_SIZE)
+pyplot.rc('legend', fontsize=FONT_SIZE)
+pyplot.rc('figure', titlesize=FONT_SIZE)
 
 PREDICTION_DIR_ARG_NAME = 'input_prediction_dir_name'
 RADAR_DIR_ARG_NAME = 'input_radar_dir_name'
