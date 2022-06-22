@@ -296,22 +296,22 @@ def plot_spread_vs_skill(
         mean_prediction_stdevs[real_indices] > rmse_values[real_indices]
     )
 
-    inset_axes_object = _plot_means_as_inset(
-        figure_object=figure_object, bin_centers=mean_prediction_stdevs,
-        bin_mean_predictions=
-        result_dict[uq_evaluation.MEAN_CENTRAL_PREDICTIONS_KEY],
-        bin_mean_target_values=
-        result_dict[uq_evaluation.MEAN_TARGET_VALUES_KEY],
-        plot_in_top_right=numpy.mean(overspread_flags) < 0.5
-    )
-
-    inset_axes_object.set_xticks(axes_object.get_xticks())
-    inset_axes_object.set_xlim(axes_object.get_xlim())
-
-    inset_axes_object.set_title(
-        'Mean target and prediction\nin each bin', fontsize=INSET_FONT_SIZE
-    )
-    inset_axes_object.set_xlabel('Spread', fontsize=INSET_FONT_SIZE)
+    # inset_axes_object = _plot_means_as_inset(
+    #     figure_object=figure_object, bin_centers=mean_prediction_stdevs,
+    #     bin_mean_predictions=
+    #     result_dict[uq_evaluation.MEAN_CENTRAL_PREDICTIONS_KEY],
+    #     bin_mean_target_values=
+    #     result_dict[uq_evaluation.MEAN_TARGET_VALUES_KEY],
+    #     plot_in_top_right=numpy.mean(overspread_flags) < 0.5
+    # )
+    #
+    # inset_axes_object.set_xticks(axes_object.get_xticks())
+    # inset_axes_object.set_xlim(axes_object.get_xlim())
+    #
+    # inset_axes_object.set_title(
+    #     'Mean target and prediction\nin each bin', fontsize=INSET_FONT_SIZE
+    # )
+    # inset_axes_object.set_xlabel('Spread', fontsize=INSET_FONT_SIZE)
 
     return figure_object, axes_object
 
