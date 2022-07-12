@@ -1,0 +1,63 @@
+#!/bin/tcsh
+
+#SBATCH --job-name="apply_neural_nets_20170602"
+#SBATCH --partition="fge"
+#SBATCH --account="rda-ghpcs"
+#SBATCH --qos="batch"
+#SBATCH --ntasks=1
+#SBATCH --nodes=1
+#SBATCH --cpus-per-task=1
+##SBATCH --nodes=1
+##SBATCH --ntasks=1
+##SBATCH --cpus-per-task=1
+##SBATCH --ntasks-per-node=1
+#SBATCH --time=30:00:00
+#SBATCH --array=1-16
+#SBATCH --exclude=h28n12
+##SBATCH --exclude=h31n03,h28n12
+##SBATCH --exclude=h29n01,h26n05,h28n06,h29n07,h30n03,h30n15
+#SBATCH --mail-type=BEGIN,END,FAIL
+#SBATCH --mail-user=ryan.lagerquist@noaa.gov
+#SBATCH --output=apply_neural_nets_20170602_%A_%a.out
+
+module load cuda/10.1
+source /scratch2/BMC/gsd-hpcs/Jebb.Q.Stewart/conda3.7/etc/profile.d/conda.csh
+conda activate base
+
+set CODE_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_standalone/ml4convection"
+set TOP_MODEL_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_models/lf_experiment05"
+set TOP_PREDICTOR_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_project/predictors/quality_controlled/full_grids"
+set TOP_TARGET_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_project/targets/new_echo_classification/no_tracking/omit_north_radar/full_grids"
+
+set VALID_DATE_STRINGS=("20170602")
+
+set WAVELET_TRANSFORM_FLAGS=(0 0 0 0 0 0 0 0 1 1 1 1 1 1 1 1)
+set BASE_LOSS_FUNCTION_NAMES=("xentropy" "xentropy" "xentropy" "xentropy" "xentropy" "xentropy" "xentropy" "xentropy" "xentropy" "xentropy" "xentropy" "xentropy" "xentropy" "xentropy" "xentropy" "xentropy")
+set MIN_TARGET_RESOLUTIONS_DEG=(0.0000 0.0000 0.0000 0.0000 0.0500 0.1000 0.2000 0.4000 0.0000 0.0000 0.0000 0.0000 0.0500 0.1000 0.2000 0.4000)
+set MAX_TARGET_RESOLUTIONS_DEG=(0.0500 0.1000 0.2000 0.4000 10000000000.0000 10000000000.0000 10000000000.0000 10000000000.0000 0.0500 0.1000 0.2000 0.4000 10000000000.0000 10000000000.0000 10000000000.0000 10000000000.0000)
+
+set wavelet_transform_targets=${WAVELET_TRANSFORM_FLAGS[$SLURM_ARRAY_TASK_ID]}
+set base_loss_function_name=${BASE_LOSS_FUNCTION_NAMES[$SLURM_ARRAY_TASK_ID]}
+set min_target_resolution_deg=${MIN_TARGET_RESOLUTIONS_DEG[$SLURM_ARRAY_TASK_ID]}
+set max_target_resolution_deg=${MAX_TARGET_RESOLUTIONS_DEG[$SLURM_ARRAY_TASK_ID]}
+
+set min_target_resolution_deg=`printf "%.4f" $min_target_resolution_deg`
+set max_target_resolution_deg=`printf "%.4f" $max_target_resolution_deg`
+
+set top_model_dir_name="${TOP_MODEL_DIR_NAME}/${base_loss_function_name}_wavelets${wavelet_transform_targets}_min-resolution-deg=${min_target_resolution_deg}_max-resolution-deg=${max_target_resolution_deg}"
+
+set j=1
+
+while ($j <= ${#VALID_DATE_STRINGS})
+    python3 -u "${CODE_DIR_NAME}/apply_neural_net.py" \
+    --input_model_file_name="${top_model_dir_name}/model*.h5" \
+    --input_predictor_dir_name="${TOP_PREDICTOR_DIR_NAME}" \
+    --input_target_dir_name="${TOP_TARGET_DIR_NAME}" \
+    --apply_to_full_grids=1 \
+    --overlap_size_px=90 \
+    --first_valid_date_string="${VALID_DATE_STRINGS[$j]}" \
+    --last_valid_date_string="${VALID_DATE_STRINGS[$j]}" \
+    --output_dir_name="validation_best_validation_loss/full_grids"
+    
+    @ j = $j + 1
+end

@@ -22,6 +22,7 @@ ORIG_NUM_COLUMNS_KEY = 'orig_num_columns'
 
 FSS_NAME = 'fss'
 BRIER_SCORE_NAME = 'brier'
+CROSS_ENTROPY_NAME = 'xentropy'
 CSI_NAME = 'csi'
 HEIDKE_SCORE_NAME = 'heidke'
 GERRITY_SCORE_NAME = 'gerrity'
@@ -35,11 +36,22 @@ IMAGINARY_FREQ_MSE_NAME = 'fmsei'
 FREQ_MSE_NAME = 'fmse'
 
 VALID_SCORE_NAMES = [
-    FSS_NAME, BRIER_SCORE_NAME, CSI_NAME,
+    FSS_NAME, BRIER_SCORE_NAME, CROSS_ENTROPY_NAME, CSI_NAME,
     HEIDKE_SCORE_NAME, GERRITY_SCORE_NAME, PEIRCE_SCORE_NAME,
     FREQUENCY_BIAS_NAME, IOU_NAME, ALL_CLASS_IOU_NAME, DICE_COEFF_NAME,
     REAL_FREQ_MSE_NAME, IMAGINARY_FREQ_MSE_NAME, FREQ_MSE_NAME
 ]
+
+
+def _log2(input_tensor):
+    """Computes logarithm in base 2.
+
+    :param input_tensor: Keras tensor.
+    :return: logarithm_tensor: Keras tensor with the same shape as
+        `input_tensor`.
+    """
+
+    return K.log(K.maximum(input_tensor, 1e-6)) / K.log(2.)
 
 
 def _check_input_args(
@@ -239,6 +251,27 @@ def get_brier_score(target_tensor, prediction_tensor, mask_matrix):
     num_pixels_tensor = K.sum(mask_tensor, axis=(1, 2))
 
     return K.mean(squared_error_tensor / num_pixels_tensor)
+
+
+def get_cross_entropy(target_tensor, prediction_tensor, mask_matrix):
+    """Computes cross-entropy.
+
+    :param target_tensor: See doc for `get_brier_score`.
+    :param prediction_tensor: Same.
+    :param mask_matrix: Same.
+    :return: xentropy: Cross-entropy (scalar).
+    """
+
+    xentropy_tensor = K.sum(
+        target_tensor * _log2(prediction_tensor) +
+        (1. - target_tensor) * _log2(1. - prediction_tensor),
+        axis=(1, 2)
+    )
+
+    mask_tensor = mask_matrix * K.ones_like(prediction_tensor)
+    num_pixels_tensor = K.sum(mask_tensor, axis=(1, 2))
+
+    return K.mean(xentropy_tensor / num_pixels_tensor)
 
 
 def get_csi(target_tensor, prediction_tensor, mask_matrix):
@@ -566,6 +599,59 @@ def brier_score(
         brier_function.__name__ = function_name
 
     return brier_function
+
+
+def cross_entropy(
+        spatial_coeff_matrix, frequency_coeff_matrix, mask_matrix,
+        use_as_loss_function=True, function_name=None):
+    """Creates function to compute cross-entropy at a given scale.
+
+    :param spatial_coeff_matrix: See doc for `_check_input_args`.
+    :param frequency_coeff_matrix: Same.
+    :param mask_matrix: Same.
+    :param use_as_loss_function: Leave this alone.
+    :param function_name: See doc for `_check_input_args`.
+    :return: xentropy_function: Function (defined below).
+    """
+
+    error_checking.assert_is_boolean(use_as_loss_function)
+
+    argument_dict = _check_input_args(
+        spatial_coeff_matrix=spatial_coeff_matrix,
+        frequency_coeff_matrix=frequency_coeff_matrix,
+        mask_matrix=mask_matrix, function_name=function_name
+    )
+
+    spatial_coeff_matrix = argument_dict[SPATIAL_COEFFS_KEY]
+    frequency_coeff_matrix = argument_dict[FREQUENCY_COEFFS_KEY]
+    mask_matrix = argument_dict[MASK_KEY]
+    orig_num_rows = argument_dict[ORIG_NUM_ROWS_KEY]
+    orig_num_columns = argument_dict[ORIG_NUM_COLUMNS_KEY]
+
+    def xentropy_function(target_tensor, prediction_tensor):
+        """Computes cross-entropy at a given scale.
+
+        :param target_tensor: Tensor of target (actual) values.
+        :param prediction_tensor: Tensor of predicted values.
+        :return: xentropy: Cross-entropy (scalar).
+        """
+
+        target_tensor, prediction_tensor = _filter_fields(
+            target_tensor=target_tensor, prediction_tensor=prediction_tensor,
+            spatial_coeff_matrix=spatial_coeff_matrix,
+            frequency_coeff_matrix=frequency_coeff_matrix,
+            orig_num_rows=orig_num_rows, orig_num_columns=orig_num_columns
+        )[:2]
+
+        return get_cross_entropy(
+            target_tensor=target_tensor, prediction_tensor=prediction_tensor,
+            mask_matrix=mask_matrix
+        )
+
+    if function_name is not None:
+        xentropy_function.__name__ = function_name
+
+    return xentropy_function
 
 
 def csi(spatial_coeff_matrix, frequency_coeff_matrix, mask_matrix,

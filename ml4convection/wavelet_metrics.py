@@ -26,6 +26,7 @@ NUM_ROWS_AFTER_PADDING = 256
 
 FSS_NAME = 'fss'
 BRIER_SCORE_NAME = 'brier'
+CROSS_ENTROPY_NAME = 'xentropy'
 CSI_NAME = 'csi'
 HEIDKE_SCORE_NAME = 'heidke'
 GERRITY_SCORE_NAME = 'gerrity'
@@ -36,7 +37,7 @@ ALL_CLASS_IOU_NAME = 'all-class-iou'
 DICE_COEFF_NAME = 'dice'
 
 VALID_SCORE_NAMES = [
-    FSS_NAME, BRIER_SCORE_NAME, CSI_NAME,
+    FSS_NAME, BRIER_SCORE_NAME, CROSS_ENTROPY_NAME, CSI_NAME,
     HEIDKE_SCORE_NAME, GERRITY_SCORE_NAME, PEIRCE_SCORE_NAME,
     FREQUENCY_BIAS_NAME, IOU_NAME, ALL_CLASS_IOU_NAME, DICE_COEFF_NAME
 ]
@@ -360,6 +361,50 @@ def brier_score(min_resolution_deg, max_resolution_deg, mask_matrix,
         brier_function.__name__ = function_name
 
     return brier_function
+
+
+def cross_entropy(min_resolution_deg, max_resolution_deg, mask_matrix,
+                  use_as_loss_function=True, function_name=None):
+    """Creates function to compute cross-entropy at a given scale.
+
+    :param min_resolution_deg: See documentation for `_check_input_args`.
+    :param max_resolution_deg: Same.
+    :param mask_matrix: Same.
+    :param use_as_loss_function: Leave this alone.
+    :param function_name: Function name (string).
+    :return: xentropy_function: Function (defined below).
+    """
+
+    error_checking.assert_is_boolean(use_as_loss_function)
+
+    mask_matrix, keep_mean_flags, keep_detail_flags = _check_input_args(
+        min_resolution_deg=min_resolution_deg,
+        max_resolution_deg=max_resolution_deg,
+        mask_matrix=mask_matrix, function_name=function_name
+    )
+
+    def xentropy_function(target_tensor, prediction_tensor):
+        """Computes cross-entropy at a given scale.
+
+        :param target_tensor: Tensor of target (actual) values.
+        :param prediction_tensor: Tensor of predicted values.
+        :return: xentropy: Cross-entropy (scalar).
+        """
+
+        target_tensor, prediction_tensor = _filter_fields(
+            target_tensor=target_tensor, prediction_tensor=prediction_tensor,
+            keep_mean_flags=keep_mean_flags, keep_detail_flags=keep_detail_flags
+        )
+
+        return fourier_metrics.get_cross_entropy(
+            target_tensor=target_tensor, prediction_tensor=prediction_tensor,
+            mask_matrix=mask_matrix
+        )
+
+    if function_name is not None:
+        xentropy_function.__name__ = function_name
+
+    return xentropy_function
 
 
 def csi(min_resolution_deg, max_resolution_deg, mask_matrix,
