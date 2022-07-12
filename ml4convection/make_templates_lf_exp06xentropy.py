@@ -52,6 +52,8 @@ DEFAULT_OPTION_DICT = {
     u_net_architecture.CONV_DROPOUT_RATES_KEY: [numpy.full(2, 0.)] * 6,
     u_net_architecture.UPCONV_DROPOUT_RATES_KEY: numpy.full(5, 0.),
     u_net_architecture.SKIP_DROPOUT_RATES_KEY: [numpy.full(2, 0.)] * 5,
+    u_net_architecture.SKIP_DROPOUT_MC_FLAGS_KEY:
+        [numpy.full(2, 0, dtype=bool)] * 5,
     u_net_architecture.L2_WEIGHT_KEY: 10 ** -5.5
 }
 
