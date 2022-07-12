@@ -597,7 +597,7 @@ def cross_entropy(half_window_size_px, mask_matrix, function_name=None,
         eroded_mask_tensor = eroded_mask_matrix * K.ones_like(prediction_tensor)
         num_pixels_tensor = K.sum(eroded_mask_tensor, axis=(1, 2, 3))
 
-        return K.mean(xentropy_tensor / num_pixels_tensor)
+        return -K.mean(xentropy_tensor / num_pixels_tensor)
 
     if function_name is not None:
         xentropy_function.__name__ = function_name
