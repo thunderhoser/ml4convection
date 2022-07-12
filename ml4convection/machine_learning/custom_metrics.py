@@ -7,6 +7,17 @@ from scipy.ndimage.morphology import binary_erosion
 from gewittergefahr.gg_utils import error_checking
 
 
+def _log2(input_tensor):
+    """Computes logarithm in base 2.
+
+    :param input_tensor: Keras tensor.
+    :return: logarithm_tensor: Keras tensor with the same shape as
+        `input_tensor`.
+    """
+
+    return K.log(K.maximum(input_tensor, 1e-6)) / K.log(2.)
+
+
 def _erode_mask(mask_matrix, half_window_size_px):
     """Erodes binary mask.
 
@@ -542,3 +553,53 @@ def brier_score(half_window_size_px, mask_matrix, function_name=None,
         brier_function.__name__ = function_name
 
     return brier_function
+
+
+def cross_entropy(half_window_size_px, mask_matrix, function_name=None,
+                  test_mode=False):
+    """Creates function to compute cross-entropy.
+
+    :param half_window_size_px: See doc for `_apply_max_filter`.
+    :param mask_matrix: See doc for `pod`.
+    :param function_name: Function name (string).
+    :param test_mode: Leave this alone.
+    :return: xentropy_function: Function (defined below).
+    """
+
+    eroded_mask_matrix = _check_input_args(
+        half_window_size_px=half_window_size_px, mask_matrix=mask_matrix,
+        function_name=function_name, test_mode=test_mode
+    )
+    # eroded_mask_tensor = K.variable(eroded_mask_matrix)
+
+    def xentropy_function(target_tensor, prediction_tensor):
+        """Computes cross-entropy.
+
+        :param target_tensor: Tensor of target (actual) values.
+        :param prediction_tensor: Tensor of predicted values.
+        :return: xentropy: Cross-entropy.
+        """
+
+        filtered_target_tensor = _apply_max_filter(
+            input_tensor=target_tensor,
+            half_window_size_px=half_window_size_px
+        )
+
+        masked_target_tensor = eroded_mask_matrix * filtered_target_tensor
+        masked_prediction_tensor = eroded_mask_matrix * prediction_tensor
+
+        xentropy_tensor = K.sum(
+            masked_target_tensor * _log2(masked_prediction_tensor) +
+            (1. - masked_target_tensor) * _log2(1. - masked_prediction_tensor),
+            axis=(1, 2, 3)
+        )
+
+        eroded_mask_tensor = eroded_mask_matrix * K.ones_like(prediction_tensor)
+        num_pixels_tensor = K.sum(eroded_mask_tensor, axis=(1, 2, 3))
+
+        return K.mean(xentropy_tensor / num_pixels_tensor)
+
+    if function_name is not None:
+        xentropy_function.__name__ = function_name
+
+    return xentropy_function

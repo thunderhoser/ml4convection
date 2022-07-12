@@ -595,7 +595,7 @@ def _run(top_prediction_dir_name, valid_time_string, output_dir_name):
             output_dir_name=output_dir_name,
             title_string=title_string, font_size=DEFAULT_FONT_SIZE,
             plot_colour_bar=False, latlng_visible=j == 6,
-            target_marker_colour=TARGET_MARKER_COLOUR_NOT_NEIGH
+            target_marker_colour=TARGET_MARKER_COLOUR_NEIGH
         )[0]
 
         panel_file_names[j] = '{0:s}/{1:s}_filter_neigh{2:d}.jpg'.format(

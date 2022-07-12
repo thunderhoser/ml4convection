@@ -35,6 +35,7 @@ MAX_TARGET_RESOLUTION_DEG = 6.4
 
 FSS_NAME = fourier_metrics.FSS_NAME
 BRIER_SCORE_NAME = fourier_metrics.BRIER_SCORE_NAME
+CROSS_ENTROPY_NAME = fourier_metrics.CROSS_ENTROPY_NAME
 CSI_NAME = fourier_metrics.CSI_NAME
 FREQUENCY_BIAS_NAME = fourier_metrics.FREQUENCY_BIAS_NAME
 IOU_NAME = fourier_metrics.IOU_NAME
@@ -46,11 +47,10 @@ GERRITY_SCORE_NAME = fourier_metrics.GERRITY_SCORE_NAME
 REAL_FREQ_MSE_NAME = fourier_metrics.REAL_FREQ_MSE_NAME
 IMAGINARY_FREQ_MSE_NAME = fourier_metrics.IMAGINARY_FREQ_MSE_NAME
 FREQ_MSE_NAME = fourier_metrics.FREQ_MSE_NAME
-CROSS_ENTROPY_NAME = 'xentropy'
 
 VALID_SCORE_NAMES_NEIGH = [
-    FSS_NAME, BRIER_SCORE_NAME, CSI_NAME, FREQUENCY_BIAS_NAME,
-    IOU_NAME, ALL_CLASS_IOU_NAME, DICE_COEFF_NAME,
+    FSS_NAME, BRIER_SCORE_NAME, CROSS_ENTROPY_NAME, CSI_NAME,
+    FREQUENCY_BIAS_NAME, IOU_NAME, ALL_CLASS_IOU_NAME, DICE_COEFF_NAME,
     HEIDKE_SCORE_NAME, PEIRCE_SCORE_NAME, GERRITY_SCORE_NAME
 ]
 VALID_SCORE_NAMES_WAVELET = VALID_SCORE_NAMES_NEIGH + []
@@ -1308,6 +1308,13 @@ def get_metrics(metric_names, mask_matrix, use_as_loss_function):
                     mask_matrix=mask_matrix,
                     function_name=this_metric_name
                 )
+            if this_param_dict[SCORE_NAME_KEY] == CROSS_ENTROPY_NAME:
+                this_function = wavelet_metrics.cross_entropy(
+                    min_resolution_deg=this_param_dict[MIN_RESOLUTION_KEY],
+                    max_resolution_deg=this_param_dict[MAX_RESOLUTION_KEY],
+                    mask_matrix=mask_matrix,
+                    function_name=this_metric_name
+                )
             elif this_param_dict[SCORE_NAME_KEY] == CSI_NAME:
                 this_function = wavelet_metrics.csi(
                     min_resolution_deg=this_param_dict[MIN_RESOLUTION_KEY],
@@ -1403,6 +1410,14 @@ def get_metrics(metric_names, mask_matrix, use_as_loss_function):
                 )
             elif this_param_dict[SCORE_NAME_KEY] == BRIER_SCORE_NAME:
                 this_function = fourier_metrics.brier_score(
+                    spatial_coeff_matrix=this_spatial_coeff_matrix,
+                    frequency_coeff_matrix=this_frequency_coeff_matrix,
+                    mask_matrix=mask_matrix,
+                    use_as_loss_function=use_as_loss_function,
+                    function_name=this_metric_name
+                )
+            elif this_param_dict[SCORE_NAME_KEY] == CROSS_ENTROPY_NAME:
+                this_function = fourier_metrics.cross_entropy(
                     spatial_coeff_matrix=this_spatial_coeff_matrix,
                     frequency_coeff_matrix=this_frequency_coeff_matrix,
                     mask_matrix=mask_matrix,
@@ -1523,13 +1538,14 @@ def get_metrics(metric_names, mask_matrix, use_as_loss_function):
                     use_as_loss_function=use_as_loss_function,
                     function_name=this_metric_name
                 )
-            elif this_param_dict[SCORE_NAME_KEY] == CROSS_ENTROPY_NAME:
-                this_function = custom_losses.cross_entropy(
+            elif this_param_dict[SCORE_NAME_KEY] == BRIER_SCORE_NAME:
+                this_function = custom_metrics.brier_score(
+                    half_window_size_px=this_param_dict[HALF_WINDOW_SIZE_KEY],
                     mask_matrix=mask_matrix,
                     function_name=this_metric_name
                 )
-            elif this_param_dict[SCORE_NAME_KEY] == BRIER_SCORE_NAME:
-                this_function = custom_metrics.brier_score(
+            elif this_param_dict[SCORE_NAME_KEY] == CROSS_ENTROPY_NAME:
+                this_function = custom_metrics.cross_entropy(
                     half_window_size_px=this_param_dict[HALF_WINDOW_SIZE_KEY],
                     mask_matrix=mask_matrix,
                     function_name=this_metric_name
