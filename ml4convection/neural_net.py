@@ -1315,7 +1315,7 @@ def get_metrics(metric_names, mask_matrix, use_as_loss_function):
                     mask_matrix=mask_matrix,
                     function_name=this_metric_name
                 )
-            if this_param_dict[SCORE_NAME_KEY] == CROSS_ENTROPY_NAME:
+            elif this_param_dict[SCORE_NAME_KEY] == CROSS_ENTROPY_NAME:
                 this_function = wavelet_metrics.cross_entropy(
                     min_resolution_deg=this_param_dict[MIN_RESOLUTION_KEY],
                     max_resolution_deg=this_param_dict[MAX_RESOLUTION_KEY],

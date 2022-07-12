@@ -31,14 +31,7 @@ PARTIAL_MASK_FILE_NAME = (
     'radar_mask_100km_omit-north_partial.nc'
 ).format(HOME_DIR_NAME)
 
-METRIC_NAMES = [
-    'fss_neigh0', 'fss_neigh1', 'fss_neigh2', 'fss_neigh3',
-    'csi_neigh0', 'csi_neigh1', 'csi_neigh2', 'csi_neigh3',
-    'bias_neigh0', 'bias_neigh1', 'bias_neigh2', 'bias_neigh3',
-    'iou_neigh0', 'iou_neigh1', 'iou_neigh2', 'iou_neigh3',
-    'dice_neigh0', 'dice_neigh1', 'dice_neigh2', 'dice_neigh3'
-]
-
+METRIC_NAMES = []
 LOSS_FUNCTION_NAMES = [
     'xentropy_neigh0'
 ]
