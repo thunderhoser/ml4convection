@@ -50,6 +50,9 @@ CONVERT_EXE_NAME = '/usr/bin/convert'
 TITLE_FONT_SIZE = 300
 TITLE_FONT_NAME = 'DejaVu-Sans-Bold'
 
+TARGET_MARKER_COLOUR_NEIGH = numpy.array([217, 95, 2], dtype=float) / 255
+TARGET_MARKER_COLOUR_NOT_NEIGH = numpy.full(3, 0.)
+
 FIGURE_RESOLUTION_DPI = 300
 LARGE_BORDER_WIDTH_PX = 225
 SMALL_BORDER_WIDTH_PX = 10
@@ -208,7 +211,7 @@ def _run(top_prediction_dir_name, valid_time_string, output_dir_name):
     )
     prediction_file_name = prediction_io.find_file(
         top_directory_name=top_prediction_dir_name,
-        valid_date_string=valid_date_string,
+        valid_date_string=valid_date_string, radar_number=1,
         prefer_zipped=False, allow_other_format=True,
         raise_error_if_missing=True
     )
@@ -245,7 +248,9 @@ def _run(top_prediction_dir_name, valid_time_string, output_dir_name):
             :, good_row_indices, :
         ]
     )
-    orig_target_matrix = orig_target_matrix[..., good_column_indices]
+    orig_target_matrix = (
+        orig_target_matrix[..., good_column_indices].astype(int)
+    )
 
     mask_matrix = numpy.full(
         (len(good_row_indices), len(good_column_indices)), 1, dtype=bool
@@ -335,7 +340,8 @@ def _run(top_prediction_dir_name, valid_time_string, output_dir_name):
             colour_norm_object=prob_colour_norm_object,
             output_dir_name=output_dir_name,
             title_string=title_string, font_size=DEFAULT_FONT_SIZE,
-            plot_colour_bar=False, latlng_visible=False
+            plot_colour_bar=False, latlng_visible=False,
+            target_marker_colour=TARGET_MARKER_COLOUR_NOT_NEIGH
         )[0]
 
         panel_file_names[j] = (
@@ -449,7 +455,8 @@ def _run(top_prediction_dir_name, valid_time_string, output_dir_name):
             colour_norm_object=prob_colour_norm_object,
             output_dir_name=output_dir_name,
             title_string=title_string, font_size=DEFAULT_FONT_SIZE,
-            plot_colour_bar=False, latlng_visible=j == 4
+            plot_colour_bar=False, latlng_visible=j == 4,
+            target_marker_colour=TARGET_MARKER_COLOUR_NOT_NEIGH
         )[0]
 
         panel_file_names[j] = (
@@ -587,7 +594,8 @@ def _run(top_prediction_dir_name, valid_time_string, output_dir_name):
             colour_norm_object=prob_colour_norm_object,
             output_dir_name=output_dir_name,
             title_string=title_string, font_size=DEFAULT_FONT_SIZE,
-            plot_colour_bar=False, latlng_visible=j == 6
+            plot_colour_bar=False, latlng_visible=j == 6,
+            target_marker_colour=TARGET_MARKER_COLOUR_NOT_NEIGH
         )[0]
 
         panel_file_names[j] = '{0:s}/{1:s}_filter_neigh{2:d}.jpg'.format(
