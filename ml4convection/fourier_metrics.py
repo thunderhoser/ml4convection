@@ -271,7 +271,7 @@ def get_cross_entropy(target_tensor, prediction_tensor, mask_matrix):
     mask_tensor = mask_matrix * K.ones_like(prediction_tensor)
     num_pixels_tensor = K.sum(mask_tensor, axis=(1, 2))
 
-    return K.mean(xentropy_tensor / num_pixels_tensor)
+    return -K.mean(xentropy_tensor / num_pixels_tensor)
 
 
 def get_csi(target_tensor, prediction_tensor, mask_matrix):
