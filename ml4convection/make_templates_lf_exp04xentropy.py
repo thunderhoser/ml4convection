@@ -50,9 +50,9 @@ DEFAULT_OPTION_DICT = {
     u_net_architecture.CONV_LAYER_COUNTS_KEY: numpy.full(6, 2, dtype=int),
     u_net_architecture.OUTPUT_CHANNEL_COUNTS_KEY:
         numpy.array([16, 24, 32, 48, 64, 96], dtype=int),
-    u_net_architecture.CONV_DROPOUT_RATES_KEY: numpy.full(6, 0.),
+    u_net_architecture.CONV_DROPOUT_RATES_KEY: [numpy.full(2, 0.)] * 6,
     u_net_architecture.UPCONV_DROPOUT_RATES_KEY: numpy.full(5, 0.),
-    u_net_architecture.SKIP_DROPOUT_RATES_KEY: numpy.full(5, 0.),
+    u_net_architecture.SKIP_DROPOUT_RATES_KEY: [numpy.full(2, 0.)] * 5,
     u_net_architecture.L2_WEIGHT_KEY: 10 ** -5.5
 }
 
