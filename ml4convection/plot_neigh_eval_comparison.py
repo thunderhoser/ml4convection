@@ -200,10 +200,7 @@ def _run(advanced_score_file_names, model_descriptions_abbrev, num_panel_rows,
             axes_object.set_xticklabels([''] * num_x_ticks)
             axes_object.set_xlabel('')
 
-        # axes_object.set_title('Attrib diagram for {0:s}'.format(
-        #     model_descriptions_verbose[i]
-        # ))
-        axes_object.set_title('{0:s}'.format(
+        axes_object.set_title('Attrib diagram for {0:s}'.format(
             model_descriptions_verbose[i]
         ))
 
@@ -382,7 +379,7 @@ def _run(advanced_score_file_names, model_descriptions_abbrev, num_panel_rows,
             p_value = 2 * percentile_level
 
             print((
-                'p-value for AUC difference between models {0:s} and {1:s} = '
+                'p-value for AUPD difference between models {0:s} and {1:s} = '
                 '{2:.4f}'
             ).format(
                 model_descriptions_abbrev[i], model_descriptions_abbrev[j],
@@ -408,7 +405,7 @@ def _run(advanced_score_file_names, model_descriptions_abbrev, num_panel_rows,
         csi_at_best_threshold = mean_csi_values[best_threshold_index]
         bias_at_best_threshold = mean_frequency_biases[best_threshold_index]
 
-        annotation_string = 'AUC = {0:.3f} ({1:.3f} to {2:.3f})'.format(
+        annotation_string = 'AUPD = {0:.3f} ({1:.3f} to {2:.3f})'.format(
             numpy.mean(auc_values_by_model[i]),
             numpy.percentile(
                 auc_values_by_model[i], 50 * (1 - confidence_level)
@@ -437,10 +434,7 @@ def _run(advanced_score_file_names, model_descriptions_abbrev, num_panel_rows,
         #     markeredgecolor=eval_plotting.PERF_DIAGRAM_COLOUR
         # )
 
-        # axes_object.set_title('Perf diagram for {0:s}'.format(
-        #     model_descriptions_verbose[i]
-        # ))
-        axes_object.set_title('{0:s}'.format(
+        axes_object.set_title('Perf diagram for {0:s}'.format(
             model_descriptions_verbose[i]
         ))
 
