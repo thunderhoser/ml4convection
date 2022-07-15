@@ -1,0 +1,58 @@
+#!/bin/tcsh
+
+#SBATCH --job-name="plot_evaluation"
+#SBATCH --partition="fge"
+#SBATCH --account="rda-ghpcs"
+#SBATCH --qos="batch"
+#SBATCH --ntasks=1
+#SBATCH --nodes=1
+#SBATCH --cpus-per-task=1
+##SBATCH --nodes=1
+##SBATCH --ntasks=1
+##SBATCH --cpus-per-task=1
+##SBATCH --ntasks-per-node=1
+#SBATCH --time=01:00:00
+#SBATCH --array=1-16
+#SBATCH --exclude=h28n12
+##SBATCH --exclude=h31n03,h28n12
+##SBATCH --exclude=h29n01,h26n05,h28n06,h29n07,h30n03,h30n15
+#SBATCH --mail-type=BEGIN,END,FAIL
+#SBATCH --mail-user=ryan.lagerquist@noaa.gov
+#SBATCH --output=plot_evaluation_%A_%a.out
+
+module load cuda/10.1
+source /scratch2/BMC/gsd-hpcs/Jebb.Q.Stewart/conda3.7/etc/profile.d/conda.csh
+conda activate base
+
+set CODE_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_standalone/ml4convection"
+set TOP_MODEL_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_models/lf_experiment05"
+
+set WAVELET_TRANSFORM_FLAGS=(0 0 0 0 0 0 0 0 1 1 1 1 1 1 1 1)
+set BASE_LOSS_FUNCTION_NAMES=("xentropy" "xentropy" "xentropy" "xentropy" "xentropy" "xentropy" "xentropy" "xentropy" "xentropy" "xentropy" "xentropy" "xentropy" "xentropy" "xentropy" "xentropy" "xentropy")
+set MIN_TARGET_RESOLUTIONS_DEG=(0.0000 0.0000 0.0000 0.0000 0.0500 0.1000 0.2000 0.4000 0.0000 0.0000 0.0000 0.0000 0.0500 0.1000 0.2000 0.4000)
+set MAX_TARGET_RESOLUTIONS_DEG=(0.0500 0.1000 0.2000 0.4000 10000000000.0000 10000000000.0000 10000000000.0000 10000000000.0000 0.0500 0.1000 0.2000 0.4000 10000000000.0000 10000000000.0000 10000000000.0000 10000000000.0000)
+
+set wavelet_transform_targets=${WAVELET_TRANSFORM_FLAGS[$SLURM_ARRAY_TASK_ID]}
+set base_loss_function_name=${BASE_LOSS_FUNCTION_NAMES[$SLURM_ARRAY_TASK_ID]}
+set min_target_resolution_deg=${MIN_TARGET_RESOLUTIONS_DEG[$SLURM_ARRAY_TASK_ID]}
+set max_target_resolution_deg=${MAX_TARGET_RESOLUTIONS_DEG[$SLURM_ARRAY_TASK_ID]}
+
+set min_target_resolution_deg=`printf "%.4f" $min_target_resolution_deg`
+set max_target_resolution_deg=`printf "%.4f" $max_target_resolution_deg`
+
+set top_model_dir_name="${TOP_MODEL_DIR_NAME}/${base_loss_function_name}_wavelets${wavelet_transform_targets}_min-resolution-deg=${min_target_resolution_deg}_max-resolution-deg=${max_target_resolution_deg}"
+
+set MATCHING_DISTANCES_PX=("4.000000")
+set j=1
+
+while ($j <= ${#MATCHING_DISTANCES_PX})
+    set advanced_score_file_names={${top_model_dir_name}/model*/validation_best_validation_loss/full_grids/evaluation/matching_distance_px=${MATCHING_DISTANCES_PX[$j]}/advanced_scores_gridded=0.p}
+    set advanced_score_file_name=${advanced_score_file_names[$#advanced_score_file_names]}
+    set output_dir_name=`echo $advanced_score_file_name | rev | cut -c 3- | rev`
+
+    python3 -u "${CODE_DIR_NAME}/plot_evaluation.py" \
+    --input_advanced_score_file_name="${advanced_score_file_name}" \
+    --output_dir_name="${output_dir_name}"
+
+    @ j = $j + 1
+end
