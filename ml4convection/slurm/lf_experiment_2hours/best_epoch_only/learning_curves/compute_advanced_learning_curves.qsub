@@ -52,7 +52,7 @@ else
 endif
 
 python3 -u "${CODE_DIR_NAME}/compute_advanced_learning_curves.py" \
---input_basic_score_dir_name="${top_model_dir_name}/model*/validation_best_validation_loss/partial_grids/learning_curves" \
+--input_basic_score_dir_name="${top_model_dir_name}/model/validation_best_validation_loss/partial_grids/learning_curves" \
 --first_date_string="20170101" \
 --last_date_string="20171212" \
---output_file_name=""
+--output_file_name="${top_model_dir_name}/model/validation_best_validation_loss/partial_grids/learning_curves/advanced_scores.nc"
