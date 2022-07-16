@@ -845,6 +845,9 @@ def get_basic_scores(
         )
 
         for k in range(num_neigh_distances):
+            print(eval_mask_matrix.shape)
+            print(eroded_eval_mask_matrix.shape)
+
             eroded_eval_mask_matrix[k, ...] = _erode_binary_matrix(
                 binary_matrix=eval_mask_matrix,
                 half_width_px=neigh_distances_px[k]
