@@ -301,9 +301,9 @@ def write_file(
         EXAMPLE_DIMENSION_KEY, GRID_ROW_DIMENSION_KEY, GRID_COLUMN_DIMENSION_KEY
     )
     dataset_object.createVariable(
-        TARGET_MATRIX_KEY, datatype=numpy.float32, dimensions=these_dim
+        TARGET_MATRIX_KEY, datatype=numpy.int32, dimensions=these_dim
     )
-    dataset_object.variables[TARGET_MATRIX_KEY][:] = target_matrix + 0.
+    dataset_object.variables[TARGET_MATRIX_KEY][:] = target_matrix
 
     these_dim = (
         EXAMPLE_DIMENSION_KEY, GRID_ROW_DIMENSION_KEY,
@@ -316,12 +316,11 @@ def write_file(
         forecast_probability_matrix
     )
 
-    # valid_times_unix_sec = valid_times_unix_sec.astype(int)
     dataset_object.createVariable(
-        VALID_TIMES_KEY, datatype=numpy.float32,
+        VALID_TIMES_KEY, datatype=numpy.int32,
         dimensions=EXAMPLE_DIMENSION_KEY
     )
-    dataset_object.variables[VALID_TIMES_KEY][:] = valid_times_unix_sec + 0.
+    dataset_object.variables[VALID_TIMES_KEY][:] = valid_times_unix_sec
 
     dataset_object.createVariable(
         LATITUDES_KEY, datatype=numpy.float32, dimensions=GRID_ROW_DIMENSION_KEY
@@ -381,13 +380,8 @@ def read_file(netcdf_file_name):
                     QUANTILE_LEVELS_KEY: None
                 }
 
-                prediction_dict[TARGET_MATRIX_KEY] = numpy.round(
-                    prediction_dict[TARGET_MATRIX_KEY]
-                ).astype(int)
-
-                prediction_dict[VALID_TIMES_KEY] = numpy.round(
-                    prediction_dict[VALID_TIMES_KEY]
-                ).astype(int)
+                # TODO(thunderhoser): This is a HACK.
+                prediction_dict[TARGET_MATRIX_KEY][0, 0, :] = 0
 
                 if len(prediction_dict[PROBABILITY_MATRIX_KEY].shape) == 3:
                     prediction_dict[PROBABILITY_MATRIX_KEY] = numpy.expand_dims(
@@ -421,13 +415,8 @@ def read_file(netcdf_file_name):
 
     dataset_object.close()
 
-    prediction_dict[TARGET_MATRIX_KEY] = numpy.round(
-        prediction_dict[TARGET_MATRIX_KEY]
-    ).astype(int)
-
-    prediction_dict[VALID_TIMES_KEY] = numpy.round(
-        prediction_dict[VALID_TIMES_KEY]
-    ).astype(int)
+    # TODO(thunderhoser): This is a HACK.
+    prediction_dict[TARGET_MATRIX_KEY][0, 0, :] = 0
 
     if len(prediction_dict[PROBABILITY_MATRIX_KEY].shape) == 3:
         prediction_dict[PROBABILITY_MATRIX_KEY] = numpy.expand_dims(
