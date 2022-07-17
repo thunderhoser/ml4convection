@@ -865,6 +865,11 @@ def get_basic_scores(
             )
 
             for k in range(num_neigh_distances):
+                print('SHAPE OF TARGET MATRIX')
+                print(k)
+                print(numpy.min(this_target_matrix))
+                print(numpy.max(this_target_matrix))
+
                 (
                     b[NEIGH_BRIER_SSE_KEY].values[i, k],
                     b[NEIGH_BRIER_NUM_VALS_KEY].values[i, k]
@@ -874,6 +879,10 @@ def get_basic_scores(
                     eval_mask_matrix=eroded_eval_mask_matrix[k, ...],
                     matching_distance_px=neigh_distances_px[k]
                 )
+
+                print(numpy.min(this_target_matrix))
+                print(numpy.max(this_target_matrix))
+                print('\n\n\n')
 
                 (
                     b[NEIGH_FSS_ACTUAL_SSE_KEY].values[i, k],
