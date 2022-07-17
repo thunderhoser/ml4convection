@@ -281,7 +281,8 @@ def _apply_to_partial_grids_one_day(
             )
 
             # prediction_io.compress_file(output_file_name)
-            os.remove(output_file_name + '.gz')
+            if os.path.isfile(output_file_name + '.gz'):
+                os.remove(output_file_name + '.gz')
 
         return
 
@@ -337,7 +338,8 @@ def _apply_to_partial_grids_one_day(
         )
 
         # prediction_io.compress_file(output_file_name)
-        os.remove(output_file_name + '.gz')
+        if os.path.isfile(output_file_name + '.gz'):
+            os.remove(output_file_name + '.gz')
 
 
 def _run(model_file_name, top_predictor_dir_name, top_target_dir_name,
