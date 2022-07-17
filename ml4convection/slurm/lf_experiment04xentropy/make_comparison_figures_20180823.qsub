@@ -66,6 +66,7 @@ while ($i <= ${#BASE_LOSS_FUNCTION_NAMES})
     --num_panel_rows=3 \
     --row_major_flag=1 \
     --radar_panel_index=0 \
+    --panel_letters "a" "b" "c" "d" "e" "f" "g" "h" \
     --output_dir_name="${TOP_OUTPUT_DIR_NAME}/${BASE_LOSS_FUNCTION_NAMES[$i]}_wavelets0"
     
     set prediction_dir_names_string=""
@@ -94,6 +95,7 @@ while ($i <= ${#BASE_LOSS_FUNCTION_NAMES})
     --num_panel_rows=3 \
     --row_major_flag=1 \
     --radar_panel_index=0 \
+    --panel_letters "a" "b" "c" "d" "e" "f" "g" "h" \
     --output_dir_name="${TOP_OUTPUT_DIR_NAME}/${BASE_LOSS_FUNCTION_NAMES[$i]}_wavelets1"
     
     @ i = $i + 1
