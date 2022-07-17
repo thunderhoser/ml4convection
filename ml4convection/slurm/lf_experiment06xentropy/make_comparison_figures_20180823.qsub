@@ -59,8 +59,8 @@ while ($i <= ${#BASE_LOSS_FUNCTION_NAMES})
     --input_radar_dir_name="${TOP_RADAR_DIR_NAME}" \
     --smoothing_radii_px 2 2 2 2 2 2 2 2 \
     --num_panel_rows=3 \
-    --row_major_flag=1 \
-    --radar_panel_index=0 \
+    --panel_letters "a" "b" "c" "d" "e" "f" "g" "h" "i" "j" \
+    --radar_panel_index=8 \
     --output_dir_name="${TOP_OUTPUT_DIR_NAME}/${BASE_LOSS_FUNCTION_NAMES[$i]}"
     
     @ i = $i + 1
