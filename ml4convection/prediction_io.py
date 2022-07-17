@@ -300,11 +300,11 @@ def write_file(
     these_dim = (
         EXAMPLE_DIMENSION_KEY, GRID_ROW_DIMENSION_KEY, GRID_COLUMN_DIMENSION_KEY
     )
-    target_matrix = target_matrix.astype(int)
+    # target_matrix = target_matrix.astype(int)
     print(target_matrix.dtype)
     print(numpy.unique(target_matrix))
     dataset_object.createVariable(
-        TARGET_MATRIX_KEY, datatype=int, dimensions=these_dim
+        TARGET_MATRIX_KEY, datatype='u4', dimensions=these_dim
     )
     dataset_object.variables[TARGET_MATRIX_KEY][:] = target_matrix
 
@@ -319,9 +319,9 @@ def write_file(
         forecast_probability_matrix
     )
 
-    valid_times_unix_sec = valid_times_unix_sec.astype(int)
+    # valid_times_unix_sec = valid_times_unix_sec.astype(int)
     dataset_object.createVariable(
-        VALID_TIMES_KEY, datatype=int, dimensions=EXAMPLE_DIMENSION_KEY
+        VALID_TIMES_KEY, datatype='u4', dimensions=EXAMPLE_DIMENSION_KEY
     )
     dataset_object.variables[VALID_TIMES_KEY][:] = valid_times_unix_sec
 
