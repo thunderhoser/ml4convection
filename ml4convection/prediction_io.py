@@ -301,6 +301,7 @@ def write_file(
         EXAMPLE_DIMENSION_KEY, GRID_ROW_DIMENSION_KEY, GRID_COLUMN_DIMENSION_KEY
     )
     print(target_matrix.dtype)
+    print(numpy.unique(target_matrix))
     dataset_object.createVariable(
         TARGET_MATRIX_KEY, datatype=numpy.int64, dimensions=these_dim
     )
