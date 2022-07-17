@@ -124,7 +124,8 @@ def _run(top_prediction_dir_name, valid_date_strings, neigh_distances_px,
 
     all_date_strings = copy.deepcopy(valid_date_strings)
 
-    for k in range(NUM_RADARS):
+    # TODO(thunderhoser): Starting with 1 here is a HACK.
+    for k in range(1, NUM_RADARS):
         prediction_file_names = [
             prediction_io.find_file(
                 top_directory_name=top_prediction_dir_name,
