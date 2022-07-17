@@ -280,8 +280,8 @@ def _apply_to_partial_grids_one_day(
                 model_file_name=model_file_name, quantile_levels=quantile_levels
             )
 
-            prediction_io.compress_file(output_file_name)
-            os.remove(output_file_name)
+            # prediction_io.compress_file(output_file_name)
+            os.remove(output_file_name + '.gz')
 
         return
 
@@ -336,8 +336,8 @@ def _apply_to_partial_grids_one_day(
             quantile_levels=quantile_levels_to_write
         )
 
-        prediction_io.compress_file(output_file_name)
-        os.remove(output_file_name)
+        # prediction_io.compress_file(output_file_name)
+        os.remove(output_file_name + '.gz')
 
 
 def _run(model_file_name, top_predictor_dir_name, top_target_dir_name,
