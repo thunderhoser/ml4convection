@@ -57,14 +57,14 @@ set j=1
 
 while ($j <= ${#VALID_DATE_STRINGS})
     python3 -u "${CODE_DIR_NAME}/apply_neural_net.py" \
-    --input_model_file_name="${top_model_dir_name}/model*.h5" \
+    --input_model_file_name="${top_model_dir_name}/model.h5" \
     --input_predictor_dir_name="${TOP_PREDICTOR_DIR_NAME}" \
     --input_target_dir_name="${TOP_TARGET_DIR_NAME}" \
     --apply_to_full_grids=1 \
     --overlap_size_px=90 \
     --first_valid_date_string="${VALID_DATE_STRINGS[$j]}" \
     --last_valid_date_string="${VALID_DATE_STRINGS[$j]}" \
-    --output_dir_name="testing_best_validation_loss/full_grids"
+    --output_dir_name="${top_model_dir_name}/model/testing_best_validation_loss/full_grids"
     
     @ j = $j + 1
 end
