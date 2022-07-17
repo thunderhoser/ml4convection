@@ -865,10 +865,9 @@ def get_basic_scores(
             )
 
             for k in range(num_neigh_distances):
-                print('SHAPE OF TARGET MATRIX')
+                print('UNIQUE VALUES IN TARGET MATRIX')
                 print(k)
-                print(numpy.min(this_target_matrix))
-                print(numpy.max(this_target_matrix))
+                print(numpy.unique(this_target_matrix))
 
                 (
                     b[NEIGH_BRIER_SSE_KEY].values[i, k],
@@ -880,8 +879,7 @@ def get_basic_scores(
                     matching_distance_px=neigh_distances_px[k]
                 )
 
-                print(numpy.min(this_target_matrix))
-                print(numpy.max(this_target_matrix))
+                print(numpy.unique(this_target_matrix))
                 print('\n\n\n')
 
                 (
