@@ -300,13 +300,10 @@ def write_file(
     these_dim = (
         EXAMPLE_DIMENSION_KEY, GRID_ROW_DIMENSION_KEY, GRID_COLUMN_DIMENSION_KEY
     )
-    # target_matrix = target_matrix.astype(int)
-    print(target_matrix.dtype)
-    print(numpy.unique(target_matrix))
     dataset_object.createVariable(
-        TARGET_MATRIX_KEY, datatype=numpy.int32, dimensions=these_dim
+        TARGET_MATRIX_KEY, datatype=numpy.float32, dimensions=these_dim
     )
-    dataset_object.variables[TARGET_MATRIX_KEY][:] = target_matrix
+    dataset_object.variables[TARGET_MATRIX_KEY][:] = target_matrix + 0.
 
     these_dim = (
         EXAMPLE_DIMENSION_KEY, GRID_ROW_DIMENSION_KEY,
@@ -321,9 +318,10 @@ def write_file(
 
     # valid_times_unix_sec = valid_times_unix_sec.astype(int)
     dataset_object.createVariable(
-        VALID_TIMES_KEY, datatype=numpy.int32, dimensions=EXAMPLE_DIMENSION_KEY
+        VALID_TIMES_KEY, datatype=numpy.float32,
+        dimensions=EXAMPLE_DIMENSION_KEY
     )
-    dataset_object.variables[VALID_TIMES_KEY][:] = valid_times_unix_sec
+    dataset_object.variables[VALID_TIMES_KEY][:] = valid_times_unix_sec + 0.
 
     dataset_object.createVariable(
         LATITUDES_KEY, datatype=numpy.float32, dimensions=GRID_ROW_DIMENSION_KEY
@@ -383,6 +381,14 @@ def read_file(netcdf_file_name):
                     QUANTILE_LEVELS_KEY: None
                 }
 
+                prediction_dict[TARGET_MATRIX_KEY] = numpy.round(
+                    prediction_dict[TARGET_MATRIX_KEY]
+                ).astype(int)
+
+                prediction_dict[VALID_TIMES_KEY] = numpy.round(
+                    prediction_dict[VALID_TIMES_KEY]
+                ).astype(int)
+
                 if len(prediction_dict[PROBABILITY_MATRIX_KEY].shape) == 3:
                     prediction_dict[PROBABILITY_MATRIX_KEY] = numpy.expand_dims(
                         prediction_dict[PROBABILITY_MATRIX_KEY], axis=-1
@@ -414,6 +420,14 @@ def read_file(netcdf_file_name):
         )
 
     dataset_object.close()
+
+    prediction_dict[TARGET_MATRIX_KEY] = numpy.round(
+        prediction_dict[TARGET_MATRIX_KEY]
+    ).astype(int)
+
+    prediction_dict[VALID_TIMES_KEY] = numpy.round(
+        prediction_dict[VALID_TIMES_KEY]
+    ).astype(int)
 
     if len(prediction_dict[PROBABILITY_MATRIX_KEY].shape) == 3:
         prediction_dict[PROBABILITY_MATRIX_KEY] = numpy.expand_dims(
