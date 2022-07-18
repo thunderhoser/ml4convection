@@ -1,6 +1,6 @@
 #!/bin/tcsh
 
-#SBATCH --job-name="train_neural_nets"
+#SBATCH --job-name="train_neural_nets_patch"
 #SBATCH --partition="fge"
 #SBATCH --account="rda-ghpcs"
 #SBATCH --qos="batch"
@@ -10,13 +10,13 @@
 #SBATCH --ntasks-per-node=8  # 8 GPUs per node
 #SBATCH --exclusive
 #SBATCH --time=30:00:00
-#SBATCH --array=1-120%60
+#SBATCH --array=97-99
 #SBATCH --exclude=h28n12
 ##SBATCH --exclude=h31n03,h28n12
 ##SBATCH --exclude=h29n01,h26n05,h28n06,h29n07,h30n03,h30n15
 #SBATCH --mail-type=BEGIN,END,FAIL
 #SBATCH --mail-user=ryan.lagerquist@noaa.gov
-#SBATCH --output=train_neural_nets_%A_%a.out
+#SBATCH --output=train_neural_nets_patch_%A_%a.out
 
 module load cuda/10.1
 source /scratch2/BMC/gsd-hpcs/Jebb.Q.Stewart/conda3.7/etc/profile.d/conda.csh
