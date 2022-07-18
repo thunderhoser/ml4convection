@@ -46,7 +46,7 @@ set max_target_resolution_deg=${MAX_TARGET_RESOLUTIONS_DEG[$SLURM_ARRAY_TASK_ID]
 set min_target_resolution_deg=`printf "%.4f" $min_target_resolution_deg`
 set max_target_resolution_deg=`printf "%.4f" $max_target_resolution_deg`
 
-if ($neigh_half_window_size_px > 0) then
+if ($neigh_half_window_size_px > -1) then
     set neigh_half_window_size_px=`printf "%d" $neigh_half_window_size_px`
     set top_model_dir_name="${TOP_MODEL_DIR_NAME}/${base_loss_function_name}-neigh${neigh_half_window_size_px}"
 else
