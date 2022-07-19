@@ -42,6 +42,8 @@ MODEL_FILE_KEY = 'model_file_name'
 
 NEIGH_BRIER_SSE_KEY = 'neigh_brier_sse'
 NEIGH_BRIER_NUM_VALS_KEY = 'neigh_brier_num_values'
+NEIGH_XENTROPY_NUMERATOR_KEY = 'neigh_xentropy_numerator'
+NEIGH_XENTROPY_DENOM_KEY = 'neigh_xentropy_denom'
 NEIGH_FSS_ACTUAL_SSE_KEY = 'neigh_fss_actual_sse'
 NEIGH_FSS_REFERENCE_SSE_KEY = 'neigh_fss_reference_sse'
 NEIGH_IOU_POS_ISCTN_KEY = 'neigh_iou_positive_intersection'
@@ -62,6 +64,8 @@ FOURIER_COEFF_NUM_WEIGHTS_KEY = 'fourier_coeff_num_weights'
 
 FOURIER_BRIER_SSE_KEY = 'fourier_brier_sse'
 FOURIER_BRIER_NUM_VALS_KEY = 'fourier_brier_num_values'
+FOURIER_XENTROPY_NUMERATOR_KEY = 'fourier_xentropy_numerator'
+FOURIER_XENTROPY_DENOM_KEY = 'fourier_xentropy_denom'
 FOURIER_FSS_ACTUAL_SSE_KEY = 'fourier_fss_actual_sse'
 FOURIER_FSS_REFERENCE_SSE_KEY = 'fourier_fss_reference_sse'
 FOURIER_IOU_POS_ISCTN_KEY = 'fourier_iou_positive_intersection'
@@ -82,6 +86,8 @@ WAVELET_NUM_DETAIL_COEFFS_KEY = 'wavelet_num_detail_coeffs'
 
 WAVELET_BRIER_SSE_KEY = 'wavelet_brier_sse'
 WAVELET_BRIER_NUM_VALS_KEY = 'wavelet_brier_num_values'
+WAVELET_XENTROPY_NUMERATOR_KEY = 'wavelet_xentropy_numerator'
+WAVELET_XENTROPY_DENOM_KEY = 'wavelet_xentropy_denom'
 WAVELET_FSS_ACTUAL_SSE_KEY = 'wavelet_fss_actual_sse'
 WAVELET_FSS_REFERENCE_SSE_KEY = 'wavelet_fss_reference_sse'
 WAVELET_IOU_POS_ISCTN_KEY = 'wavelet_iou_positive_intersection'
@@ -96,6 +102,7 @@ WAVELET_FALSE_NEGATIVES_KEY = 'wavelet_num_false_negatives'
 WAVELET_TRUE_NEGATIVES_KEY = 'wavelet_num_true_negatives'
 
 NEIGH_BRIER_SCORE_KEY = 'neigh_brier_score'
+NEIGH_XENTROPY_KEY = 'neigh_xentropy'
 NEIGH_FSS_KEY = 'neigh_fss'
 NEIGH_IOU_KEY = 'neigh_iou'
 NEIGH_ALL_CLASS_IOU_KEY = 'neigh_all_class_iou'
@@ -106,6 +113,7 @@ FOURIER_COEFF_MSE_REAL_KEY = 'fourier_coeff_mse_real'
 FOURIER_COEFF_MSE_IMAGINARY_KEY = 'fourier_coeff_mse_imaginary'
 FOURIER_COEFF_MSE_TOTAL_KEY = 'fourier_coeff_mse_total'
 FOURIER_BRIER_SCORE_KEY = 'fourier_brier_score'
+FOURIER_XENTROPY_KEY = 'fourier_xentropy'
 FOURIER_FSS_KEY = 'fourier_fss'
 FOURIER_IOU_KEY = 'fourier_iou'
 FOURIER_ALL_CLASS_IOU_KEY = 'fourier_all_class_iou'
@@ -118,6 +126,7 @@ FOURIER_GERRITY_SCORE_KEY = 'fourier_gerrity_score'
 WAVELET_COEFF_MSE_MEAN_KEY = 'wavelet_coeff_mse_real'
 WAVELET_COEFF_MSE_DETAIL_KEY = 'wavelet_coeff_mse_imaginary'
 WAVELET_BRIER_SCORE_KEY = 'wavelet_brier_score'
+WAVELET_XENTROPY_KEY = 'wavelet_xentropy'
 WAVELET_FSS_KEY = 'wavelet_fss'
 WAVELET_IOU_KEY = 'wavelet_iou'
 WAVELET_ALL_CLASS_IOU_KEY = 'wavelet_all_class_iou'
@@ -126,6 +135,17 @@ WAVELET_CSI_KEY = 'wavelet_csi'
 WAVELET_PEIRCE_SCORE_KEY = 'wavelet_peirce_score'
 WAVELET_HEIDKE_SCORE_KEY = 'wavelet_heidke_score'
 WAVELET_GERRITY_SCORE_KEY = 'wavelet_gerrity_score'
+
+
+def _log2(input_value_or_array):
+    """Computes base-2 logarithm.
+
+    :param input_value_or_array: Single value or numpy array.
+    :return: output_value_or_array: Single logarithm or numpy array of
+        logarithms.
+    """
+
+    return numpy.log2(numpy.maximum(input_value_or_array, 1e-6))
 
 
 def _apply_max_filter(input_matrix, half_width_px):
@@ -439,6 +459,42 @@ def _get_brier_components_one_time(
     num_values = numpy.sum(numpy.invert(numpy.isnan(squared_error_matrix)))
 
     return sum_of_squared_errors, num_values
+
+
+def _get_xentropy_components_one_time(
+        actual_target_matrix, probability_matrix, eval_mask_matrix,
+        matching_distance_px):
+    """Computes components of cross-entropy for one time step.
+
+    See notes on neighbourhood vs. band-pass filter in
+    `_get_brier_components_one_time`.
+
+    :param actual_target_matrix: See doc for `_get_brier_components_one_time`.
+    :param probability_matrix: Same.
+    :param eval_mask_matrix: Same.
+    :param matching_distance_px: Same.
+    :return: numerator: Numerator.
+    :return: denominator: Denominator.
+    """
+
+    if matching_distance_px is None:
+        this_actual_target_matrix = actual_target_matrix
+    else:
+        this_actual_target_matrix = _dilate_binary_matrix(
+            binary_matrix=actual_target_matrix,
+            half_width_px=matching_distance_px
+        ).astype(int)
+
+    numerator_matrix = (
+        this_actual_target_matrix * _log2(probability_matrix) +
+        (1. - this_actual_target_matrix) * _log2(1. - probability_matrix)
+    )
+    numerator_matrix[eval_mask_matrix.astype(bool) == False] = numpy.nan
+
+    numerator = numpy.nansum(numerator_matrix)
+    denominator = numpy.sum(numpy.invert(numpy.isnan(numerator_matrix)))
+
+    return numerator, denominator
 
 
 def _get_fss_components_one_time(
@@ -766,6 +822,8 @@ def get_basic_scores(
         new_dict = {
             NEIGH_BRIER_SSE_KEY: (these_dim, this_array + 0),
             NEIGH_BRIER_NUM_VALS_KEY: (these_dim, this_array + 0.),
+            NEIGH_XENTROPY_NUMERATOR_KEY: (these_dim, this_array + 0.),
+            NEIGH_XENTROPY_DENOM_KEY: (these_dim, this_array + 0.),
             NEIGH_FSS_ACTUAL_SSE_KEY: (these_dim, this_array + 0.),
             NEIGH_FSS_REFERENCE_SSE_KEY: (these_dim, this_array + 0.),
             NEIGH_IOU_POS_ISCTN_KEY: (these_dim, this_array + 0.),
@@ -795,6 +853,8 @@ def get_basic_scores(
             FOURIER_COEFF_NUM_WEIGHTS_KEY: (these_dim, this_array + 0),
             FOURIER_BRIER_SSE_KEY: (these_dim, this_array + 0),
             FOURIER_BRIER_NUM_VALS_KEY: (these_dim, this_array + 0.),
+            FOURIER_XENTROPY_NUMERATOR_KEY: (these_dim, this_array + 0),
+            FOURIER_XENTROPY_DENOM_KEY: (these_dim, this_array + 0.),
             FOURIER_FSS_ACTUAL_SSE_KEY: (these_dim, this_array + 0.),
             FOURIER_FSS_REFERENCE_SSE_KEY: (these_dim, this_array + 0.),
             FOURIER_IOU_POS_ISCTN_KEY: (these_dim, this_array + 0.),
@@ -813,6 +873,8 @@ def get_basic_scores(
             WAVELET_NUM_DETAIL_COEFFS_KEY: (these_dim, this_array + 0),
             WAVELET_BRIER_SSE_KEY: (these_dim, this_array + 0),
             WAVELET_BRIER_NUM_VALS_KEY: (these_dim, this_array + 0.),
+            WAVELET_XENTROPY_NUMERATOR_KEY: (these_dim, this_array + 0),
+            WAVELET_XENTROPY_DENOM_KEY: (these_dim, this_array + 0.),
             WAVELET_FSS_ACTUAL_SSE_KEY: (these_dim, this_array + 0.),
             WAVELET_FSS_REFERENCE_SSE_KEY: (these_dim, this_array + 0.),
             WAVELET_IOU_POS_ISCTN_KEY: (these_dim, this_array + 0.),
@@ -865,10 +927,6 @@ def get_basic_scores(
             )
 
             for k in range(num_neigh_distances):
-                print('UNIQUE VALUES IN TARGET MATRIX')
-                print(k)
-                print(numpy.unique(this_target_matrix))
-
                 (
                     b[NEIGH_BRIER_SSE_KEY].values[i, k],
                     b[NEIGH_BRIER_NUM_VALS_KEY].values[i, k]
@@ -879,8 +937,15 @@ def get_basic_scores(
                     matching_distance_px=neigh_distances_px[k]
                 )
 
-                print(numpy.unique(this_target_matrix))
-                print('\n\n\n')
+                (
+                    b[NEIGH_XENTROPY_NUMERATOR_KEY].values[i, k],
+                    b[NEIGH_XENTROPY_DENOM_KEY].values[i, k]
+                ) = _get_xentropy_components_one_time(
+                    actual_target_matrix=this_target_matrix,
+                    probability_matrix=this_prob_matrix,
+                    eval_mask_matrix=eroded_eval_mask_matrix[k, ...],
+                    matching_distance_px=neigh_distances_px[k]
+                )
 
                 (
                     b[NEIGH_FSS_ACTUAL_SSE_KEY].values[i, k],
@@ -1033,6 +1098,16 @@ def get_basic_scores(
                 )
 
                 (
+                    b[FOURIER_XENTROPY_NUMERATOR_KEY].values[i, k],
+                    b[FOURIER_XENTROPY_DENOM_KEY].values[i, k]
+                ) = _get_xentropy_components_one_time(
+                    actual_target_matrix=fourier_target_matrix[k, i, ...],
+                    probability_matrix=fourier_forecast_matrix[k, i, ...],
+                    eval_mask_matrix=eval_mask_matrix,
+                    matching_distance_px=None
+                )
+
+                (
                     b[FOURIER_FSS_ACTUAL_SSE_KEY].values[i, k],
                     b[FOURIER_FSS_REFERENCE_SSE_KEY].values[i, k]
                 ) = _get_fss_components_one_time(
@@ -1095,6 +1170,16 @@ def get_basic_scores(
                     b[WAVELET_BRIER_SSE_KEY].values[i, k],
                     b[WAVELET_BRIER_NUM_VALS_KEY].values[i, k]
                 ) = _get_brier_components_one_time(
+                    actual_target_matrix=wavelet_target_matrix[k, i, ...],
+                    probability_matrix=wavelet_forecast_matrix[k, i, ...],
+                    eval_mask_matrix=eval_mask_matrix,
+                    matching_distance_px=None
+                )
+
+                (
+                    b[WAVELET_XENTROPY_NUMERATOR_KEY].values[i, k],
+                    b[WAVELET_XENTROPY_DENOM_KEY].values[i, k]
+                ) = _get_xentropy_components_one_time(
                     actual_target_matrix=wavelet_target_matrix[k, i, ...],
                     probability_matrix=wavelet_forecast_matrix[k, i, ...],
                     eval_mask_matrix=eval_mask_matrix,
@@ -1362,6 +1447,7 @@ def get_advanced_scores(basic_score_table_xarray):
 
         new_dict = {
             NEIGH_BRIER_SCORE_KEY: (these_dim, this_array + 0.),
+            NEIGH_XENTROPY_KEY: (these_dim, this_array + 0.),
             NEIGH_FSS_KEY: (these_dim, this_array + 0.),
             NEIGH_IOU_KEY: (these_dim, this_array + 0.),
             NEIGH_ALL_CLASS_IOU_KEY: (these_dim, this_array + 0.),
@@ -1379,6 +1465,7 @@ def get_advanced_scores(basic_score_table_xarray):
             FOURIER_COEFF_MSE_IMAGINARY_KEY: (these_dim, this_array + 0.),
             FOURIER_COEFF_MSE_TOTAL_KEY: (these_dim, this_array + 0.),
             FOURIER_BRIER_SCORE_KEY: (these_dim, this_array + 0.),
+            FOURIER_XENTROPY_KEY: (these_dim, this_array + 0.),
             FOURIER_FSS_KEY: (these_dim, this_array + 0.),
             FOURIER_IOU_KEY: (these_dim, this_array + 0.),
             FOURIER_ALL_CLASS_IOU_KEY: (these_dim, this_array + 0.),
@@ -1390,6 +1477,7 @@ def get_advanced_scores(basic_score_table_xarray):
             WAVELET_COEFF_MSE_MEAN_KEY: (these_dim, this_array + 0.),
             WAVELET_COEFF_MSE_DETAIL_KEY: (these_dim, this_array + 0.),
             WAVELET_BRIER_SCORE_KEY: (these_dim, this_array + 0.),
+            WAVELET_XENTROPY_KEY: (these_dim, this_array + 0.),
             WAVELET_FSS_KEY: (these_dim, this_array + 0.),
             WAVELET_IOU_KEY: (these_dim, this_array + 0.),
             WAVELET_ALL_CLASS_IOU_KEY: (these_dim, this_array + 0.),
@@ -1411,6 +1499,10 @@ def get_advanced_scores(basic_score_table_xarray):
         numerators = numpy.sum(b[NEIGH_BRIER_SSE_KEY].values, axis=0)
         denominators = numpy.sum(b[NEIGH_BRIER_NUM_VALS_KEY].values, axis=0)
         a[NEIGH_BRIER_SCORE_KEY].values = numerators / denominators
+
+        numerators = numpy.sum(b[NEIGH_XENTROPY_NUMERATOR_KEY].values, axis=0)
+        denominators = numpy.sum(b[NEIGH_XENTROPY_DENOM_KEY].values, axis=0)
+        a[NEIGH_XENTROPY_KEY].values = -1 * numerators / denominators
 
         numerators = numpy.sum(b[NEIGH_FSS_ACTUAL_SSE_KEY].values, axis=0)
         denominators = numpy.sum(b[NEIGH_FSS_REFERENCE_SSE_KEY].values, axis=0)
@@ -1461,6 +1553,10 @@ def get_advanced_scores(basic_score_table_xarray):
         numerators = numpy.sum(b[FOURIER_BRIER_SSE_KEY].values, axis=0)
         denominators = numpy.sum(b[FOURIER_BRIER_NUM_VALS_KEY].values, axis=0)
         a[FOURIER_BRIER_SCORE_KEY].values = numerators / denominators
+
+        numerators = numpy.sum(b[FOURIER_XENTROPY_NUMERATOR_KEY].values, axis=0)
+        denominators = numpy.sum(b[FOURIER_XENTROPY_DENOM_KEY].values, axis=0)
+        a[FOURIER_XENTROPY_KEY].values = numerators / denominators
 
         numerators = numpy.sum(b[FOURIER_FSS_ACTUAL_SSE_KEY].values, axis=0)
         denominators = numpy.sum(
@@ -1517,6 +1613,10 @@ def get_advanced_scores(basic_score_table_xarray):
         numerators = numpy.sum(b[WAVELET_BRIER_SSE_KEY].values, axis=0)
         denominators = numpy.sum(b[WAVELET_BRIER_NUM_VALS_KEY].values, axis=0)
         a[WAVELET_BRIER_SCORE_KEY].values = numerators / denominators
+
+        numerators = numpy.sum(b[WAVELET_XENTROPY_NUMERATOR_KEY].values, axis=0)
+        denominators = numpy.sum(b[WAVELET_XENTROPY_DENOM_KEY].values, axis=0)
+        a[WAVELET_XENTROPY_KEY].values = numerators / denominators
 
         numerators = numpy.sum(b[WAVELET_FSS_ACTUAL_SSE_KEY].values, axis=0)
         denominators = numpy.sum(

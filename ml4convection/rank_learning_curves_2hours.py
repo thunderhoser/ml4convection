@@ -1,4 +1,4 @@
-"""Ranks learning-curve scores for aggregated experiment."""
+"""Ranks learning-curve scores for experiment with 2-hour lead time."""
 
 import os
 import sys
@@ -54,12 +54,6 @@ NEIGH_HALF_WINDOW_SIZES_PX = numpy.array([
     0, 1, 2, 3, 4, 6, 8, 12
 ])
 
-SUBEXPERIMENT_ENUMS = numpy.array([
-    4, 4, 4, 4, 4, 4, 4, 4, 5, 5, 5, 5, 5, 5, 5, 5,
-    4, 4, 4, 4, 4, 4, 4, 4, 5, 5, 5, 5, 5, 5, 5, 5,
-    6, 6, 6, 6, 6, 6, 6, 6
-], dtype=int)
-
 FILTER_NAMES = [
     r'FT 0-0.0125$^{\circ}$',
     r'FT 0.0125-0.025$^{\circ}$',
@@ -104,40 +98,69 @@ FILTER_NAMES = [
 ]
 
 LOSS_FUNCTION_NAMES = [
-    'brier', 'fss', 'iou', 'all-class-iou', 'dice', 'csi', 'heidke',
-    'gerrity', 'peirce', 'xentropy'
+    'brier', 'fss', 'xentropy', 'iou', 'all-class-iou', 'dice', 'csi',
+    'heidke', 'gerrity', 'peirce'
 ]
 LOSS_FUNCTION_NAMES_FANCY = [
-    'Brier', 'FSS', r'IOU$_{pos}$', r'IOU$_{all}$', 'Dice', 'CSI', 'Heidke',
-    'Gerrity', 'Peirce', 'X-entropy'
+    'Brier', 'FSS', 'X-entropy', r'IOU$_{pos}$', r'IOU$_{all}$', 'Dice', 'CSI',
+    'Heidke', 'Gerrity', 'Peirce'
 ]
 NEGATIVELY_ORIENTED_FLAGS = numpy.array(
-    [1, 0, 0, 0, 0, 0, 0, 0, 0, 1], dtype=bool
+    [1, 0, 1, 0, 0, 0, 0, 0, 0, 0], dtype=bool
 )
+
+NUM_MODEL_LOSS_FUNCTIONS = 3
+
+# LOSS_FUNCTION_KEYS_NEIGH = [
+#     learning_curves.NEIGH_BRIER_SCORE_KEY, learning_curves.NEIGH_FSS_KEY,
+#     learning_curves.NEIGH_XENTROPY_KEY, learning_curves.NEIGH_IOU_KEY,
+#     learning_curves.NEIGH_ALL_CLASS_IOU_KEY,
+#     learning_curves.NEIGH_DICE_COEFF_KEY, learning_curves.NEIGH_CSI_KEY,
+#     None, None, None
+# ]
+# LOSS_FUNCTION_KEYS_FOURIER = [
+#     learning_curves.FOURIER_BRIER_SCORE_KEY, learning_curves.FOURIER_FSS_KEY,
+#     learning_curves.FOURIER_XENTROPY_KEY, learning_curves.FOURIER_IOU_KEY,
+#     learning_curves.FOURIER_ALL_CLASS_IOU_KEY,
+#     learning_curves.FOURIER_DICE_COEFF_KEY, learning_curves.FOURIER_CSI_KEY,
+#     learning_curves.FOURIER_HEIDKE_SCORE_KEY,
+#     learning_curves.FOURIER_GERRITY_SCORE_KEY,
+#     learning_curves.FOURIER_PEIRCE_SCORE_KEY
+# ]
+# LOSS_FUNCTION_KEYS_WAVELET = [
+#     learning_curves.WAVELET_BRIER_SCORE_KEY, learning_curves.WAVELET_FSS_KEY,
+#     learning_curves.WAVELET_XENTROPY_KEY, learning_curves.WAVELET_IOU_KEY,
+#     learning_curves.WAVELET_ALL_CLASS_IOU_KEY,
+#     learning_curves.WAVELET_DICE_COEFF_KEY, learning_curves.WAVELET_CSI_KEY,
+#     learning_curves.WAVELET_HEIDKE_SCORE_KEY,
+#     learning_curves.WAVELET_GERRITY_SCORE_KEY,
+#     learning_curves.WAVELET_PEIRCE_SCORE_KEY
+# ]
 
 LOSS_FUNCTION_KEYS_NEIGH = [
     learning_curves.NEIGH_BRIER_SCORE_KEY, learning_curves.NEIGH_FSS_KEY,
-    learning_curves.NEIGH_IOU_KEY, learning_curves.NEIGH_ALL_CLASS_IOU_KEY,
+    learning_curves.NEIGH_BRIER_SCORE_KEY, learning_curves.NEIGH_IOU_KEY,
+    learning_curves.NEIGH_ALL_CLASS_IOU_KEY,
     learning_curves.NEIGH_DICE_COEFF_KEY, learning_curves.NEIGH_CSI_KEY,
-    None, None, None, learning_curves.NEIGH_XENTROPY_KEY
+    None, None, None
 ]
 LOSS_FUNCTION_KEYS_FOURIER = [
     learning_curves.FOURIER_BRIER_SCORE_KEY, learning_curves.FOURIER_FSS_KEY,
-    learning_curves.FOURIER_IOU_KEY, learning_curves.FOURIER_ALL_CLASS_IOU_KEY,
+    learning_curves.FOURIER_BRIER_SCORE_KEY, learning_curves.FOURIER_IOU_KEY,
+    learning_curves.FOURIER_ALL_CLASS_IOU_KEY,
     learning_curves.FOURIER_DICE_COEFF_KEY, learning_curves.FOURIER_CSI_KEY,
     learning_curves.FOURIER_HEIDKE_SCORE_KEY,
     learning_curves.FOURIER_GERRITY_SCORE_KEY,
-    learning_curves.FOURIER_PEIRCE_SCORE_KEY,
-    learning_curves.FOURIER_XENTROPY_KEY
+    learning_curves.FOURIER_PEIRCE_SCORE_KEY
 ]
 LOSS_FUNCTION_KEYS_WAVELET = [
     learning_curves.WAVELET_BRIER_SCORE_KEY, learning_curves.WAVELET_FSS_KEY,
-    learning_curves.WAVELET_IOU_KEY, learning_curves.WAVELET_ALL_CLASS_IOU_KEY,
+    learning_curves.WAVELET_BRIER_SCORE_KEY, learning_curves.WAVELET_IOU_KEY,
+    learning_curves.WAVELET_ALL_CLASS_IOU_KEY,
     learning_curves.WAVELET_DICE_COEFF_KEY, learning_curves.WAVELET_CSI_KEY,
     learning_curves.WAVELET_HEIDKE_SCORE_KEY,
     learning_curves.WAVELET_GERRITY_SCORE_KEY,
-    learning_curves.WAVELET_PEIRCE_SCORE_KEY,
-    learning_curves.WAVELET_XENTROPY_KEY
+    learning_curves.WAVELET_PEIRCE_SCORE_KEY
 ]
 
 BEST_MARKER_TYPE = '*'
@@ -160,12 +183,11 @@ FIGURE_WIDTH_INCHES = 15
 FIGURE_HEIGHT_INCHES = 15
 FIGURE_RESOLUTION_DPI = 300
 
-ALL_EXPERIMENT_DIR_ARG_NAME = 'input_all_experiment_dir_name'
+EXPERIMENT_DIR_ARG_NAME = 'input_experiment_dir_name'
 OUTPUT_DIR_ARG_NAME = 'output_dir_name'
 
-ALL_EXPERIMENT_DIR_HELP_STRING = (
-    'Name of directory containing results for all relevant subexperiments '
-    '(Experiments 4-6).'
+EXPERIMENT_DIR_HELP_STRING = (
+    'Name of directory containing results for each model.'
 )
 OUTPUT_DIR_HELP_STRING = (
     'Name of output directory.  Figures will be saved here.'
@@ -173,8 +195,8 @@ OUTPUT_DIR_HELP_STRING = (
 
 INPUT_ARG_PARSER = argparse.ArgumentParser()
 INPUT_ARG_PARSER.add_argument(
-    '--' + ALL_EXPERIMENT_DIR_ARG_NAME, type=str, required=True,
-    help=ALL_EXPERIMENT_DIR_HELP_STRING
+    '--' + EXPERIMENT_DIR_ARG_NAME, type=str, required=True,
+    help=EXPERIMENT_DIR_HELP_STRING
 )
 INPUT_ARG_PARSER.add_argument(
     '--' + OUTPUT_DIR_ARG_NAME, type=str, required=True,
@@ -183,7 +205,7 @@ INPUT_ARG_PARSER.add_argument(
 
 
 def _read_scores_one_model(
-        subexperiment_dir_name, loss_function_name, wavelet_transform_flag,
+        experiment_dir_name, loss_function_name, wavelet_transform_flag,
         fourier_transform_flag, min_resolution_deg, max_resolution_deg,
         neigh_half_window_size_px):
     """Reads scores for one model.
@@ -191,8 +213,7 @@ def _read_scores_one_model(
     L = number of loss functions
     F = number of filters
 
-    :param subexperiment_dir_name: Name of directory with all models for
-        subexperiment (Experiment 4, 5, or 6).
+    :param experiment_dir_name: See documentation at top of file.
     :param loss_function_name: Name of loss function.
     :param wavelet_transform_flag: Boolean flag, indicating whether or not
         wavelet transform was used to filter data before loss function.
@@ -230,7 +251,7 @@ def _read_scores_one_model(
         '{0:s}/{1:s}/model*/validation_best_validation_loss/partial_grids/'
         'learning_curves/advanced_scores.nc'
     ).format(
-        subexperiment_dir_name, this_string
+        experiment_dir_name, this_string
     )
     score_file_names = glob.glob(score_file_pattern)
 
@@ -351,7 +372,9 @@ def _plot_grid_one_score(score_matrix, min_colour_value, max_colour_value,
     )
 
     pyplot.xticks(x_tick_values, FILTER_NAMES, rotation=90.)
-    pyplot.yticks(y_tick_values, LOSS_FUNCTION_NAMES_FANCY)
+    pyplot.yticks(
+        y_tick_values, LOSS_FUNCTION_NAMES_FANCY[:NUM_MODEL_LOSS_FUNCTIONS]
+    )
 
     gg_plotting_utils.plot_linear_colour_bar(
         axes_object_or_matrix=axes_object, data_matrix=score_matrix,
@@ -389,12 +412,12 @@ def _add_markers(figure_object, axes_object, best_marker_indices):
     )
 
 
-def _run(all_experiment_dir_name, output_dir_name):
+def _run(experiment_dir_name, output_dir_name):
     """Ranks learning-curve scores for aggregated experiment.
 
     This is effectively the main method.
 
-    :param all_experiment_dir_name: See documentation at top of file.
+    :param experiment_dir_name: See documentation at top of file.
     :param output_dir_name: Same.
     """
 
@@ -402,19 +425,19 @@ def _run(all_experiment_dir_name, output_dir_name):
         directory_name=output_dir_name
     )
 
-    num_loss_functions = len(LOSS_FUNCTION_NAMES)
+    num_eval_loss_functions = len(LOSS_FUNCTION_NAMES)
     num_filters = len(MIN_RESOLUTIONS_DEG)
-    score_matrix = numpy.full(
-        (num_loss_functions, num_filters, num_loss_functions, num_filters),
-        numpy.nan
+    dimensions = (
+        NUM_MODEL_LOSS_FUNCTIONS, num_filters,
+        num_eval_loss_functions, num_filters
     )
 
-    for i in range(num_loss_functions):
+    score_matrix = numpy.full(dimensions, numpy.nan)
+
+    for i in range(NUM_MODEL_LOSS_FUNCTIONS):
         for j in range(num_filters):
             this_matrix = _read_scores_one_model(
-                subexperiment_dir_name='{0:s}/lf_experiment{1:02d}'.format(
-                    all_experiment_dir_name, SUBEXPERIMENT_ENUMS[j]
-                ),
+                experiment_dir_name=experiment_dir_name,
                 loss_function_name=LOSS_FUNCTION_NAMES[i],
                 wavelet_transform_flag=WAVELET_TRANSFORM_FLAGS[j],
                 fourier_transform_flag=FOURIER_TRANSFORM_FLAGS[j],
@@ -430,7 +453,7 @@ def _run(all_experiment_dir_name, output_dir_name):
 
     print(SEPARATOR_STRING)
 
-    for i in range(num_loss_functions):
+    for i in range(num_eval_loss_functions):
         for j in range(num_filters):
             if numpy.all(numpy.isnan(score_matrix[..., i, j])):
                 continue
@@ -507,7 +530,8 @@ def _run(all_experiment_dir_name, output_dir_name):
 
             for k in range(len(sort_indices_linear)):
                 loss_index, filter_index = numpy.unravel_index(
-                    sort_indices_linear[k], (num_loss_functions, num_filters)
+                    sort_indices_linear[k],
+                    (NUM_MODEL_LOSS_FUNCTIONS, num_filters)
                 )
 
                 model_loss_string = '{0:s} ({1:s})'.format(
@@ -532,8 +556,8 @@ if __name__ == '__main__':
     INPUT_ARG_OBJECT = INPUT_ARG_PARSER.parse_args()
 
     _run(
-        all_experiment_dir_name=getattr(
-            INPUT_ARG_OBJECT, ALL_EXPERIMENT_DIR_ARG_NAME
+        experiment_dir_name=getattr(
+            INPUT_ARG_OBJECT, EXPERIMENT_DIR_ARG_NAME
         ),
         output_dir_name=getattr(INPUT_ARG_OBJECT, OUTPUT_DIR_ARG_NAME)
     )

@@ -1,4 +1,4 @@
-"""Ranks learning-curve scores for aggregated experiment."""
+"""Ranks learning-curve scores for experiment with 2-hour lead time."""
 
 import os
 import sys
@@ -57,12 +57,6 @@ NEIGH_HALF_WINDOW_SIZES_PX = numpy.array([
     NAN, NAN, NAN, NAN, NAN, NAN, NAN, NAN, NAN, NAN, NAN, NAN, NAN, NAN, NAN, NAN,
     0, 1, 2, 3, 4, 6, 8, 12
 ])
-
-SUBEXPERIMENT_ENUMS = numpy.array([
-    4, 4, 4, 4, 4, 4, 4, 4, 5, 5, 5, 5, 5, 5, 5, 5,
-    4, 4, 4, 4, 4, 4, 4, 4, 5, 5, 5, 5, 5, 5, 5, 5,
-    6, 6, 6, 6, 6, 6, 6, 6
-], dtype=int)
 
 FILTER_NAMES = [
     'ft-0.0000-0.0125',
@@ -155,45 +149,70 @@ REFERENCE_LINE_WIDTH = 5
 REFERENCE_LINE_X_COORDS = numpy.array([15.5, 31.5])
 
 LOSS_FUNCTION_NAMES = [
-    'fss', 'iou', 'csi', 'heidke', 'gerrity', 'peirce', 'brier', 'dice',
-    'xentropy'
+    'brier', 'fss', 'xentropy', 'iou', 'all-class-iou', 'dice', 'csi',
+    'heidke', 'gerrity', 'peirce'
 ]
 LOSS_FUNCTION_NAMES_FANCY = [
-    'FSS', 'IOU', 'CSI', 'Heidke score', 'Gerrity score', 'Peirce score',
-    'Brier score', 'Dice coeff', 'X-entropy'
+    'Brier', 'FSS', 'X-entropy', r'IOU$_{pos}$', r'IOU$_{all}$', 'Dice', 'CSI',
+    'Heidke', 'Gerrity', 'Peirce'
 ]
 NEGATIVELY_ORIENTED_FLAGS = numpy.array(
-    [0, 0, 0, 0, 0, 0, 1, 0, 1], dtype=bool
+    [1, 0, 1, 0, 0, 0, 0, 0, 0, 0], dtype=bool
 )
-MODEL_NAME_INDICES_TO_PLOT = numpy.array([0, 6, 8], dtype=int)
-# EVAL_FILTER_INDICES_TO_PLOT = numpy.array(
-#     [9, 13, 25, 29, 32, 36, 39], dtype=int
-# )
+
+NUM_MODEL_LOSS_FUNCTIONS = 3
 EVAL_FILTER_INDICES_TO_PLOT = numpy.linspace(0, 39, num=40, dtype=int)
 
+# LOSS_FUNCTION_KEYS_NEIGH = [
+#     learning_curves.NEIGH_BRIER_SCORE_KEY, learning_curves.NEIGH_FSS_KEY,
+#     learning_curves.NEIGH_XENTROPY_KEY, learning_curves.NEIGH_IOU_KEY,
+#     learning_curves.NEIGH_ALL_CLASS_IOU_KEY,
+#     learning_curves.NEIGH_DICE_COEFF_KEY, learning_curves.NEIGH_CSI_KEY,
+#     None, None, None
+# ]
+# LOSS_FUNCTION_KEYS_FOURIER = [
+#     learning_curves.FOURIER_BRIER_SCORE_KEY, learning_curves.FOURIER_FSS_KEY,
+#     learning_curves.FOURIER_XENTROPY_KEY, learning_curves.FOURIER_IOU_KEY,
+#     learning_curves.FOURIER_ALL_CLASS_IOU_KEY,
+#     learning_curves.FOURIER_DICE_COEFF_KEY, learning_curves.FOURIER_CSI_KEY,
+#     learning_curves.FOURIER_HEIDKE_SCORE_KEY,
+#     learning_curves.FOURIER_GERRITY_SCORE_KEY,
+#     learning_curves.FOURIER_PEIRCE_SCORE_KEY
+# ]
+# LOSS_FUNCTION_KEYS_WAVELET = [
+#     learning_curves.WAVELET_BRIER_SCORE_KEY, learning_curves.WAVELET_FSS_KEY,
+#     learning_curves.WAVELET_XENTROPY_KEY, learning_curves.WAVELET_IOU_KEY,
+#     learning_curves.WAVELET_ALL_CLASS_IOU_KEY,
+#     learning_curves.WAVELET_DICE_COEFF_KEY, learning_curves.WAVELET_CSI_KEY,
+#     learning_curves.WAVELET_HEIDKE_SCORE_KEY,
+#     learning_curves.WAVELET_GERRITY_SCORE_KEY,
+#     learning_curves.WAVELET_PEIRCE_SCORE_KEY
+# ]
+
 LOSS_FUNCTION_KEYS_NEIGH = [
-    learning_curves.NEIGH_FSS_KEY, learning_curves.NEIGH_IOU_KEY,
-    learning_curves.NEIGH_CSI_KEY, None, None, None,
-    learning_curves.NEIGH_BRIER_SCORE_KEY, learning_curves.NEIGH_DICE_COEFF_KEY,
-    learning_curves.NEIGH_XENTROPY_KEY
+    learning_curves.NEIGH_BRIER_SCORE_KEY, learning_curves.NEIGH_FSS_KEY,
+    learning_curves.NEIGH_BRIER_SCORE_KEY, learning_curves.NEIGH_IOU_KEY,
+    learning_curves.NEIGH_ALL_CLASS_IOU_KEY,
+    learning_curves.NEIGH_DICE_COEFF_KEY, learning_curves.NEIGH_CSI_KEY,
+    None, None, None
 ]
 LOSS_FUNCTION_KEYS_FOURIER = [
-    learning_curves.FOURIER_FSS_KEY, learning_curves.FOURIER_IOU_KEY,
-    learning_curves.FOURIER_CSI_KEY, learning_curves.FOURIER_HEIDKE_SCORE_KEY,
+    learning_curves.FOURIER_BRIER_SCORE_KEY, learning_curves.FOURIER_FSS_KEY,
+    learning_curves.FOURIER_BRIER_SCORE_KEY, learning_curves.FOURIER_IOU_KEY,
+    learning_curves.FOURIER_ALL_CLASS_IOU_KEY,
+    learning_curves.FOURIER_DICE_COEFF_KEY, learning_curves.FOURIER_CSI_KEY,
+    learning_curves.FOURIER_HEIDKE_SCORE_KEY,
     learning_curves.FOURIER_GERRITY_SCORE_KEY,
-    learning_curves.FOURIER_PEIRCE_SCORE_KEY,
-    learning_curves.FOURIER_BRIER_SCORE_KEY,
-    learning_curves.FOURIER_DICE_COEFF_KEY,
-    learning_curves.FOURIER_XENTROPY_KEY
+    learning_curves.FOURIER_PEIRCE_SCORE_KEY
 ]
 LOSS_FUNCTION_KEYS_WAVELET = [
-    learning_curves.WAVELET_FSS_KEY, learning_curves.WAVELET_IOU_KEY,
-    learning_curves.WAVELET_CSI_KEY, learning_curves.WAVELET_HEIDKE_SCORE_KEY,
+    learning_curves.WAVELET_BRIER_SCORE_KEY, learning_curves.WAVELET_FSS_KEY,
+    learning_curves.WAVELET_BRIER_SCORE_KEY, learning_curves.WAVELET_IOU_KEY,
+    learning_curves.WAVELET_ALL_CLASS_IOU_KEY,
+    learning_curves.WAVELET_DICE_COEFF_KEY, learning_curves.WAVELET_CSI_KEY,
+    learning_curves.WAVELET_HEIDKE_SCORE_KEY,
     learning_curves.WAVELET_GERRITY_SCORE_KEY,
-    learning_curves.WAVELET_PEIRCE_SCORE_KEY,
-    learning_curves.WAVELET_BRIER_SCORE_KEY,
-    learning_curves.WAVELET_DICE_COEFF_KEY,
-    learning_curves.WAVELET_XENTROPY_KEY
+    learning_curves.WAVELET_PEIRCE_SCORE_KEY
 ]
 
 BEST_MARKER_TYPE = '*'
@@ -217,12 +236,11 @@ FIGURE_HEIGHT_INCHES = 15
 FIGURE_RESOLUTION_DPI = 300
 CONCAT_FIGURE_SIZE_PX = int(1e7)
 
-ALL_EXPERIMENT_DIR_ARG_NAME = 'input_all_experiment_dir_name'
+EXPERIMENT_DIR_ARG_NAME = 'input_experiment_dir_name'
 OUTPUT_DIR_ARG_NAME = 'output_dir_name'
 
-ALL_EXPERIMENT_DIR_HELP_STRING = (
-    'Name of directory containing results for all relevant subexperiments '
-    '(Experiments 4-6).'
+EXPERIMENT_DIR_HELP_STRING = (
+    'Name of directory containing results for all models.'
 )
 OUTPUT_DIR_HELP_STRING = (
     'Name of output directory.  Figures will be saved here.'
@@ -230,8 +248,8 @@ OUTPUT_DIR_HELP_STRING = (
 
 INPUT_ARG_PARSER = argparse.ArgumentParser()
 INPUT_ARG_PARSER.add_argument(
-    '--' + ALL_EXPERIMENT_DIR_ARG_NAME, type=str, required=True,
-    help=ALL_EXPERIMENT_DIR_HELP_STRING
+    '--' + EXPERIMENT_DIR_ARG_NAME, type=str, required=True,
+    help=EXPERIMENT_DIR_HELP_STRING
 )
 INPUT_ARG_PARSER.add_argument(
     '--' + OUTPUT_DIR_ARG_NAME, type=str, required=True,
@@ -240,7 +258,7 @@ INPUT_ARG_PARSER.add_argument(
 
 
 def _read_scores_one_model(
-        subexperiment_dir_name, loss_function_name, wavelet_transform_flag,
+        experiment_dir_name, loss_function_name, wavelet_transform_flag,
         fourier_transform_flag, min_resolution_deg, max_resolution_deg,
         neigh_half_window_size_px):
     """Reads scores for one model.
@@ -248,8 +266,7 @@ def _read_scores_one_model(
     L = number of loss functions
     F = number of filters
 
-    :param subexperiment_dir_name: Name of directory with all models for
-        subexperiment (Experiment 4, 5, or 6).
+    :param experiment_dir_name: See documentation at top of file.
     :param loss_function_name: Name of loss function.
     :param wavelet_transform_flag: Boolean flag, indicating whether or not
         wavelet transform was used to filter data before loss function.
@@ -287,7 +304,7 @@ def _read_scores_one_model(
         '{0:s}/{1:s}/model*/validation_best_validation_loss/partial_grids/'
         'learning_curves/advanced_scores.nc'
     ).format(
-        subexperiment_dir_name, this_string
+        experiment_dir_name, this_string
     )
     score_file_names = glob.glob(score_file_pattern)
 
@@ -505,12 +522,12 @@ def _add_colour_bar(
     )
 
 
-def _run(all_experiment_dir_name, output_dir_name):
+def _run(experiment_dir_name, output_dir_name):
     """Ranks learning-curve scores for aggregated experiment.
 
     This is effectively the main method.
 
-    :param all_experiment_dir_name: See documentation at top of file.
+    :param experiment_dir_name: See documentation at top of file.
     :param output_dir_name: Same.
     """
 
@@ -518,19 +535,19 @@ def _run(all_experiment_dir_name, output_dir_name):
         directory_name=output_dir_name
     )
 
-    num_loss_functions = len(LOSS_FUNCTION_NAMES)
+    num_eval_loss_functions = len(LOSS_FUNCTION_NAMES)
     num_filters = len(MIN_RESOLUTIONS_DEG)
-    score_matrix = numpy.full(
-        (num_loss_functions, num_filters, num_loss_functions, num_filters),
-        numpy.nan
+    dimensions = (
+        NUM_MODEL_LOSS_FUNCTIONS, num_filters,
+        num_eval_loss_functions, num_filters
     )
 
-    for i in range(num_loss_functions):
+    score_matrix = numpy.full(dimensions, numpy.nan)
+
+    for i in range(NUM_MODEL_LOSS_FUNCTIONS):
         for j in range(num_filters):
             this_matrix = _read_scores_one_model(
-                subexperiment_dir_name='{0:s}/lf_experiment{1:02d}'.format(
-                    all_experiment_dir_name, SUBEXPERIMENT_ENUMS[j]
-                ),
+                experiment_dir_name=experiment_dir_name,
                 loss_function_name=LOSS_FUNCTION_NAMES[i],
                 wavelet_transform_flag=WAVELET_TRANSFORM_FLAGS[j],
                 fourier_transform_flag=FOURIER_TRANSFORM_FLAGS[j],
@@ -546,7 +563,7 @@ def _run(all_experiment_dir_name, output_dir_name):
 
     rank_matrix = numpy.full(score_matrix.shape, numpy.nan)
 
-    for i in range(num_loss_functions):
+    for i in range(num_eval_loss_functions):
         for j in range(num_filters):
             this_score_matrix = score_matrix[..., i, j] + 0.
 
@@ -562,12 +579,12 @@ def _run(all_experiment_dir_name, output_dir_name):
             )
 
     print(SEPARATOR_STRING)
-    panel_file_names = [''] * num_loss_functions
+    panel_file_names = [''] * num_eval_loss_functions
     panel_letter = chr(ord('a') - 1)
 
-    for i in range(num_loss_functions):
+    for i in range(num_eval_loss_functions):
         this_rank_matrix = numpy.mean(
-            rank_matrix[MODEL_NAME_INDICES_TO_PLOT, :, i, :], axis=-1
+            rank_matrix[:, :, i, :], axis=-1
         )
         figure_object, axes_object = _plot_grid_one_score(
             score_matrix=this_rank_matrix,
@@ -581,12 +598,11 @@ def _run(all_experiment_dir_name, output_dir_name):
             dtype=float
         )
         pyplot.yticks(
-            y_tick_values,
-            [LOSS_FUNCTION_NAMES_FANCY[k] for k in MODEL_NAME_INDICES_TO_PLOT]
+            y_tick_values, LOSS_FUNCTION_NAMES_FANCY[:NUM_MODEL_LOSS_FUNCTIONS]
         )
         axes_object.set_ylabel('LF score')
 
-        if i == num_loss_functions - 1:
+        if i == num_eval_loss_functions - 1:
             x_tick_values = numpy.linspace(
                 0, this_rank_matrix.shape[1] - 1, num=this_rank_matrix.shape[1],
                 dtype=float
@@ -629,9 +645,7 @@ def _run(all_experiment_dir_name, output_dir_name):
             )
 
             model_loss_string = '{0:s} ({1:s})'.format(
-                LOSS_FUNCTION_NAMES_FANCY[
-                    MODEL_NAME_INDICES_TO_PLOT[loss_index]
-                ],
+                LOSS_FUNCTION_NAMES_FANCY[loss_index],
                 FILTER_NAMES_FANCY[filter_index]
             )
 
@@ -675,7 +689,7 @@ def _run(all_experiment_dir_name, output_dir_name):
 
     for j in EVAL_FILTER_INDICES_TO_PLOT:
         this_rank_matrix = numpy.nanmean(
-            rank_matrix[MODEL_NAME_INDICES_TO_PLOT, :, :, j], axis=-1
+            rank_matrix[:, :, :, j], axis=-1
         )
         figure_object, axes_object = _plot_grid_one_score(
             score_matrix=this_rank_matrix,
@@ -689,8 +703,7 @@ def _run(all_experiment_dir_name, output_dir_name):
             dtype=float
         )
         pyplot.yticks(
-            y_tick_values,
-            [LOSS_FUNCTION_NAMES_FANCY[k] for k in MODEL_NAME_INDICES_TO_PLOT]
+            y_tick_values, LOSS_FUNCTION_NAMES_FANCY[:NUM_MODEL_LOSS_FUNCTIONS]
         )
         axes_object.set_ylabel('LF score')
 
@@ -729,9 +742,7 @@ def _run(all_experiment_dir_name, output_dir_name):
             )
 
             model_loss_string = '{0:s} ({1:s})'.format(
-                LOSS_FUNCTION_NAMES_FANCY[
-                    MODEL_NAME_INDICES_TO_PLOT[loss_index]
-                ],
+                LOSS_FUNCTION_NAMES_FANCY[loss_index],
                 FILTER_NAMES_FANCY[filter_index]
             )
 
@@ -747,7 +758,7 @@ def _run(all_experiment_dir_name, output_dir_name):
         print(SEPARATOR_STRING)
 
     this_rank_matrix = numpy.nanmean(
-        rank_matrix[MODEL_NAME_INDICES_TO_PLOT, ...], axis=(-2, -1)
+        rank_matrix, axis=(-2, -1)
     )
     figure_object, axes_object = _plot_grid_one_score(
         score_matrix=this_rank_matrix,
@@ -761,8 +772,7 @@ def _run(all_experiment_dir_name, output_dir_name):
         dtype=float
     )
     pyplot.yticks(
-        y_tick_values,
-        [LOSS_FUNCTION_NAMES_FANCY[k] for k in MODEL_NAME_INDICES_TO_PLOT]
+        y_tick_values, LOSS_FUNCTION_NAMES_FANCY[:NUM_MODEL_LOSS_FUNCTIONS]
     )
     axes_object.set_ylabel('LF score')
 
@@ -803,9 +813,7 @@ def _run(all_experiment_dir_name, output_dir_name):
         )
 
         model_loss_string = '{0:s} ({1:s})'.format(
-            LOSS_FUNCTION_NAMES_FANCY[
-                MODEL_NAME_INDICES_TO_PLOT[loss_index]
-            ],
+            LOSS_FUNCTION_NAMES_FANCY[loss_index],
             FILTER_NAMES_FANCY[filter_index]
         )
 
@@ -848,8 +856,6 @@ if __name__ == '__main__':
     INPUT_ARG_OBJECT = INPUT_ARG_PARSER.parse_args()
 
     _run(
-        all_experiment_dir_name=getattr(
-            INPUT_ARG_OBJECT, ALL_EXPERIMENT_DIR_ARG_NAME
-        ),
+        experiment_dir_name=getattr(INPUT_ARG_OBJECT, EXPERIMENT_DIR_ARG_NAME),
         output_dir_name=getattr(INPUT_ARG_OBJECT, OUTPUT_DIR_ARG_NAME)
     )

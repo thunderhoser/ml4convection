@@ -504,7 +504,6 @@ def smooth_probabilities(prediction_dict, smoothing_radius_px):
     num_times = probability_matrix.shape[0]
     num_prediction_sets = probability_matrix.shape[-1]
 
-
     print((
         'Applying Gaussian smoother with e-folding radius = {0:f} pixels...'
     ).format(
