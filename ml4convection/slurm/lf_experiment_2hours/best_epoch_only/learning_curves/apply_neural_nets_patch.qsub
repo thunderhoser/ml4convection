@@ -1,6 +1,6 @@
 #!/bin/tcsh
 
-#SBATCH --job-name="apply_neural_nets_patch"
+#SBATCH --job-name="apply_neural_nets"
 #SBATCH --partition="fge"
 #SBATCH --account="rda-ghpcs"
 #SBATCH --qos="batch"
@@ -12,13 +12,13 @@
 ##SBATCH --cpus-per-task=1
 ##SBATCH --ntasks-per-node=1
 #SBATCH --time=30:00:00
-#SBATCH --array=22,23,24,46,47,48,70,71,94,95
+#SBATCH --array=97-99%80
 #SBATCH --exclude=h28n12
 ##SBATCH --exclude=h31n03,h28n12
 ##SBATCH --exclude=h29n01,h26n05,h28n06,h29n07,h30n03,h30n15
 #SBATCH --mail-type=BEGIN,END,FAIL
 #SBATCH --mail-user=ryan.lagerquist@noaa.gov
-#SBATCH --output=apply_neural_nets_patch_%A_%a.out
+#SBATCH --output=apply_neural_nets_%A_%a.out
 
 module load cuda/10.1
 source /scratch2/BMC/gsd-hpcs/Jebb.Q.Stewart/conda3.7/etc/profile.d/conda.csh
@@ -46,7 +46,7 @@ set max_target_resolution_deg=${MAX_TARGET_RESOLUTIONS_DEG[$SLURM_ARRAY_TASK_ID]
 set min_target_resolution_deg=`printf "%.4f" $min_target_resolution_deg`
 set max_target_resolution_deg=`printf "%.4f" $max_target_resolution_deg`
 
-if ($neigh_half_window_size_px > 0) then
+if ($neigh_half_window_size_px > -1) then
     set neigh_half_window_size_px=`printf "%d" $neigh_half_window_size_px`
     set top_model_dir_name="${TOP_MODEL_DIR_NAME}/${base_loss_function_name}-neigh${neigh_half_window_size_px}"
 else
