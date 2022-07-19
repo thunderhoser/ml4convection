@@ -111,7 +111,7 @@ FILTER_NAMES = [
 
 LOSS_FUNCTION_NAMES = [
     'brier', 'fss', 'iou', 'all-class-iou', 'dice', 'csi', 'heidke',
-    'gerrity', 'peirce', 'xnetropy'
+    'gerrity', 'peirce', 'xentropy'
 ]
 LOSS_FUNCTION_NAMES_FANCY = [
     'Brier', 'FSS', r'IOU$_{pos}$', r'IOU$_{all}$', 'Dice', 'CSI', 'Heidke',
