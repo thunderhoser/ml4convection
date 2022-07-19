@@ -830,8 +830,8 @@ def get_basic_scores(
     mean_prob_matrix = prediction_io.get_mean_predictions(prediction_dict)
 
     if num_neigh_distances > 0:
-        num_grid_rows = mean_prob_matrix.shape[0]
-        num_grid_columns = mean_prob_matrix.shape[1]
+        num_grid_rows = mean_prob_matrix.shape[1]
+        num_grid_columns = mean_prob_matrix.shape[2]
         eroded_eval_mask_matrix = numpy.full(
             (num_neigh_distances, num_grid_rows, num_grid_columns),
             0, dtype=bool
