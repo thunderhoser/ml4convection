@@ -33,6 +33,15 @@ PARTIAL_MASK_FILE_NAME = (
 
 METRIC_NAMES = []
 LOSS_FUNCTION_NAMES = [
+    'brier_neigh0',
+    'fss_neigh0',
+    'csi_neigh0',
+    'iou_neigh0',
+    'all-class-iou_neigh0',
+    'dice_neigh0',
+    'heidke_neigh0',
+    'gerrity_neigh0',
+    'peirce_neigh0',
     'xentropy_neigh0'
 ]
 

@@ -33,6 +33,19 @@ PARTIAL_MASK_FILE_NAME = (
 
 METRIC_NAMES = []
 LOSS_FUNCTION_NAMES = [
+    'brier_neigh0', 'brier_neigh1', 'brier_neigh2', 'brier_neigh3',
+    'brier_neigh4', 'brier_neigh6', 'brier_neigh8', 'brier_neigh12',
+    'fss_neigh0', 'fss_neigh1', 'fss_neigh2', 'fss_neigh3',
+    'fss_neigh4', 'fss_neigh6', 'fss_neigh8', 'fss_neigh12',
+    'csi_neigh0', 'csi_neigh1', 'csi_neigh2', 'csi_neigh3',
+    'csi_neigh4', 'csi_neigh6', 'csi_neigh8', 'csi_neigh12',
+    'iou_neigh0', 'iou_neigh1', 'iou_neigh2', 'iou_neigh3',
+    'iou_neigh4', 'iou_neigh6', 'iou_neigh8', 'iou_neigh12',
+    'all-class-iou_neigh0', 'all-class-iou_neigh1', 'all-class-iou_neigh2',
+    'all-class-iou_neigh3', 'all-class-iou_neigh4', 'all-class-iou_neigh6',
+    'all-class-iou_neigh8', 'all-class-iou_neigh12',
+    'dice_neigh0', 'dice_neigh1', 'dice_neigh2', 'dice_neigh3',
+    'dice_neigh4', 'dice_neigh6', 'dice_neigh8', 'dice_neigh12',
     'xentropy_neigh0', 'xentropy_neigh1', 'xentropy_neigh2', 'xentropy_neigh3',
     'xentropy_neigh4', 'xentropy_neigh6', 'xentropy_neigh8', 'xentropy_neigh12'
 ]
