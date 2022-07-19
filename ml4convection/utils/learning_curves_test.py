@@ -103,10 +103,26 @@ MASK_MATRIX = numpy.array([
     [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
 ], dtype=int)
 
-NEIGH_BRIER_SSE = 26.8
+NEIGH_BRIER_SSE = 44.2
 NEIGH_BRIER_NUM_VALUES = 92.
-FOURIER_BRIER_SSE = 44.2
+FOURIER_BRIER_SSE = 26.8
 FOURIER_BRIER_NUM_VALUES = 92.
+
+NEIGH_XENTROPY_NUMERATOR = -817.3020185764249
+NEIGH_XENTROPY_DENOM = 92.
+FOURIER_XENTROPY_NUMERATOR = (
+    16 * learning_curves._log2(0.) +
+    3 * learning_curves._log2(1 - 0.1) +
+    6 * learning_curves._log2(1 - 0.2) +
+    3 * learning_curves._log2(1 - 0.3) +
+    6 * learning_curves._log2(1 - 0.4) +
+    3 * learning_curves._log2(1 - 0.5) +
+    6 * learning_curves._log2(1 - 0.6) +
+    3 * learning_curves._log2(1 - 0.7) +
+    3 * learning_curves._log2(1 - 0.8) +
+    3 * learning_curves._log2(1 - 1.)
+)
+FOURIER_XENTROPY_DENOM = 92.
 
 NEIGH_FSS_ACTUAL_SSE = numpy.nansum(
     (MEAN_FILTERED_TARGET_MATRIX - MEAN_FILTERED_PROB_MATRIX) ** 2
@@ -157,6 +173,8 @@ THIS_ARRAY = numpy.full((NUM_TIMES, NUM_NEIGH_DISTANCES), numpy.nan)
 MAIN_DATA_DICT = {
     learning_curves.NEIGH_BRIER_SSE_KEY: (THESE_DIM, THIS_ARRAY + 0),
     learning_curves.NEIGH_BRIER_NUM_VALS_KEY: (THESE_DIM, THIS_ARRAY + 0.),
+    learning_curves.NEIGH_XENTROPY_NUMERATOR_KEY: (THESE_DIM, THIS_ARRAY + 0),
+    learning_curves.NEIGH_XENTROPY_DENOM_KEY: (THESE_DIM, THIS_ARRAY + 0),
     learning_curves.NEIGH_FSS_ACTUAL_SSE_KEY: (THESE_DIM, THIS_ARRAY + 0.),
     learning_curves.NEIGH_FSS_REFERENCE_SSE_KEY: (THESE_DIM, THIS_ARRAY + 0.),
     learning_curves.NEIGH_IOU_POS_ISCTN_KEY: (THESE_DIM, THIS_ARRAY + 0.),
@@ -178,7 +196,7 @@ MAIN_DATA_DICT = {
 #     learning_curves.FREQ_SSE_IMAGINARY_KEY: (THESE_DIM, THIS_ARRAY + 0),
 #     learning_curves.FREQ_SSE_TOTAL_KEY: (THESE_DIM, THIS_ARRAY + 0),
 #     learning_curves.FREQ_SSE_NUM_WEIGHTS_KEY: (THESE_DIM, THIS_ARRAY + 0),
-#     learning_curves.FOURIER_BRIER_SSE_KEY: (THESE_DIM, THIS_ARRAY + 0),
+#     learning_curves.NEIGH_BRIER_SSE_KEY: (THESE_DIM, THIS_ARRAY + 0),
 #     learning_curves.FOURIER_BRIER_NUM_VALS_KEY: (THESE_DIM, THIS_ARRAY + 0.),
 #     learning_curves.FOURIER_FSS_ACTUAL_SSE_KEY: (THESE_DIM, THIS_ARRAY + 0.),
 #     learning_curves.FOURIER_FSS_REFERENCE_SSE_KEY: (THESE_DIM, THIS_ARRAY + 0.),
@@ -202,6 +220,16 @@ B[learning_curves.NEIGH_BRIER_SSE_KEY].values = numpy.array([
 ], dtype=float)
 
 B[learning_curves.NEIGH_BRIER_NUM_VALS_KEY].values = numpy.array([
+    [100, 100, 100, 100, 100],
+    [200, 200, 200, 200, 200]
+], dtype=float)
+
+B[learning_curves.NEIGH_XENTROPY_NUMERATOR_KEY].values = numpy.array([
+    [-10, -20, -30, -40, -50],
+    [-60, -70, -80, -90, -100]
+], dtype=float)
+
+B[learning_curves.NEIGH_XENTROPY_DENOM_KEY].values = numpy.array([
     [100, 100, 100, 100, 100],
     [200, 200, 200, 200, 200]
 ], dtype=float)
@@ -272,6 +300,7 @@ THESE_DIM = (learning_curves.NEIGH_DISTANCE_DIM,)
 THIS_ARRAY = numpy.full(NUM_NEIGH_DISTANCES, numpy.nan)
 MAIN_DATA_DICT = {
     learning_curves.NEIGH_BRIER_SCORE_KEY: (THESE_DIM, THIS_ARRAY + 0.),
+    learning_curves.NEIGH_XENTROPY_KEY: (THESE_DIM, THIS_ARRAY + 0.),
     learning_curves.NEIGH_FSS_KEY: (THESE_DIM, THIS_ARRAY + 0.),
     learning_curves.NEIGH_IOU_KEY: (THESE_DIM, THIS_ARRAY + 0.),
     learning_curves.NEIGH_ALL_CLASS_IOU_KEY: (THESE_DIM, THIS_ARRAY + 0.),
@@ -299,6 +328,9 @@ ADVANCED_SCORE_TABLE_XARRAY = xarray.Dataset(
 A = ADVANCED_SCORE_TABLE_XARRAY
 
 A[learning_curves.NEIGH_BRIER_SCORE_KEY].values = (1. / 300) * numpy.array(
+    [7, 9, 11, 13, 15], dtype=float
+)
+A[learning_curves.NEIGH_XENTROPY_KEY].values = (10. / 300) * numpy.array(
     [7, 9, 11, 13, 15], dtype=float
 )
 A[learning_curves.NEIGH_FSS_KEY].values = 1. - (1. / 300) * numpy.array(
@@ -339,7 +371,8 @@ def _compare_advanced_score_tables(first_table, second_table):
     """
 
     keys_to_compare = [
-        learning_curves.NEIGH_BRIER_SCORE_KEY, learning_curves.NEIGH_FSS_KEY,
+        learning_curves.NEIGH_BRIER_SCORE_KEY,
+        learning_curves.NEIGH_XENTROPY_KEY, learning_curves.NEIGH_FSS_KEY,
         learning_curves.NEIGH_IOU_KEY, learning_curves.NEIGH_ALL_CLASS_IOU_KEY,
         learning_curves.NEIGH_DICE_COEFF_KEY, learning_curves.NEIGH_CSI_KEY
     ]
@@ -373,10 +406,10 @@ class LearningCurvesTests(unittest.TestCase):
         )
 
         self.assertTrue(numpy.isclose(
-            this_sse, FOURIER_BRIER_SSE, atol=TOLERANCE
+            this_sse, NEIGH_BRIER_SSE, atol=TOLERANCE
         ))
         self.assertTrue(numpy.isclose(
-            this_num_values, FOURIER_BRIER_NUM_VALUES, atol=TOLERANCE
+            this_num_values, NEIGH_BRIER_NUM_VALUES, atol=TOLERANCE
         ))
 
     def test_get_brier_components_one_time_fourier(self):
@@ -394,10 +427,53 @@ class LearningCurvesTests(unittest.TestCase):
         )
 
         self.assertTrue(numpy.isclose(
-            this_sse, NEIGH_BRIER_SSE, atol=TOLERANCE
+            this_sse, FOURIER_BRIER_SSE, atol=TOLERANCE
         ))
         self.assertTrue(numpy.isclose(
-            this_num_values, NEIGH_BRIER_NUM_VALUES, atol=TOLERANCE
+            this_num_values, FOURIER_BRIER_NUM_VALUES, atol=TOLERANCE
+        ))
+
+    def test_get_xentropy_components_one_time_neigh(self):
+        """Ensures correct output from _get_xentropy_components_one_time.
+
+        In this case, doing neighbourhood-based evaluation.
+        """
+
+        this_numerator, this_denominator = (
+            learning_curves._get_xentropy_components_one_time(
+                actual_target_matrix=ACTUAL_TARGET_MATRIX,
+                probability_matrix=PROBABILITY_MATRIX,
+                eval_mask_matrix=MASK_MATRIX,
+                matching_distance_px=NEIGH_DISTANCE_PX
+            )
+        )
+
+        self.assertTrue(numpy.isclose(
+            this_numerator, NEIGH_XENTROPY_NUMERATOR, atol=TOLERANCE
+        ))
+        self.assertTrue(numpy.isclose(
+            this_denominator, NEIGH_XENTROPY_DENOM, atol=TOLERANCE
+        ))
+
+    def test_get_xentropy_components_one_time_fourier(self):
+        """Ensures correct output from _get_xentropy_components_one_time.
+
+        In this case, doing Fourier-based evaluation.
+        """
+
+        this_numerator, this_denominator = (
+            learning_curves._get_xentropy_components_one_time(
+                actual_target_matrix=ACTUAL_TARGET_MATRIX,
+                probability_matrix=PROBABILITY_MATRIX,
+                eval_mask_matrix=MASK_MATRIX, matching_distance_px=None
+            )
+        )
+
+        self.assertTrue(numpy.isclose(
+            this_numerator, FOURIER_XENTROPY_NUMERATOR, atol=TOLERANCE
+        ))
+        self.assertTrue(numpy.isclose(
+            this_denominator, FOURIER_XENTROPY_DENOM, atol=TOLERANCE
         ))
 
     def test_get_fss_components_one_time_neigh(self):
