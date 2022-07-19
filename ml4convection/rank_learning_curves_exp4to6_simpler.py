@@ -155,25 +155,52 @@ REFERENCE_LINE_WIDTH = 5
 REFERENCE_LINE_X_COORDS = numpy.array([15.5, 31.5])
 
 LOSS_FUNCTION_NAMES = [
-    'fss', 'iou', 'csi', 'heidke', 'gerrity', 'peirce', 'brier', 'dice'
+    'fss', 'iou', 'csi', 'heidke', 'gerrity', 'peirce', 'brier', 'dice',
+    'xentropy'
 ]
 LOSS_FUNCTION_NAMES_FANCY = [
     'FSS', 'IOU', 'CSI', 'Heidke score', 'Gerrity score', 'Peirce score',
-    'Brier score', 'Dice coeff'
+    'Brier score', 'Dice coeff', 'X-entropy'
 ]
 NEGATIVELY_ORIENTED_FLAGS = numpy.array(
-    [0, 0, 0, 0, 0, 0, 1, 0], dtype=bool
+    [0, 0, 0, 0, 0, 0, 1, 0, 1], dtype=bool
 )
-MODEL_NAME_INDICES_TO_PLOT = numpy.array([0, 6], dtype=int)
+MODEL_NAME_INDICES_TO_PLOT = numpy.array([0, 6, 7], dtype=int)
 # EVAL_FILTER_INDICES_TO_PLOT = numpy.array(
 #     [9, 13, 25, 29, 32, 36, 39], dtype=int
 # )
 EVAL_FILTER_INDICES_TO_PLOT = numpy.linspace(0, 39, num=40, dtype=int)
 
+# LOSS_FUNCTION_KEYS_NEIGH = [
+#     learning_curves.NEIGH_FSS_KEY, learning_curves.NEIGH_IOU_KEY,
+#     learning_curves.NEIGH_CSI_KEY, None, None, None,
+#     learning_curves.NEIGH_BRIER_SCORE_KEY, learning_curves.NEIGH_DICE_COEFF_KEY,
+#     learning_curves.NEIGH_XENTROPY_KEY
+# ]
+# LOSS_FUNCTION_KEYS_FOURIER = [
+#     learning_curves.FOURIER_FSS_KEY, learning_curves.FOURIER_IOU_KEY,
+#     learning_curves.FOURIER_CSI_KEY, learning_curves.FOURIER_HEIDKE_SCORE_KEY,
+#     learning_curves.FOURIER_GERRITY_SCORE_KEY,
+#     learning_curves.FOURIER_PEIRCE_SCORE_KEY,
+#     learning_curves.FOURIER_BRIER_SCORE_KEY,
+#     learning_curves.FOURIER_DICE_COEFF_KEY,
+#     learning_curves.FOURIER_XENTROPY_KEY
+# ]
+# LOSS_FUNCTION_KEYS_WAVELET = [
+#     learning_curves.WAVELET_FSS_KEY, learning_curves.WAVELET_IOU_KEY,
+#     learning_curves.WAVELET_CSI_KEY, learning_curves.WAVELET_HEIDKE_SCORE_KEY,
+#     learning_curves.WAVELET_GERRITY_SCORE_KEY,
+#     learning_curves.WAVELET_PEIRCE_SCORE_KEY,
+#     learning_curves.WAVELET_BRIER_SCORE_KEY,
+#     learning_curves.WAVELET_DICE_COEFF_KEY,
+#     learning_curves.WAVELET_XENTROPY_KEY
+# ]
+
 LOSS_FUNCTION_KEYS_NEIGH = [
     learning_curves.NEIGH_FSS_KEY, learning_curves.NEIGH_IOU_KEY,
     learning_curves.NEIGH_CSI_KEY, None, None, None,
-    learning_curves.NEIGH_BRIER_SCORE_KEY, learning_curves.NEIGH_DICE_COEFF_KEY
+    learning_curves.NEIGH_BRIER_SCORE_KEY, learning_curves.NEIGH_DICE_COEFF_KEY,
+    learning_curves.NEIGH_BRIER_SCORE_KEY
 ]
 LOSS_FUNCTION_KEYS_FOURIER = [
     learning_curves.FOURIER_FSS_KEY, learning_curves.FOURIER_IOU_KEY,
@@ -181,7 +208,8 @@ LOSS_FUNCTION_KEYS_FOURIER = [
     learning_curves.FOURIER_GERRITY_SCORE_KEY,
     learning_curves.FOURIER_PEIRCE_SCORE_KEY,
     learning_curves.FOURIER_BRIER_SCORE_KEY,
-    learning_curves.FOURIER_DICE_COEFF_KEY
+    learning_curves.FOURIER_DICE_COEFF_KEY,
+    learning_curves.FOURIER_BRIER_SCORE_KEY
 ]
 LOSS_FUNCTION_KEYS_WAVELET = [
     learning_curves.WAVELET_FSS_KEY, learning_curves.WAVELET_IOU_KEY,
@@ -189,7 +217,8 @@ LOSS_FUNCTION_KEYS_WAVELET = [
     learning_curves.WAVELET_GERRITY_SCORE_KEY,
     learning_curves.WAVELET_PEIRCE_SCORE_KEY,
     learning_curves.WAVELET_BRIER_SCORE_KEY,
-    learning_curves.WAVELET_DICE_COEFF_KEY
+    learning_curves.WAVELET_DICE_COEFF_KEY,
+    learning_curves.WAVELET_BRIER_SCORE_KEY
 ]
 
 BEST_MARKER_TYPE = '*'
@@ -290,18 +319,22 @@ def _read_scores_one_model(
     if len(score_file_names) == 0:
         return None
 
-    model_subdir_names = [f.split('/')[-5] for f in score_file_names]
-    validation_loss_strings = [
-        d.split('_')[-1] for d in model_subdir_names
-    ]
+    if len(score_file_names) == 1:
+        min_index = 0
+    else:
+        model_subdir_names = [f.split('/')[-5] for f in score_file_names]
+        validation_loss_strings = [
+            d.split('_')[-1] for d in model_subdir_names
+        ]
 
-    for this_string in validation_loss_strings:
-        assert this_string.startswith('val-loss=')
+        for this_string in validation_loss_strings:
+            assert this_string.startswith('val-loss=')
 
-    validation_losses = numpy.array([
-        float(s.replace('val-loss=', '')) for s in validation_loss_strings
-    ])
-    min_index = numpy.nanargmin(validation_losses)
+        validation_losses = numpy.array([
+            float(s.replace('val-loss=', '')) for s in validation_loss_strings
+        ])
+        min_index = numpy.nanargmin(validation_losses)
+
     score_file_name = score_file_names[min_index]
 
     print('Reading data from: "{0:s}"...'.format(score_file_name))
