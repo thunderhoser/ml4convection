@@ -165,7 +165,7 @@ LOSS_FUNCTION_NAMES_FANCY = [
 NEGATIVELY_ORIENTED_FLAGS = numpy.array(
     [0, 0, 0, 0, 0, 0, 1, 0, 1], dtype=bool
 )
-MODEL_NAME_INDICES_TO_PLOT = numpy.array([0, 6, 7], dtype=int)
+MODEL_NAME_INDICES_TO_PLOT = numpy.array([0, 6, 8], dtype=int)
 # EVAL_FILTER_INDICES_TO_PLOT = numpy.array(
 #     [9, 13, 25, 29, 32, 36, 39], dtype=int
 # )
