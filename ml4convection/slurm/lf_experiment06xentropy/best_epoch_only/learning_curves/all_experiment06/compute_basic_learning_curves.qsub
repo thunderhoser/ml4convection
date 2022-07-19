@@ -34,7 +34,7 @@ set loss_function_name=${LOSS_FUNCTION_NAMES[$SLURM_ARRAY_TASK_ID]}
 
 set top_model_dir_name="${TOP_MODEL_DIR_NAME}/${loss_function_name}"
 
-if ($base_loss_function_name =~ xentropy*) then
+if ($loss_function_name =~ xentropy*) then
     python3 -u "${CODE_DIR_NAME}/compute_basic_learning_curves.py" \
     --input_prediction_dir_name="${top_model_dir_name}/model/validation_best_validation_loss/partial_grids" \
     --valid_date_strings "20170101" "20170202" "20170303" "20170404" "20170505" "20170606" "20170707" "20170808" "20170909" "20171010" "20171111" "20171212" \

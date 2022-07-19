@@ -39,7 +39,7 @@ set top_model_dir_name="${TOP_MODEL_DIR_NAME}/${loss_function_name}"
 set j=1
 
 while ($j <= ${#VALID_DATE_STRINGS})
-    if ($base_loss_function_name =~ xentropy*) then
+    if ($loss_function_name =~ xentropy*) then
         python3 -u "${CODE_DIR_NAME}/apply_neural_net.py" \
         --input_model_file_name="${top_model_dir_name}/model.h5" \
         --input_predictor_dir_name="${TOP_PREDICTOR_DIR_NAME}" \
