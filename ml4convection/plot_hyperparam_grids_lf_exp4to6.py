@@ -111,11 +111,11 @@ FILTER_NAMES = [
 
 LOSS_FUNCTION_NAMES = [
     'brier', 'fss', 'iou', 'all-class-iou', 'dice', 'csi', 'heidke',
-    'gerrity', 'peirce'
+    'gerrity', 'peirce', 'xnetropy'
 ]
 LOSS_FUNCTION_NAMES_FANCY = [
     'Brier', 'FSS', r'IOU$_{pos}$', r'IOU$_{all}$', 'Dice', 'CSI', 'Heidke',
-    'Gerrity', 'Peirce'
+    'Gerrity', 'Peirce', 'X-entropy'
 ]
 
 BEST_MARKER_TYPE = '*'
