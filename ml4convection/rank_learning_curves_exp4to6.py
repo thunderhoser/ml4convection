@@ -105,21 +105,46 @@ FILTER_NAMES = [
 
 LOSS_FUNCTION_NAMES = [
     'brier', 'fss', 'iou', 'all-class-iou', 'dice', 'csi', 'heidke',
-    'gerrity', 'peirce'
+    'gerrity', 'peirce', 'xentropy'
 ]
 LOSS_FUNCTION_NAMES_FANCY = [
     'Brier', 'FSS', r'IOU$_{pos}$', r'IOU$_{all}$', 'Dice', 'CSI', 'Heidke',
-    'Gerrity', 'Peirce'
+    'Gerrity', 'Peirce', 'X-entropy'
 ]
 NEGATIVELY_ORIENTED_FLAGS = numpy.array(
-    [1, 0, 0, 0, 0, 0, 0, 0, 0], dtype=bool
+    [1, 0, 0, 0, 0, 0, 0, 0, 0, 1], dtype=bool
 )
+
+# LOSS_FUNCTION_KEYS_NEIGH = [
+#     learning_curves.NEIGH_BRIER_SCORE_KEY, learning_curves.NEIGH_FSS_KEY,
+#     learning_curves.NEIGH_IOU_KEY, learning_curves.NEIGH_ALL_CLASS_IOU_KEY,
+#     learning_curves.NEIGH_DICE_COEFF_KEY, learning_curves.NEIGH_CSI_KEY,
+#     None, None, None, learning_curves.NEIGH_XENTROPY_KEY
+# ]
+# LOSS_FUNCTION_KEYS_FOURIER = [
+#     learning_curves.FOURIER_BRIER_SCORE_KEY, learning_curves.FOURIER_FSS_KEY,
+#     learning_curves.FOURIER_IOU_KEY, learning_curves.FOURIER_ALL_CLASS_IOU_KEY,
+#     learning_curves.FOURIER_DICE_COEFF_KEY, learning_curves.FOURIER_CSI_KEY,
+#     learning_curves.FOURIER_HEIDKE_SCORE_KEY,
+#     learning_curves.FOURIER_GERRITY_SCORE_KEY,
+#     learning_curves.FOURIER_PEIRCE_SCORE_KEY,
+#     learning_curves.FOURIER_XENTROPY_KEY
+# ]
+# LOSS_FUNCTION_KEYS_WAVELET = [
+#     learning_curves.WAVELET_BRIER_SCORE_KEY, learning_curves.WAVELET_FSS_KEY,
+#     learning_curves.WAVELET_IOU_KEY, learning_curves.WAVELET_ALL_CLASS_IOU_KEY,
+#     learning_curves.WAVELET_DICE_COEFF_KEY, learning_curves.WAVELET_CSI_KEY,
+#     learning_curves.WAVELET_HEIDKE_SCORE_KEY,
+#     learning_curves.WAVELET_GERRITY_SCORE_KEY,
+#     learning_curves.WAVELET_PEIRCE_SCORE_KEY,
+#     learning_curves.WAVELET_XENTROPY_KEY
+# ]
 
 LOSS_FUNCTION_KEYS_NEIGH = [
     learning_curves.NEIGH_BRIER_SCORE_KEY, learning_curves.NEIGH_FSS_KEY,
     learning_curves.NEIGH_IOU_KEY, learning_curves.NEIGH_ALL_CLASS_IOU_KEY,
     learning_curves.NEIGH_DICE_COEFF_KEY, learning_curves.NEIGH_CSI_KEY,
-    None, None, None
+    None, None, None, learning_curves.NEIGH_BRIER_SCORE_KEY
 ]
 LOSS_FUNCTION_KEYS_FOURIER = [
     learning_curves.FOURIER_BRIER_SCORE_KEY, learning_curves.FOURIER_FSS_KEY,
@@ -127,7 +152,8 @@ LOSS_FUNCTION_KEYS_FOURIER = [
     learning_curves.FOURIER_DICE_COEFF_KEY, learning_curves.FOURIER_CSI_KEY,
     learning_curves.FOURIER_HEIDKE_SCORE_KEY,
     learning_curves.FOURIER_GERRITY_SCORE_KEY,
-    learning_curves.FOURIER_PEIRCE_SCORE_KEY
+    learning_curves.FOURIER_PEIRCE_SCORE_KEY,
+    learning_curves.FOURIER_BRIER_SCORE_KEY
 ]
 LOSS_FUNCTION_KEYS_WAVELET = [
     learning_curves.WAVELET_BRIER_SCORE_KEY, learning_curves.WAVELET_FSS_KEY,
@@ -135,7 +161,8 @@ LOSS_FUNCTION_KEYS_WAVELET = [
     learning_curves.WAVELET_DICE_COEFF_KEY, learning_curves.WAVELET_CSI_KEY,
     learning_curves.WAVELET_HEIDKE_SCORE_KEY,
     learning_curves.WAVELET_GERRITY_SCORE_KEY,
-    learning_curves.WAVELET_PEIRCE_SCORE_KEY
+    learning_curves.WAVELET_PEIRCE_SCORE_KEY,
+    learning_curves.WAVELET_BRIER_SCORE_KEY
 ]
 
 BEST_MARKER_TYPE = '*'
@@ -441,7 +468,7 @@ def _run(all_experiment_dir_name, output_dir_name):
                 colour_map_object=COLOUR_MAP_OBJECT
             )
 
-            if LOSS_FUNCTION_NAMES[i] == 'brier':
+            if NEGATIVELY_ORIENTED_FLAGS[i]:
                 this_index = numpy.nanargmin(numpy.ravel(
                     score_matrix[..., i, j]
                 ))

@@ -22,7 +22,7 @@ set CODE_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_stan
 set EXPERIMENT_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_models/lf_experiment_2hours"
 set OUTPUT_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_models/lf_experiment_2hours/hyperparam_grids"
 
-python3 -u "${CODE_DIR_NAME}/plot_hyperparam_grids_lf_exp4to6.py" \
+python3 -u "${CODE_DIR_NAME}/plot_hyperparam_grids_lf_exp_2hours.py" \
 --input_experiment_dir_name="${EXPERIMENT_DIR_NAME}" \
 --matching_distance_px=4 \
 --output_dir_name="${OUTPUT_DIR_NAME}"
