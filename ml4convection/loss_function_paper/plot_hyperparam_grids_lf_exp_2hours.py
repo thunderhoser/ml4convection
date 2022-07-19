@@ -1,7 +1,4 @@
-"""Plots scores on hyperparam grid for aggregated loss-function experiment.
-
-"Aggregated loss-function experiment" = LF Experiments 4-6
-"""
+"""Plots scores on hyperparam grid for LF experiment with 2-hour lead time."""
 
 import os
 import glob
@@ -53,12 +50,6 @@ NEIGH_HALF_WINDOW_SIZES_PX = numpy.array([
     0, 1, 2, 3, 4, 6, 8, 12
 ])
 
-SUBEXPERIMENT_ENUMS = numpy.array([
-    4, 4, 4, 4, 4, 4, 4, 4, 5, 5, 5, 5, 5, 5, 5, 5,
-    4, 4, 4, 4, 4, 4, 4, 4, 5, 5, 5, 5, 5, 5, 5, 5,
-    6, 6, 6, 6, 6, 6, 6, 6
-], dtype=int)
-
 FILTER_NAMES = [
     r'FT 0-0.0125$^{\circ}$',
     r'FT 0.0125-0.025$^{\circ}$',
@@ -102,14 +93,8 @@ FILTER_NAMES = [
     '25 x 25 neigh'
 ]
 
-LOSS_FUNCTION_NAMES = [
-    'brier', 'fss', 'iou', 'all-class-iou', 'dice', 'csi', 'heidke',
-    'gerrity', 'peirce', 'xentropy'
-]
-LOSS_FUNCTION_NAMES_FANCY = [
-    'Brier', 'FSS', r'IOU$_{pos}$', r'IOU$_{all}$', 'Dice', 'CSI', 'Heidke',
-    'Gerrity', 'Peirce', 'X-entropy'
-]
+LOSS_FUNCTION_NAMES = ['brier', 'fss', 'xentropy']
+LOSS_FUNCTION_NAMES_FANCY = ['Brier', 'FSS', 'X-entropy']
 
 BEST_MARKER_TYPE = '*'
 BEST_MARKER_SIZE_GRID_CELLS = 0.3
@@ -133,13 +118,12 @@ FIGURE_WIDTH_INCHES = 15
 FIGURE_HEIGHT_INCHES = 15
 FIGURE_RESOLUTION_DPI = 300
 
-ALL_EXPERIMENT_DIR_ARG_NAME = 'input_all_experiment_dir_name'
+EXPERIMENT_DIR_ARG_NAME = 'input_experiment_dir_name'
 MATCHING_DISTANCE_ARG_NAME = 'matching_distance_px'
 OUTPUT_DIR_ARG_NAME = 'output_dir_name'
 
-ALL_EXPERIMENT_DIR_HELP_STRING = (
-    'Name of directory containing results for all relevant subexperiments '
-    '(Experiments 4-6).'
+EXPERIMENT_DIR_HELP_STRING = (
+    'Name of directory containing results for all models in the experiment.'
 )
 MATCHING_DISTANCE_HELP_STRING = (
     'Matching distance for neighbourhood evaluation (pixels).  Will plot scores'
@@ -151,8 +135,8 @@ OUTPUT_DIR_HELP_STRING = (
 
 INPUT_ARG_PARSER = argparse.ArgumentParser()
 INPUT_ARG_PARSER.add_argument(
-    '--' + ALL_EXPERIMENT_DIR_ARG_NAME, type=str, required=True,
-    help=ALL_EXPERIMENT_DIR_HELP_STRING
+    '--' + EXPERIMENT_DIR_ARG_NAME, type=str, required=True,
+    help=EXPERIMENT_DIR_HELP_STRING
 )
 INPUT_ARG_PARSER.add_argument(
     '--' + MATCHING_DISTANCE_ARG_NAME, type=float, required=True,
@@ -165,13 +149,12 @@ INPUT_ARG_PARSER.add_argument(
 
 
 def _read_scores_one_model(
-        subexperiment_dir_name, loss_function_name, wavelet_transform_flag,
+        experiment_dir_name, loss_function_name, wavelet_transform_flag,
         fourier_transform_flag, min_resolution_deg, max_resolution_deg,
         neigh_half_window_size_px, matching_distance_px):
     """Reads scores for one model.
 
-    :param subexperiment_dir_name: Name of directory with all models for
-        subexperiment (Experiment 4, 5, or 6).
+    :param experiment_dir_name: See documentation at top of file.
     :param loss_function_name: Name of loss function.
     :param wavelet_transform_flag: Boolean flag, indicating whether or not
         wavelet transform was used to filter data before loss function.
@@ -211,7 +194,7 @@ def _read_scores_one_model(
         '{0:s}/{1:s}/model*/validation_best_validation_loss/full_grids/'
         'evaluation/matching_distance_px={2:.6f}/advanced_scores_gridded=0.p'
     ).format(
-        subexperiment_dir_name, this_string, matching_distance_px
+        experiment_dir_name, this_string, matching_distance_px
     )
 
     all_file_names = glob.glob(score_file_pattern)
@@ -391,12 +374,12 @@ def _add_colour_bar(
     )
 
 
-def _run(all_experiment_dir_name, matching_distance_px, output_dir_name):
+def _run(experiment_dir_name, matching_distance_px, output_dir_name):
     """Plots scores on hyperparam grid for aggregated loss-function experiment.
 
     This is effectively the main method.
 
-    :param all_experiment_dir_name: See documentation at top of file.
+    :param experiment_dir_name: See documentation at top of file.
     :param matching_distance_px: Same.
     :param output_dir_name: Same.
     """
@@ -417,9 +400,7 @@ def _run(all_experiment_dir_name, matching_distance_px, output_dir_name):
     for i in range(num_loss_functions):
         for j in range(num_filters):
             t = _read_scores_one_model(
-                subexperiment_dir_name='{0:s}/lf_experiment{1:02d}'.format(
-                    all_experiment_dir_name, SUBEXPERIMENT_ENUMS[j]
-                ),
+                experiment_dir_name=experiment_dir_name,
                 loss_function_name=LOSS_FUNCTION_NAMES[i],
                 wavelet_transform_flag=WAVELET_TRANSFORM_FLAGS[j],
                 fourier_transform_flag=FOURIER_TRANSFORM_FLAGS[j],
@@ -612,9 +593,7 @@ if __name__ == '__main__':
     INPUT_ARG_OBJECT = INPUT_ARG_PARSER.parse_args()
 
     _run(
-        all_experiment_dir_name=getattr(
-            INPUT_ARG_OBJECT, ALL_EXPERIMENT_DIR_ARG_NAME
-        ),
+        experiment_dir_name=getattr(INPUT_ARG_OBJECT, EXPERIMENT_DIR_ARG_NAME),
         matching_distance_px=getattr(
             INPUT_ARG_OBJECT, MATCHING_DISTANCE_ARG_NAME
         ),
