@@ -262,18 +262,22 @@ def _read_scores_one_model(
     if len(score_file_names) == 0:
         return None
 
-    model_subdir_names = [f.split('/')[-5] for f in score_file_names]
-    validation_loss_strings = [
-        d.split('_')[-1] for d in model_subdir_names
-    ]
+    if len(score_file_names) == 1:
+        min_index = 0
+    else:
+        model_subdir_names = [f.split('/')[-5] for f in score_file_names]
+        validation_loss_strings = [
+            d.split('_')[-1] for d in model_subdir_names
+        ]
 
-    for this_string in validation_loss_strings:
-        assert this_string.startswith('val-loss=')
+        for this_string in validation_loss_strings:
+            assert this_string.startswith('val-loss=')
 
-    validation_losses = numpy.array([
-        float(s.replace('val-loss=', '')) for s in validation_loss_strings
-    ])
-    min_index = numpy.nanargmin(validation_losses)
+        validation_losses = numpy.array([
+            float(s.replace('val-loss=', '')) for s in validation_loss_strings
+        ])
+        min_index = numpy.nanargmin(validation_losses)
+
     score_file_name = score_file_names[min_index]
 
     print('Reading data from: "{0:s}"...'.format(score_file_name))
