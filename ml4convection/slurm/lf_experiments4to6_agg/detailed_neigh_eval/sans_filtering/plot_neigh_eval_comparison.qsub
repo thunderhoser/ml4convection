@@ -42,6 +42,7 @@ set model_descriptions_string=""
 set i=1
 
 while ($i <= ${#SCORE_NAMES})
+    echo "${ALL_EXPERIMENT_DIR_NAME}/lf_experiment${SUBEXPERIMENT_ENUMS[$i]}/${SCORE_NAMES[$i]}${FILTER_NAMES[$i]}/model*/validation_best_validation_loss/full_grids"
     set prediction_dir_names={${ALL_EXPERIMENT_DIR_NAME}/lf_experiment${SUBEXPERIMENT_ENUMS[$i]}/${SCORE_NAMES[$i]}${FILTER_NAMES[$i]}/model*/validation_best_validation_loss/full_grids}
     set prediction_dir_name=${prediction_dir_names[$#prediction_dir_names]}
     set this_input_file_name="${prediction_dir_name}/evaluation_sans_filtering/matching_distance_px=${matching_distance_string}/advanced_scores_gridded=0.p"
