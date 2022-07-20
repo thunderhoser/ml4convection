@@ -211,9 +211,9 @@ def _plot_inset_histogram(
     inset_axes_object.bar(
         fake_bin_centers[real_indices], bin_frequencies[real_indices], 1.,
         color=bar_colour, edgecolor=HISTOGRAM_EDGE_COLOUR,
-        linewidth=HISTOGRAM_EDGE_WIDTH
+        linewidth=HISTOGRAM_EDGE_WIDTH, log=True
     )
-    inset_axes_object.set_ylim(bottom=0.)
+    # inset_axes_object.set_ylim(bottom=0.)
 
     tick_indices = []
 
