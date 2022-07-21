@@ -195,9 +195,12 @@ def _run(advanced_score_file_names, model_descriptions_abbrev, num_panel_rows,
                     this_file_name
                 ))
                 this_prediction_dict = prediction_io.read_file(this_file_name)
+                print('FOO')
+
                 these_predictions = numpy.ravel(
                     prediction_io.get_mean_predictions(this_prediction_dict)
                 )
+                print('BAR')
                 numpy.random.shuffle(these_predictions)
 
                 first_index = last_index + 0
