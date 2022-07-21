@@ -180,7 +180,7 @@ def _run(advanced_score_file_names, model_descriptions_abbrev, num_panel_rows,
                 top_directory_name=prediction_dir_names[i],
                 first_date_string=first_date_string,
                 last_date_string=last_date_string,
-                prefer_zipped=False, allow_other_format=True, radar_number=None,
+                prefer_zipped=False, allow_other_format=True, radar_number=1,
                 raise_error_if_any_missing=False,
                 raise_error_if_all_missing=True
             )
