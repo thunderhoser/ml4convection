@@ -203,13 +203,13 @@ def _run(advanced_score_file_names, model_descriptions_abbrev, num_panel_rows,
                 print('BAR')
 
                 numpy.random.shuffle(this_prediction_matrix)
-                this_prediction_matrix = this_prediction_matrix[:100, ...]
+                this_prediction_matrix = this_prediction_matrix[:50, ...]
 
                 this_prediction_matrix = numpy.swapaxes(
                     this_prediction_matrix, 0, 1
                 )
                 numpy.random.shuffle(this_prediction_matrix)
-                this_prediction_matrix = this_prediction_matrix[:100, ...]
+                this_prediction_matrix = this_prediction_matrix[:50, ...]
 
                 these_predictions = numpy.ravel(this_prediction_matrix)
                 numpy.random.shuffle(these_predictions)
