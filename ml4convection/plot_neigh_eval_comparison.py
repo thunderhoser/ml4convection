@@ -197,10 +197,9 @@ def _run(advanced_score_file_names, model_descriptions_abbrev, num_panel_rows,
                 this_prediction_dict = prediction_io.read_file(this_file_name)
                 print('FOO')
 
-                these_predictions = numpy.ravel(
+                this_prediction_matrix = (
                     prediction_io.get_mean_predictions(this_prediction_dict)
                 )
-                numpy.random.shuffle(these_predictions)
                 print('BAR')
 
                 first_index = last_index + 0
@@ -208,8 +207,21 @@ def _run(advanced_score_file_names, model_descriptions_abbrev, num_panel_rows,
                     first_index + num_predictions_per_file,
                     NUM_PREDICTIONS_PER_MODEL
                 ])
-
                 this_num_predictions = last_index - first_index
+
+                numpy.random.shuffle(this_prediction_matrix)
+                this_prediction_matrix = this_prediction_matrix[:10, ...]
+
+                this_prediction_matrix = numpy.swapaxes(
+                    this_prediction_matrix, 0, 1
+                )
+                numpy.random.shuffle(this_prediction_matrix)
+                this_prediction_matrix = this_prediction_matrix[:10, ...]
+
+                these_predictions = numpy.ravel(this_prediction_matrix)
+                numpy.random.shuffle(these_predictions)
+                print('MOO')
+
                 raw_prediction_matrix[i, first_index:last_index] = (
                     these_predictions[:this_num_predictions]
                 )
