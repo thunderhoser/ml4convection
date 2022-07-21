@@ -16,10 +16,15 @@ from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
 from gewittergefahr.plotting import plotting_utils as gg_plotting_utils
 from gewittergefahr.plotting import imagemagick_utils
+from ml4convection.io import prediction_io
 from ml4convection.utils import evaluation
 from ml4convection.plotting import evaluation_plotting as eval_plotting
 
+SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
+
 TOLERANCE = 1e-6
+DATE_FORMAT = '%Y%m%d'
+NUM_PREDICTIONS_PER_MODEL = int(1e6)
 
 BOUNDING_BOX_DICT = {
     'facecolor': 'white',
@@ -53,6 +58,9 @@ INPUT_FILES_ARG_NAME = 'input_advanced_score_file_names'
 MODEL_DESCRIPTIONS_ARG_NAME = 'model_description_strings'
 NUM_PANEL_ROWS_ARG_NAME = 'num_panel_rows'
 CONFIDENCE_LEVEL_ARG_NAME = 'confidence_level'
+PREDICTIONS_DIRS_ARG_NAME = 'input_prediction_dir_names'
+FIRST_DATE_ARG_NAME = 'first_date_string'
+LAST_DATE_ARG_NAME = 'last_date_string'
 OUTPUT_DIR_ARG_NAME = 'output_dir_name'
 
 INPUT_FILES_HELP_STRING = (
@@ -70,6 +78,20 @@ NUM_PANEL_ROWS_HELP_STRING = (
 CONFIDENCE_LEVEL_HELP_STRING = (
     'Confidence intervals (if number of bootstrap replicates > 1) will be '
     'plotted at this level.'
+)
+PREDICTIONS_DIRS_HELP_STRING = (
+    '[used only for consistency bars] List of directory names containing raw '
+    'predictions (one per model).  Within each directory, files will be found '
+    'by `prediction_io.find_file` and read by `prediction_io.read_file`.  If '
+    'you do not want consistency bars in attributes diagrams, leave this alone.'
+)
+FIRST_DATE_HELP_STRING = (
+    '[used only for consistency bars] Start of period (format "yyyymmdd") for '
+    'which to read predictions.'
+)
+LAST_DATE_HELP_STRING = (
+    '[used only for consistency bars] End of period (format "yyyymmdd") for '
+    'which to read predictions.'
 )
 OUTPUT_DIR_HELP_STRING = (
     'Name of output directory.  Figures will be saved here.'
@@ -93,13 +115,26 @@ INPUT_ARG_PARSER.add_argument(
     help=CONFIDENCE_LEVEL_HELP_STRING
 )
 INPUT_ARG_PARSER.add_argument(
+    '--' + PREDICTIONS_DIRS_ARG_NAME, nargs='+', type=str, required=False,
+    default=[''], help=PREDICTIONS_DIRS_HELP_STRING
+)
+INPUT_ARG_PARSER.add_argument(
+    '--' + FIRST_DATE_ARG_NAME, type=str, required=False, default='',
+    help=FIRST_DATE_HELP_STRING
+)
+INPUT_ARG_PARSER.add_argument(
+    '--' + LAST_DATE_ARG_NAME, type=str, required=False, default='',
+    help=LAST_DATE_HELP_STRING
+)
+INPUT_ARG_PARSER.add_argument(
     '--' + OUTPUT_DIR_ARG_NAME, type=str, required=True,
     help=OUTPUT_DIR_HELP_STRING
 )
 
 
 def _run(advanced_score_file_names, model_descriptions_abbrev, num_panel_rows,
-         confidence_level, output_dir_name):
+         confidence_level, prediction_dir_names, first_date_string,
+         last_date_string, output_dir_name):
     """Plots figure comparing neigh-based evaluation scores for diff models.
 
     This is effectively the main method.
@@ -108,6 +143,9 @@ def _run(advanced_score_file_names, model_descriptions_abbrev, num_panel_rows,
     :param model_descriptions_abbrev: Same.
     :param num_panel_rows: Same.
     :param confidence_level: Same.
+    :param prediction_dir_names: Same.
+    :param first_date_string: Same.
+    :param last_date_string: Same.
     :param output_dir_name: Same.
     """
 
@@ -117,6 +155,56 @@ def _run(advanced_score_file_names, model_descriptions_abbrev, num_panel_rows,
     error_checking.assert_is_numpy_array(
         numpy.array(model_descriptions_abbrev), exact_dimensions=expected_dim
     )
+
+    plot_consistency_bars = not (
+        len(prediction_dir_names) == 1 and prediction_dir_names[0] == ''
+    )
+    raw_prediction_matrix = numpy.full(
+        (num_models, NUM_PREDICTIONS_PER_MODEL), numpy.nan
+    )
+
+    if plot_consistency_bars:
+        error_checking.assert_is_numpy_array(
+            numpy.array(prediction_dir_names), exact_dimensions=expected_dim
+        )
+
+        for i in range(num_models):
+            prediction_file_names = prediction_io.find_many_files(
+                top_directory_name=prediction_dir_names[i],
+                first_date_string=first_date_string,
+                last_date_string=last_date_string,
+                prefer_zipped=False, allow_other_format=True, radar_number=None,
+                raise_error_if_any_missing=False,
+                raise_error_if_all_missing=True
+            )
+
+            num_predictions_per_file = int(numpy.ceil(
+                float(NUM_PREDICTIONS_PER_MODEL) / len(prediction_file_names)
+            ))
+            last_index = 0
+
+            for this_file_name in prediction_file_names:
+                print('Reading raw predictions from: "{0:s}"...'.format(
+                    this_file_name
+                ))
+                this_prediction_dict = prediction_io.read_file(this_file_name)
+                these_predictions = numpy.ravel(
+                    prediction_io.get_mean_predictions(this_prediction_dict)
+                )
+                numpy.random.shuffle(these_predictions)
+
+                first_index = last_index + 0
+                last_index = min([
+                    first_index + num_predictions_per_file,
+                    NUM_PREDICTIONS_PER_MODEL
+                ])
+
+                this_num_predictions = last_index - first_index
+                raw_prediction_matrix[i, first_index:last_index] = (
+                    these_predictions[:this_num_predictions]
+                )
+
+            print(SEPARATOR_STRING)
 
     model_descriptions_verbose = [
         s.replace('_', ' ') for s in model_descriptions_abbrev
@@ -173,7 +261,9 @@ def _run(advanced_score_file_names, model_descriptions_abbrev, num_panel_rows,
             mean_value_in_training=
             a[evaluation.TRAINING_EVENT_FREQ_KEY].values[0],
             confidence_level=confidence_level,
-            min_value_to_plot=0., max_value_to_plot=1.
+            min_value_to_plot=0., max_value_to_plot=1.,
+            plot_consistency_bars=plot_consistency_bars,
+            prediction_by_example=raw_prediction_matrix[i, :]
         )
 
         this_row = int(numpy.floor(
@@ -220,8 +310,8 @@ def _run(advanced_score_file_names, model_descriptions_abbrev, num_panel_rows,
 
             percentile_level = 0.01 * percentileofscore(
                 a=(
-                        reliability_values_by_model[i] -
-                        reliability_values_by_model[j]
+                    reliability_values_by_model[i] -
+                    reliability_values_by_model[j]
                 ),
                 score=0., kind='mean'
             )
@@ -504,5 +594,10 @@ if __name__ == '__main__':
         ),
         num_panel_rows=getattr(INPUT_ARG_OBJECT, NUM_PANEL_ROWS_ARG_NAME),
         confidence_level=getattr(INPUT_ARG_OBJECT, CONFIDENCE_LEVEL_ARG_NAME),
+        prediction_dir_names=getattr(
+            INPUT_ARG_OBJECT, PREDICTIONS_DIRS_ARG_NAME
+        ),
+        first_date_string=getattr(INPUT_ARG_OBJECT, FIRST_DATE_ARG_NAME),
+        last_date_string=getattr(INPUT_ARG_OBJECT, LAST_DATE_ARG_NAME),
         output_dir_name=getattr(INPUT_ARG_OBJECT, OUTPUT_DIR_ARG_NAME)
     )
