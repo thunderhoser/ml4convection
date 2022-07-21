@@ -200,8 +200,8 @@ def _run(advanced_score_file_names, model_descriptions_abbrev, num_panel_rows,
                 these_predictions = numpy.ravel(
                     prediction_io.get_mean_predictions(this_prediction_dict)
                 )
-                print('BAR')
                 numpy.random.shuffle(these_predictions)
+                print('BAR')
 
                 first_index = last_index + 0
                 last_index = min([
