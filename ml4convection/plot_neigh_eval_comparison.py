@@ -31,7 +31,7 @@ SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 
 TOLERANCE = 1e-6
 DATE_FORMAT = '%Y%m%d'
-NUM_PREDICTIONS_PER_MODEL = int(1e7)
+NUM_PREDICTIONS_PER_MODEL = int(1e8)
 
 BOUNDING_BOX_DICT = {
     'facecolor': 'white',
