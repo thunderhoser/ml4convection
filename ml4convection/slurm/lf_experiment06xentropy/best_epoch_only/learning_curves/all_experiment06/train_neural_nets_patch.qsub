@@ -10,7 +10,7 @@
 #SBATCH --ntasks-per-node=8  # 8 GPUs per node
 #SBATCH --exclusive
 #SBATCH --time=30:00:00
-#SBATCH --array=9,10
+#SBATCH --array=9
 #SBATCH --exclude=h28n12
 ##SBATCH --exclude=h31n03,h28n12
 ##SBATCH --exclude=h29n01,h26n05,h28n06,h29n07,h30n03,h30n15
@@ -37,7 +37,7 @@ set LOSS_FUNCTION_NAMES=("brier-neigh0" "brier-neigh1" "brier-neigh2" "brier-nei
 set loss_function_name=${LOSS_FUNCTION_NAMES[$SLURM_ARRAY_TASK_ID]}
 
 set template_file_name="${TOP_TEMPLATE_DIR_NAME}/${loss_function_name}/model.h5"
-set output_dir_name="${TOP_OUTPUT_DIR_NAME}/${loss_function_name}"
+set output_dir_name="${TOP_OUTPUT_DIR_NAME}/${loss_function_name}/model_that_hopefully_converges"
 echo $output_dir_name
 
 python3 -u "${CODE_DIR_NAME}/train_neural_net.py" \
