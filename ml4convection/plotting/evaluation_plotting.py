@@ -203,9 +203,9 @@ def _plot_inset_histogram(
     inset_axes_object.bar(
         fake_bin_centers[real_indices], bin_frequencies[real_indices], 1.,
         color=bar_colour, edgecolor=HISTOGRAM_EDGE_COLOUR,
-        linewidth=HISTOGRAM_EDGE_WIDTH
+        linewidth=HISTOGRAM_EDGE_WIDTH, log=True
     )
-    inset_axes_object.set_ylim(bottom=0.)
+    # inset_axes_object.set_ylim(bottom=0.)
 
     tick_indices = []
 
@@ -400,6 +400,107 @@ def _get_csi_colour_scheme(use_grey_scheme):
     return colour_map_object, colour_norm_object
 
 
+def _plot_consistency_bars(
+        prediction_by_example, mean_prediction_by_bin, bin_edges,
+        num_bootstrap_reps, confidence_level, axes_object):
+    """Plots consistency bars on same axes as reliability curve.
+
+    E = number of examples
+    B = number of bins
+
+    :param prediction_by_example: length-E numpy array of predictions.
+    :param mean_prediction_by_bin: length-B numpy array of mean predictions.
+    :param bin_edges: length-(B + 1) numpy array of bin edges.
+    :param num_bootstrap_reps: Number of bootstrap replicates.
+    :param confidence_level: Confidence level for consistency bars, ranging from
+        0...1.
+    :param axes_object: Will plot on these axes (instance of
+        `matplotlib.axes._subplots.AxesSubplot`).
+    """
+
+    bin_edges[0] = -numpy.inf
+    bin_edges[-1] = numpy.inf
+
+    num_examples = len(prediction_by_example)
+    num_bins = len(bin_edges) - 1
+    example_indices = numpy.linspace(
+        0, num_examples - 1, num=num_examples, dtype=int
+    )
+
+    dimensions = (num_bootstrap_reps, num_bins)
+    mean_dummy_observation_matrix = numpy.full(dimensions, numpy.nan)
+
+    for k in range(num_bootstrap_reps):
+        if numpy.mod(k, 10) == 0:
+            print((
+                'Have run {0:d} of {1:d} bootstrap replicates for consistency '
+                'bars...'
+            ).format(
+                k, num_bootstrap_reps
+            ))
+
+        these_indices = numpy.random.choice(
+            example_indices, size=num_examples, replace=True
+        )
+        these_predictions = prediction_by_example[these_indices]
+
+        these_random_values = numpy.random.uniform(
+            low=0., high=1., size=num_examples
+        )
+        these_dummy_observations = (
+            (these_random_values < these_predictions).astype(float)
+        )
+
+        for j in range(num_bins):
+            these_flags = numpy.logical_and(
+                these_predictions >= bin_edges[j],
+                these_predictions < bin_edges[j + 1]
+            )
+
+            if not numpy.any(these_flags):
+                continue
+
+            mean_dummy_observation_matrix[k, j] = numpy.mean(
+                these_dummy_observations[these_flags]
+            )
+
+    print((
+        'Have run all {0:d} bootstrap replicates for consistency bars!'
+    ).format(
+        num_bootstrap_reps
+    ))
+
+    min_dummy_observation_by_bin = numpy.nanpercentile(
+        mean_dummy_observation_matrix, 50 * (1. - confidence_level), axis=0
+    )
+    max_dummy_observation_by_bin = numpy.nanpercentile(
+        mean_dummy_observation_matrix, 50 * (1. + confidence_level), axis=0
+    )
+    mean_dummy_observation_by_bin = numpy.nanmean(
+        mean_dummy_observation_matrix, axis=0
+    )
+    error_matrix = numpy.vstack((
+        mean_dummy_observation_by_bin - min_dummy_observation_by_bin,
+        max_dummy_observation_by_bin - mean_dummy_observation_by_bin
+    ))
+
+    real_indices = numpy.where(numpy.invert(numpy.logical_or(
+        numpy.isnan(mean_prediction_by_bin),
+        numpy.isnan(mean_dummy_observation_by_bin)
+    )))[0]
+
+    if len(real_indices) == 0:
+        return
+
+    axes_object.errorbar(
+        x=mean_prediction_by_bin[real_indices],
+        y=mean_dummy_observation_by_bin[real_indices],
+        yerr=error_matrix[:, real_indices],
+        linewidth=0, ecolor=numpy.full(3, 0.), elinewidth=2,
+        capsize=6, capthick=3
+    )
+
+
 def confidence_interval_to_polygon(
         x_value_matrix, y_value_matrix, confidence_level, same_order):
     """Turns confidence interval into polygon.
@@ -482,9 +583,11 @@ def plot_reliability_curve(
         axes_object, mean_prediction_matrix, mean_observation_matrix,
         min_value_to_plot, max_value_to_plot, confidence_level=0.95,
         line_colour=RELIABILITY_LINE_COLOUR, line_style='solid',
-        line_width=DEFAULT_LINE_WIDTH, plot_background=True):
+        line_width=DEFAULT_LINE_WIDTH, plot_background=True,
+        plot_consistency_bars=True, prediction_by_example=None):
     """Plots reliability curve.
 
+    E = number of examples
     B = number of bins
     R = number of bootstrap replicates
 
@@ -500,6 +603,10 @@ def plot_reliability_curve(
     :param line_width: Line width (in any format accepted by matplotlib).
     :param plot_background: Boolean flag.  If True, will plot background
         (reference line).
+    :param plot_consistency_bars: Boolean flag.  If True, will plot consistency
+        bars.
+    :param prediction_by_example: [used only if plot_consistency_bars == True]
+        length-E numpy array of individual predictions.
     :return: main_line_handle: Handle for main line (reliability curve).
     """
 
@@ -520,6 +627,7 @@ def plot_reliability_curve(
         max_value_to_plot = min_value_to_plot + 1.
 
     error_checking.assert_is_boolean(plot_background)
+    error_checking.assert_is_boolean(plot_consistency_bars)
 
     if plot_background:
         perfect_x_coords = numpy.array([min_value_to_plot, max_value_to_plot])
@@ -560,6 +668,23 @@ def plot_reliability_curve(
             polygon_coord_matrix, lw=0, ec=polygon_colour, fc=polygon_colour
         )
         axes_object.add_patch(patch_object)
+
+    if plot_consistency_bars:
+        error_checking.assert_is_numpy_array(
+            prediction_by_example, num_dimensions=1
+        )
+        error_checking.assert_is_geq_numpy_array(prediction_by_example, 0.)
+        error_checking.assert_is_leq_numpy_array(prediction_by_example, 1.)
+
+        num_bins = mean_prediction_matrix.shape[1]
+
+        _plot_consistency_bars(
+            prediction_by_example=prediction_by_example,
+            mean_prediction_by_bin=mean_predictions,
+            bin_edges=numpy.linspace(0, 1, num=num_bins + 1, dtype=float),
+            num_bootstrap_reps=1000, confidence_level=0.95,
+            axes_object=axes_object
+        )
 
     axes_object.set_xlabel('Forecast probability')
     axes_object.set_ylabel('Conditional event frequency')
@@ -807,6 +932,7 @@ def plot_attributes_diagram(
         min_value_to_plot, max_value_to_plot, confidence_level=0.95,
         line_colour=RELIABILITY_LINE_COLOUR,
         line_style='solid', line_width=DEFAULT_LINE_WIDTH,
+        plot_consistency_bars=True, prediction_by_example=None,
         inv_mean_observations=None, inv_example_counts=None):
     """Plots attributes diagram.
 
@@ -833,6 +959,8 @@ def plot_attributes_diagram(
     :param line_colour: See doc for `plot_reliability_curve`.
     :param line_width: Same.
     :param line_style: Same.
+    :param plot_consistency_bars: Same.
+    :param prediction_by_example: Same.
     :param inv_mean_observations: length-B numpy array of mean observed values
         for inverted reliability curve.
     :param inv_example_counts: length-B numpy array of example counts for
@@ -908,5 +1036,7 @@ def plot_attributes_diagram(
         min_value_to_plot=min_value_to_plot,
         max_value_to_plot=max_value_to_plot,
         confidence_level=confidence_level,
-        line_colour=line_colour, line_style=line_style, line_width=line_width
+        line_colour=line_colour, line_style=line_style, line_width=line_width,
+        plot_consistency_bars=plot_consistency_bars,
+        prediction_by_example=prediction_by_example
     )

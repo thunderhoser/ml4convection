@@ -157,28 +157,29 @@ NUM_MODEL_LOSS_FUNCTIONS = 3
 EVAL_FILTER_INDICES_TO_PLOT = numpy.linspace(0, 39, num=40, dtype=int)
 
 LOSS_FUNCTION_KEYS_NEIGH = [
-    learning_curves.NEIGH_FSS_KEY, learning_curves.NEIGH_IOU_KEY,
-    learning_curves.NEIGH_CSI_KEY, None, None, None,
-    learning_curves.NEIGH_BRIER_SCORE_KEY, learning_curves.NEIGH_DICE_COEFF_KEY,
-    learning_curves.NEIGH_XENTROPY_KEY
+    learning_curves.NEIGH_BRIER_SCORE_KEY, learning_curves.NEIGH_FSS_KEY,
+    learning_curves.NEIGH_XENTROPY_KEY, learning_curves.NEIGH_IOU_KEY,
+    learning_curves.NEIGH_ALL_CLASS_IOU_KEY,
+    learning_curves.NEIGH_DICE_COEFF_KEY, learning_curves.NEIGH_CSI_KEY,
+    None, None, None
 ]
 LOSS_FUNCTION_KEYS_FOURIER = [
-    learning_curves.FOURIER_FSS_KEY, learning_curves.FOURIER_IOU_KEY,
-    learning_curves.FOURIER_CSI_KEY, learning_curves.FOURIER_HEIDKE_SCORE_KEY,
+    learning_curves.FOURIER_BRIER_SCORE_KEY, learning_curves.FOURIER_FSS_KEY,
+    learning_curves.FOURIER_XENTROPY_KEY, learning_curves.FOURIER_IOU_KEY,
+    learning_curves.FOURIER_ALL_CLASS_IOU_KEY,
+    learning_curves.FOURIER_DICE_COEFF_KEY, learning_curves.FOURIER_CSI_KEY,
+    learning_curves.FOURIER_HEIDKE_SCORE_KEY,
     learning_curves.FOURIER_GERRITY_SCORE_KEY,
-    learning_curves.FOURIER_PEIRCE_SCORE_KEY,
-    learning_curves.FOURIER_BRIER_SCORE_KEY,
-    learning_curves.FOURIER_DICE_COEFF_KEY,
-    learning_curves.FOURIER_XENTROPY_KEY
+    learning_curves.FOURIER_PEIRCE_SCORE_KEY
 ]
 LOSS_FUNCTION_KEYS_WAVELET = [
-    learning_curves.WAVELET_FSS_KEY, learning_curves.WAVELET_IOU_KEY,
-    learning_curves.WAVELET_CSI_KEY, learning_curves.WAVELET_HEIDKE_SCORE_KEY,
+    learning_curves.WAVELET_BRIER_SCORE_KEY, learning_curves.WAVELET_FSS_KEY,
+    learning_curves.WAVELET_XENTROPY_KEY, learning_curves.WAVELET_IOU_KEY,
+    learning_curves.WAVELET_ALL_CLASS_IOU_KEY,
+    learning_curves.WAVELET_DICE_COEFF_KEY, learning_curves.WAVELET_CSI_KEY,
+    learning_curves.WAVELET_HEIDKE_SCORE_KEY,
     learning_curves.WAVELET_GERRITY_SCORE_KEY,
-    learning_curves.WAVELET_PEIRCE_SCORE_KEY,
-    learning_curves.WAVELET_BRIER_SCORE_KEY,
-    learning_curves.WAVELET_DICE_COEFF_KEY,
-    learning_curves.WAVELET_XENTROPY_KEY
+    learning_curves.WAVELET_PEIRCE_SCORE_KEY
 ]
 
 BEST_MARKER_TYPE = '*'
