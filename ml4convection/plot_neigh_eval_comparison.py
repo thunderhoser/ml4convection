@@ -202,13 +202,6 @@ def _run(advanced_score_file_names, model_descriptions_abbrev, num_panel_rows,
                 )
                 print('BAR')
 
-                first_index = last_index + 0
-                last_index = min([
-                    first_index + num_predictions_per_file,
-                    NUM_PREDICTIONS_PER_MODEL
-                ])
-                this_num_predictions = last_index - first_index
-
                 numpy.random.shuffle(this_prediction_matrix)
                 this_prediction_matrix = this_prediction_matrix[:10, ...]
 
@@ -222,6 +215,15 @@ def _run(advanced_score_file_names, model_descriptions_abbrev, num_panel_rows,
                 numpy.random.shuffle(these_predictions)
                 print('MOO')
 
+                first_index = last_index + 0
+                last_index = first_index + min([
+                    num_predictions_per_file, len(these_predictions)
+                ])
+                last_index = min([
+                    last_index, NUM_PREDICTIONS_PER_MODEL
+                ])
+
+                this_num_predictions = last_index - first_index
                 raw_prediction_matrix[i, first_index:last_index] = (
                     these_predictions[:this_num_predictions]
                 )
@@ -275,6 +277,15 @@ def _run(advanced_score_file_names, model_descriptions_abbrev, num_panel_rows,
         figure_object, axes_object = pyplot.subplots(
             1, 1, figsize=(FIGURE_WIDTH_INCHES, FIGURE_HEIGHT_INCHES)
         )
+
+        if plot_consistency_bars:
+            prediction_by_example = raw_prediction_matrix[i, :]
+            prediction_by_example = prediction_by_example[
+                numpy.isnan(prediction_by_example) == False
+            ]
+        else:
+            prediction_by_example = None
+
         eval_plotting.plot_attributes_diagram(
             figure_object=figure_object, axes_object=axes_object,
             mean_prediction_matrix=a[evaluation.BINNED_MEAN_PROBS_KEY].values,
@@ -285,7 +296,7 @@ def _run(advanced_score_file_names, model_descriptions_abbrev, num_panel_rows,
             confidence_level=confidence_level,
             min_value_to_plot=0., max_value_to_plot=1.,
             plot_consistency_bars=plot_consistency_bars,
-            prediction_by_example=raw_prediction_matrix[i, :]
+            prediction_by_example=prediction_by_example
         )
 
         this_row = int(numpy.floor(
