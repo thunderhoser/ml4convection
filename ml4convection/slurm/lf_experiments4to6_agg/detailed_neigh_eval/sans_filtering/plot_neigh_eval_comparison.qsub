@@ -38,16 +38,17 @@ set matching_distance_px=${MATCHING_DISTANCES_PX[$SLURM_ARRAY_TASK_ID]}
 set matching_distance_string=`printf "%.6f" ${matching_distance_px}`
 
 set input_file_names_string=""
+set prediction_dir_names_string=""
 set model_descriptions_string=""
 set i=1
 
 while ($i <= ${#SCORE_NAMES})
-    echo "${ALL_EXPERIMENT_DIR_NAME}/lf_experiment${SUBEXPERIMENT_ENUMS[$i]}/${SCORE_NAMES[$i]}${FILTER_NAMES[$i]}/model*/validation_best_validation_loss/full_grids"
-    set prediction_dir_names={${ALL_EXPERIMENT_DIR_NAME}/lf_experiment${SUBEXPERIMENT_ENUMS[$i]}/${SCORE_NAMES[$i]}${FILTER_NAMES[$i]}/model*/validation_best_validation_loss/full_grids}
-    set prediction_dir_name=${prediction_dir_names[$#prediction_dir_names]}
-    set this_input_file_name="${prediction_dir_name}/evaluation_sans_filtering/matching_distance_px=${matching_distance_string}/advanced_scores_gridded=0.p"
+    set these_prediction_dir_names={${ALL_EXPERIMENT_DIR_NAME}/lf_experiment${SUBEXPERIMENT_ENUMS[$i]}/${SCORE_NAMES[$i]}${FILTER_NAMES[$i]}/model*/validation_best_validation_loss/full_grids}
+    set this_prediction_dir_name=${these_prediction_dir_names[$#these_prediction_dir_names]}
+    set this_input_file_name="${this_prediction_dir_name}/evaluation_sans_filtering/matching_distance_px=${matching_distance_string}/advanced_scores_gridded=0.p"
 
     set input_file_names_string="${input_file_names_string} ${this_input_file_name}"
+    set prediction_dir_names_string="${prediction_dir_names_string} ${this_prediction_dir_name}"
     set model_descriptions_string="${model_descriptions_string} ${MODEL_DESCRIPTION_STRINGS[$i]}"
     
     @ i = $i + 1
@@ -60,4 +61,7 @@ python3 -u "${CODE_DIR_NAME}/plot_neigh_eval_comparison.py" \
 --model_description_strings ${model_descriptions_string} \
 --num_panel_rows=2 \
 --confidence_level=0.95 \
+--input_prediction_dir_names ${prediction_dir_names_string} \
+--first_date_string="20170707" \
+--last_date_string="20170715" \
 --output_dir_name="${output_dir_name}"
