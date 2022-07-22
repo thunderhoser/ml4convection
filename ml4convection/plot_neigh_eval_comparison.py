@@ -31,7 +31,7 @@ SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 
 TOLERANCE = 1e-6
 DATE_FORMAT = '%Y%m%d'
-NUM_PREDICTIONS_PER_MODEL = int(1e8)
+NUM_PREDICTIONS_PER_MODEL = int(2.5e7)
 
 BOUNDING_BOX_DICT = {
     'facecolor': 'white',
@@ -195,12 +195,9 @@ def _run(advanced_score_file_names, model_descriptions_abbrev, num_panel_rows,
                     this_file_name
                 ))
                 this_prediction_dict = prediction_io.read_file(this_file_name)
-                print('FOO')
-
                 this_prediction_matrix = (
                     prediction_io.get_mean_predictions(this_prediction_dict)
                 )
-                print('BAR')
 
                 numpy.random.shuffle(this_prediction_matrix)
                 this_prediction_matrix = this_prediction_matrix[:50, ...]
@@ -213,7 +210,6 @@ def _run(advanced_score_file_names, model_descriptions_abbrev, num_panel_rows,
 
                 these_predictions = numpy.ravel(this_prediction_matrix)
                 numpy.random.shuffle(these_predictions)
-                print('MOO')
 
                 first_index = last_index + 0
                 last_index = first_index + min([
@@ -283,7 +279,6 @@ def _run(advanced_score_file_names, model_descriptions_abbrev, num_panel_rows,
             prediction_by_example = prediction_by_example[
                 numpy.isnan(prediction_by_example) == False
             ]
-            print(len(prediction_by_example))
         else:
             prediction_by_example = None
 

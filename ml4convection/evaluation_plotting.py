@@ -690,7 +690,7 @@ def plot_reliability_curve(
             prediction_by_example=prediction_by_example,
             mean_prediction_by_bin=mean_predictions,
             bin_edges=numpy.linspace(0, 1, num=num_bins + 1, dtype=float),
-            num_bootstrap_reps=1000, confidence_level=0.95,
+            num_bootstrap_reps=100, confidence_level=0.95,
             axes_object=axes_object
         )
 
