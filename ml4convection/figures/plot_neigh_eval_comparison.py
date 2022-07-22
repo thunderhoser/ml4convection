@@ -24,7 +24,7 @@ SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 
 TOLERANCE = 1e-6
 DATE_FORMAT = '%Y%m%d'
-NUM_PREDICTIONS_PER_MODEL = int(1e6)
+NUM_PREDICTIONS_PER_MODEL = int(2.5e7)
 
 BOUNDING_BOX_DICT = {
     'facecolor': 'white',
@@ -188,15 +188,28 @@ def _run(advanced_score_file_names, model_descriptions_abbrev, num_panel_rows,
                     this_file_name
                 ))
                 this_prediction_dict = prediction_io.read_file(this_file_name)
-                these_predictions = numpy.ravel(
+                this_prediction_matrix = (
                     prediction_io.get_mean_predictions(this_prediction_dict)
                 )
+
+                numpy.random.shuffle(this_prediction_matrix)
+                this_prediction_matrix = this_prediction_matrix[:50, ...]
+
+                this_prediction_matrix = numpy.swapaxes(
+                    this_prediction_matrix, 0, 1
+                )
+                numpy.random.shuffle(this_prediction_matrix)
+                this_prediction_matrix = this_prediction_matrix[:50, ...]
+
+                these_predictions = numpy.ravel(this_prediction_matrix)
                 numpy.random.shuffle(these_predictions)
 
                 first_index = last_index + 0
+                last_index = first_index + min([
+                    num_predictions_per_file, len(these_predictions)
+                ])
                 last_index = min([
-                    first_index + num_predictions_per_file,
-                    NUM_PREDICTIONS_PER_MODEL
+                    last_index, NUM_PREDICTIONS_PER_MODEL
                 ])
 
                 this_num_predictions = last_index - first_index
@@ -253,6 +266,15 @@ def _run(advanced_score_file_names, model_descriptions_abbrev, num_panel_rows,
         figure_object, axes_object = pyplot.subplots(
             1, 1, figsize=(FIGURE_WIDTH_INCHES, FIGURE_HEIGHT_INCHES)
         )
+
+        if plot_consistency_bars:
+            prediction_by_example = raw_prediction_matrix[i, :]
+            prediction_by_example = prediction_by_example[
+                numpy.isnan(prediction_by_example) == False
+                ]
+        else:
+            prediction_by_example = None
+
         eval_plotting.plot_attributes_diagram(
             figure_object=figure_object, axes_object=axes_object,
             mean_prediction_matrix=a[evaluation.BINNED_MEAN_PROBS_KEY].values,
@@ -263,7 +285,7 @@ def _run(advanced_score_file_names, model_descriptions_abbrev, num_panel_rows,
             confidence_level=confidence_level,
             min_value_to_plot=0., max_value_to_plot=1.,
             plot_consistency_bars=plot_consistency_bars,
-            prediction_by_example=raw_prediction_matrix[i, :]
+            prediction_by_example=prediction_by_example
         )
 
         this_row = int(numpy.floor(
