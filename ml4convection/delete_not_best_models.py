@@ -29,7 +29,7 @@ def _run(top_experiment_dir_name):
             '{0:s}/model*.h5'.format(this_model_dir_name)
         )
         model_file_names.sort()
-        if len(model_file_names) == 0:
+        if len(model_file_names) <= 1:
             continue
 
         validation_losses = numpy.full(len(model_file_names), numpy.nan)
@@ -48,15 +48,16 @@ def _run(top_experiment_dir_name):
 
         for i in range(len(model_file_names)):
             if i == min_index:
+                print(model_file_names[i])
                 continue
 
-            print('Deleting "{0:s}"...'.format(model_file_names[i]))
-            os.remove(model_file_names[i])
-
-            print('Deleting "{0:s}"...'.format(
-                model_file_names[i].replace('.h5', '')
-            ))
-            shutil.rmtree(model_file_names[i].replace('.h5', ''))
+            # print('Deleting "{0:s}"...'.format(model_file_names[i]))
+            # os.remove(model_file_names[i])
+            #
+            # print('Deleting "{0:s}"...'.format(
+            #     model_file_names[i].replace('.h5', '')
+            # ))
+            # shutil.rmtree(model_file_names[i].replace('.h5', ''))
 
 
 if __name__ == '__main__':
