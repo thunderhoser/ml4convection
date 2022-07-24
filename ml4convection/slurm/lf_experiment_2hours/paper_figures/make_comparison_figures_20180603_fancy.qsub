@@ -40,7 +40,7 @@ set panel_letters_string="$panel_letters_string:gas/_/ /"
 
 set SCORE_NAMES=("fss" "fss" "fss" "fss" "brier" "xentropy")
 set FILTER_NAMES=("-neigh0" "-neigh4" "-neigh6" "-neigh12" "-neigh2" "-neigh6")
-set MODEL_DESCRIPTION_STRINGS=("pixelwise_FSS" "9-by-9_FSS" "13-by-13_FSS" "25-by-25_FSS" "5-by-5_Brier" "13-by-13_X-entropy")
+set MODEL_DESCRIPTION_STRINGS=("pixelwise_FSS" "9-by-9_FSS" "13-by-13_FSS" "25-by-25_FSS" "5-by-5_Brier" "13-by-13_Xent")
 
 set prediction_dir_names_string=""
 set model_descriptions_string=""
