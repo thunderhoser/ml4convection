@@ -214,7 +214,8 @@ def _run(advanced_score_file_name, best_prob_threshold, confidence_level,
         example_counts=a[evaluation.BINNED_NUM_EXAMPLES_KEY].values,
         mean_value_in_training=a[evaluation.TRAINING_EVENT_FREQ_KEY].values[0],
         confidence_level=confidence_level,
-        min_value_to_plot=0., max_value_to_plot=1.
+        min_value_to_plot=0., max_value_to_plot=1.,
+        plot_consistency_bars=False
     )
 
     axes_object.set_title('Attributes diagram')
