@@ -31,7 +31,7 @@ set TOP_MODEL_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection
 set FIRST_VALIDN_DATE_STRING="20170101"
 set LAST_VALIDN_DATE_STRING="20171224"
 
-set ATTEMPT_NUMS=("01" "02" "03" "04" "05" "06" "07" "08" "09" "10" "11" "12" "13" "14" "15" "16" "17" "18" "19" "20" "21" "22" "23" "24" "25" "26" "27" "28" "29" "30")
+set ATTEMPT_NUMS=("00" "01" "02" "03" "04" "05" "06" "07" "08" "09" "10" "11" "12" "13" "14" "15" "16" "17" "18" "19" "20" "21" "22" "23" "24" "25" "26" "27" "28" "29")
 set attempt_num=${ATTEMPT_NUMS[$SLURM_ARRAY_TASK_ID]}
 
 set top_model_dir_name="${TOP_MODEL_DIR_NAME}/fss-neigh0/attempt${attempt_num}"
