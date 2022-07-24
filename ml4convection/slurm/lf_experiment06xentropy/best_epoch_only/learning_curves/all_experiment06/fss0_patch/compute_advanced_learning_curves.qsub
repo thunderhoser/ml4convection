@@ -12,12 +12,13 @@
 ##SBATCH --cpus-per-task=1
 ##SBATCH --ntasks-per-node=1
 #SBATCH --time=30:00:00
+#SBATCH --array=1-30
 #SBATCH --exclude=h28n12
 ##SBATCH --exclude=h31n03,h28n12
 ##SBATCH --exclude=h29n01,h26n05,h28n06,h29n07,h30n03,h30n15
 #SBATCH --mail-type=BEGIN,END,FAIL
 #SBATCH --mail-user=ryan.lagerquist@noaa.gov
-#SBATCH --output=compute_advanced_learning_curves_%A.out
+#SBATCH --output=compute_advanced_learning_curves_%A_%a.out
 
 module load cuda/10.1
 source /scratch2/BMC/gsd-hpcs/Jebb.Q.Stewart/conda3.7/etc/profile.d/conda.csh
@@ -28,7 +29,10 @@ set TOP_MODEL_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection
 set TOP_PREDICTOR_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_project/predictors/quality_controlled/partial_grids"
 set TOP_TARGET_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_project/targets/new_echo_classification/no_tracking/omit_north_radar/partial_grids"
 
-set top_model_dir_name="${TOP_MODEL_DIR_NAME}/fss-neigh0/attempt10"
+set ATTEMPT_NUMS=("01" "02" "03" "04" "05" "06" "07" "08" "09" "10" "11" "12" "13" "14" "15" "16" "17" "18" "19" "20" "21" "22" "23" "24" "25" "26" "27" "28" "29" "30")
+set attempt_num=${ATTEMPT_NUMS[$SLURM_ARRAY_TASK_ID]}
+
+set top_model_dir_name="${TOP_MODEL_DIR_NAME}/fss-neigh0/attempt${attempt_num}"
 
 python3 -u "${CODE_DIR_NAME}/compute_advanced_learning_curves.py" \
 --input_basic_score_dir_name="${top_model_dir_name}/model*/validation_best_validation_loss/partial_grids/learning_curves" \
