@@ -1,0 +1,46 @@
+#!/bin/tcsh
+
+#SBATCH --job-name="compute_basic_ungridded_scores"
+#SBATCH --partition="fge"
+#SBATCH --account="rda-ghpcs"
+#SBATCH --qos="batch"
+#SBATCH --ntasks=1
+#SBATCH --nodes=1
+#SBATCH --cpus-per-task=1
+##SBATCH --nodes=1
+##SBATCH --ntasks=1
+##SBATCH --cpus-per-task=1
+##SBATCH --ntasks-per-node=1
+#SBATCH --time=24:00:00
+#SBATCH --array=1-12
+#SBATCH --exclude=h28n12
+##SBATCH --exclude=h31n03,h28n12
+##SBATCH --exclude=h29n01,h26n05,h28n06,h29n07,h30n03,h30n15
+#SBATCH --mail-type=BEGIN,END,FAIL
+#SBATCH --mail-user=ryan.lagerquist@noaa.gov
+#SBATCH --output=compute_basic_ungridded_scores_%A_%a.out
+
+module load cuda/10.1
+source /scratch2/BMC/gsd-hpcs/Jebb.Q.Stewart/conda3.7/etc/profile.d/conda.csh
+conda activate base
+
+set CODE_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_standalone/ml4convection"
+set TOP_MODEL_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_models/lf_experiment06"
+
+set VALID_DATE_STRINGS=("20170101" "20170202" "20170303" "20170404" "20170505" "20170606" "20170707" "20170808" "20170909" "20171010" "20171111" "20171212")
+set valid_date_string=${VALID_DATE_STRINGS[$SLURM_ARRAY_TASK_ID]}
+
+set top_model_dir_name="${TOP_MODEL_DIR_NAME}/fss-neigh0/attempt10"
+set prediction_dir_names={${top_model_dir_name}/model*/validation_best_validation_loss/full_grids}
+set prediction_dir_name=${prediction_dir_names[$#prediction_dir_names]}
+
+python3 -u "${CODE_DIR_NAME}/compute_basic_scores_ungridded.py" \
+--input_prediction_dir_name="${prediction_dir_name}" \
+--first_date_string="${valid_date_string}" \
+--last_date_string="${valid_date_string}" \
+--time_interval_steps=1 \
+--use_partial_grids=0 \
+--smoothing_radius_px=2 \
+--matching_distances_px 1 4 \
+--prob_thresholds 0.00 0.02 0.04 0.06 0.08 0.10 0.12 0.14 0.16 0.18 0.20 0.22 0.24 0.26 0.28 0.30 0.32 0.34 0.36 0.38 0.40 1.001 \
+--output_dir_name="${prediction_dir_name}/evaluation"
