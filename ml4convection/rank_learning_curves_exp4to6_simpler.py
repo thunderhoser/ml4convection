@@ -156,16 +156,17 @@ REFERENCE_LINE_X_COORDS = numpy.array([15.5, 31.5])
 
 LOSS_FUNCTION_NAMES = [
     'fss', 'iou', 'csi', 'heidke', 'gerrity', 'peirce', 'brier', 'dice',
-    'xentropy'
+    # 'xentropy'
 ]
 LOSS_FUNCTION_NAMES_FANCY = [
     'FSS', 'IOU', 'CSI', 'Heidke score', 'Gerrity score', 'Peirce score',
-    'Brier score', 'Dice coeff', 'X-entropy'
+    'Brier score', 'Dice coeff',
+    # 'X-entropy'
 ]
 NEGATIVELY_ORIENTED_FLAGS = numpy.array(
     [0, 0, 0, 0, 0, 0, 1, 0, 1], dtype=bool
 )
-MODEL_NAME_INDICES_TO_PLOT = numpy.array([0, 6, 8], dtype=int)
+MODEL_NAME_INDICES_TO_PLOT = numpy.array([0, 6], dtype=int)
 # EVAL_FILTER_INDICES_TO_PLOT = numpy.array(
 #     [9, 13, 25, 29, 32, 36, 39], dtype=int
 # )
@@ -175,7 +176,7 @@ LOSS_FUNCTION_KEYS_NEIGH = [
     learning_curves.NEIGH_FSS_KEY, learning_curves.NEIGH_IOU_KEY,
     learning_curves.NEIGH_CSI_KEY, None, None, None,
     learning_curves.NEIGH_BRIER_SCORE_KEY, learning_curves.NEIGH_DICE_COEFF_KEY,
-    learning_curves.NEIGH_XENTROPY_KEY
+    # learning_curves.NEIGH_XENTROPY_KEY
 ]
 LOSS_FUNCTION_KEYS_FOURIER = [
     learning_curves.FOURIER_FSS_KEY, learning_curves.FOURIER_IOU_KEY,
@@ -184,7 +185,7 @@ LOSS_FUNCTION_KEYS_FOURIER = [
     learning_curves.FOURIER_PEIRCE_SCORE_KEY,
     learning_curves.FOURIER_BRIER_SCORE_KEY,
     learning_curves.FOURIER_DICE_COEFF_KEY,
-    learning_curves.FOURIER_XENTROPY_KEY
+    # learning_curves.FOURIER_XENTROPY_KEY
 ]
 LOSS_FUNCTION_KEYS_WAVELET = [
     learning_curves.WAVELET_FSS_KEY, learning_curves.WAVELET_IOU_KEY,
@@ -193,7 +194,7 @@ LOSS_FUNCTION_KEYS_WAVELET = [
     learning_curves.WAVELET_PEIRCE_SCORE_KEY,
     learning_curves.WAVELET_BRIER_SCORE_KEY,
     learning_curves.WAVELET_DICE_COEFF_KEY,
-    learning_curves.WAVELET_XENTROPY_KEY
+    # learning_curves.WAVELET_XENTROPY_KEY
 ]
 
 BEST_MARKER_TYPE = '*'
