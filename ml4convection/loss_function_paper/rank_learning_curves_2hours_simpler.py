@@ -677,7 +677,15 @@ def _run(experiment_dir_name, output_dir_name):
         )
         axes_object.set_ylabel('LF score')
 
-        pyplot.xticks([], [])
+        if j == EVAL_FILTER_INDICES_TO_PLOT[-1]:
+            x_tick_values = numpy.linspace(
+                0, this_rank_matrix.shape[1] - 1, num=this_rank_matrix.shape[1],
+                dtype=float
+            )
+            pyplot.xticks(x_tick_values, FILTER_NAMES_FANCY, rotation=90.)
+            axes_object.set_xlabel('LF filter')
+        else:
+            pyplot.xticks([], [])
 
         this_index = numpy.nanargmax(numpy.ravel(this_rank_matrix))
         _add_markers(

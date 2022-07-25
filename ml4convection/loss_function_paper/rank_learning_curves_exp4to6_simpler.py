@@ -159,10 +159,11 @@ NEGATIVELY_ORIENTED_FLAGS = numpy.array(
     [0, 0, 0, 0, 0, 0, 1, 0, 1], dtype=bool
 )
 MODEL_NAME_INDICES_TO_PLOT = numpy.array([0, 6, 8], dtype=int)
-# EVAL_FILTER_INDICES_TO_PLOT = numpy.array(
-#     [9, 13, 25, 29, 32, 36, 39], dtype=int
-# )
-EVAL_FILTER_INDICES_TO_PLOT = numpy.linspace(0, 39, num=40, dtype=int)
+
+# EVAL_FILTER_INDICES_TO_PLOT = numpy.linspace(0, 39, num=40, dtype=int)
+EVAL_FILTER_INDICES_TO_PLOT = numpy.array(
+    [8, 9, 12, 13, 24, 25, 28, 29, 32, 33, 38, 39], dtype=int
+)
 
 LOSS_FUNCTION_KEYS_NEIGH = [
     learning_curves.NEIGH_FSS_KEY, learning_curves.NEIGH_IOU_KEY,
@@ -687,7 +688,15 @@ def _run(all_experiment_dir_name, output_dir_name):
         )
         axes_object.set_ylabel('LF score')
 
-        pyplot.xticks([], [])
+        if j == EVAL_FILTER_INDICES_TO_PLOT[-1]:
+            x_tick_values = numpy.linspace(
+                0, this_rank_matrix.shape[1] - 1, num=this_rank_matrix.shape[1],
+                dtype=float
+            )
+            pyplot.xticks(x_tick_values, FILTER_NAMES_FANCY, rotation=90.)
+            axes_object.set_xlabel('LF filter')
+        else:
+            pyplot.xticks([], [])
 
         this_index = numpy.nanargmax(numpy.ravel(this_rank_matrix))
         _add_markers(
@@ -817,6 +826,8 @@ def _run(all_experiment_dir_name, output_dir_name):
         output_dir_name
     )
     print('Concatenating panels to: "{0:s}"...'.format(concat_figure_file_name))
+
+    panel_file_names = panel_file_names[:-1]
 
     imagemagick_utils.concatenate_images(
         input_file_names=panel_file_names,
