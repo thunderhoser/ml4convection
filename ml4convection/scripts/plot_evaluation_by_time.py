@@ -221,7 +221,8 @@ def _plot_reliability_curves(score_tables_xarray, confidence_level):
                 numpy.expand_dims(these_event_freqs, axis=0),
                 confidence_level=confidence_level,
                 min_value_to_plot=0., max_value_to_plot=1.,
-                line_colour=colour_matrix[i, ...], plot_background=i == 0
+                line_colour=colour_matrix[i, ...], plot_background=i == 0,
+                plot_consistency_bars=False
             )
         else:
             eval_plotting.plot_reliability_curve(
@@ -233,7 +234,8 @@ def _plot_reliability_curves(score_tables_xarray, confidence_level):
                 ].values,
                 confidence_level=confidence_level,
                 min_value_to_plot=0., max_value_to_plot=1.,
-                line_colour=colour_matrix[i, ...], plot_background=i == 0
+                line_colour=colour_matrix[i, ...], plot_background=i == 0,
+                plot_consistency_bars=False
             )
 
         if num_tables == NUM_HOURS_PER_DAY:

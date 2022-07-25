@@ -154,7 +154,10 @@ NEGATIVELY_ORIENTED_FLAGS = numpy.array(
 )
 
 NUM_MODEL_LOSS_FUNCTIONS = 3
-EVAL_FILTER_INDICES_TO_PLOT = numpy.linspace(0, 39, num=40, dtype=int)
+# EVAL_FILTER_INDICES_TO_PLOT = numpy.linspace(0, 39, num=40, dtype=int)
+EVAL_FILTER_INDICES_TO_PLOT = numpy.array(
+    [8, 9, 12, 13, 24, 25, 28, 29, 32, 33, 38, 39], dtype=int
+)
 
 LOSS_FUNCTION_KEYS_NEIGH = [
     learning_curves.NEIGH_BRIER_SCORE_KEY, learning_curves.NEIGH_FSS_KEY,
@@ -799,6 +802,8 @@ def _run(experiment_dir_name, output_dir_name):
         output_dir_name
     )
     print('Concatenating panels to: "{0:s}"...'.format(concat_figure_file_name))
+
+    panel_file_names = panel_file_names[:-1]
 
     imagemagick_utils.concatenate_images(
         input_file_names=panel_file_names,
