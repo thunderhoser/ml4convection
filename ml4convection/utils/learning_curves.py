@@ -1549,7 +1549,7 @@ def get_advanced_scores(basic_score_table_xarray):
 
         numerators = numpy.sum(b[FOURIER_XENTROPY_NUMERATOR_KEY].values, axis=0)
         denominators = numpy.sum(b[FOURIER_XENTROPY_DENOM_KEY].values, axis=0)
-        a[FOURIER_XENTROPY_KEY].values = numerators / denominators
+        a[FOURIER_XENTROPY_KEY].values = -1 * numerators / denominators
 
         numerators = numpy.sum(b[FOURIER_FSS_ACTUAL_SSE_KEY].values, axis=0)
         denominators = numpy.sum(
@@ -1609,7 +1609,7 @@ def get_advanced_scores(basic_score_table_xarray):
 
         numerators = numpy.sum(b[WAVELET_XENTROPY_NUMERATOR_KEY].values, axis=0)
         denominators = numpy.sum(b[WAVELET_XENTROPY_DENOM_KEY].values, axis=0)
-        a[WAVELET_XENTROPY_KEY].values = numerators / denominators
+        a[WAVELET_XENTROPY_KEY].values = -1 * numerators / denominators
 
         numerators = numpy.sum(b[WAVELET_FSS_ACTUAL_SSE_KEY].values, axis=0)
         denominators = numpy.sum(
@@ -1795,4 +1795,12 @@ def read_scores(netcdf_file_name):
 
     error_checking.assert_file_exists(netcdf_file_name)
 
-    return xarray.open_dataset(netcdf_file_name)
+    score_table_xarray = xarray.open_dataset(netcdf_file_name)
+    score_table_xarray[FOURIER_XENTROPY_KEY].values = numpy.absolute(
+        score_table_xarray[FOURIER_XENTROPY_KEY].values
+    )
+    score_table_xarray[WAVELET_XENTROPY_KEY].values = numpy.absolute(
+        score_table_xarray[WAVELET_XENTROPY_KEY].values
+    )
+
+    return score_table_xarray
