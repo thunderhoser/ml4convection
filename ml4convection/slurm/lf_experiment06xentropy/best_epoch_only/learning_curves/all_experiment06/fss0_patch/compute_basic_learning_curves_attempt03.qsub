@@ -1,0 +1,44 @@
+#!/bin/tcsh
+
+#SBATCH --job-name="compute_basic_learning_curves_attempt03"
+#SBATCH --partition="fge"
+#SBATCH --account="rda-ghpcs"
+#SBATCH --qos="batch"
+#SBATCH --ntasks=1
+#SBATCH --nodes=1
+#SBATCH --cpus-per-task=1
+##SBATCH --nodes=1
+##SBATCH --ntasks=1
+##SBATCH --cpus-per-task=1
+##SBATCH --ntasks-per-node=1
+#SBATCH --time=30:00:00
+#SBATCH --array=1-12
+#SBATCH --exclude=h28n12
+##SBATCH --exclude=h31n03,h28n12
+##SBATCH --exclude=h29n01,h26n05,h28n06,h29n07,h30n03,h30n15
+#SBATCH --mail-type=BEGIN,END,FAIL
+#SBATCH --mail-user=ryan.lagerquist@noaa.gov
+#SBATCH --output=compute_basic_learning_curves_attempt03_%A_%a.out
+
+module load cuda/10.1
+source /scratch2/BMC/gsd-hpcs/Jebb.Q.Stewart/conda3.7/etc/profile.d/conda.csh
+conda activate base
+
+set CODE_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_standalone/ml4convection"
+set TOP_MODEL_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_models/lf_experiment06"
+set TOP_PREDICTOR_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_project/predictors/quality_controlled/partial_grids"
+set TOP_TARGET_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_project/targets/new_echo_classification/no_tracking/omit_north_radar/partial_grids"
+
+set VALID_DATE_STRINGS=("20170101" "20170202" "20170303" "20170404" "20170505" "20170606" "20170707" "20170808" "20170909" "20171010" "20171111" "20171212")
+set valid_date_string=${VALID_DATE_STRINGS[$SLURM_ARRAY_TASK_ID]}
+
+# set top_model_dir_name="${TOP_MODEL_DIR_NAME}/fss-neigh0/attempt06"
+set top_model_dir_name="${TOP_MODEL_DIR_NAME}/fss-neigh0/attempt03"
+
+python3 -u "${CODE_DIR_NAME}/compute_basic_learning_curves.py" \
+--input_prediction_dir_name="${top_model_dir_name}/model*/validation_best_validation_loss/partial_grids" \
+--valid_date_strings ${valid_date_string} \
+--neigh_distances_px 0 1 2 3 4 6 8 12 \
+--min_resolutions_deg 0 0.0125 0.025 0.05 0.1 0.2 0.4 0.8 0 0 0 0 0.05 0.1 0.2 0.4 \
+--max_resolutions_deg 0.0125 0.025 0.05 0.1 0.2 0.4 0.8 10000000000 0.05 0.1 0.2 0.4 10000000000 10000000000 10000000000 10000000000 \
+--output_dir_name=""
