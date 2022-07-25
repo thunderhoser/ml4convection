@@ -1,0 +1,63 @@
+#!/bin/tcsh
+
+#SBATCH --job-name="plot_neigh_eval_comparison_test"
+#SBATCH --partition="fge"
+#SBATCH --account="rda-ghpcs"
+#SBATCH --qos="batch"
+#SBATCH --ntasks=1
+#SBATCH --nodes=1
+#SBATCH --cpus-per-task=1
+##SBATCH --nodes=1
+##SBATCH --ntasks=1
+##SBATCH --cpus-per-task=1
+##SBATCH --ntasks-per-node=1
+#SBATCH --time=30:00:00
+#SBATCH --array=1-8
+#SBATCH --exclude=h28n12
+##SBATCH --exclude=h31n03,h28n12
+##SBATCH --exclude=h29n01,h26n05,h28n06,h29n07,h30n03,h30n15
+#SBATCH --mail-type=BEGIN,END,FAIL
+#SBATCH --mail-user=ryan.lagerquist@noaa.gov
+#SBATCH --output=plot_neigh_eval_comparison_test_%A_%a.out
+
+module load cuda/10.1
+source /scratch2/BMC/gsd-hpcs/Jebb.Q.Stewart/conda3.7/etc/profile.d/conda.csh
+conda activate base
+
+set CODE_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_standalone/ml4convection"
+set TOP_MODEL_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_models/lf_experiment_2hours"
+set TOP_OUTPUT_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_project/loss_function_paper/experiment_2hours/detailed_neigh_eval/sans_filtering/comparison"
+
+set SCORE_NAMES=("fss" "fss" "fss" "fss" "brier" "xentropy")
+set FILTER_NAMES=("-neigh0" "-neigh4" "-neigh6" "-neigh12" "-neigh2" "-neigh6")
+set MODEL_DESCRIPTION_STRINGS=("pixelwise_FSS" "9-by-9_FSS" "13-by-13_FSS" "25-by-25_FSS" "5-by-5_Brier" "13-by-13_X-ent")
+
+set MATCHING_DISTANCES_PX=(0 1 2 3 4)
+set matching_distance_px=${MATCHING_DISTANCES_PX[$SLURM_ARRAY_TASK_ID]}
+set matching_distance_string=`printf "%.6f" ${matching_distance_px}`
+
+set input_file_names_string=""
+set prediction_dir_names_string=""
+set model_descriptions_string=""
+set i=1
+
+while ($i <= ${#SCORE_NAMES})
+    set these_prediction_dir_names={${TOP_MODEL_DIR_NAME}/${SCORE_NAMES[$i]}${FILTER_NAMES[$i]}/model*/validation_best_validation_loss}
+    set this_prediction_dir_name=${these_prediction_dir_names[$#these_prediction_dir_names]}
+    set this_input_file_name="${this_prediction_dir_name}/full_grids/evaluation_sans_filtering/matching_distance_px=${matching_distance_string}/advanced_scores_gridded=0.p"
+
+    set input_file_names_string="${input_file_names_string} ${this_input_file_name}"
+    set prediction_dir_names_string="${prediction_dir_names_string} ${this_prediction_dir_name}/full_grids"
+    set model_descriptions_string="${model_descriptions_string} ${MODEL_DESCRIPTION_STRINGS[$i]}"
+    
+    @ i = $i + 1
+end
+
+set output_dir_name="${TOP_OUTPUT_DIR_NAME}/matching_distance_px=${matching_distance_string}"
+
+python3 -u "${CODE_DIR_NAME}/plot_neigh_eval_comparison.py" \
+--input_advanced_score_file_names ${input_file_names_string} \
+--model_description_strings ${model_descriptions_string} \
+--num_panel_rows=2 \
+--confidence_level=0.95 \
+--output_dir_name="${output_dir_name}"
