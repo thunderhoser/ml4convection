@@ -61,7 +61,4 @@ python3 -u "${CODE_DIR_NAME}/plot_neigh_eval_comparison.py" \
 --model_description_strings ${model_descriptions_string} \
 --num_panel_rows=2 \
 --confidence_level=0.95 \
---input_prediction_dir_names ${prediction_dir_names_string} \
---first_date_string="20170601" \
---last_date_string="20170731" \
 --output_dir_name="${output_dir_name}/test"
