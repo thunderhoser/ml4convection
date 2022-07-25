@@ -1,0 +1,53 @@
+#!/bin/tcsh
+
+#SBATCH --job-name="compute_advanced_ungridded_scores"
+#SBATCH --partition="fge"
+#SBATCH --account="rda-ghpcs"
+#SBATCH --qos="batch"
+#SBATCH --ntasks=1
+#SBATCH --nodes=1
+#SBATCH --cpus-per-task=1
+##SBATCH --nodes=1
+##SBATCH --ntasks=1
+##SBATCH --cpus-per-task=1
+##SBATCH --ntasks-per-node=1
+#SBATCH --time=30:00:00
+#SBATCH --array=1-30
+#SBATCH --exclude=h28n12
+##SBATCH --exclude=h31n03,h28n12
+##SBATCH --exclude=h29n01,h26n05,h28n06,h29n07,h30n03,h30n15
+#SBATCH --mail-type=BEGIN,END,FAIL
+#SBATCH --mail-user=ryan.lagerquist@noaa.gov
+#SBATCH --output=compute_advanced_ungridded_scores_%A_%a.out
+
+module load cuda/10.1
+source /scratch2/BMC/gsd-hpcs/Jebb.Q.Stewart/conda3.7/etc/profile.d/conda.csh
+conda activate base
+
+set CODE_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_standalone/ml4convection"
+set TOP_TARGET_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_project/targets/new_echo_classification/no_tracking/omit_north_radar/full_grids"
+set TOP_MODEL_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_models/lf_experiment_2hours"
+
+set FIRST_VALIDN_DATE_STRING="20170101"
+set LAST_VALIDN_DATE_STRING="20171224"
+
+set MATCHING_DISTANCES_PX=(0 1 2 3 4 0 1 2 3 4 0 1 2 3 4 0 1 2 3 4 0 1 2 3 4 0 1 2 3 4)
+set LOSS_FUNCTION_NAMES=("fss-neigh0" "fss-neigh0" "fss-neigh0" "fss-neigh0" "fss-neigh0" "fss-neigh4" "fss-neigh4" "fss-neigh4" "fss-neigh4" "fss-neigh4" "fss-neigh6" "fss-neigh6" "fss-neigh6" "fss-neigh6" "fss-neigh6" "fss-neigh12" "fss-neigh12" "fss-neigh12" "fss-neigh12" "fss-neigh12" "brier-neigh2" "brier-neigh2" "brier-neigh2" "brier-neigh2" "brier-neigh2" "xentropy-neigh6" "xentropy-neigh6" "xentropy-neigh6" "xentropy-neigh6" "xentropy-neigh6")
+
+set matching_distance_px=${MATCHING_DISTANCES_PX[$SLURM_ARRAY_TASK_ID]}
+set matching_distance_string=`printf "%.6f" ${matching_distance_px}`
+set loss_function_name=${LOSS_FUNCTION_NAMES[$SLURM_ARRAY_TASK_ID]}
+
+set top_model_dir_name="${TOP_MODEL_DIR_NAME}/${loss_function_name}"
+set prediction_dir_names={${top_model_dir_name}/model*/validation_best_validation_loss/full_grids}
+set prediction_dir_name=${prediction_dir_names[$#prediction_dir_names]}
+set evaluation_dir_name="${prediction_dir_name}/evaluation_sans_filtering/matching_distance_px=${matching_distance_string}"
+
+python3 -u "${CODE_DIR_NAME}/compute_advanced_scores_ungridded.py" \
+--input_basic_score_dir_name="${evaluation_dir_name}" \
+--first_date_string="${FIRST_VALIDN_DATE_STRING}" \
+--last_date_string="${LAST_VALIDN_DATE_STRING}" \
+--num_bootstrap_reps=1000 \
+--use_partial_grids=0 \
+--input_climo_file_name="${TOP_TARGET_DIR_NAME}/climo_dilation-distance-px=${matching_distance_string}.p" \
+--output_dir_name="${evaluation_dir_name}"
