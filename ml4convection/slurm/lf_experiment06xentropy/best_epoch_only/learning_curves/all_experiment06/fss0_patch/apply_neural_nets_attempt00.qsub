@@ -1,0 +1,45 @@
+#!/bin/tcsh
+
+#SBATCH --job-name="apply_neural_nets_attempt00"
+#SBATCH --partition="fge"
+#SBATCH --account="rda-ghpcs"
+#SBATCH --qos="batch"
+#SBATCH --ntasks=1
+#SBATCH --nodes=1
+#SBATCH --cpus-per-task=1
+##SBATCH --nodes=1
+##SBATCH --ntasks=1
+##SBATCH --cpus-per-task=1
+##SBATCH --ntasks-per-node=1
+#SBATCH --time=30:00:00
+#SBATCH --array=1-12
+#SBATCH --exclude=h28n12
+##SBATCH --exclude=h31n03,h28n12
+##SBATCH --exclude=h29n01,h26n05,h28n06,h29n07,h30n03,h30n15
+#SBATCH --mail-type=BEGIN,END,FAIL
+#SBATCH --mail-user=ryan.lagerquist@noaa.gov
+#SBATCH --output=apply_neural_nets_attempt00_%A_%a.out
+
+module load cuda/10.1
+source /scratch2/BMC/gsd-hpcs/Jebb.Q.Stewart/conda3.7/etc/profile.d/conda.csh
+conda activate base
+
+set CODE_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_standalone/ml4convection"
+set TOP_MODEL_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_models/lf_experiment06"
+set TOP_PREDICTOR_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_project/predictors/quality_controlled/partial_grids"
+set TOP_TARGET_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_project/targets/new_echo_classification/no_tracking/omit_north_radar/partial_grids"
+
+set VALID_DATE_STRINGS=("20170101" "20170202" "20170303" "20170404" "20170505" "20170606" "20170707" "20170808" "20170909" "20171010" "20171111" "20171212")
+set valid_date_string=${VALID_DATE_STRINGS[$SLURM_ARRAY_TASK_ID]}
+
+set top_model_dir_name="${TOP_MODEL_DIR_NAME}/fss-neigh0/attempt00"
+set j=1
+
+python3 -u "${CODE_DIR_NAME}/apply_neural_net.py" \
+--input_model_file_name="${top_model_dir_name}/model*.h5" \
+--input_predictor_dir_name="${TOP_PREDICTOR_DIR_NAME}" \
+--input_target_dir_name="${TOP_TARGET_DIR_NAME}" \
+--apply_to_full_grids=0 \
+--first_valid_date_string="${valid_date_string}" \
+--last_valid_date_string="${valid_date_string}" \
+--output_dir_name="validation_best_validation_loss/partial_grids"
