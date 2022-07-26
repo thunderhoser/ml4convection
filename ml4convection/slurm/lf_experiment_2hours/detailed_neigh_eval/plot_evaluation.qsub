@@ -31,7 +31,7 @@ set FIRST_VALIDN_DATE_STRING="20170101"
 set LAST_VALIDN_DATE_STRING="20171224"
 
 set MATCHING_DISTANCES_PX=(0 1 2 3 4 0 1 2 3 4 0 1 2 3 4 0 1 2 3 4 0 1 2 3 4 0 1 2 3 4)
-set LOSS_FUNCTION_NAMES=("fss-neigh0" "fss-neigh0" "fss-neigh0" "fss-neigh0" "fss-neigh0" "fss-neigh4" "fss-neigh4" "fss-neigh4" "fss-neigh4" "fss-neigh4" "fss-neigh6" "fss-neigh6" "fss-neigh6" "fss-neigh6" "fss-neigh6" "fss-neigh12" "fss-neigh12" "fss-neigh12" "fss-neigh12" "fss-neigh12" "brier-neigh2" "brier-neigh2" "brier-neigh2" "brier-neigh2" "brier-neigh2" "xentropy-neigh6" "xentropy-neigh6" "xentropy-neigh6" "xentropy-neigh6" "xentropy-neigh6")
+set LOSS_FUNCTION_NAMES=("fss-neigh0" "fss-neigh0" "fss-neigh0" "fss-neigh0" "fss-neigh0" "fss-neigh4" "fss-neigh4" "fss-neigh4" "fss-neigh4" "fss-neigh4" "fss-neigh6" "fss-neigh6" "fss-neigh6" "fss-neigh6" "fss-neigh6" "fss-neigh2" "fss-neigh2" "fss-neigh2" "fss-neigh2" "fss-neigh2" "fss_wavelets0_min-resolution-deg=0.0000_max-resolution-deg=0.4000" "fss_wavelets0_min-resolution-deg=0.0000_max-resolution-deg=0.4000" "fss_wavelets0_min-resolution-deg=0.0000_max-resolution-deg=0.4000" "fss_wavelets0_min-resolution-deg=0.0000_max-resolution-deg=0.4000" "fss_wavelets0_min-resolution-deg=0.0000_max-resolution-deg=0.4000" "xentropy-neigh2" "xentropy-neigh2" "xentropy-neigh2" "xentropy-neigh2" "xentropy-neigh2")
 
 set matching_distance_px=${MATCHING_DISTANCES_PX[$SLURM_ARRAY_TASK_ID]}
 set matching_distance_string=`printf "%.6f" ${matching_distance_px}`
