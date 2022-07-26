@@ -38,9 +38,9 @@ set time_of_day_string=${TIME_OF_DAY_STRINGS[$SLURM_ARRAY_TASK_ID]}
 set panel_letters_string=${PANEL_LETTERS_STRINGS[$SLURM_ARRAY_TASK_ID]}
 set panel_letters_string="$panel_letters_string:gas/_/ /"
 
-set SCORE_NAMES=("fss" "fss" "fss" "fss" "brier" "xentropy")
-set FILTER_NAMES=("-neigh0" "-neigh4" "-neigh6" "-neigh12" "-neigh2" "-neigh6")
-set MODEL_DESCRIPTION_STRINGS=("pixelwise_FSS" "9-by-9_FSS" "13-by-13_FSS" "25-by-25_FSS" "5-by-5_Brier" "13-by-13_Xent")
+set SCORE_NAMES=("fss" "fss" "fss" "fss" "fss" "xentropy")
+set FILTER_NAMES=("-neigh0" "-neigh2" "-neigh4" "-neigh6" "_wavelets0_min-resolution-deg=0.0000_max-resolution-deg=0.4000" "-neigh2")
+set MODEL_DESCRIPTION_STRINGS=("pixelwise_FSS" "5-by-5_FSS" "9-by-9_FSS" "13-by-13_FSS" "F0-0.8deg_FSS" "5-by-5_X-ent")
 
 set prediction_dir_names_string=""
 set model_descriptions_string=""
