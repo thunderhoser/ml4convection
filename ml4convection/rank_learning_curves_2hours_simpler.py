@@ -161,10 +161,10 @@ NEGATIVELY_ORIENTED_FLAGS = numpy.array(
 )
 
 NUM_MODEL_LOSS_FUNCTIONS = 3
-# EVAL_FILTER_INDICES_TO_PLOT = numpy.linspace(0, 39, num=40, dtype=int)
-EVAL_FILTER_INDICES_TO_PLOT = numpy.array(
-    [8, 9, 12, 13, 24, 25, 28, 29, 32, 33, 38, 39], dtype=int
-)
+EVAL_FILTER_INDICES_TO_PLOT = numpy.linspace(0, 39, num=40, dtype=int)
+# EVAL_FILTER_INDICES_TO_PLOT = numpy.array(
+#     [8, 9, 12, 13, 24, 25, 28, 29, 32, 33, 38, 39], dtype=int
+# )
 
 LOSS_FUNCTION_KEYS_NEIGH = [
     learning_curves.NEIGH_BRIER_SCORE_KEY, learning_curves.NEIGH_FSS_KEY,
