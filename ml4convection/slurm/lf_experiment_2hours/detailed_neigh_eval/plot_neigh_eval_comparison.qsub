@@ -28,9 +28,9 @@ set CODE_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_stan
 set TOP_MODEL_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_models/lf_experiment_2hours"
 set TOP_OUTPUT_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_project/loss_function_paper/experiment_2hours/detailed_neigh_eval/sans_filtering/comparison"
 
-set SCORE_NAMES=("fss" "fss" "fss" "fss" "brier" "xentropy")
-set FILTER_NAMES=("-neigh0" "-neigh4" "-neigh6" "-neigh12" "-neigh2" "-neigh6")
-set MODEL_DESCRIPTION_STRINGS=("pixelwise_FSS" "9-by-9_FSS" "13-by-13_FSS" "25-by-25_FSS" "5-by-5_Brier" "13-by-13_X-ent")
+set SCORE_NAMES=("fss" "fss" "fss" "fss" "fss" "xentropy")
+set FILTER_NAMES=("-neigh0" "-neigh2" "-neigh4" "-neigh6" "_wavelets0_min-resolution-deg=0.0000_max-resolution-deg=0.4000" "-neigh2")
+set MODEL_DESCRIPTION_STRINGS=("pixelwise_FSS" "5-by-5_FSS" "9-by-9_FSS" "13-by-13_FSS" "F0-0.8deg_FSS" "5-by-5_X-ent")
 
 set MATCHING_DISTANCES_PX=(0 1 2 3 4)
 set matching_distance_px=${MATCHING_DISTANCES_PX[$SLURM_ARRAY_TASK_ID]}
