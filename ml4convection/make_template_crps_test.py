@@ -84,7 +84,7 @@ def _run():
 
     model_object = u_net_architecture.create_crps_model(
         option_dict=option_dict, crps_loss_function=loss_function,
-        mask_matrix=partial_mask_matrix, num_estimates=100
+        mask_matrix=partial_mask_matrix, num_estimates=25
     )
 
     model_file_name = '{0:s}/model.h5'.format(OUTPUT_DIR_NAME)
