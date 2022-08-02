@@ -117,6 +117,7 @@ VALID_DATE_KEY = 'valid_date_string'
 
 USE_PARTIAL_GRIDS_KEY = 'use_partial_grids'
 NUM_EPOCHS_KEY = 'num_epochs'
+USE_CRPS_LOSS_KEY = 'use_crps_loss'
 NUM_TRAINING_BATCHES_KEY = 'num_training_batches_per_epoch'
 TRAINING_OPTIONS_KEY = 'training_option_dict'
 NUM_VALIDATION_BATCHES_KEY = 'num_validation_batches_per_epoch'
@@ -131,8 +132,9 @@ MASK_MATRIX_KEY = 'mask_matrix'
 FULL_MASK_MATRIX_KEY = 'full_mask_matrix'
 
 METADATA_KEYS = [
-    USE_PARTIAL_GRIDS_KEY, NUM_EPOCHS_KEY, NUM_TRAINING_BATCHES_KEY,
-    TRAINING_OPTIONS_KEY, NUM_VALIDATION_BATCHES_KEY, VALIDATION_OPTIONS_KEY,
+    USE_PARTIAL_GRIDS_KEY, NUM_EPOCHS_KEY, USE_CRPS_LOSS_KEY,
+    NUM_TRAINING_BATCHES_KEY, TRAINING_OPTIONS_KEY,
+    NUM_VALIDATION_BATCHES_KEY, VALIDATION_OPTIONS_KEY,
     EARLY_STOPPING_KEY, PLATEAU_LR_MUTIPLIER_KEY, LOSS_FUNCTION_KEY,
     QUANTILE_LEVELS_KEY, QFSS_HALF_WINDOW_SIZE_KEY, METRIC_NAMES_KEY,
     MASK_MATRIX_KEY, FULL_MASK_MATRIX_KEY
@@ -636,7 +638,7 @@ def _read_inputs_one_day(
 
 
 def _write_metafile(
-        dill_file_name, use_partial_grids, num_epochs,
+        dill_file_name, use_partial_grids, num_epochs, use_crps_loss,
         num_training_batches_per_epoch,
         training_option_dict, num_validation_batches_per_epoch,
         validation_option_dict, do_early_stopping, plateau_lr_multiplier,
@@ -650,6 +652,7 @@ def _write_metafile(
     :param dill_file_name: Path to output file.
     :param use_partial_grids: See doc for `train_model`.
     :param num_epochs: Same.
+    :param use_crps_loss: Same.
     :param num_training_batches_per_epoch: Same.
     :param training_option_dict: Same.
     :param num_validation_batches_per_epoch: Same.
@@ -664,11 +667,10 @@ def _write_metafile(
     :param full_mask_matrix: Same.
     """
 
-    # QFSS_HALF_WINDOW_SIZE_KEY = 'qfss_half_window_size_px'
-
     metadata_dict = {
         USE_PARTIAL_GRIDS_KEY: use_partial_grids,
         NUM_EPOCHS_KEY: num_epochs,
+        USE_CRPS_LOSS_KEY: use_crps_loss,
         NUM_TRAINING_BATCHES_KEY: num_training_batches_per_epoch,
         TRAINING_OPTIONS_KEY: training_option_dict,
         NUM_VALIDATION_BATCHES_KEY: num_validation_batches_per_epoch,
@@ -2191,7 +2193,8 @@ def generator_partial_grids(option_dict):
 
 
 def train_model(
-        model_object, output_dir_name, num_epochs, use_partial_grids,
+        model_object, output_dir_name, num_epochs, use_crps_loss,
+        use_partial_grids,
         num_training_batches_per_epoch, training_option_dict,
         num_validation_batches_per_epoch, validation_option_dict,
         mask_matrix, full_mask_matrix, loss_function_name, metric_names,
@@ -2211,6 +2214,7 @@ def train_model(
     :param output_dir_name: Path to output directory (model and training history
         will be saved here).
     :param num_epochs: Number of training epochs.
+    :param use_crps_loss: Boolean flag.  If True, using CRPS as a loss function.
     :param use_partial_grids: Boolean flag.  If True (False), neural net will be
         trained on full (partial) grids.
     :param num_training_batches_per_epoch: Number of training batches per epoch.
@@ -2258,6 +2262,7 @@ def train_model(
     error_checking.assert_is_integer(num_epochs)
     error_checking.assert_is_geq(num_epochs, 2)
     error_checking.assert_is_boolean(use_partial_grids)
+    error_checking.assert_is_boolean(use_crps_loss)
     error_checking.assert_is_integer(num_training_batches_per_epoch)
     error_checking.assert_is_geq(num_training_batches_per_epoch, 2)
     error_checking.assert_is_integer(num_validation_batches_per_epoch)
@@ -2362,6 +2367,7 @@ def train_model(
     _write_metafile(
         dill_file_name=metafile_name,
         use_partial_grids=use_partial_grids, num_epochs=num_epochs,
+        use_crps_loss=use_crps_loss,
         num_training_batches_per_epoch=num_training_batches_per_epoch,
         training_option_dict=training_option_dict,
         num_validation_batches_per_epoch=num_validation_batches_per_epoch,
@@ -2414,6 +2420,7 @@ def read_model(hdf5_file_name, for_mirrored_training=False):
     metadata_dict = read_metafile(metafile_name)
     mask_matrix = metadata_dict[MASK_MATRIX_KEY]
     loss_function_name = metadata_dict[LOSS_FUNCTION_KEY]
+    use_crps_loss = metadata_dict[USE_CRPS_LOSS_KEY]
     quantile_levels = metadata_dict[QUANTILE_LEVELS_KEY]
     qfss_half_window_size_px = metadata_dict[QFSS_HALF_WINDOW_SIZE_KEY]
     metric_names = metadata_dict[METRIC_NAMES_KEY]
@@ -2425,6 +2432,34 @@ def read_model(hdf5_file_name, for_mirrored_training=False):
             metric_names=metric_names, mask_matrix=mask_matrix,
             use_as_loss_function=False
         )
+
+    if use_crps_loss:
+        custom_object_dict = {
+            'loss': custom_losses.crps()
+        }
+        model_object = tf_keras.models.load_model(
+            hdf5_file_name, custom_objects=custom_object_dict, compile=False
+        )
+
+        if for_mirrored_training:
+            strategy_object = tensorflow.distribute.MirroredStrategy()
+
+            with strategy_object.scope():
+                model_object = keras.models.Model.from_config(
+                    model_object.get_config()
+                )
+
+                model_object.compile(
+                    loss=custom_object_dict['loss'],
+                    optimizer=keras.optimizers.Adam()
+                )
+        else:
+            model_object.compile(
+                loss=custom_object_dict['loss'],
+                optimizer=keras.optimizers.Adam()
+            )
+
+        return model_object
 
     loss_function = get_metrics(
         metric_names=[loss_function_name], mask_matrix=mask_matrix,
@@ -2519,6 +2554,7 @@ def read_metafile(dill_file_name):
     :return: metadata_dict: Dictionary with the following keys.
     metadata_dict['use_partial_grids']: See doc for `train_model`.
     metadata_dict['num_epochs']: Same.
+    metadata_dict['use_crps_loss']: Same.
     metadata_dict['num_training_batches_per_epoch']: Same.
     metadata_dict['training_option_dict']: Same.
     metadata_dict['num_validation_batches_per_epoch']: Same.
@@ -2553,6 +2589,8 @@ def read_metafile(dill_file_name):
         metadata_dict[QUANTILE_LEVELS_KEY] = None
     if QFSS_HALF_WINDOW_SIZE_KEY not in metadata_dict:
         metadata_dict[QFSS_HALF_WINDOW_SIZE_KEY] = None
+    if USE_CRPS_LOSS_KEY not in metadata_dict:
+        metadata_dict[USE_CRPS_LOSS_KEY] = False
 
     num_grid_points = (
         len(twb_satellite_io.GRID_LATITUDES_DEG_N) *

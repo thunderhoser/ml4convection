@@ -229,9 +229,6 @@ def create_quantile_regression_model(
         option_dict, central_loss_function, mask_matrix, quantile_levels):
     """Creates U-net for quantile regression.
 
-    M = number of rows in grid
-    N = number of columns in grid
-
     :param option_dict: See doc for `create_model`.
     :param central_loss_function: Loss function for central prediction.
     :param mask_matrix: See doc for `create_model`.
@@ -548,9 +545,6 @@ def create_qr_model_fancy(
     """Creates 'fancy' U-net for quantile regression.
 
     The 'fancy' U-net completely prevents quantile-crossing.
-
-    M = number of rows in grid
-    N = number of columns in grid
 
     :param option_dict: See doc for `create_model`.
     :param central_loss_function: Loss function for central prediction.
@@ -1221,6 +1215,285 @@ def create_model(option_dict, loss_function, mask_matrix, metric_names):
     model_object.compile(
         loss=loss_function, optimizer=keras.optimizers.Adam(),
         metrics=metric_function_list
+    )
+
+    model_object.summary()
+    return model_object
+
+
+def create_crps_model(option_dict, mask_matrix, num_estimates):
+    """Creates U-net with CRPS loss function.
+
+    :param option_dict: See doc for `create_model`.
+    :param mask_matrix: Same.
+    :param num_estimates: Number of estimates in ensemble.
+    :return: model_object: Instance of `keras.models.Model`.
+    """
+
+    option_dict = _check_architecture_args(option_dict)
+
+    error_checking.assert_is_integer(num_estimates)
+    error_checking.assert_is_greater(num_estimates, 1)
+
+    input_dimensions = option_dict[INPUT_DIMENSIONS_KEY]
+    num_levels = option_dict[NUM_LEVELS_KEY]
+    num_conv_layers_by_level = option_dict[CONV_LAYER_COUNTS_KEY]
+    num_output_channels_by_level = option_dict[OUTPUT_CHANNEL_COUNTS_KEY]
+    conv_dropout_rates_by_level = option_dict[CONV_DROPOUT_RATES_KEY]
+    upconv_dropout_rate_by_level = option_dict[UPCONV_DROPOUT_RATES_KEY]
+    skip_dropout_rates_by_level = option_dict[SKIP_DROPOUT_RATES_KEY]
+    output_layer_dropout_rate = option_dict[OUTPUT_DROPOUT_RATE_KEY]
+    inner_activ_function_name = option_dict[INNER_ACTIV_FUNCTION_KEY]
+    inner_activ_function_alpha = option_dict[INNER_ACTIV_FUNCTION_ALPHA_KEY]
+    output_activ_function_name = option_dict[OUTPUT_ACTIV_FUNCTION_KEY]
+    output_activ_function_alpha = option_dict[OUTPUT_ACTIV_FUNCTION_ALPHA_KEY]
+    l1_weight = option_dict[L1_WEIGHT_KEY]
+    l2_weight = option_dict[L2_WEIGHT_KEY]
+    use_batch_normalization = option_dict[USE_BATCH_NORM_KEY]
+    use_coord_conv = option_dict[USE_COORD_CONV_KEY]
+
+    input_layer_object = keras.layers.Input(
+        shape=tuple(input_dimensions.tolist())
+    )
+    regularizer_object = architecture_utils.get_weight_regularizer(
+        l1_weight=l1_weight, l2_weight=l2_weight
+    )
+
+    conv_layer_by_level = [None] * (num_levels + 1)
+    pooling_layer_by_level = [None] * num_levels
+
+    for i in range(num_levels + 1):
+        for j in range(num_conv_layers_by_level[i]):
+            if j == 0:
+                if i == 0:
+                    this_input_layer_object = input_layer_object
+                else:
+                    this_input_layer_object = pooling_layer_by_level[i - 1]
+            else:
+                this_input_layer_object = conv_layer_by_level[i]
+
+            if use_coord_conv:
+                this_input_layer_object = coord_conv.add_spatial_coords_2d(
+                    this_input_layer_object
+                )
+
+            conv_layer_by_level[i] = architecture_utils.get_2d_conv_layer(
+                num_kernel_rows=3, num_kernel_columns=3,
+                num_rows_per_stride=1, num_columns_per_stride=1,
+                num_filters=num_output_channels_by_level[i],
+                padding_type_string=architecture_utils.YES_PADDING_STRING,
+                weight_regularizer=regularizer_object
+            )(this_input_layer_object)
+
+            conv_layer_by_level[i] = architecture_utils.get_activation_layer(
+                activation_function_string=inner_activ_function_name,
+                alpha_for_relu=inner_activ_function_alpha,
+                alpha_for_elu=inner_activ_function_alpha
+            )(conv_layer_by_level[i])
+
+            if conv_dropout_rates_by_level[i][j] > 0:
+                conv_layer_by_level[i] = architecture_utils.get_dropout_layer(
+                    dropout_fraction=conv_dropout_rates_by_level[i][j]
+                )(conv_layer_by_level[i])
+
+            if use_batch_normalization:
+                conv_layer_by_level[i] = (
+                    architecture_utils.get_batch_norm_layer()(
+                        conv_layer_by_level[i]
+                    )
+                )
+
+        if i == num_levels:
+            break
+
+        pooling_layer_by_level[i] = architecture_utils.get_2d_pooling_layer(
+            num_rows_in_window=2, num_columns_in_window=2,
+            num_rows_per_stride=2, num_columns_per_stride=2,
+            pooling_type_string=architecture_utils.MAX_POOLING_STRING
+        )(conv_layer_by_level[i])
+
+    upconv_layer_by_level = [None] * num_levels
+    skip_layer_by_level = [None] * num_levels
+    merged_layer_by_level = [None] * num_levels
+
+    try:
+        this_layer_object = keras.layers.UpSampling2D(
+            size=(2, 2), interpolation='bilinear'
+        )(conv_layer_by_level[num_levels])
+    except:
+        this_layer_object = keras.layers.UpSampling2D(
+            size=(2, 2)
+        )(conv_layer_by_level[num_levels])
+
+    if use_coord_conv:
+        this_layer_object = coord_conv.add_spatial_coords_2d(this_layer_object)
+
+    i = num_levels - 1
+    upconv_layer_by_level[i] = architecture_utils.get_2d_conv_layer(
+        num_kernel_rows=2, num_kernel_columns=2,
+        num_rows_per_stride=1, num_columns_per_stride=1,
+        num_filters=num_output_channels_by_level[i],
+        padding_type_string=architecture_utils.YES_PADDING_STRING,
+        weight_regularizer=regularizer_object
+    )(this_layer_object)
+
+    if upconv_dropout_rate_by_level[i] > 0:
+        upconv_layer_by_level[i] = architecture_utils.get_dropout_layer(
+            dropout_fraction=upconv_dropout_rate_by_level[i]
+        )(upconv_layer_by_level[i])
+
+    num_upconv_rows = upconv_layer_by_level[i].get_shape()[1]
+    num_desired_rows = conv_layer_by_level[i].get_shape()[1]
+    num_padding_rows = num_desired_rows - num_upconv_rows
+
+    num_upconv_columns = upconv_layer_by_level[i].get_shape()[2]
+    num_desired_columns = conv_layer_by_level[i].get_shape()[2]
+    num_padding_columns = num_desired_columns - num_upconv_columns
+
+    if num_padding_rows + num_padding_columns > 0:
+        padding_arg = ((0, num_padding_rows), (0, num_padding_columns))
+
+        upconv_layer_by_level[i] = keras.layers.ZeroPadding2D(
+            padding=padding_arg
+        )(upconv_layer_by_level[i])
+
+    merged_layer_by_level[i] = keras.layers.Concatenate(axis=-1)(
+        [conv_layer_by_level[i], upconv_layer_by_level[i]]
+    )
+
+    level_indices = numpy.linspace(
+        0, num_levels - 1, num=num_levels, dtype=int
+    )[::-1]
+
+    for i in level_indices:
+        for j in range(num_conv_layers_by_level[i]):
+            if j == 0:
+                this_input_layer_object = merged_layer_by_level[i]
+            else:
+                this_input_layer_object = skip_layer_by_level[i]
+
+            if use_coord_conv:
+                this_input_layer_object = coord_conv.add_spatial_coords_2d(
+                    this_input_layer_object
+                )
+
+            skip_layer_by_level[i] = architecture_utils.get_2d_conv_layer(
+                num_kernel_rows=3, num_kernel_columns=3,
+                num_rows_per_stride=1, num_columns_per_stride=1,
+                num_filters=num_output_channels_by_level[i],
+                padding_type_string=architecture_utils.YES_PADDING_STRING,
+                weight_regularizer=regularizer_object
+            )(this_input_layer_object)
+
+            skip_layer_by_level[i] = architecture_utils.get_activation_layer(
+                activation_function_string=inner_activ_function_name,
+                alpha_for_relu=inner_activ_function_alpha,
+                alpha_for_elu=inner_activ_function_alpha
+            )(skip_layer_by_level[i])
+
+            this_dropout_rate = skip_dropout_rates_by_level[i][j]
+
+            if this_dropout_rate > 0:
+                skip_layer_by_level[i] = architecture_utils.get_dropout_layer(
+                    dropout_fraction=this_dropout_rate
+                )(skip_layer_by_level[i])
+
+            if use_batch_normalization:
+                skip_layer_by_level[i] = (
+                    architecture_utils.get_batch_norm_layer()(
+                        skip_layer_by_level[i]
+                    )
+                )
+
+        # TODO(thunderhoser): Is this right?
+        if i == 0:
+            break
+
+        try:
+            this_layer_object = keras.layers.UpSampling2D(
+                size=(2, 2), interpolation='bilinear'
+            )(skip_layer_by_level[i])
+        except:
+            this_layer_object = keras.layers.UpSampling2D(
+                size=(2, 2)
+            )(skip_layer_by_level[i])
+
+        if use_coord_conv:
+            this_layer_object = coord_conv.add_spatial_coords_2d(
+                this_layer_object
+            )
+
+        upconv_layer_by_level[i - 1] = architecture_utils.get_2d_conv_layer(
+            num_kernel_rows=2, num_kernel_columns=2,
+            num_rows_per_stride=1, num_columns_per_stride=1,
+            num_filters=num_output_channels_by_level[i - 1],
+            padding_type_string=architecture_utils.YES_PADDING_STRING,
+            weight_regularizer=regularizer_object
+        )(this_layer_object)
+
+        if upconv_dropout_rate_by_level[i - 1] > 0:
+            upconv_layer_by_level[i - 1] = architecture_utils.get_dropout_layer(
+                dropout_fraction=upconv_dropout_rate_by_level[i - 1]
+            )(upconv_layer_by_level[i - 1])
+
+        num_upconv_rows = upconv_layer_by_level[i - 1].get_shape()[1]
+        num_desired_rows = conv_layer_by_level[i - 1].get_shape()[1]
+        num_padding_rows = num_desired_rows - num_upconv_rows
+
+        num_upconv_columns = upconv_layer_by_level[i - 1].get_shape()[2]
+        num_desired_columns = conv_layer_by_level[i - 1].get_shape()[2]
+        num_padding_columns = num_desired_columns - num_upconv_columns
+
+        if num_padding_rows + num_padding_columns > 0:
+            padding_arg = ((0, num_padding_rows), (0, num_padding_columns))
+
+            upconv_layer_by_level[i - 1] = keras.layers.ZeroPadding2D(
+                padding=padding_arg
+            )(upconv_layer_by_level[i - 1])
+
+        merged_layer_by_level[i - 1] = keras.layers.Concatenate(axis=-1)(
+            [conv_layer_by_level[i - 1], upconv_layer_by_level[i - 1]]
+        )
+
+    if use_coord_conv:
+        skip_layer_by_level[0] = coord_conv.add_spatial_coords_2d(
+            skip_layer_by_level[0]
+        )
+
+    skip_layer_by_level[0] = architecture_utils.get_2d_conv_layer(
+        num_kernel_rows=1, num_kernel_columns=1,
+        num_rows_per_stride=1, num_columns_per_stride=1,
+        num_filters=num_estimates,
+        padding_type_string=architecture_utils.YES_PADDING_STRING,
+        weight_regularizer=regularizer_object
+    )(skip_layer_by_level[0])
+
+    skip_layer_by_level[0] = architecture_utils.get_activation_layer(
+        activation_function_string=output_activ_function_name,
+        alpha_for_relu=output_activ_function_alpha,
+        alpha_for_elu=output_activ_function_alpha
+    )(skip_layer_by_level[0])
+
+    if output_layer_dropout_rate > 0:
+        skip_layer_by_level[0] = architecture_utils.get_dropout_layer(
+            dropout_fraction=output_layer_dropout_rate
+        )(skip_layer_by_level[0])
+
+    if mask_matrix is not None:
+        this_matrix = numpy.expand_dims(
+            mask_matrix.astype(float), axis=(0, -1)
+        )
+        # this_matrix = numpy.repeat(this_matrix, repeats=num_estimates, axis=-1)
+        skip_layer_by_level[0] = keras.layers.Multiply()([
+            this_matrix, skip_layer_by_level[0]
+        ])
+
+    model_object = keras.models.Model(
+        inputs=input_layer_object, outputs=skip_layer_by_level[0]
+    )
+
+    model_object.compile(
+        loss=custom_losses.crps(), optimizer=keras.optimizers.Adam()
     )
 
     model_object.summary()
