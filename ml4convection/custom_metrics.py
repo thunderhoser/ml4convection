@@ -671,10 +671,7 @@ def crps(half_window_size_px, mask_matrix, function_name=None, test_mode=False):
         smoothed_prediction_tensor = prediction_tensor * eroded_mask_matrix
 
         mean_prediction_error_tensor = K.mean(
-            K.abs(
-                smoothed_prediction_tensor -
-                K.expand_dims(smoothed_target_tensor, axis=-1)
-            ),
+            K.abs(smoothed_prediction_tensor - smoothed_target_tensor),
             axis=-1
         )
 
