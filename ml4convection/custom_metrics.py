@@ -652,20 +652,23 @@ def crps(half_window_size_px, mask_matrix, function_name=None, test_mode=False):
         :return: crps_value: CRPS value.
         """
 
-        smoothed_target_tensor = K.conv2d(
-            x=target_tensor, kernel=weight_matrix_for_targets,
-            padding='same', strides=(1, 1), data_format='channels_last'
-        )
+        # smoothed_target_tensor = K.conv2d(
+        #     x=target_tensor, kernel=weight_matrix_for_targets,
+        #     padding='same', strides=(1, 1), data_format='channels_last'
+        # )
+        #
+        # smoothed_prediction_tensor = K.conv2d(
+        #     x=prediction_tensor, kernel=weight_matrix_for_predictions,
+        #     padding='same', strides=(1, 1), data_format='channels_last'
+        # )
+        #
+        # smoothed_target_tensor = smoothed_target_tensor * eroded_mask_matrix
+        # smoothed_prediction_tensor = (
+        #     smoothed_prediction_tensor * eroded_mask_matrix
+        # )
 
-        smoothed_prediction_tensor = K.conv2d(
-            x=prediction_tensor, kernel=weight_matrix_for_predictions,
-            padding='same', strides=(1, 1), data_format='channels_last'
-        )
-
-        smoothed_target_tensor = smoothed_target_tensor * eroded_mask_matrix
-        smoothed_prediction_tensor = (
-            smoothed_prediction_tensor * eroded_mask_matrix
-        )
+        smoothed_target_tensor = target_tensor * eroded_mask_matrix
+        smoothed_prediction_tensor = prediction_tensor * eroded_mask_matrix
 
         mean_prediction_error_tensor = K.mean(
             K.abs(
