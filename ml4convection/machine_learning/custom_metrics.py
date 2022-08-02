@@ -5,6 +5,7 @@ import numpy
 from tensorflow.keras import backend as K
 from scipy.ndimage.morphology import binary_erosion
 from gewittergefahr.gg_utils import error_checking
+from ml4convection.utils import general_utils
 
 
 def _log2(input_tensor):
@@ -603,3 +604,82 @@ def cross_entropy(half_window_size_px, mask_matrix, function_name=None,
         xentropy_function.__name__ = function_name
 
     return xentropy_function
+
+
+def crps(half_window_size_px, mask_matrix, function_name=None, test_mode=False):
+    """Creates function to compute continuous ranked probability score.
+
+    :param half_window_size_px: See doc for `_apply_max_filter`.
+    :param mask_matrix: See doc for `pod`.
+    :param function_name: Function name (string).
+    :param test_mode: Leave this alone.
+    :return: xentropy_function: Function (defined below).
+    """
+
+    eroded_mask_matrix = _check_input_args(
+        half_window_size_px=half_window_size_px, mask_matrix=mask_matrix,
+        function_name=function_name, test_mode=test_mode
+    )
+    # eroded_mask_tensor = K.variable(eroded_mask_matrix)
+
+    weight_matrix_for_targets = general_utils.create_mean_filter(
+        half_num_rows=half_window_size_px,
+        half_num_columns=half_window_size_px, num_channels=1
+    )
+
+    # TODO(thunderhoser): This is a HACK.  Need num estimates to be input arg.
+    weight_matrix_for_predictions = general_utils.create_mean_filter(
+        half_num_rows=half_window_size_px,
+        half_num_columns=half_window_size_px, num_channels=100
+    )
+
+    def crps_function(target_tensor, prediction_tensor):
+        """Computes CRPS.
+
+        Adapted from Katherine Haynes:
+        https://github.com/thunderhoser/cira_uq4ml/blob/main/crps_loss.ipynb
+
+        :param target_tensor: Tensor of target (actual) values.
+        :param prediction_tensor: Tensor of predicted values.
+        :return: crps_value: CRPS value.
+        """
+
+        smoothed_target_tensor = K.conv2d(
+            x=target_tensor, kernel=weight_matrix_for_targets,
+            padding='same', strides=(1, 1), data_format='channels_last'
+        )
+
+        smoothed_prediction_tensor = K.conv2d(
+            x=prediction_tensor, kernel=weight_matrix_for_predictions,
+            padding='same', strides=(1, 1), data_format='channels_last'
+        )
+
+        smoothed_target_tensor = smoothed_target_tensor * eroded_mask_matrix
+        smoothed_prediction_tensor = (
+            smoothed_prediction_tensor * eroded_mask_matrix
+        )
+
+        mean_prediction_error_tensor = K.mean(
+            K.abs(
+                smoothed_prediction_tensor -
+                K.expand_dims(smoothed_target_tensor, axis=-1)
+            ),
+            axis=-1
+        )
+
+        prediction_diff_tensor = K.abs(
+            K.expand_dims(smoothed_prediction_tensor, axis=-1) -
+            K.expand_dims(smoothed_prediction_tensor, axis=-2)
+        )
+        mean_prediction_diff_tensor = K.mean(
+            prediction_diff_tensor, axis=(-2, -1)
+        )
+
+        return K.mean(
+            mean_prediction_error_tensor - 0.5 * mean_prediction_diff_tensor
+        )
+
+    if function_name is not None:
+        crps_function.__name__ = function_name
+
+    return crps_function
