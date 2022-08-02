@@ -1229,11 +1229,12 @@ def create_model(option_dict, loss_function, mask_matrix, metric_names):
     return model_object
 
 
-def create_crps_model(option_dict, mask_matrix, num_estimates):
+def create_crps_model(option_dict, crps_loss_function, mask_matrix, num_estimates):
     """Creates U-net with CRPS loss function.
 
     :param option_dict: See doc for `create_model`.
-    :param mask_matrix: Same.
+    :param crps_loss_function: Function handle for CRPS loss.
+    :param mask_matrix: See doc for `create_model`.
     :param num_estimates: Number of estimates in ensemble.
     :return: model_object: Instance of `keras.models.Model`.
     """
@@ -1499,9 +1500,8 @@ def create_crps_model(option_dict, mask_matrix, num_estimates):
     model_object = keras.models.Model(
         inputs=input_layer_object, outputs=skip_layer_by_level[0]
     )
-
     model_object.compile(
-        loss=custom_losses.crps(), optimizer=keras.optimizers.Adam()
+        loss=crps_loss_function, optimizer=keras.optimizers.Adam()
     )
 
     model_object.summary()

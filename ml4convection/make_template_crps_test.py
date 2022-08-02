@@ -1,8 +1,8 @@
 """Makes U-net template for CRPS test."""
 
+import os
 import sys
 import copy
-import os.path
 import numpy
 
 THIS_DIRECTORY_NAME = os.path.dirname(os.path.realpath(
@@ -29,8 +29,8 @@ PARTIAL_MASK_FILE_NAME = (
     'radar_mask_100km_omit-north_partial.nc'
 ).format(HOME_DIR_NAME)
 
+LOSS_FUNCTION_NAME = 'crps_neigh0'
 TOP_LEVEL_SKIP_DROPOUT_RATE = 0.5
-OUTPUT_LAYER_DROPOUT_RATE = 0.5
 
 DEFAULT_OPTION_DICT = {
     u_net_architecture.INPUT_DIMENSIONS_KEY:
@@ -76,9 +76,15 @@ def _run():
         2, TOP_LEVEL_SKIP_DROPOUT_RATE
     )
 
+    loss_function = neural_net.get_metrics(
+        metric_names=[LOSS_FUNCTION_NAME],
+        mask_matrix=partial_mask_matrix,
+        use_as_loss_function=True
+    )[0][0]
+
     model_object = u_net_architecture.create_crps_model(
-        option_dict=option_dict, mask_matrix=partial_mask_matrix,
-        num_estimates=100
+        option_dict=option_dict, crps_loss_function=loss_function,
+        mask_matrix=partial_mask_matrix, num_estimates=100
     )
 
     model_file_name = '{0:s}/model.h5'.format(OUTPUT_DIR_NAME)
@@ -97,12 +103,12 @@ def _run():
     print('Writing metadata to: "{0:s}"...'.format(metafile_name))
     neural_net._write_metafile(
         dill_file_name=metafile_name, use_partial_grids=True,
-        use_crps_loss=True, num_epochs=100, num_training_batches_per_epoch=100,
+        num_epochs=100, num_training_batches_per_epoch=100,
         training_option_dict=dummy_option_dict,
         num_validation_batches_per_epoch=100,
         validation_option_dict=dummy_option_dict,
         do_early_stopping=True, plateau_lr_multiplier=0.6,
-        loss_function_name='crps', metric_names=[],
+        loss_function_name=LOSS_FUNCTION_NAME, metric_names=[],
         mask_matrix=partial_mask_matrix,
         full_mask_matrix=full_mask_matrix,
         quantile_levels=None, qfss_half_window_size_px=None

@@ -109,7 +109,7 @@ def _write_metafile(target_file_names, lead_time_seconds,
 
     neural_net._write_metafile(
         dill_file_name=metafile_name,
-        use_partial_grids=False, num_epochs=100, use_crps_loss=False,
+        use_partial_grids=False, num_epochs=100,
         num_training_batches_per_epoch=100,
         training_option_dict=training_option_dict,
         num_validation_batches_per_epoch=100,

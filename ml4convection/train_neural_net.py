@@ -117,7 +117,6 @@ def _run(training_predictor_dir_name, training_target_dir_name,
     neural_net.train_model(
         model_object=model_object, output_dir_name=output_model_dir_name,
         use_partial_grids=use_partial_grids, num_epochs=num_epochs,
-        use_crps_loss=metadata_dict[neural_net.USE_CRPS_LOSS_KEY],
         num_training_batches_per_epoch=num_training_batches_per_epoch,
         training_option_dict=training_option_dict,
         num_validation_batches_per_epoch=num_validn_batches_per_epoch,
