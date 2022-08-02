@@ -678,17 +678,25 @@ def crps(half_window_size_px, mask_matrix, function_name=None, test_mode=False):
             axis=-1
         )
 
-        mean_prediction_diff_tensors = [
-            K.mean(
+        mean_prediction_diff_tensor = K.map_fn(
+            fn=lambda p: K.mean(
                 K.abs(K.expand_dims(p, axis=-1) - K.expand_dims(p, axis=-2)),
                 axis=(-2, -1)
-            )
-            for p in smoothed_prediction_tensor
-        ]
-
-        mean_prediction_diff_tensor = K.concatenate(
-            mean_prediction_diff_tensors, axis=0
+            ),
+            elems=smoothed_prediction_tensor
         )
+
+        # mean_prediction_diff_tensors = [
+        #     K.mean(
+        #         K.abs(K.expand_dims(p, axis=-1) - K.expand_dims(p, axis=-2)),
+        #         axis=(-2, -1)
+        #     )
+        #     for p in smoothed_prediction_tensor
+        # ]
+        #
+        # mean_prediction_diff_tensor = K.concatenate(
+        #     mean_prediction_diff_tensors, axis=0
+        # )
 
         return K.mean(
             mean_prediction_error_tensor - 0.5 * mean_prediction_diff_tensor
