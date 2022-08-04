@@ -1229,7 +1229,8 @@ def create_model(option_dict, loss_function, mask_matrix, metric_names):
     return model_object
 
 
-def create_crps_model(option_dict, crps_loss_function, mask_matrix, num_estimates):
+def create_crps_model(option_dict, crps_loss_function, mask_matrix,
+                      num_estimates):
     """Creates U-net with CRPS loss function.
 
     :param option_dict: See doc for `create_model`.
