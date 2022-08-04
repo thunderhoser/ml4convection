@@ -667,10 +667,7 @@ def crps(half_window_size_px, mask_matrix, function_name=None, test_mode=False):
         )
 
         mean_prediction_error_tensor = K.mean(
-            K.abs(
-                smoothed_prediction_tensor -
-                K.expand_dims(smoothed_target_tensor, axis=-1)
-            ),
+            K.abs(smoothed_prediction_tensor - smoothed_target_tensor),
             axis=-1
         )
 
@@ -735,7 +732,8 @@ def fss_plus_pixelwise_crps(half_window_size_px, mask_matrix,
         )
 
         smoothed_mean_prediction_tensor = K.conv2d(
-            x=K.mean(prediction_tensor, axis=-1), kernel=weight_matrix,
+            x=K.mean(prediction_tensor, axis=-1, keepdims=True),
+            kernel=weight_matrix,
             padding='same', strides=(1, 1), data_format='channels_last'
         )
 
