@@ -754,8 +754,7 @@ def fss_plus_pixelwise_crps(half_window_size_px, mask_matrix,
         fractions_score = actual_mse / reference_mse
 
         mean_prediction_error_tensor = K.mean(
-            K.abs(prediction_tensor - K.expand_dims(target_tensor, axis=-1)),
-            axis=-1
+            K.abs(prediction_tensor - target_tensor), axis=-1
         )
 
         # prediction_diff_tensor = K.abs(
