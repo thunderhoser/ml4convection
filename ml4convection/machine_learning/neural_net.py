@@ -37,6 +37,7 @@ FSS_NAME = fourier_metrics.FSS_NAME
 BRIER_SCORE_NAME = fourier_metrics.BRIER_SCORE_NAME
 CROSS_ENTROPY_NAME = fourier_metrics.CROSS_ENTROPY_NAME
 CRPS_NAME = 'crps'
+FSS_PLUS_PIXELWISE_CRPS_NAME = 'crps'
 CSI_NAME = fourier_metrics.CSI_NAME
 FREQUENCY_BIAS_NAME = fourier_metrics.FREQUENCY_BIAS_NAME
 IOU_NAME = fourier_metrics.IOU_NAME
@@ -50,8 +51,9 @@ IMAGINARY_FREQ_MSE_NAME = fourier_metrics.IMAGINARY_FREQ_MSE_NAME
 FREQ_MSE_NAME = fourier_metrics.FREQ_MSE_NAME
 
 VALID_SCORE_NAMES_NEIGH = [
-    FSS_NAME, BRIER_SCORE_NAME, CROSS_ENTROPY_NAME, CRPS_NAME, CSI_NAME,
-    FREQUENCY_BIAS_NAME, IOU_NAME, ALL_CLASS_IOU_NAME, DICE_COEFF_NAME,
+    FSS_NAME, BRIER_SCORE_NAME, CROSS_ENTROPY_NAME, CRPS_NAME,
+    FSS_PLUS_PIXELWISE_CRPS_NAME, CSI_NAME, FREQUENCY_BIAS_NAME,
+    IOU_NAME, ALL_CLASS_IOU_NAME, DICE_COEFF_NAME,
     HEIDKE_SCORE_NAME, PEIRCE_SCORE_NAME, GERRITY_SCORE_NAME
 ]
 VALID_SCORE_NAMES_WAVELET = VALID_SCORE_NAMES_NEIGH + []
@@ -795,67 +797,6 @@ def _get_input_px_for_partial_grid(partial_grid_dict):
     return partial_grid_dict
 
 
-def _get_predict_func_with_dropout(model_object):
-    """Returns prediction function that uses Monte Carlo dropout.
-
-    :param model_object: Trained instance of `keras.models.Model` or
-        `keras.models.Sequential`.
-    :return: predict_function: Function object.
-    """
-
-    # TODO(thunderhoser): Still need to investigate what happens with batch norm
-
-    # this_seed = int(numpy.round(
-    #     4e8 * numpy.mod(time.time(), 1)
-    # ))
-    # numpy.random.seed(this_seed)
-    #
-    # this_seed = int(numpy.round(
-    #     4e8 * numpy.mod(time.time(), 1)
-    # ))
-    # tensorflow.random.set_seed(this_seed)
-
-    for layer_object in model_object.layers:
-        if 'batch' in layer_object.name.lower():
-            print('Layer "{0:s}" set to NON-TRAINABLE!'.format(
-                layer_object.name
-            ))
-            layer_object.trainable = False
-
-        # if 'dropout' in layer_object.name.lower():
-        #     print('Layer "{0:s}" set to TRAINABLE!'.format(
-        #         layer_object.name
-        #     ))
-        #     layer_object.trainable = True
-
-    config_dict = model_object.get_config()
-
-    for layer_dict in config_dict['layers']:
-        if len(layer_dict['inbound_nodes']) == 0:
-            continue
-
-        if 'dropout' in layer_dict['inbound_nodes'][0][0][0].lower():
-            layer_dict['inbound_nodes'][0][0][-1]['training'] = True
-
-    for layer_dict in config_dict['layers']:
-        if 'dropout' in layer_dict['class_name'].lower():
-            print(layer_dict)
-
-        if len(layer_dict['inbound_nodes']) == 0:
-            continue
-
-        if 'dropout' in layer_dict['inbound_nodes'][0][0][0].lower():
-            print(layer_dict)
-
-    new_model_object = keras.models.Model.from_config(config_dict)
-    new_model_object.set_weights(model_object.get_weights())
-
-    these_inputs = [
-        new_model_object.layers[0].input, python_K.symbolic_learning_phase()
-    ]
-    return K.function(these_inputs, [new_model_object.output])
-
-
 def predictor_matrix_to_keras(predictor_matrix, num_lag_times,
                               add_time_dimension):
     """Reshapes predictor matrix into format required by Keras.
@@ -1552,6 +1493,12 @@ def get_metrics(metric_names, mask_matrix, use_as_loss_function):
                 )
             elif this_param_dict[SCORE_NAME_KEY] == CRPS_NAME:
                 this_function = custom_metrics.crps(
+                    half_window_size_px=this_param_dict[HALF_WINDOW_SIZE_KEY],
+                    mask_matrix=mask_matrix,
+                    function_name=this_metric_name
+                )
+            elif this_param_dict[SCORE_NAME_KEY] == FSS_PLUS_PIXELWISE_CRPS_NAME:
+                this_function = custom_metrics.fss_plus_pixelwise_crps(
                     half_window_size_px=this_param_dict[HALF_WINDOW_SIZE_KEY],
                     mask_matrix=mask_matrix,
                     function_name=this_metric_name
@@ -2661,11 +2608,6 @@ def apply_model_full_grid(
                 ))
                 layer_object.trainable = False
 
-    # if use_dropout:
-    #     predict_function = _get_predict_func_with_dropout(model_object)
-    # else:
-    #     predict_function = None
-
     forecast_prob_matrix = None
     num_examples = predictor_matrix.shape[0]
 
@@ -2754,11 +2696,6 @@ def apply_model_partial_grids(
                     layer_object.name
                 ))
                 layer_object.trainable = False
-
-    # if use_dropout:
-    #     predict_function = _get_predict_func_with_dropout(model_object)
-    # else:
-    #     predict_function = None
 
     these_dim = model_object.layers[-1].output.get_shape().as_list()
     num_partial_grid_rows = these_dim[1]
