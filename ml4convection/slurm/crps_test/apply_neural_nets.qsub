@@ -1,6 +1,6 @@
 #!/bin/tcsh
 
-#SBATCH --job-name="apply_neural_net"
+#SBATCH --job-name="apply_neural_nets"
 #SBATCH --partition="fge"
 #SBATCH --account="rda-ghpcs"
 #SBATCH --qos="batch"
@@ -12,12 +12,13 @@
 ##SBATCH --cpus-per-task=1
 ##SBATCH --ntasks-per-node=1
 #SBATCH --time=12:00:00
+#SBATCH --array=1-4
 #SBATCH --exclude=h28n12
 ##SBATCH --exclude=h31n03,h28n12
 ##SBATCH --exclude=h29n01,h26n05,h28n06,h29n07,h30n03,h30n15
 #SBATCH --mail-type=BEGIN,END,FAIL
 #SBATCH --mail-user=ryan.lagerquist@noaa.gov
-#SBATCH --output=apply_neural_net_%A.out
+#SBATCH --output=apply_neural_nets_%A_%a.out
 
 module load cuda/10.1
 source /scratch2/BMC/gsd-hpcs/Jebb.Q.Stewart/conda3.7/etc/profile.d/conda.csh
@@ -31,7 +32,10 @@ set TOP_TARGET_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convectio
 set FIRST_VALIDN_DATE_STRING="20170101"
 set LAST_VALIDN_DATE_STRING="20171224"
 
-set model_dir_name="${TOP_MODEL_DIR_NAME}"
+set LOSS_FUNCTION_NAMES=("crps_neigh2" "crps_neigh3" "crps_neigh4" "crpsfss_neigh4")
+set loss_function_name=${LOSS_FUNCTION_NAMES[$SLURM_ARRAY_TASK_ID]}
+
+set model_dir_name="${TOP_MODEL_DIR_NAME}loss_function_name"
 set model_file_name="${model_dir_name}/model.h5"
 set prediction_dir_name="${model_dir_name}/validation/partial_grids"
 
