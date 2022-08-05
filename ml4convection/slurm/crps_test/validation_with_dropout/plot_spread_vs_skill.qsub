@@ -30,7 +30,7 @@ set TOP_MODEL_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection
 set LOSS_FUNCTION_NAMES=("crps_neigh2" "crps_neigh3" "crps_neigh4" "crpsfss_neigh4")
 set loss_function_name=${LOSS_FUNCTION_NAMES[$SLURM_ARRAY_TASK_ID]}
 
-set model_dir_name="${TOP_MODEL_DIR_NAME}loss_function_name"
+set model_dir_name="${TOP_MODEL_DIR_NAME}/${loss_function_name}"
 set input_file_name="${model_dir_name}/validation/partial_grids/evaluation/spread_vs_skill_matching-distance-px=0.000000.nc"
 set output_file_name="${model_dir_name}/validation/partial_grids/evaluation/spread_vs_skill_matching-distance-px=0.000000.jpg"
 

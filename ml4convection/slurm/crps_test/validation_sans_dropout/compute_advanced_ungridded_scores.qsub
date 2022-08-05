@@ -34,7 +34,7 @@ set LAST_VALIDN_DATE_STRING="20171224"
 set LOSS_FUNCTION_NAMES=("crps_neigh2" "crps_neigh3" "crps_neigh4" "crpsfss_neigh4")
 set loss_function_name=${LOSS_FUNCTION_NAMES[$SLURM_ARRAY_TASK_ID]}
 
-set model_dir_name="${TOP_MODEL_DIR_NAME}loss_function_name"
+set model_dir_name="${TOP_MODEL_DIR_NAME}/${loss_function_name}"
 set top_evaluation_dir_name="${model_dir_name}/validation/partial_grids/evaluation"
 
 set MATCHING_DISTANCES_PX=("0.000000" "2.000000" "4.000000")
