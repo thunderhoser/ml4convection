@@ -43,6 +43,6 @@ python3 -u "${CODE_DIR_NAME}/plot_predictions_with_uncertainty.py" \
 --first_date_string="${date_string}" \
 --last_date_string="${date_string}" \
 --daily_times_seconds 30600 \
---percentile_levels 75 97.5 100 \
+--percentile_levels 50 75 97.5 \
 --use_fancy_quantile_method_for_stdev=0 \
 --output_dir_name="${prediction_dir_name}/plots_with_uncertainty/${date_string}"
