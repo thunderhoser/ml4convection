@@ -2657,7 +2657,10 @@ def apply_model_full_grid(
         else:
             this_prob_matrix = these_predictions + 0.
 
-            if len(this_prob_matrix.shape) == 4:
+            if (
+                    len(this_prob_matrix.shape) == 4 and
+                    this_prob_matrix.shape[-1] <= 2
+            ):
                 this_prob_matrix = this_prob_matrix[..., 0]
 
         if forecast_prob_matrix is None:

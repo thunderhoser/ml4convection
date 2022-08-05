@@ -324,6 +324,8 @@ def _apply_to_partial_grids_one_day(
             raise_error_if_missing=False
         )
 
+        print(forecast_probability_matrix.shape)
+
         print('Writing predictions to: "{0:s}"...'.format(output_file_name))
         prediction_io.write_file(
             netcdf_file_name=output_file_name,
