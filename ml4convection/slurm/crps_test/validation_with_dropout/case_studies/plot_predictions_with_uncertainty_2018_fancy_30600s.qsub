@@ -42,7 +42,7 @@ python3 -u "${CODE_DIR_NAME}/plot_predictions_with_uncertainty.py" \
 --input_radar_dir_name="${TOP_RADAR_DIR_NAME}" \
 --first_date_string="${date_string}" \
 --last_date_string="${date_string}" \
---daily_times_seconds 28800 29400 30000 30600 31200 31800 32400 \
+--daily_times_seconds 30600 \
 --percentile_levels 75 97.5 100 \
 --use_fancy_quantile_method_for_stdev=0 \
 --output_dir_name="${prediction_dir_name}/plots_with_uncertainty/${date_string}"
