@@ -285,32 +285,53 @@ SCORE_NAMES = [
     neural_net.FSS_NAME, neural_net.BRIER_SCORE_NAME,
     neural_net.CSI_NAME, neural_net.FREQUENCY_BIAS_NAME,
     neural_net.IOU_NAME, neural_net.DICE_COEFF_NAME,
+    neural_net.FSS_PLUS_CRPS_NAME,
     neural_net.FSS_NAME, neural_net.BRIER_SCORE_NAME,
     neural_net.CSI_NAME, neural_net.FREQUENCY_BIAS_NAME,
-    neural_net.IOU_NAME, neural_net.DICE_COEFF_NAME
+    neural_net.IOU_NAME, neural_net.DICE_COEFF_NAME,
+    neural_net.FSS_PLUS_CRPS_NAME
 ]
-HALF_WINDOW_SIZES_PX = [0, 1, 2, 3, 4, 5, None, None, None, None, None, None]
+HALF_WINDOW_SIZES_PX = [
+    0, 1, 2, 3, 4, 5, 6,
+    None, None, None, None, None, None, None
+]
 MIN_RESOLUTIONS_DEG = [
-    None, None, None, None, None, None, 0., 0.1, 0.1, 0., 0.1, 0.1
+    None, None, None, None, None, None, None,
+    0., 0.1, 0.1, 0., 0.1, 0.1, 0.4
 ]
 MAX_RESOLUTIONS_DEG = [
-    None, None, None, None, None, None, 0.5, 0.5, numpy.inf, 0.5, 0.5, numpy.inf
+    None, None, None, None, None, None, None,
+    0.5, 0.5, numpy.inf, 0.5, 0.5, numpy.inf, 0.8
+]
+CRPS_WEIGHTS = [
+    None, None, None, None, None, None, 5.,
+    None, None, None, None, None, None, 7.5
 ]
 
 METRIC_NAMES = [
-    neural_net.FSS_NAME + '_neigh0_weight1.0000000000',
-    neural_net.BRIER_SCORE_NAME + '_neigh1_weight1.0000000000',
-    neural_net.CSI_NAME + '_neigh2_weight1.0000000000',
-    neural_net.FREQUENCY_BIAS_NAME + '_neigh3_weight1.0000000000',
-    neural_net.IOU_NAME + '_neigh4_weight1.0000000000',
-    neural_net.DICE_COEFF_NAME + '_neigh5_weight1.0000000000',
-    neural_net.FSS_NAME + '_0.0000d_0.5000d_wavelets0_weight1.0000000000',
-    neural_net.BRIER_SCORE_NAME + '_0.1000d_0.5000d_wavelets0_weight1.0000000000',
-    neural_net.CSI_NAME + '_0.1000d_infd_wavelets0_weight1.0000000000',
+    neural_net.FSS_NAME + '_neigh0',
+    neural_net.BRIER_SCORE_NAME + '_neigh1',
+    neural_net.CSI_NAME + '_neigh2',
+    neural_net.FREQUENCY_BIAS_NAME + '_neigh3',
+    neural_net.IOU_NAME + '_neigh4',
+    neural_net.DICE_COEFF_NAME + '_neigh5',
+    neural_net.FSS_PLUS_CRPS_NAME +
+    '_neigh6_weight1.0000000000_crps-weight5.0000000000',
+    neural_net.FSS_NAME + '_0.0000d_0.5000d_wavelets0',
+    neural_net.BRIER_SCORE_NAME + '_0.1000d_0.5000d_wavelets0',
+    neural_net.CSI_NAME + '_0.1000d_infd_wavelets0',
     neural_net.FREQUENCY_BIAS_NAME +
-    '_0.0000d_0.5000d_wavelets0_weight1.0000000000',
-    neural_net.IOU_NAME + '_0.1000d_0.5000d_wavelets0_weight1.0000000000',
-    neural_net.DICE_COEFF_NAME + '_0.1000d_infd_wavelets0_weight1.0000000000'
+    '_0.0000d_0.5000d_wavelets0',
+    neural_net.IOU_NAME + '_0.1000d_0.5000d_wavelets0',
+    neural_net.DICE_COEFF_NAME + '_0.1000d_infd_wavelets0',
+    neural_net.FSS_PLUS_CRPS_NAME +
+    '_0.4000d_0.8000d_wavelets0_weight1.0000000000_crps-weight7.5000000000'
+]
+
+METRIC_NAMES = [
+    n if 'crps-weight' in n else
+    n + '_weight1.0000000000_crps-weight0.0000000000'
+    for n in METRIC_NAMES
 ]
 
 MASK_MATRIX = numpy.random.random_integers(low=0, high=1, size=(13, 11))
@@ -574,7 +595,8 @@ class NeuralNetTests(unittest.TestCase):
                 score_name=SCORE_NAMES[k],
                 half_window_size_px=HALF_WINDOW_SIZES_PX[k],
                 min_resolution_deg=MIN_RESOLUTIONS_DEG[k],
-                max_resolution_deg=MAX_RESOLUTIONS_DEG[k]
+                max_resolution_deg=MAX_RESOLUTIONS_DEG[k],
+                crps_weight=CRPS_WEIGHTS[k]
             )
 
             self.assertTrue(this_metric_name == METRIC_NAMES[k])
@@ -599,6 +621,7 @@ class NeuralNetTests(unittest.TestCase):
             this_max_resolution_deg = (
                 this_param_dict[neural_net.MAX_RESOLUTION_KEY]
             )
+            this_crps_weight = this_param_dict[neural_net.CRPS_WEIGHT_KEY]
 
             if this_min_resolution_deg is None:
                 self.assertTrue(MIN_RESOLUTIONS_DEG[k] is None)
@@ -614,6 +637,13 @@ class NeuralNetTests(unittest.TestCase):
                 self.assertTrue(numpy.isclose(
                     this_max_resolution_deg, MAX_RESOLUTIONS_DEG[k],
                     atol=TOLERANCE
+                ))
+
+            if this_crps_weight is None:
+                self.assertTrue(CRPS_WEIGHTS[k] is None)
+            else:
+                self.assertTrue(numpy.isclose(
+                    this_crps_weight, CRPS_WEIGHTS[k], atol=TOLERANCE
                 ))
 
     def test_get_metrics_as_loss(self):

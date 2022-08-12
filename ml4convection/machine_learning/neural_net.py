@@ -37,7 +37,7 @@ FSS_NAME = fourier_metrics.FSS_NAME
 BRIER_SCORE_NAME = fourier_metrics.BRIER_SCORE_NAME
 CROSS_ENTROPY_NAME = fourier_metrics.CROSS_ENTROPY_NAME
 CRPS_NAME = 'crps'
-FSS_PLUS_PIXELWISE_CRPS_NAME = 'crpsfss'
+FSS_PLUS_CRPS_NAME = 'fss-plus-crps'
 CSI_NAME = fourier_metrics.CSI_NAME
 FREQUENCY_BIAS_NAME = fourier_metrics.FREQUENCY_BIAS_NAME
 IOU_NAME = fourier_metrics.IOU_NAME
@@ -52,7 +52,7 @@ FREQ_MSE_NAME = fourier_metrics.FREQ_MSE_NAME
 
 VALID_SCORE_NAMES_NEIGH = [
     FSS_NAME, BRIER_SCORE_NAME, CROSS_ENTROPY_NAME, CRPS_NAME,
-    FSS_PLUS_PIXELWISE_CRPS_NAME, CSI_NAME, FREQUENCY_BIAS_NAME,
+    FSS_PLUS_CRPS_NAME, CSI_NAME, FREQUENCY_BIAS_NAME,
     IOU_NAME, ALL_CLASS_IOU_NAME, DICE_COEFF_NAME,
     HEIDKE_SCORE_NAME, PEIRCE_SCORE_NAME, GERRITY_SCORE_NAME
 ]
@@ -63,6 +63,7 @@ VALID_SCORE_NAMES_FOURIER = VALID_SCORE_NAMES_WAVELET + [
 
 SCORE_NAME_KEY = 'score_name'
 WEIGHT_KEY = 'weight'
+CRPS_WEIGHT_KEY = 'crps_weight'
 HALF_WINDOW_SIZE_KEY = 'half_window_size_px'
 MIN_RESOLUTION_KEY = 'min_resolution_deg'
 MAX_RESOLUTION_KEY = 'max_resolution_deg'
@@ -916,8 +917,8 @@ def predictor_matrix_from_keras(predictor_matrix, num_lag_times):
 
 
 def metric_params_to_name(
-        score_name, weight=1., half_window_size_px=None, min_resolution_deg=None,
-        max_resolution_deg=None, use_wavelets=False):
+        score_name, weight=1., crps_weight=None, half_window_size_px=None,
+        min_resolution_deg=None, max_resolution_deg=None, use_wavelets=False):
     """Converts parameters for evaluation metric to name.
 
     If `half_window_size_px is not None`, will assume neighbourhood-based
@@ -928,6 +929,8 @@ def metric_params_to_name(
 
     :param score_name: Name of score (must be accepted by `_check_score_name`).
     :param weight: Real number by which metric is multiplied.
+    :param crps_weight: Real number by which CRPS part of metric is multiplied.
+        Used only if metric is FSS + CRPS.
     :param half_window_size_px: Half-window size (pixels) for neighbourhood.
     :param min_resolution_deg: Minimum resolution (degrees) allowed through
         band-pass filter.
@@ -940,6 +943,11 @@ def metric_params_to_name(
 
     error_checking.assert_is_greater(weight, 0.)
 
+    if score_name == FSS_PLUS_CRPS_NAME:
+        error_checking.assert_is_geq(crps_weight, 1.)
+    else:
+        crps_weight = None
+
     if half_window_size_px is not None:
         error_checking.assert_is_not_nan(half_window_size_px)
         half_window_size_px = int(numpy.round(half_window_size_px))
@@ -947,8 +955,9 @@ def metric_params_to_name(
 
         _check_score_name(score_name=score_name, neigh_based=True)
 
-        return '{0:s}_neigh{1:d}_weight{2:.10f}'.format(
-            score_name, half_window_size_px, weight
+        return '{0:s}_neigh{1:d}_weight{2:.10f}_crps-weight{3:.10f}'.format(
+            score_name, half_window_size_px, weight,
+            0. if crps_weight is None else crps_weight
         )
 
     error_checking.assert_is_boolean(use_wavelets)
@@ -965,9 +974,13 @@ def metric_params_to_name(
     if max_resolution_deg >= MAX_RESOLUTION_DEG:
         max_resolution_deg = numpy.inf
 
-    return '{0:s}_{1:.4f}d_{2:.4f}d_wavelets{3:d}_weight{4:.10f}'.format(
+    return (
+        '{0:s}_{1:.4f}d_{2:.4f}d_wavelets{3:d}_weight{4:.10f}_'
+        'crps-weight{5:.10f}'
+    ).format(
         score_name, min_resolution_deg, max_resolution_deg, int(use_wavelets),
-        weight
+        weight,
+        0. if crps_weight is None else crps_weight
     )
 
 
@@ -980,6 +993,7 @@ def metric_name_to_params(metric_name):
     :return: param_dict: Dictionary with the following keys.
     param_dict['score_name']: See doc for `metric_params_to_name`.
     param_dict['weight']: Same.
+    param_dict['crps_weight']: Same.
     param_dict['half_window_size_px']: Same.
     param_dict['min_resolution_deg']: Same.
     param_dict['max_resolution_deg']: Same.
@@ -988,6 +1002,14 @@ def metric_name_to_params(metric_name):
 
     error_checking.assert_is_string(metric_name)
     metric_name_parts = metric_name.split('_')
+
+    if 'crps-weight' in metric_name_parts[-1]:
+        crps_weight = float(
+            metric_name_parts[-1].replace('crps-weight', '')
+        )
+        metric_name_parts = metric_name_parts[:-1]
+    else:
+        crps_weight = None
 
     if 'weight' in metric_name_parts[-1]:
         weight = float(
@@ -998,6 +1020,8 @@ def metric_name_to_params(metric_name):
         weight = 1.
 
     score_name = metric_name_parts[0]
+    if score_name != FSS_PLUS_CRPS_NAME:
+        crps_weight = None
 
     if len(metric_name_parts) == 2:
         assert metric_name_parts[1].startswith('neigh')
@@ -1010,6 +1034,7 @@ def metric_name_to_params(metric_name):
         return {
             SCORE_NAME_KEY: score_name,
             WEIGHT_KEY: weight,
+            CRPS_WEIGHT_KEY: crps_weight,
             HALF_WINDOW_SIZE_KEY: half_window_size_px,
             MIN_RESOLUTION_KEY: None,
             MAX_RESOLUTION_KEY: None,
@@ -1044,6 +1069,7 @@ def metric_name_to_params(metric_name):
     return {
         SCORE_NAME_KEY: score_name,
         WEIGHT_KEY: weight,
+        CRPS_WEIGHT_KEY: crps_weight,
         HALF_WINDOW_SIZE_KEY: None,
         MIN_RESOLUTION_KEY: min_resolution_deg,
         MAX_RESOLUTION_KEY: max_resolution_deg,
@@ -1497,10 +1523,11 @@ def get_metrics(metric_names, mask_matrix, use_as_loss_function):
                     mask_matrix=mask_matrix,
                     function_name=this_metric_name
                 )
-            elif this_param_dict[SCORE_NAME_KEY] == FSS_PLUS_PIXELWISE_CRPS_NAME:
-                this_function = custom_metrics.fss_plus_pixelwise_crps(
+            elif this_param_dict[SCORE_NAME_KEY] == FSS_PLUS_CRPS_NAME:
+                this_function = custom_metrics.fss_plus_crps(
                     half_window_size_px=this_param_dict[HALF_WINDOW_SIZE_KEY],
                     mask_matrix=mask_matrix,
+                    crps_weight=this_param_dict[CRPS_WEIGHT_KEY],
                     function_name=this_metric_name
                 )
             elif this_param_dict[SCORE_NAME_KEY] == CSI_NAME:
