@@ -1,0 +1,48 @@
+#!/bin/tcsh
+
+#SBATCH --job-name="plot_predictions_with_uncertainty_2018_fancy_30600s"
+#SBATCH --partition="fge"
+#SBATCH --account="rda-ghpcs"
+#SBATCH --qos="batch"
+#SBATCH --ntasks=1
+#SBATCH --nodes=1
+#SBATCH --cpus-per-task=1
+##SBATCH --nodes=1
+##SBATCH --ntasks=1
+##SBATCH --cpus-per-task=1
+##SBATCH --ntasks-per-node=1
+#SBATCH --time=12:00:00
+#SBATCH --array=49-60
+#SBATCH --exclude=h28n12
+##SBATCH --exclude=h31n03,h28n12
+##SBATCH --exclude=h29n01,h26n05,h28n06,h29n07,h30n03,h30n15
+#SBATCH --mail-type=BEGIN,END,FAIL
+#SBATCH --mail-user=ryan.lagerquist@noaa.gov
+#SBATCH --output=plot_predictions_with_uncertainty_2018_fancy_30600s_%A_%a.out
+
+module load cuda/10.1
+source /scratch2/BMC/gsd-hpcs/Jebb.Q.Stewart/conda3.7/etc/profile.d/conda.csh
+conda activate base
+
+set CODE_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_standalone/ml4convection"
+set TOP_RADAR_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_project/radar_data"
+set TOP_MODEL_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_models/crps_test"
+
+set LOSS_FUNCTION_NAMES=("crps_neigh2" "crps_neigh3" "crps_neigh4" "crpsfss_neigh4" "crps_neigh2" "crps_neigh3" "crps_neigh4" "crpsfss_neigh4" "crps_neigh2" "crps_neigh3" "crps_neigh4" "crpsfss_neigh4" "crps_neigh2" "crps_neigh3" "crps_neigh4" "crpsfss_neigh4" "crps_neigh2" "crps_neigh3" "crps_neigh4" "crpsfss_neigh4" "crps_neigh2" "crps_neigh3" "crps_neigh4" "crpsfss_neigh4" "crps_neigh2" "crps_neigh3" "crps_neigh4" "crpsfss_neigh4" "crps_neigh2" "crps_neigh3" "crps_neigh4" "crpsfss_neigh4" "crps_neigh2" "crps_neigh3" "crps_neigh4" "crpsfss_neigh4" "crps_neigh2" "crps_neigh3" "crps_neigh4" "crpsfss_neigh4" "crps_neigh2" "crps_neigh3" "crps_neigh4" "crpsfss_neigh4" "crps_neigh2" "crps_neigh3" "crps_neigh4" "crpsfss_neigh4" "crps_neigh2" "crps_neigh3" "crps_neigh4" "crpsfss_neigh4" "crps_neigh2" "crps_neigh3" "crps_neigh4" "crpsfss_neigh4" "crps_neigh2" "crps_neigh3" "crps_neigh4" "crpsfss_neigh4")
+set DATE_STRINGS=("20170101" "20170101" "20170101" "20170101" "20170202" "20170202" "20170202" "20170202" "20170303" "20170303" "20170303" "20170303" "20170404" "20170404" "20170404" "20170404" "20170505" "20170505" "20170505" "20170505" "20170606" "20170606" "20170606" "20170606" "20170707" "20170707" "20170707" "20170707" "20170808" "20170808" "20170808" "20170808" "20170909" "20170909" "20170909" "20170909" "20171010" "20171010" "20171010" "20171010" "20171111" "20171111" "20171111" "20171111" "20171212" "20171212" "20171212" "20171212" "20180125" "20180125" "20180125" "20180125" "20180603" "20180603" "20180603" "20180603" "20180823" "20180823" "20180823" "20180823")
+
+set loss_function_name=${LOSS_FUNCTION_NAMES[$SLURM_ARRAY_TASK_ID]}
+set date_string=${DATE_STRINGS[$SLURM_ARRAY_TASK_ID]}
+
+set model_dir_name="${TOP_MODEL_DIR_NAME}/${loss_function_name}"
+set prediction_dir_name="${model_dir_name}/validation/partial_grids"
+
+python3 -u "${CODE_DIR_NAME}/plot_predictions_with_uncertainty.py" \
+--input_prediction_dir_name="${prediction_dir_name}" \
+--input_radar_dir_name="${TOP_RADAR_DIR_NAME}" \
+--first_date_string="${date_string}" \
+--last_date_string="${date_string}" \
+--daily_times_seconds 30600 \
+--percentile_levels 50 75 97.5 \
+--use_fancy_quantile_method_for_stdev=0 \
+--output_dir_name="${prediction_dir_name}/plots_with_uncertainty/${date_string}"
