@@ -38,7 +38,7 @@ set CRPS_WEIGHTS=("1.0000000000" "1.0000000000" "1.0000000000" "1.0000000000" "1
 
 set neigh_half_window_size_px=${NEIGH_HALF_WINDOW_SIZES_PX[$SLURM_ARRAY_TASK_ID]}
 set crps_weight=${CRPS_WEIGHTS[$SLURM_ARRAY_TASK_ID]}
-set loss_function_name="fss-plus-crps_neigh${neigh_half_window_size_px}_weight1.0000000000_crps-weight${crps_weight}"
+set loss_function_name="fss-plus-pixelwise-crps_neigh${neigh_half_window_size_px}_weight1.0000000000_crps-weight${crps_weight}"
 
 set template_file_name="${TOP_TEMPLATE_DIR_NAME}/${loss_function_name}/model.h5"
 set output_dir_name="${TOP_OUTPUT_DIR_NAME}/${loss_function_name}"
