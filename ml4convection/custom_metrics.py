@@ -792,52 +792,62 @@ def fss_plus_crps(half_window_size_px, mask_matrix, crps_weight,
     return fss_plus_crps_function
 
 
-def fss_plus_pixelwise_crps(half_window_size_px, mask_matrix,
+def fss_plus_pixelwise_crps(half_window_size_px, mask_matrix, crps_weight,
                             function_name=None, test_mode=False):
     """Creates function to compute FSS plus pixelwise CRPS.
 
     :param half_window_size_px: See doc for `_apply_max_filter`.
     :param mask_matrix: See doc for `pod`.
+    :param crps_weight: Weight for CRPS.  The actual output will be
+        fractions_score + crps_weight * crps.
     :param function_name: Function name (string).
     :param test_mode: Leave this alone.
-    :return: xentropy_function: Function (defined below).
+    :return: fss_plus_pw_crps_function: Function (defined below).
     """
+
+    error_checking.assert_is_geq(crps_weight, 1.)
 
     eroded_mask_matrix = _check_input_args(
         half_window_size_px=half_window_size_px, mask_matrix=mask_matrix,
         function_name=function_name, test_mode=test_mode
     )
 
-    weight_matrix = general_utils.create_mean_filter(
+    weight_matrix_for_targets = general_utils.create_mean_filter(
         half_num_rows=half_window_size_px,
         half_num_columns=half_window_size_px, num_channels=1
     )
 
-    def fss_plus_pixelwise_crps_function(target_tensor, prediction_tensor):
+    # TODO(thunderhoser): This is a HACK.  Need num estimates to be input arg.
+    weight_matrix_for_predictions = general_utils.create_mean_filter(
+        half_num_rows=half_window_size_px,
+        half_num_columns=half_window_size_px, num_channels=50
+    )
+
+    def fss_plus_pw_crps_function(target_tensor, prediction_tensor):
         """Computes FSS plus pixelwise CRPS.
 
         :param target_tensor: Tensor of target (actual) values.
         :param prediction_tensor: Tensor of predicted values.
-        :return: loss_value: FSS plus pixelwise CRPS.
+        :return: fss_plus_pw_crps: Scalar value.
         """
 
         smoothed_target_tensor = K.conv2d(
-            x=target_tensor, kernel=weight_matrix,
+            x=target_tensor, kernel=weight_matrix_for_targets,
             padding='same', strides=(1, 1), data_format='channels_last'
         )
 
         smoothed_mean_prediction_tensor = K.conv2d(
             x=K.mean(prediction_tensor, axis=-1, keepdims=True),
-            kernel=weight_matrix,
+            kernel=weight_matrix_for_targets,
             padding='same', strides=(1, 1), data_format='channels_last'
         )
 
-        target_tensor = target_tensor * eroded_mask_matrix
-        prediction_tensor = prediction_tensor * eroded_mask_matrix
         smoothed_target_tensor = smoothed_target_tensor * eroded_mask_matrix
         smoothed_mean_prediction_tensor = (
             smoothed_mean_prediction_tensor * eroded_mask_matrix
         )
+        prediction_tensor = prediction_tensor * eroded_mask_matrix
+        target_tensor = target_tensor * eroded_mask_matrix
 
         actual_mse = K.mean(
             (smoothed_target_tensor - smoothed_mean_prediction_tensor) ** 2
@@ -851,15 +861,6 @@ def fss_plus_pixelwise_crps(half_window_size_px, mask_matrix,
         mean_prediction_error_tensor = K.mean(
             K.abs(prediction_tensor - target_tensor), axis=-1
         )
-
-        # prediction_diff_tensor = K.abs(
-        #     K.expand_dims(prediction_tensor, axis=-1) -
-        #     K.expand_dims(prediction_tensor, axis=-2)
-        # )
-        # mean_prediction_diff_tensor = K.mean(
-        #     prediction_diff_tensor, axis=(-2, -1)
-        # )
-
         mean_prediction_diff_tensor = K.map_fn(
             fn=lambda p: K.mean(
                 K.abs(K.expand_dims(p, axis=-1) - K.expand_dims(p, axis=-2)),
@@ -867,14 +868,13 @@ def fss_plus_pixelwise_crps(half_window_size_px, mask_matrix,
             ),
             elems=prediction_tensor
         )
-
         crps_value = K.mean(
             mean_prediction_error_tensor - 0.5 * mean_prediction_diff_tensor
         )
 
-        return fractions_score + crps_value
+        return fractions_score + crps_weight * crps_value
 
     if function_name is not None:
-        fss_plus_pixelwise_crps_function.__name__ = function_name
+        fss_plus_pw_crps_function.__name__ = function_name
 
-    return fss_plus_pixelwise_crps_function
+    return fss_plus_pw_crps_function

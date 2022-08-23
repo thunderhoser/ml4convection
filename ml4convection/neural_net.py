@@ -3,7 +3,7 @@
 import os
 import sys
 import copy
-import pickle
+import dill
 import numpy
 # numpy.random.seed(6695)
 import keras
@@ -45,6 +45,7 @@ BRIER_SCORE_NAME = fourier_metrics.BRIER_SCORE_NAME
 CROSS_ENTROPY_NAME = fourier_metrics.CROSS_ENTROPY_NAME
 CRPS_NAME = 'crps'
 FSS_PLUS_CRPS_NAME = 'fss-plus-crps'
+FSS_PLUS_PIXELWISE_CRPS_NAME = 'fss-plus-pixelwise-crps'
 CSI_NAME = fourier_metrics.CSI_NAME
 FREQUENCY_BIAS_NAME = fourier_metrics.FREQUENCY_BIAS_NAME
 IOU_NAME = fourier_metrics.IOU_NAME
@@ -59,8 +60,8 @@ FREQ_MSE_NAME = fourier_metrics.FREQ_MSE_NAME
 
 VALID_SCORE_NAMES_NEIGH = [
     FSS_NAME, BRIER_SCORE_NAME, CROSS_ENTROPY_NAME, CRPS_NAME,
-    FSS_PLUS_CRPS_NAME, CSI_NAME, FREQUENCY_BIAS_NAME,
-    IOU_NAME, ALL_CLASS_IOU_NAME, DICE_COEFF_NAME,
+    FSS_PLUS_CRPS_NAME, FSS_PLUS_PIXELWISE_CRPS_NAME, CSI_NAME,
+    FREQUENCY_BIAS_NAME, IOU_NAME, ALL_CLASS_IOU_NAME, DICE_COEFF_NAME,
     HEIDKE_SCORE_NAME, PEIRCE_SCORE_NAME, GERRITY_SCORE_NAME
 ]
 VALID_SCORE_NAMES_WAVELET = VALID_SCORE_NAMES_NEIGH + []
@@ -696,7 +697,7 @@ def _write_metafile(
     file_system_utils.mkdir_recursive_if_necessary(file_name=dill_file_name)
 
     dill_file_handle = open(dill_file_name, 'wb')
-    pickle.dump(metadata_dict, dill_file_handle)
+    dill.dump(metadata_dict, dill_file_handle)
     dill_file_handle.close()
 
 
@@ -937,7 +938,7 @@ def metric_params_to_name(
     :param score_name: Name of score (must be accepted by `_check_score_name`).
     :param weight: Real number by which metric is multiplied.
     :param crps_weight: Real number by which CRPS part of metric is multiplied.
-        Used only if metric is FSS + CRPS.
+        Used only if metric is FSS + CRPS or FSS + pixelwise CRPS.
     :param half_window_size_px: Half-window size (pixels) for neighbourhood.
     :param min_resolution_deg: Minimum resolution (degrees) allowed through
         band-pass filter.
@@ -950,7 +951,7 @@ def metric_params_to_name(
 
     error_checking.assert_is_greater(weight, 0.)
 
-    if score_name == FSS_PLUS_CRPS_NAME:
+    if score_name in [FSS_PLUS_CRPS_NAME, FSS_PLUS_PIXELWISE_CRPS_NAME]:
         error_checking.assert_is_geq(crps_weight, 1.)
     else:
         crps_weight = None
@@ -1027,7 +1028,7 @@ def metric_name_to_params(metric_name):
         weight = 1.
 
     score_name = metric_name_parts[0]
-    if score_name != FSS_PLUS_CRPS_NAME:
+    if score_name not in [FSS_PLUS_CRPS_NAME, FSS_PLUS_PIXELWISE_CRPS_NAME]:
         crps_weight = None
 
     if len(metric_name_parts) == 2:
@@ -1532,6 +1533,16 @@ def get_metrics(metric_names, mask_matrix, use_as_loss_function):
                 )
             elif this_param_dict[SCORE_NAME_KEY] == FSS_PLUS_CRPS_NAME:
                 this_function = custom_metrics.fss_plus_crps(
+                    half_window_size_px=this_param_dict[HALF_WINDOW_SIZE_KEY],
+                    mask_matrix=mask_matrix,
+                    crps_weight=this_param_dict[CRPS_WEIGHT_KEY],
+                    function_name=this_metric_name
+                )
+            elif (
+                    this_param_dict[SCORE_NAME_KEY] ==
+                    FSS_PLUS_PIXELWISE_CRPS_NAME
+            ):
+                this_function = custom_metrics.fss_plus_pixelwise_crps(
                     half_window_size_px=this_param_dict[HALF_WINDOW_SIZE_KEY],
                     mask_matrix=mask_matrix,
                     crps_weight=this_param_dict[CRPS_WEIGHT_KEY],
@@ -2525,7 +2536,7 @@ def read_metafile(dill_file_name):
     error_checking.assert_file_exists(dill_file_name)
 
     dill_file_handle = open(dill_file_name, 'rb')
-    metadata_dict = pickle.load(dill_file_handle)
+    metadata_dict = dill.load(dill_file_handle)
     dill_file_handle.close()
 
     if LOSS_FUNCTION_KEY not in metadata_dict:
