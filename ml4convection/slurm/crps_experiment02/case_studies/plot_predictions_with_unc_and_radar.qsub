@@ -34,6 +34,7 @@ set TESTING_DATE_STRINGS=("20180125" "20180603" "20180823" "20180125" "20180603"
 set loss_function_name=${LOSS_FUNCTION_NAMES[$SLURM_ARRAY_TASK_ID]}
 set date_string=${TESTING_DATE_STRINGS[$SLURM_ARRAY_TASK_ID]}
 
+set model_dir_name="${TOP_MODEL_DIR_NAME}/${loss_function_name}"
 set prediction_dir_name="${model_dir_name}/testing_with_uq/partial_grids"
 
 python3 -u "${CODE_DIR_NAME}/plot_predictions_with_uncertainty.py" \
