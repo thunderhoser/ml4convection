@@ -166,7 +166,7 @@ def _print_ranking_one_score(score_matrix, score_name):
             '{3:d} x {3:d} ... CRPS weight = 10^{4:.2f}'
         ).format(
             k + 1, score_name, score_matrix[i, j],
-            int(numpy.round(NEIGH_HALF_WINDOW_SIZES_PX[i])),
+            2 * int(numpy.round(NEIGH_HALF_WINDOW_SIZES_PX[i])) + 1,
             numpy.log10(CRPS_WEIGHTS[j])
         ))
 
@@ -261,7 +261,7 @@ def _print_ranking_all_scores(
             'SSREL rank = {7:.1f} ... MF rank = {8:.1f} ... '
             'predictive-stdev rank = {9:.1f}'
         ).format(
-            k + 1, int(numpy.round(NEIGH_HALF_WINDOW_SIZES_PX[i])),
+            k + 1, 2 * int(numpy.round(NEIGH_HALF_WINDOW_SIZES_PX[i])) + 1,
             numpy.log10(CRPS_WEIGHTS[j]),
             aupd_rank_matrix[i, j], csi_rank_matrix[i, j],
             fss_rank_matrix[i, j], bss_rank_matrix[i, j],
@@ -297,7 +297,7 @@ def _run(experiment_dir_name, matching_distance_px, output_dir_name):
     monotonicity_fraction_matrix = numpy.full(dimensions, numpy.nan)
 
     y_tick_labels = [
-        '{0:d} x {0:d}'.format(int(numpy.round(n)))
+        '{0:d} x {0:d}'.format(2 * int(numpy.round(n)) + 1)
         for n in NEIGH_HALF_WINDOW_SIZES_PX
     ]
     x_tick_labels = ['{0:.2f}'.format(numpy.log10(w)) for w in CRPS_WEIGHTS]
