@@ -67,10 +67,12 @@ def _plot_means_as_inset(
         `matplotlib.axes._subplots.AxesSubplot`).
     """
 
-    if plot_in_top_right:
-        inset_axes_object = figure_object.add_axes([0.625, 0.3, 0.25, 0.25])
-    else:
-        inset_axes_object = figure_object.add_axes([0.625, 0.55, 0.25, 0.25])
+    inset_axes_object = figure_object.add_axes([0.25, 0.55, 0.25, 0.25])
+
+    # if plot_in_top_right:
+    #     inset_axes_object = figure_object.add_axes([0.625, 0.3, 0.25, 0.25])
+    # else:
+    #     inset_axes_object = figure_object.add_axes([0.625, 0.55, 0.25, 0.25])
 
     target_handle = inset_axes_object.plot(
         bin_centers, bin_mean_target_values, color=MEAN_TARGET_LINE_COLOUR,
