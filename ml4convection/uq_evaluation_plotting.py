@@ -302,7 +302,8 @@ def plot_spread_vs_skill(
         result_dict[uq_evaluation.MEAN_CENTRAL_PREDICTIONS_KEY],
         bin_mean_target_values=
         result_dict[uq_evaluation.MEAN_TARGET_VALUES_KEY],
-        plot_in_top_right=numpy.mean(overspread_flags) < 0.5
+        # plot_in_top_right=numpy.mean(overspread_flags) < 0.5,
+        plot_in_top_right=False
     )
 
     inset_axes_object.set_xticks(axes_object.get_xticks())
