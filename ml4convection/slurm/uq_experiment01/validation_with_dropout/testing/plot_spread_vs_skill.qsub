@@ -32,3 +32,10 @@ set output_file_name="${MODEL_DIR_NAME}/testing_with_dropout/partial_grids/evalu
 python3 -u "${CODE_DIR_NAME}/plot_spread_vs_skill.py" \
 --input_file_name="${input_file_name}" \
 --output_file_name="${output_file_name}"
+
+set input_file_name="${MODEL_DIR_NAME}/testing_with_dropout/partial_grids/evaluation/spread_vs_skill_matching-distance-px=4.000000.nc"
+set output_file_name="${MODEL_DIR_NAME}/testing_with_dropout/partial_grids/evaluation/spread_vs_skill_matching-distance-px=4.000000.jpg"
+
+python3 -u "${CODE_DIR_NAME}/plot_spread_vs_skill.py" \
+--input_file_name="${input_file_name}" \
+--output_file_name="${output_file_name}"
