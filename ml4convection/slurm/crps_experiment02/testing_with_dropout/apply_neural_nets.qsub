@@ -1,0 +1,48 @@
+#!/bin/tcsh
+
+#SBATCH --job-name="apply_neural_nets"
+#SBATCH --partition="fge"
+#SBATCH --account="rda-ghpcs"
+#SBATCH --qos="batch"
+#SBATCH --ntasks=1
+#SBATCH --nodes=1
+#SBATCH --cpus-per-task=1
+##SBATCH --nodes=1
+##SBATCH --ntasks=1
+##SBATCH --cpus-per-task=1
+##SBATCH --ntasks-per-node=1
+#SBATCH --time=30:00:00
+#SBATCH --array=1-36
+#SBATCH --exclude=h28n12
+##SBATCH --exclude=h31n03,h28n12
+##SBATCH --exclude=h29n01,h26n05,h28n06,h29n07,h30n03,h30n15
+#SBATCH --mail-type=BEGIN,END,FAIL
+#SBATCH --mail-user=ryan.lagerquist@noaa.gov
+#SBATCH --output=apply_neural_nets_%A_%a.out
+
+module load cuda/10.1
+source /scratch2/BMC/gsd-hpcs/Jebb.Q.Stewart/conda3.7/etc/profile.d/conda.csh
+conda activate base
+
+set CODE_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_standalone/ml4convection"
+set TOP_MODEL_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_models/crps_experiment02"
+set TOP_PREDICTOR_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_project/predictors/quality_controlled/partial_grids"
+set TOP_TARGET_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_project/targets/new_echo_classification/no_tracking/omit_north_radar/partial_grids"
+
+set loss_function_name="fss-plus-pixelwise-crps_neigh4_weight1.0000000000_crps-weight31.6227766017"
+
+set model_dir_name="${TOP_MODEL_DIR_NAME}/${loss_function_name}"
+set model_file_name="${model_dir_name}/model.h5"
+set prediction_dir_name="${model_dir_name}/testing/partial_grids"
+
+set TESTING_DATE_STRINGS=("20180101" "20180111" "20180121" "20180131" "20180210" "20180220" "20180302" "20180312" "20180322" "20180401" "20180411" "20180421" "20180501" "20180511" "20180521" "20180531" "20180610" "20180620" "20180630" "20180710" "20180720" "20180730" "20180809" "20180819" "20180829" "20180908" "20180918" "20180928" "20181008" "20181018" "20181028" "20181107" "20181117" "20181127" "20181207" "20181217")
+set testing_date_string=${TESTING_DATE_STRINGS[$SLURM_ARRAY_TASK_ID]}
+
+python3 -u "${CODE_DIR_NAME}/apply_neural_net.py" \
+--input_model_file_name="${model_file_name}" \
+--input_predictor_dir_name="${TOP_PREDICTOR_DIR_NAME}" \
+--input_target_dir_name="${TOP_TARGET_DIR_NAME}" \
+--apply_to_full_grids=0 \
+--first_valid_date_string="${testing_date_string}" \
+--last_valid_date_string="${testing_date_string}" \
+--output_dir_name="${prediction_dir_name}"
