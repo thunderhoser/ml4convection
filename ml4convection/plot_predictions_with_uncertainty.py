@@ -383,7 +383,8 @@ def _plot_predictions_one_time(
     )
 
     axes_object.set_title(
-        'Stdev of convection probability', fontsize=TITLE_FONT_SIZE
+        'Standard deviation of\nconvection probability',
+        fontsize=TITLE_FONT_SIZE
     )
     gg_plotting_utils.label_axes(axes_object=axes_object, label_string='(b)')
 
@@ -456,7 +457,7 @@ def _plot_predictions_one_time(
             colour_norm_object=colour_norm_object
         )
 
-        title_string = '{0:.1f}th percentile of convection prob'.format(
+        title_string = '{0:.1f}th percentile of\nconvection probability'.format(
             percentile_levels[k]
         )
         axes_object.set_title(title_string, fontsize=TITLE_FONT_SIZE)
@@ -603,8 +604,10 @@ def _plot_predictions_one_time(
     imagemagick_utils.concatenate_images(
         input_file_names=panel_file_names,
         output_file_name=concat_figure_file_name,
-        num_panel_rows=num_panel_rows,
-        num_panel_columns=num_panel_columns
+        # num_panel_rows=num_panel_rows,
+        # num_panel_columns=num_panel_columns
+        num_panel_rows=1,
+        num_panel_columns=num_panels
     )
     imagemagick_utils.resize_image(
         input_file_name=concat_figure_file_name,
