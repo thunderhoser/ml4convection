@@ -1,6 +1,6 @@
 #!/bin/tcsh
 
-#SBATCH --job-name="run_discard_test_fancy_stdev"
+#SBATCH --job-name="run_discard_test"
 #SBATCH --partition="fge"
 #SBATCH --account="rda-ghpcs"
 #SBATCH --qos="batch"
@@ -11,31 +11,36 @@
 ##SBATCH --ntasks=1
 ##SBATCH --cpus-per-task=1
 ##SBATCH --ntasks-per-node=1
-#SBATCH --time=12:00:00
+#SBATCH --time=30:00:00
+#SBATCH --array=1
 #SBATCH --exclude=h28n12
 ##SBATCH --exclude=h31n03,h28n12
 ##SBATCH --exclude=h29n01,h26n05,h28n06,h29n07,h30n03,h30n15
 #SBATCH --mail-type=BEGIN,END,FAIL
 #SBATCH --mail-user=ryan.lagerquist@noaa.gov
-#SBATCH --output=run_discard_test_fancy_stdev_%A.out
+#SBATCH --output=run_discard_test_%A_%a.out
 
 module load cuda/10.1
 source /scratch2/BMC/gsd-hpcs/Jebb.Q.Stewart/conda3.7/etc/profile.d/conda.csh
 conda activate base
 
 set CODE_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_standalone/ml4convection"
-set MODEL_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_models/qfss_experiment01/fss-weight=06.0_num-quantile-levels=017"
+set TOP_MODEL_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_models/crps_experiment02"
 
-set prediction_dir_name="${MODEL_DIR_NAME}/testing_with_uq/partial_grids"
+set LOSS_FUNCTION_NAMES=("fss-plus-pixelwise-crps_neigh4_weight1.0000000000_crps-weight31.6227766017")
+set loss_function_name=${LOSS_FUNCTION_NAMES[$SLURM_ARRAY_TASK_ID]}
+
+set model_dir_name="${TOP_MODEL_DIR_NAME}/${loss_function_name}"
+set prediction_dir_name="${model_dir_name}/testing/partial_grids"
 
 python3 -u "${CODE_DIR_NAME}/run_discard_test.py" \
 --input_prediction_dir_name="${prediction_dir_name}" \
---first_date_string="20180101" \
---last_date_string="20181231" \
---time_interval_steps=1 \
+--first_date_string="20170101" \
+--last_date_string="20171224" \
+--time_interval_steps=15 \
 --use_fss=0 \
 --is_error_pos_oriented=0 \
 --matching_distances_px 0 4 \
 --discard_fractions 0.05 0.10 0.15 0.20 0.25 0.30 0.35 0.40 0.45 0.50 0.55 0.60 0.65 0.70 0.75 0.80 0.85 0.90 0.95 \
---use_fancy_quantile_method_for_stdev=1 \
---output_dir_name="${prediction_dir_name}/evaluation_fancy_stdev"
+--use_fancy_quantile_method_for_stdev=0 \
+--output_dir_name="${prediction_dir_name}/evaluation"

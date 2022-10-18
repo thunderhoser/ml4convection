@@ -1,6 +1,6 @@
 #!/bin/tcsh
 
-#SBATCH --job-name="plot_discard_test_fancy_stdev"
+#SBATCH --job-name="plot_discard_test"
 #SBATCH --partition="fge"
 #SBATCH --account="rda-ghpcs"
 #SBATCH --qos="batch"
@@ -12,29 +12,34 @@
 ##SBATCH --cpus-per-task=1
 ##SBATCH --ntasks-per-node=1
 #SBATCH --time=01:00:00
+#SBATCH --array=1
 #SBATCH --exclude=h28n12
 ##SBATCH --exclude=h31n03,h28n12
 ##SBATCH --exclude=h29n01,h26n05,h28n06,h29n07,h30n03,h30n15
 #SBATCH --mail-type=BEGIN,END,FAIL
 #SBATCH --mail-user=ryan.lagerquist@noaa.gov
-#SBATCH --output=plot_discard_test_fancy_stdev_%A.out
+#SBATCH --output=plot_discard_test_%A_%a.out
 
 module load cuda/10.1
 source /scratch2/BMC/gsd-hpcs/Jebb.Q.Stewart/conda3.7/etc/profile.d/conda.csh
 conda activate base
 
 set CODE_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_standalone/ml4convection"
-set MODEL_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_models/qfss_experiment01/fss-weight=06.0_num-quantile-levels=017"
+set TOP_MODEL_DIR_NAME="/scratch1/RDARCH/rda-ghpcs/Ryan.Lagerquist/ml4convection_models/crps_experiment02"
 
-set input_file_name="${MODEL_DIR_NAME}/testing_with_uq/partial_grids/evaluation_fancy_stdev/discard_test_matching-distance-px=0.000000.nc"
-set output_file_name="${MODEL_DIR_NAME}/testing_with_uq/partial_grids/evaluation_fancy_stdev/discard_test_matching-distance-px=0.000000.jpg"
+set LOSS_FUNCTION_NAMES=("fss-plus-pixelwise-crps_neigh4_weight1.0000000000_crps-weight31.6227766017")
+set loss_function_name=${LOSS_FUNCTION_NAMES[$SLURM_ARRAY_TASK_ID]}
+
+set model_dir_name="${TOP_MODEL_DIR_NAME}/${loss_function_name}"
+set input_file_name="${model_dir_name}/testing/partial_grids/evaluation/discard_test_matching-distance-px=0.000000.nc"
+set output_file_name="${model_dir_name}/testing/partial_grids/evaluation/discard_test_matching-distance-px=0.000000.jpg"
 
 python3 -u "${CODE_DIR_NAME}/plot_discard_test.py" \
 --input_file_name="${input_file_name}" \
 --output_file_name="${output_file_name}"
 
-set input_file_name="${MODEL_DIR_NAME}/testing_with_uq/partial_grids/evaluation_fancy_stdev/discard_test_matching-distance-px=4.000000.nc"
-set output_file_name="${MODEL_DIR_NAME}/testing_with_uq/partial_grids/evaluation_fancy_stdev/discard_test_matching-distance-px=4.000000.jpg"
+set input_file_name="${model_dir_name}/testing/partial_grids/evaluation/discard_test_matching-distance-px=4.000000.nc"
+set output_file_name="${model_dir_name}/testing/partial_grids/evaluation/discard_test_matching-distance-px=4.000000.jpg"
 
 python3 -u "${CODE_DIR_NAME}/plot_discard_test.py" \
 --input_file_name="${input_file_name}" \
