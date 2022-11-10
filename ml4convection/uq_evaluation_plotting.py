@@ -69,8 +69,6 @@ def _plot_means_as_inset(
         `matplotlib.axes._subplots.AxesSubplot`).
     """
 
-    inset_axes_object = figure_object.add_axes([0.2, 0.55, 0.25, 0.25])
-
     if plotting_corner_string == 'top_right':
         inset_axes_object = figure_object.add_axes([0.625, 0.3, 0.25, 0.25])
     elif plotting_corner_string == 'bottom_right':
