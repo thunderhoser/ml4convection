@@ -70,13 +70,13 @@ def _plot_means_as_inset(
     """
 
     if plotting_corner_string == 'top_right':
-        inset_axes_object = figure_object.add_axes([0.625, 0.3, 0.25, 0.25])
-    elif plotting_corner_string == 'bottom_right':
         inset_axes_object = figure_object.add_axes([0.625, 0.55, 0.25, 0.25])
+    elif plotting_corner_string == 'bottom_right':
+        inset_axes_object = figure_object.add_axes([0.625, 0.3, 0.25, 0.25])
     elif plotting_corner_string == 'bottom_left':
-        inset_axes_object = figure_object.add_axes([0.2, 0.55, 0.25, 0.25])
-    elif plotting_corner_string == 'top_left':
         inset_axes_object = figure_object.add_axes([0.2, 0.3, 0.25, 0.25])
+    elif plotting_corner_string == 'top_left':
+        inset_axes_object = figure_object.add_axes([0.2, 0.55, 0.25, 0.25])
 
     target_handle = inset_axes_object.plot(
         bin_centers, bin_mean_target_values, color=MEAN_TARGET_LINE_COLOUR,
@@ -319,7 +319,7 @@ def plot_spread_vs_skill(
         bin_mean_target_values=
         result_dict[uq_evaluation.MEAN_TARGET_VALUES_KEY],
         plotting_corner_string=plotting_corner_string,
-        y_max=0.65
+        y_max=0.7
     )
 
     inset_axes_object.set_xticks(axes_object.get_xticks())
