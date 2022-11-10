@@ -48,7 +48,7 @@ pyplot.rc('figure', titlesize=FONT_SIZE)
 
 def _plot_means_as_inset(
         figure_object, bin_centers, bin_mean_predictions,
-        bin_mean_target_values, plot_in_top_right):
+        bin_mean_target_values, plotting_corner_string, y_max=None):
     """Plots means (mean prediction and target by bin) as inset in another fig.
 
     B = number of bins
@@ -62,17 +62,23 @@ def _plot_means_as_inset(
     :param bin_mean_target_values: length-B numpy array with mean target value
         (event frequency) in each bin.  These values will be plotted on the
         y-axis.
-    :param plot_in_top_right: Boolean flag.
+    :param plotting_corner_string: String in
+        ['top_right', 'top_left', 'bottom_right', 'bottom_left'].
+    :param y_max: Max value for y-axis.
     :return: inset_axes_object: Axes handle for histogram (instance of
         `matplotlib.axes._subplots.AxesSubplot`).
     """
 
     inset_axes_object = figure_object.add_axes([0.2, 0.55, 0.25, 0.25])
 
-    # if plot_in_top_right:
-    #     inset_axes_object = figure_object.add_axes([0.625, 0.3, 0.25, 0.25])
-    # else:
-    #     inset_axes_object = figure_object.add_axes([0.625, 0.55, 0.25, 0.25])
+    if plotting_corner_string == 'top_right':
+        inset_axes_object = figure_object.add_axes([0.625, 0.3, 0.25, 0.25])
+    elif plotting_corner_string == 'bottom_right':
+        inset_axes_object = figure_object.add_axes([0.625, 0.55, 0.25, 0.25])
+    elif plotting_corner_string == 'bottom_left':
+        inset_axes_object = figure_object.add_axes([0.2, 0.55, 0.25, 0.25])
+    elif plotting_corner_string == 'top_left':
+        inset_axes_object = figure_object.add_axes([0.2, 0.3, 0.25, 0.25])
 
     target_handle = inset_axes_object.plot(
         bin_centers, bin_mean_target_values, color=MEAN_TARGET_LINE_COLOUR,
@@ -90,10 +96,12 @@ def _plot_means_as_inset(
         markeredgecolor=MEAN_PREDICTION_LINE_COLOUR
     )[0]
 
-    y_max = max([
-        numpy.nanmax(bin_mean_predictions),
-        numpy.nanmax(bin_mean_target_values)
-    ])
+    if y_max is None:
+        y_max = max([
+            numpy.nanmax(bin_mean_predictions),
+            numpy.nanmax(bin_mean_target_values)
+        ])
+
     inset_axes_object.set_ylim(0, y_max)
     inset_axes_object.set_xlim(left=0.)
 
@@ -238,10 +246,14 @@ def plot_spread_vs_skill(
         1, 1, figsize=(FIGURE_WIDTH_INCHES, FIGURE_HEIGHT_INCHES)
     )
 
-    max_value_to_plot = max([
-        numpy.nanmax(mean_prediction_stdevs),
-        numpy.nanmax(rmse_values)
-    ])
+    # TODO(thunderhoser): HACK.
+    max_value_to_plot = 0.8
+
+    # max_value_to_plot = max([
+    #     numpy.nanmax(mean_prediction_stdevs),
+    #     numpy.nanmax(rmse_values)
+    # ])
+
     perfect_x_coords = numpy.array([0, max_value_to_plot])
     perfect_y_coords = numpy.array([0, max_value_to_plot])
     axes_object.plot(
@@ -297,15 +309,19 @@ def plot_spread_vs_skill(
     overspread_flags = (
         mean_prediction_stdevs[real_indices] > rmse_values[real_indices]
     )
+    plotting_corner_string = (
+        'top_left' if numpy.mean(overspread_flags) > 0.5 else 'bottom_right'
+    )
 
+    # TODO(thunderhoser): y_max is a HACK.
     inset_axes_object = _plot_means_as_inset(
         figure_object=figure_object, bin_centers=mean_prediction_stdevs,
         bin_mean_predictions=
         result_dict[uq_evaluation.MEAN_CENTRAL_PREDICTIONS_KEY],
         bin_mean_target_values=
         result_dict[uq_evaluation.MEAN_TARGET_VALUES_KEY],
-        # plot_in_top_right=numpy.mean(overspread_flags) < 0.5,
-        plot_in_top_right=False
+        plotting_corner_string=plotting_corner_string,
+        y_max=0.65
     )
 
     inset_axes_object.set_xticks(axes_object.get_xticks())
@@ -354,6 +370,9 @@ def plot_discard_test(
     axes_object.set_ylabel('Performance measure')
     axes_object.set_xlim(left=0.)
 
+    # TODO(thunderhoser): HACK.
+    axes_object.set_ylim(top=0.065)
+
     # histogram_axes_object = _plot_histogram(
     #     axes_object=axes_object,
     #     bin_centers=discard_fractions,
@@ -371,13 +390,15 @@ def plot_discard_test(
     # )
     # inset_axes_object.set_xlabel('Discard fraction', fontsize=INSET_FONT_SIZE)
 
+    # TODO(thunderhoser): y_max is a HACK.
     inset_axes_object = _plot_means_as_inset(
         figure_object=figure_object, bin_centers=discard_fractions,
         bin_mean_predictions=
         result_dict[uq_evaluation.MEAN_CENTRAL_PREDICTIONS_KEY],
         bin_mean_target_values=
         result_dict[uq_evaluation.MEAN_TARGET_VALUES_KEY],
-        plot_in_top_right=True
+        plotting_corner_string='top_right',
+        y_max=0.025
     )
 
     inset_axes_object.set_xticks(axes_object.get_xticks())
