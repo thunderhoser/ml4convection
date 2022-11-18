@@ -193,7 +193,8 @@ def _plot_one_satellite_image(
 
     axes_object.set_title(title_string, fontsize=TITLE_FONT_SIZE)
     gg_plotting_utils.label_axes(
-        axes_object=axes_object, label_string='({0:s})'.format(letter_label)
+        axes_object=axes_object, label_string='({0:s})'.format(letter_label),
+        font_size=80
     )
 
     output_file_name = (
@@ -313,7 +314,8 @@ def _plot_radar_one_time(
 
     axes_object.set_title(title_string, fontsize=TITLE_FONT_SIZE)
     gg_plotting_utils.label_axes(
-        axes_object=axes_object, label_string='({0:s})'.format(letter_label)
+        axes_object=axes_object, label_string='({0:s})'.format(letter_label),
+        font_size=80
     )
 
     output_file_name = '{0:s}/{1:s}_{2:s}.jpg'.format(
@@ -406,7 +408,8 @@ def _plot_convection_mask_one_time(
         fontsize=TITLE_FONT_SIZE
     )
     gg_plotting_utils.label_axes(
-        axes_object=axes_object, label_string='({0:s})'.format(letter_label)
+        axes_object=axes_object, label_string='({0:s})'.format(letter_label),
+        font_size=80
     )
     output_file_name = '{0:s}/convection_mask_{1:s}.jpg'.format(
         output_dir_name, valid_time_string
