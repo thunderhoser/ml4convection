@@ -100,13 +100,13 @@ def _get_squared_errors(prediction_dict, half_window_size_px, use_median):
     return squared_error_matrix
 
 
-def _get_crps_monte_carlo(prediction_dict):
+def _get_crps_monte_carlo(prediction_dict, eval_mask_matrix):
     """Computes CRPS for model with Monte Carlo dropout.
 
     CRPS = continuous ranked probability score
 
-    :param prediction_dict: Dictionary in format returned by
-        `prediction_io.read_file`.
+    :param prediction_dict: See documentation for `get_crps`.
+    :param eval_mask_matrix: Same.
     :return: crps_value: CRPS (scalar).
     """
 
@@ -141,8 +141,14 @@ def _get_crps_monte_carlo(prediction_dict):
             y=(cdf_matrix + (this_target_matrix - 1)) ** 2,
             x=PROB_LEVELS_TO_INTEG_NOT_QR, axis=-1
         )
-        crps_numerator += numpy.sum(integrated_cdf_matrix)
-        crps_denominator += integrated_cdf_matrix.size
+
+        this_mask_matrix = numpy.expand_dims(eval_mask_matrix, axis=0)
+        this_mask_matrix = numpy.repeat(
+            this_mask_matrix, axis=0, repeats=this_target_matrix.shape[0]
+        )
+
+        crps_numerator += numpy.sum(integrated_cdf_matrix[this_mask_matrix])
+        crps_denominator += numpy.sum(this_mask_matrix)
 
     print('Have computed CRPS for all {0:d} examples!'.format(num_examples))
 
@@ -150,11 +156,12 @@ def _get_crps_monte_carlo(prediction_dict):
 
 
 def _get_crps_quantile_regression_1batch(
-        prediction_dict, first_example_index, last_example_index):
+        prediction_dict, eval_mask_matrix, first_example_index,
+        last_example_index):
     """Computes CRPS for quantile-regression model on one batch of examples.
 
-    :param prediction_dict: Dictionary in format returned by
-        `prediction_io.read_file`.
+    :param prediction_dict: See documentation for `get_crps`.
+    :param eval_mask_matrix: Same.
     :param first_example_index: Array index of first example in batch.
     :param last_example_index: Array index of last example in batch.
     :return: crps_numerator: Numerator of CRPS.
@@ -200,16 +207,23 @@ def _get_crps_quantile_regression_1batch(
         x=PROB_LEVELS_TO_INTEG_FOR_QR, axis=-1
     )
 
-    return numpy.sum(integrated_cdf_matrix), integrated_cdf_matrix.size
+    this_mask_matrix = numpy.expand_dims(eval_mask_matrix, axis=0)
+    this_mask_matrix = numpy.repeat(
+        this_mask_matrix, axis=0, repeats=target_matrix.shape[0]
+    )
+
+    crps_numerator = numpy.sum(integrated_cdf_matrix[this_mask_matrix])
+    crps_denominator = numpy.sum(this_mask_matrix)
+    return crps_numerator, crps_denominator
 
 
-def _get_crps_quantile_regression(prediction_dict):
+def _get_crps_quantile_regression(prediction_dict, eval_mask_matrix):
     """Computes CRPS for model with quantile regression.
 
     CRPS = continuous ranked probability score
 
-    :param prediction_dict: Dictionary in format returned by
-        `prediction_io.read_file`.
+    :param prediction_dict: See documentation for `get_crps`.
+    :param eval_mask_matrix: Same.
     :return: crps_value: CRPS (scalar).
     """
 
@@ -223,7 +237,9 @@ def _get_crps_quantile_regression(prediction_dict):
         ))
 
         this_numerator, this_denominator = _get_crps_quantile_regression_1batch(
-            prediction_dict=prediction_dict, first_example_index=i,
+            prediction_dict=prediction_dict,
+            eval_mask_matrix=eval_mask_matrix,
+            first_example_index=i,
             last_example_index=min([i + NUM_EXAMPLES_PER_BATCH, num_examples])
         )
 
@@ -401,18 +417,36 @@ def get_stdev_uncertainty_function(use_fancy_quantile_method):
     return uncertainty_function
 
 
-def get_crps(prediction_dict):
+def get_crps(prediction_dict, eval_mask_matrix):
     """Computes continuous ranked probability score (CRPS).
+
+    M = number of rows in grid
+    N = number of columns in grid
 
     :param prediction_dict: Dictionary in format returned by
         `prediction_io.read_file`.
+    :param eval_mask_matrix: E-by-M-by-N numpy array of Boolean values,
+        indicating which grid points should be used for evaluation.
     :return: crps_value: CRPS (scalar).
     """
 
-    if prediction_dict[prediction_io.QUANTILE_LEVELS_KEY] is None:
-        return _get_crps_monte_carlo(prediction_dict)
+    expected_dim = numpy.array(
+        prediction_dict[prediction_io.PROBABILITY_MATRIX_KEY].shape[1:3],
+        dtype=int
+    )
+    error_checking.assert_is_boolean_numpy_array(eval_mask_matrix)
+    error_checking.assert_is_numpy_array(
+        eval_mask_matrix, exact_dimensions=expected_dim
+    )
 
-    return _get_crps_quantile_regression(prediction_dict)
+    if prediction_dict[prediction_io.QUANTILE_LEVELS_KEY] is None:
+        return _get_crps_monte_carlo(
+            prediction_dict=prediction_dict, eval_mask_matrix=eval_mask_matrix
+        )
+
+    return _get_crps_quantile_regression(
+        prediction_dict=prediction_dict, eval_mask_matrix=eval_mask_matrix
+    )
 
 
 def run_discard_test(
@@ -703,11 +737,11 @@ def get_spread_vs_skill(
     )
 
     overall_mean_prediction_stdev = numpy.average(
-        numpy.nan_to_num(mean_prediction_stdevs, copy=False, nan=0.0),
+        numpy.nan_to_num(mean_prediction_stdevs, copy=True, nan=0.0),
         weights=example_counts
     )
     overall_rmse = numpy.average(
-        numpy.nan_to_num(rmse_values, copy=False, nan=0.0),
+        numpy.nan_to_num(rmse_values, copy=True, nan=0.0),
         weights=example_counts
     )
     overall_spread_skill_ratio = overall_mean_prediction_stdev / overall_rmse

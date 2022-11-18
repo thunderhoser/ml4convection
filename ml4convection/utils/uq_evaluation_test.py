@@ -367,8 +367,16 @@ class UqEvaluationTests(unittest.TestCase):
     def test_get_crps_monte_carlo(self):
         """Ensures correct output from _get_crps_monte_carlo."""
 
+        this_mask_matrix = numpy.full(
+            shape=PREDICTION_DICT_MONTE_CARLO[
+                prediction_io.PROBABILITY_MATRIX_KEY
+            ].shape[1:3],
+            fill_value=1, dtype=bool
+        )
+
         this_crps_value = uq_evaluation._get_crps_monte_carlo(
-            PREDICTION_DICT_MONTE_CARLO
+            prediction_dict=PREDICTION_DICT_MONTE_CARLO,
+            eval_mask_matrix=this_mask_matrix
         )
 
         self.assertTrue(numpy.isclose(
@@ -378,8 +386,16 @@ class UqEvaluationTests(unittest.TestCase):
     def test_get_crps_quantile_regression(self):
         """Ensures correct output from _get_crps_quantile_regression."""
 
+        this_mask_matrix = numpy.full(
+            shape=PREDICTION_DICT_QUANTILE_REGRESSION[
+                prediction_io.PROBABILITY_MATRIX_KEY
+            ].shape[1:3],
+            fill_value=1, dtype=bool
+        )
+
         this_crps_value = uq_evaluation._get_crps_quantile_regression(
-            PREDICTION_DICT_QUANTILE_REGRESSION
+            prediction_dict=PREDICTION_DICT_QUANTILE_REGRESSION,
+            eval_mask_matrix=this_mask_matrix
         )
 
         self.assertTrue(numpy.isclose(
