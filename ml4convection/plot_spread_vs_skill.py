@@ -66,8 +66,10 @@ def _run(input_file_name, output_file_name):
     axes_object.set_xlabel('Spread (stdev of predictive distribution)')
 
     title_string = (
-        'Spread-skill plot (SSREL = {0:.2g};\nSSRAT = {1:.2g}; CRPS = {2:s})'
+        'Spread-skill plot for {0:s}\n(SSREL = {1:.2g}; SSRAT = {2:.2g}; '
+        'CRPS = {3:s})'
     ).format(
+        'QR' if 'qfss' in input_file_name else 'MC dropout',
         result_dict[uq_evaluation.SPREAD_SKILL_RELIABILITY_KEY],
         result_dict[uq_evaluation.OVERALL_SPREAD_SKILL_RATIO_KEY],
         '0.034' if 'qfss' in input_file_name else '0.020'
