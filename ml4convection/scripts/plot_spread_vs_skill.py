@@ -60,9 +60,11 @@ def _run(input_file_name, output_file_name):
     half_window_size_px = int(numpy.round(
         result_dict[uq_evaluation.HALF_WINDOW_SIZE_KEY]
     ))
-    title_string = 'Spread-skill plot (SSREL = {1:.2g})'.format(
-        2 * half_window_size_px + 1,
-        result_dict[uq_evaluation.SPREAD_SKILL_QUALITY_SCORE_KEY]
+    title_string = (
+        'Spread-skill plot\n(SSREL = {0:.2g}; SSRAT = {1:.2g})'
+    ).format(
+        result_dict[uq_evaluation.SPREAD_SKILL_RELIABILITY_KEY],
+        result_dict[uq_evaluation.OVERALL_SPREAD_SKILL_RATIO_KEY]
     )
     print(title_string)
     axes_object.set_title(title_string)

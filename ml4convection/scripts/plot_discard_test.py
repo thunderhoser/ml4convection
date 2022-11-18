@@ -56,8 +56,9 @@ def _run(input_file_name, output_file_name):
     )
     axes_object.set_ylabel('Model performance ({0:s})'.format(this_string))
 
-    title_string = 'Discard test (MF = {0:.2f}%)'.format(
-        100 * result_dict[uq_evaluation.MONOTONICITY_FRACTION_KEY]
+    title_string = 'Discard test\n(MF = {0:.2f}%; DI = {1:.2g})'.format(
+        100 * result_dict[uq_evaluation.MONOTONICITY_FRACTION_KEY],
+        result_dict[uq_evaluation.DISCARD_IMPROVEMENT_KEY]
     )
     print(title_string)
     axes_object.set_title(title_string)
