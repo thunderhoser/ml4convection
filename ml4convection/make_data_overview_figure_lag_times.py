@@ -379,7 +379,8 @@ def _plot_convection_mask_one_time(
         prediction_io.TARGET_MATRIX_KEY:
             numpy.full((1,) + target_matrix.shape, 0, dtype=int),
         prediction_io.LATITUDES_KEY: latitudes_deg_n,
-        prediction_io.LONGITUDES_KEY: longitudes_deg_e
+        prediction_io.LONGITUDES_KEY: longitudes_deg_e,
+        prediction_io.QUANTILE_LEVELS_KEY: None
     }
 
     figure_object, axes_object = plot_predictions._plot_predictions_one_example(
