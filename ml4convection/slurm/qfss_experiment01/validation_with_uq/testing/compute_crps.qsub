@@ -30,6 +30,6 @@ set prediction_dir_name="${MODEL_DIR_NAME}/testing_with_uq/partial_grids"
 
 python3 -u "${CODE_DIR_NAME}/compute_crps.py" \
 --input_prediction_dir_name="${prediction_dir_name}" \
---first_date_string="20180603" \
---last_date_string="20180604" \
+--first_date_string="20180101" \
+--last_date_string="20181231" \
 --time_interval_steps=4
