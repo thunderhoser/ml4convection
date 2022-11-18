@@ -65,15 +65,14 @@ def _run(input_file_name, output_file_name):
 
     axes_object.set_xlabel('Spread (stdev of predictive distribution)')
 
-    half_window_size_px = int(numpy.round(
-        result_dict[uq_evaluation.HALF_WINDOW_SIZE_KEY]
-    ))
     title_string = (
-        'Spread-skill plot\n(SSREL = {0:.2g}; SSRAT = {1:.2g})'
+        'Spread-skill plot (SSREL = {0:.2g};\nSSRAT = {1:.2g}; CRPS = {2:s})'
     ).format(
         result_dict[uq_evaluation.SPREAD_SKILL_RELIABILITY_KEY],
-        result_dict[uq_evaluation.OVERALL_SPREAD_SKILL_RATIO_KEY]
+        result_dict[uq_evaluation.OVERALL_SPREAD_SKILL_RATIO_KEY],
+        '0.034' if 'qfss' in input_file_name else '0.020'
     )
+
     print(title_string)
     axes_object.set_title(title_string)
 

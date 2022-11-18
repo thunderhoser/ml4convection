@@ -64,10 +64,14 @@ def _run(input_file_name, output_file_name):
     )
     axes_object.set_ylabel('Model performance ({0:s})'.format(this_string))
 
-    title_string = 'Discard test\n(MF = {0:.2f}%; DI = {1:.2g})'.format(
+    title_string = (
+        'Discard test (MF = {0:.2f}%;\nDI = {1:.2g}; CRPS = {2:s})'
+    ).format(
         100 * result_dict[uq_evaluation.MONOTONICITY_FRACTION_KEY],
-        result_dict[uq_evaluation.DISCARD_IMPROVEMENT_KEY]
+        result_dict[uq_evaluation.DISCARD_IMPROVEMENT_KEY],
+        '0.034' if 'qfss' in input_file_name else '0.020'
     )
+
     print(title_string)
     axes_object.set_title(title_string)
 
