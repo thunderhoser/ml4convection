@@ -2,8 +2,6 @@
 
 ml4convection is an end-to-end package that uses U-nets, a type of machine learning, to predict the spatial coverage of thunderstorms (henceforth, "convection") from satellite data.  Inputs to the U-net are a time series of multispectral brightness-temperature maps from the Himawari-8 satellite.  Available spectral bands are band 8 (central wavelength of 6.25 μm), 9 (6.95 μm), 10 (7.35 μm), 11 (8.60 μm), 13 (10.45 μm), 14 (11.20 μm), and 16 (13.30 μm).  Labels are created by applying an echo-classification algorithm to reflectivity maps from four weather radars in Taiwan.  The echo-classification algorithm is a modified version of Storm-labeling in 3 Dimensions (SL3D); you can read about the original version [here](https://doi.org/10.1175/MWR-D-16-0089.1) and all except one of the modifications [here](https://doi.org/10.1175/MWR-D-19-0372.1).  A journal article on this has been published in *Monthly Weather Review*, titled "Using deep learning to nowcast the spatial coverage of convection from Himawari-8 satellite data".  You can find it [here](https://doi.org/10.1175/MWR-D-21-0096.1).
 
-**Detailed documentation (each file and method) can be found [here](https://ml4convection.readthedocs.io/en/latest/ml4convection.html).**
-
 Documentation for important scripts, which you can run from the Unix command line, is provided below.  Please note that this package is not intended for Windows and I provide no support for Windows.  Also, though I have included many unit tests (every file ending in `_test.py`), I provide no guarantee that the code is free of bugs.  If you choose to use this package, you do so at your own risk.
 
 # Pre-processing
@@ -37,7 +35,79 @@ More details on the input arguments are provided below.
  - `allow_missing_days` is a Boolean flag (0 for False, 1 for True).  This determines what happens if any date in the time period is missing (*i.e.*, the raw data cannot be found in `input_satellite_dir_name`).  If `allow_missing_days == 1`, the script `process_satellite_data.py` will just process the dates it finds and ignore the dates it can't find.  But if `allow_missing_days == 0` and there is a missing date, the script will throw an error and stop.
  - `output_satellite_dir_name` is a string, pointing the directory where you want processed NetCDF files.  Files will be written to this directory by `satellite_io.write_file`, to specific locations determined by `satellite_io.find_file`.  The files will be named like `[output_satellite_dir_name]/[yyyy]/satellite_[yyyymmdd].nc`, so one NetCDF file per date.
 
-After this basic processing, you should quality-control (QC) the satellite data as well.  For more on QC (the specific methodology and why it is needed), see Section 2b of 
+After this basic processing, you should quality-control (QC) the satellite data as well.  For more on QC (the specific methodology and why it is needed), see Section 2b of the paper in *Monthly Weather Review*, [here](https://doi.org/10.1175/MWR-D-21-0096.1).  You will use the script `qc_satellite_data.py` in the directory `ml4convection/scripts`.  Below is an example of how you would call `qc_satellite_data.py` from a Unix terminal.  Please do not change the arguments `half_window_size_px`, `min_temperature_diff_kelvins`, `min_region_size_px`.  The values given below correspond to those in the MWR paper.
+
+```
+python qc_satellite_data.py \
+    --input_satellite_dir_name="your directory name here" \
+    --first_date_string="20160101" \
+    --last_date_string="20160131" \
+    --half_window_size_px=2 \
+    --min_temperature_diff_kelvins=1 \
+    --min_region_size_px=1000 \
+    --output_satellite_dir_name="your directory name here"
+```
+
+More details on the input arguments are provided below.
+
+ - `input_satellite_dir_name` is a string, pointing to the directory with non-quality-controlled files.  This could be the output directory from `process_satellite_data.py`.  Either way, files in `input_satellite_dir_name` should be named like `[output_satellite_dir_name]/[yyyy]/satellite_[yyyymmdd].nc`, so one NetCDF file per date.
+ - `first_date_string` is a string (format `yyyymmdd`) containing the first date in the period you want to process.
+ - `last_date_string` is a string (format `yyyymmdd`) containing the last date in the period you want to process.
+ - `output_satellite_dir_name` is a string, pointing the directory where you want processed NetCDF files.  Files will be written to this directory by `satellite_io.write_file`, to specific locations determined by `satellite_io.find_file`.  The files will be named like `[output_satellite_dir_name]/[yyyy]/satellite_[yyyymmdd].nc`, so one NetCDF file per date.
+
+## 2. Processing radar data
+
+**IMPORTANT**: There are only two situations in which you will need radar data, which are used to create the labels (*i.e.*, correct convection masks) and are *not* used to create the predictors (satellite images).  These situations are:
+ - You want to train your own model.
+ - You want to run one of my pre-trained models in inference mode (*i.e.*, to make predictions for new satellite data; this does not require labels), but you also want to evaluate the new predictions (this does require labels, because evaluation requires correct answers to compare with the predictions).
+
+You will use the script `process_radar_data.py` in the directory `ml4convection/scripts`.  Below is an example of how you would call `process_radar_data.py` from a Unix terminal.
+
+```
+python process_radar_data.py \
+    --input_radar_dir_name="your directory name here" \
+    --first_date_string="20160101" \
+    --last_date_string="20160131" \
+    --allow_missing_days=1 \
+    --output_radar_dir_name="your directory name here"
+```
+
+More details on the input arguments are provided below.
+
+ - `input_radar_dir_name` is a string, pointing to the directory with raw files (from Taiwan CWB).  Files therein will be found by `twb_radar_io.find_file` and read by `twb_radar_io.read_file`, where `twb_radar_io.py` is in the directory `ml4convection/io`.  `twb_radar_io.find_file` will only look for files named like `[input_radar_dir_name]/[yyyymmdd]/MREF3D21L.[yyyymmdd].[HHMM].gz`.  An example of a good file name, assuming the top-level directory is `foo`, is `foo/20160105/MREF3D21L.20160105.1010.gz`.
+ - `first_date_string` is a string (format `yyyymmdd`) containing the first date in the period you want to process.
+ - `last_date_string` is a string (format `yyyymmdd`) containing the last date in the period you want to process.
+ - `allow_missing_days` is a Boolean flag (0 for False, 1 for True).  This determines what happens if any date in the time period is missing (*i.e.*, the raw data cannot be found in `input_radar_dir_name`).  If `allow_missing_days == 1`, the script `process_radar_data.py` will just process the dates it finds and ignore the dates it can't find.  But if `allow_missing_days == 0` and there is a missing date, the script will throw an error and stop.
+ - `output_radar_dir_name` is a string, pointing the directory where you want processed NetCDF files.  Files will be written to this directory by `radar_io.write_file`, to specific locations determined by `radar_io.find_file`.  The files will be named like `[output_radar_dir_name]/[yyyy]/satellite_[yyyymmdd].nc`, so one NetCDF file per date.
+
+## 3. Computing normalization parameters
+
+Following common practice in machine learning, we train the U-nets with normalized values ($z$-scores) instead of physical values (satellite brightness temperatures).  The normalization is done separately for each Himawari-8 band (channels 8, 9, 10, 11, 13, 14, and 16).  Normalization should always be done *with respect to the training set* -- in other words, when normalizing the validation and testing data, you use the normalization parameters from the training data, rather than recomputing normalization parameters for the validation and testing data.  Recomputing normalization parameters for each new dataset can lead to large model errors, *e.g.*, if the new normalization parameters differ a lot from those in the training data.
+
+**IMPORTANT**: There is only one situation in which you will need to recompute normalization parameters: if you want to train your own model.  If you just want to use my pre-trained models in inference mode, you can use my normalization file, [here](https://drive.google.com/file/d/1v8gCYZDsVC9HOSwSA0cpcB5ayx9dgDDb/view?usp=sharing).
+
+If you need to recompute normalization parameters, use the script `get_normalization_params.py` in the directory `ml4convection/scripts`.  Below is an example of how you would call `get_normalization_params.py` from a Unix terminal.
+
+```
+python get_normalization_params.py \
+    --input_satellite_dir_name="your directory name here" \
+    --first_date_string="20160101" \
+    --last_date_string="20161224" \
+    --num_values_per_band=200000 \
+    --output_file_name="your file name here"
+```
+
+More details on the input arguments are provided below.
+
+ - `input_satellite_dir_name` is a string, pointing to the directory with processed (and better yet, quality-controlled) satellite files.  This could be the output directory from `process_satellite_data.py` or `qc_satellite_data.py`.  Either way, files in `input_satellite_dir_name` should be named like `[output_satellite_dir_name]/[yyyy]/satellite_[yyyymmdd].nc`, so one NetCDF file per date.
+ - `first_date_string` is a string (format `yyyymmdd`) containing the first date in the training dataset, which is the only dataset used to compute normalization parameters.  Note that my training set was Jan 1 2016 - Dec 24 2016.
+ - `last_date_string` is a string (format `yyyymmdd`) containing the last date in the training dataset.
+ - `num_values_per_band` is the number of sample values, per Himawari-8 channel, used to compute normalization parameters.  I recommend leaving this at 200 000.
+ - `output_file_name` is a string, pointing to where you want the output file.  This file (containing normalization parameters) will be in Pickle format.
+
+## 4. Creating predictor files
+
+
 
 # Setting up a U-net
 
