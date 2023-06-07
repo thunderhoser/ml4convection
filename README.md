@@ -6,6 +6,33 @@ ml4convection is an end-to-end package that uses U-nets, a type of machine learn
 
 Documentation for important scripts, which you can run from the Unix command line, is provided below.  Please note that this package is not intended for Windows and I provide no support for Windows.  Also, though I have included many unit tests (every file ending in `_test.py`), I provide no guarantee that the code is free of bugs.  If you choose to use this package, you do so at your own risk.
 
+# Pre-processing
+
+If you need to pre-process your own data, the steps are as follows:
+ 1. Process satellite data (get raw data into Ryan's NetCDF format).
+ 2. Process radar data (get raw data into Ryan's NetCDF format).
+ 3. Compute normalization parameters (means and standard deviations), which will be used to normalize satellite data while converting satellite data to predictors.
+ 4. Create predictor files (from satellite data).
+ 5. Run echo classification (on radar data, to classify each pixel as convection or not).  Echo classification will be used in creating target files (next step).  The end result is a binary grid (1 for convection, 0 for no-convection) at each time step.
+ 6. Create target files (from radar data).
+
+## 1. Processing satellite data
+
+You will use the script `process_satellite_data.py` in the directory `ml4convection/scripts`.  Below is an example of how you would call `process_satellite_data.py` from a Unix terminal.
+
+```
+python process_satellite_data.py \
+    --input_satellite_dir_name="your directory name here" \
+    --first_date_string="2018-01-01" \
+    --last_date_string="2018-01-31" \
+    --allow_missing_days=1 \
+    --output_satellite_dir_name="your directory name here"
+```
+
+More details on the input arguments are provided below.
+
+ - `input_satellite_dir_name` is a string, pointing to the directory with raw files (from Taiwan CWB).  Files therein will be found by `twb_satellite_io.find_file` and read by `twb_satellite_io.read_file`, where `twb_satellite_io.py` is in the directory `ml4convection/io`.  `twb_satellite_io.find_file` will only look for files named like `[input_satellite_dir_name]/[yyyy-mm]/[yyyy-mm-dd_HHMM].B[nn].GSD.Cnt` or `[input_satellite_dir_name]/[yyyy-mm]/[yyyy-mm-dd_HHMM].B[nn].GDS.Cnt`, where `[yyyy]` is the 4-digit year; `[mm]` is the 2-digit month; `[dd]` is the 2-digit day of month; `[HH]` is the 2-digit hour; `[MM]` is the 2-digit minute; and `[nn]` is the satellite-number.  An example of a good file name, assuming the top-level directory is `foo`, is `foo/2016-01/2016-01-05_1010.B13.GSD.Cnt`.  This file contains data for band 13.
+
 # Setting up a U-net
 
 Before training a U-net (or any model in Keras), you must set up the model.  "Setting up" includes four things: choosing the architecture, choosing the loss function, choosing the metrics (evaluation scores other than the loss function, which, in addition to the loss function, are used to monitor the model's performance after each training epoch), and compiling the model.  For each lead time (0, 30, 60, 90, 120 minutes), I have created a script that sets up the **chosen** U-net (based on the hyperparameter experiment presented in the *Monthly Weather Review* paper).  These scripts, which you can find in the directory `ml4convection/scripts`, are as follows:
