@@ -1,6 +1,6 @@
 # ml4convection
 
-ml4convection is an end-to-end package that uses U-nets, a type of machine learning, to predict the spatial coverage of thunderstorms (henceforth, "convection") from satellite data.  Inputs to the U-net are a time series of multispectral brightness-temperature maps from the Himawari-8 satellite.  Available spectral bands are band 8 (central wavelength of 6.25 μm), 9 (6.95 μm), 10 (7.35 μm), 11 (8.60 μm), 13 (10.45 μm), 14 (11.20 μm), and 16 (13.30 μm).  Labels are created by applying an echo-classification algorithm to reflectivity maps from four weather radars in Taiwan.  The echo-classification algorithm is a modified version of Storm-labeling in 3 Dimensions (SL3D); you can read about the original version [here](https://doi.org/10.1175/MWR-D-16-0089.1) and all except one of the modifications [here](https://doi.org/10.1175/MWR-D-19-0372.1).  Before the end of April 2021, we (Ryan Lagerquist, Jebb Stewart, Imme Ebert-Uphoff, and Christina Kumler) plan to submit a journal article on this work to *Monthly Weather Review*, titled "Using deep learning to nowcast the spatial coverage of convection from Himawari-8 satellite data".  If you would like to see the manuscript before it is accepted for publication, please contact me at ryan dot lagerquist at noaa dot gov.
+ml4convection is an end-to-end package that uses U-nets, a type of machine learning, to predict the spatial coverage of thunderstorms (henceforth, "convection") from satellite data.  Inputs to the U-net are a time series of multispectral brightness-temperature maps from the Himawari-8 satellite.  Available spectral bands are band 8 (central wavelength of 6.25 μm), 9 (6.95 μm), 10 (7.35 μm), 11 (8.60 μm), 13 (10.45 μm), 14 (11.20 μm), and 16 (13.30 μm).  Labels are created by applying an echo-classification algorithm to reflectivity maps from four weather radars in Taiwan.  The echo-classification algorithm is a modified version of Storm-labeling in 3 Dimensions (SL3D); you can read about the original version [here](https://doi.org/10.1175/MWR-D-16-0089.1) and all except one of the modifications [here](https://doi.org/10.1175/MWR-D-19-0372.1).  A journal article on this has been published in *Monthly Weather Review*, titled "Using deep learning to nowcast the spatial coverage of convection from Himawari-8 satellite data".  You can find it [here](https://doi.org/10.1175/MWR-D-21-0096.1).
 
 **Detailed documentation (each file and method) can be found [here](https://ml4convection.readthedocs.io/en/latest/ml4convection.html).**
 
@@ -23,8 +23,8 @@ You will use the script `process_satellite_data.py` in the directory `ml4convect
 ```
 python process_satellite_data.py \
     --input_satellite_dir_name="your directory name here" \
-    --first_date_string="2018-01-01" \
-    --last_date_string="2018-01-31" \
+    --first_date_string="20160101" \
+    --last_date_string="20160131" \
     --allow_missing_days=1 \
     --output_satellite_dir_name="your directory name here"
 ```
@@ -32,6 +32,12 @@ python process_satellite_data.py \
 More details on the input arguments are provided below.
 
  - `input_satellite_dir_name` is a string, pointing to the directory with raw files (from Taiwan CWB).  Files therein will be found by `twb_satellite_io.find_file` and read by `twb_satellite_io.read_file`, where `twb_satellite_io.py` is in the directory `ml4convection/io`.  `twb_satellite_io.find_file` will only look for files named like `[input_satellite_dir_name]/[yyyy-mm]/[yyyy-mm-dd_HHMM].B[nn].GSD.Cnt` or `[input_satellite_dir_name]/[yyyy-mm]/[yyyy-mm-dd_HHMM].B[nn].GDS.Cnt`, where `[yyyy]` is the 4-digit year; `[mm]` is the 2-digit month; `[dd]` is the 2-digit day of month; `[HH]` is the 2-digit hour; `[MM]` is the 2-digit minute; and `[nn]` is the satellite-number.  An example of a good file name, assuming the top-level directory is `foo`, is `foo/2016-01/2016-01-05_1010.B13.GSD.Cnt`.  This file contains data for band 13.
+ - `first_date_string` is a string (format `yyyymmdd`) containing the first date in the period you want to process.
+ - `last_date_string` is a string (format `yyyymmdd`) containing the last date in the period you want to process.
+ - `allow_missing_days` is a Boolean flag (0 for False, 1 for True).  This determines what happens if any date in the time period is missing (*i.e.*, the raw data cannot be found in `input_satellite_dir_name`).  If `allow_missing_days == 1`, the script `process_satellite_data.py` will just process the dates it finds and ignore the dates it can't find.  But if `allow_missing_days == 0` and there is a missing date, the script will throw an error and stop.
+ - `output_satellite_dir_name` is a string, pointing the directory where you want processed NetCDF files.  Files will be written to this directory by `satellite_io.write_file`, to specific locations determined by `satellite_io.find_file`.  The files will be named like `[output_satellite_dir_name]/[yyyy]/satellite_[yyyymmdd].nc`, so one NetCDF file per date.
+
+After this basic processing, you should quality-control (QC) the satellite data as well.  For more on QC (the specific methodology and why it is needed), see Section 2b of 
 
 # Setting up a U-net
 
