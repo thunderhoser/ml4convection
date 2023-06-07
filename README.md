@@ -107,7 +107,87 @@ More details on the input arguments are provided below.
 
 ## 4. Creating predictor files
 
+**IMPORTANT**: There are two formats for predictor files: full-grid and partial-grid.  There is only one situation in which you will need to create partial-grid files: if you want to train your own model.  If you just want to use my pre-trained models in inference mode, you need only full-grid predictor files.
 
+*A little more explanation*: Full-grid predictor files contain satellite data on the full grid, spanning 18-29 $^{\circ}$N and 115-126.5 $^{\circ}$E.  Since the grid spacing is a uniform 0.0125$^{\circ}$, the full grid is 881 rows $\times$ 921 columns, or 881 latitudes $\times$ 921 longitudes.  Partial-grid predictor files contain satellite data on radar-centered patches of the full grid.  These radar-centered patches, which are 205 rows $\times$ 205 columns, are needed only for training.  For a complete explanation (*e.g.*, if you're wondering "how can a model be trained with 205 $\times$ 205 grids but then applied to 881 $\times$ 921 grids at inference time?), see Sections 4a ("Training with patches") and 4b ("Inference with sliding windows") of the MWR paper.
+
+To create predictor files, use the script `create_predictors.py` in the directory `ml4convection/scripts`.  Below is an example of how you would call `create_predictors.py` from a Unix terminal.  Please leave `spatial_downsampling_factor` as 1; this will keep the grid spacing at 0.0125$^{\circ}$.  Also, please leave `half_grid_size_px` as 102; this ensures that, if creating partial-grid files, the partial radar-centered grids will be 205 $\times$ 205 pixels.
+
+```
+python create_predictors.py \
+    --input_satellite_dir_name="your directory name here" \
+    --use_partial_grids=[0 or 1] \
+    --half_grid_size_px=102 \
+    --spatial_downsampling_factor=1 \
+    --first_date_string="20160101" \
+    --last_date_string="20160131" \
+    --input_normalization_file_name="your file name here" \
+    --output_predictor_dir_name="your directory name here"
+```
+
+More details on the input arguments are provided below.
+
+ - `input_satellite_dir_name` is a string, pointing to the directory with processed (and better yet, quality-controlled) satellite files.  This could be the output directory from `process_satellite_data.py` or `qc_satellite_data.py`.  Either way, files in `input_satellite_dir_name` should be named like `[input_satellite_dir_name]/[yyyy]/satellite_[yyyymmdd].nc`, so one NetCDF file per date.
+ - `use_partial_grids` is a Boolean flag.  If 1, the script will create partial-grid predictor files.  If 0, the script will create full-grid predictor files.
+ - `first_date_string` is a string (format `yyyymmdd`) containing the first date in the period you want to process.
+ - `last_date_string` is a string (format `yyyymmdd`) containing the last date in the period you want to process.
+ - `input_normalization_file_name` is a string pointing to the file with normalization parameters (*i.e.*, one created by the script `get_normalization_params`.py, which was discussed above).  This is a Pickle file.
+ - `output_predictor_dir_name` is a string, pointing the directory where you want predictor files.  Files will be written to this directory by `example_io.write_predictor_file`, to specific locations determined by `example_io.find_predictor_file`.  Full-grid files will be named like `[output_predictor_dir_name]/[yyyy]/predictors_[yyyymmdd].nc`, so one NetCDF file per date.  Partial-grid files will be named like `[output_predictor_dir_name]/[yyyy]/predictors_[yyyymmdd]_radar[n].nc` -- where `[n]` is an integer from 0 to 3 -- so one NetCDF file per date per radar.
+
+## 5. Running echo classification
+
+**IMPORTANT**: "Echo classification" is the process of classifiying radar echoes according to type.  Some echo-classification algorithms have many categories (*e.g.*, hail, graupel, snow, ice pellets, convective rain, stratiform rain, anvil, etc.), but our algorithm has only two categories: convective or non-convective.  There are only two situations in which you will need to run echo classification:
+ - You want to train your own model.
+ - You want to run one of my pre-trained models in inference mode, but you also want to evaluate the new predictions, which requires labels (correct answers).
+
+Use the script `run_echo_classification.py` in the directory `ml4convection/scripts`.  Below is an example of how you would call `run_echo_classification.py` from a Unix terminal.  Please do not change the arguments `min_height_fraction_for_peakedness`, `thin_height_grid`, `min_size_pixels`.  The values given below correspond to those in the MWR paper.
+
+```
+python run_echo_classification.py \
+    --input_radar_dir_name="your directory name here" \
+    --first_date_string="20160101" \
+    --last_date_string="20160131" \
+    --min_height_fraction_for_peakedness=0.59 \
+    --thin_height_grid=1 \
+    --min_size_pixels=10 \
+    --output_dir_name="your directory name here"
+```
+
+More details on the input arguments are provided below.
+
+ - `input_radar_dir_name` is a string, pointing to the directory with processed radar files.  This could be the output directory from `process_radar_data.py`.  Either way, files in `input_radar_dir_name` should be named like `[input_radar_dir_name]/[yyyy]/reflectivity_[yyyymmdd].nc`, so one NetCDF file per date.
+ - `first_date_string` is a string (format `yyyymmdd`) containing the first date in the period you want to process.
+ - `last_date_string` is a string (format `yyyymmdd`) containing the last date in the period you want to process.
+ - `output_dir_name` is a string, pointing the directory where you want output files (containing a binary grid at each time step, with 1 for convective pixels and 0 for non-convective pixels).  Files will be written to this directory by `radar_io.write_echo_classifn_file`, to specific locations determined by `radar_io.find_file`.  Files will be named like `[output_dir_name]/[yyyy]/echo_classification_[yyyymmdd].nc`, so one NetCDF file per date.
+
+## 6. Creating target files
+
+**IMPORTANT**: There are only two situations in which you will need to create target files (containing labels, *i.e.*, correct answers):
+ - You want to train your own model.  In this case you will need partial-grid target files.
+ - You want to run one of my pre-trained models in inference mode, but you also want to evaluate the new predictions.  In this case you will need full-grid target files.
+
+To create target files, use the script `create_targets.py` in the directory `ml4convection/scripts`.  Below is an example of how you would call `create_targets.py` from a Unix terminal.  Please leave `spatial_downsampling_factor` as 1; this will keep the grid spacing at 0.0125$^{\circ}$.  Also, please leave `half_grid_size_px` as 102; this ensures that, if creating partial-grid files, the partial radar-centered grids will be 205 $\times$ 205 pixels.
+
+```
+python create_targets.py \
+    --input_echo_classifn_dir_name="your directory name here" \
+    --input_mask_file_name="your file name here" \
+    --use_partial_grids=[0 or 1] \
+    --half_grid_size_px=102 \
+    --spatial_downsampling_factor=1 \
+    --first_date_string="20160101" \
+    --last_date_string="20160131" \
+    --output_target_dir_name="your directory name here"
+```
+
+More details on the input arguments are provided below.
+
+ - `input_echo_classifn_dir_name` is a string, pointing to the directory with processed echo-classification files (containing the binary masks).  This could be the output directory from `run_echo_classification.py`.  Either way, files in `input_echo_classifn_dir_name` should be named like `[input_echo_classifn_dir_name]/[yyyy]/echo_classification_[yyyymmdd].nc`, so one NetCDF file per date.
+ - `input_mask_file_name` is a string, pointing to the file containing the "radar mask".  This is a binary mask over the full grid (881 $\times$ 921 pixels), indicating which pixels are within 100 km of the nearest radar.  Echo classifications will be used only at these pixels.  Subjectively (*i.e.*, by visual inspection), we have deemed that echo classifications are not accurate enough at locations $>$ 100 km from the nearest radar.  Instead of creating your own, you can find the file [here](https://drive.google.com/file/d/1lDsNbsI8_mjzSR58nu3tg6BDyRAiyRZG/view?usp=sharing).
+ - `use_partial_grids` is a Boolean flag.  If 1, the script will create partial-grid target files.  If 0, the script will create full-grid target files.
+ - `first_date_string` is a string (format `yyyymmdd`) containing the first date in the period you want to process.
+ - `last_date_string` is a string (format `yyyymmdd`) containing the last date in the period you want to process.
+ - `output_target_dir_name` is a string, pointing the directory where you want target files.  Files will be written to this directory by `example_io._write_target_file`, to specific locations determined by `example_io.find_target_file`.  Full-grid files will be named like `[output_target_dir_name]/[yyyy]/targets_[yyyymmdd].nc`, so one NetCDF file per date.  Partial-grid files will be named like `[output_target_dir_name]/[yyyy]/targets_[yyyymmdd]_radar[n].nc` -- where `[n]` is an integer from 0 to 3 -- so one NetCDF file per date per radar.
 
 # Setting up a U-net
 
